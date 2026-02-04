@@ -1,0 +1,215 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import db from '@/api/db';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Leaf, Building2, Users, Globe, ArrowRight, Loader2 } from 'lucide-react';
+
+const industries = ['Manufacturing', 'Services', 'Retail', 'Technology', 'Healthcare', 'Other'];
+const companySizes = ['1-10', '11-50', '51-250'];
+const countries = [
+  'Germany', 'France', 'United Kingdom', 'Netherlands', 'Belgium', 'Spain', 'Italy', 
+  'Portugal', 'Austria', 'Switzerland', 'Sweden', 'Denmark', 'Norway', 'Finland',
+  'Poland', 'Czech Republic', 'Ireland', 'United States', 'Canada', 'Australia', 'Other'
+];
+
+export default function CompanySetup() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [checkingUser, setCheckingUser] = useState(true);
+  const [formData, setFormData] = useState({
+    name: '',
+    industry: '',
+    size: '',
+    country: ''
+  });
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    checkExistingCompany();
+  }, []);
+
+  const checkExistingCompany = async () => {
+    try {
+      const user = await db.auth.me();
+      if (user?.company_id) {
+        // User already has a company, redirect to home
+        window.location.href = '/';
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking user:', error);
+    } finally {
+      setCheckingUser(false);
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = 'Company name is required';
+    if (!formData.industry) newErrors.industry = 'Please select an industry';
+    if (!formData.size) newErrors.size = 'Please select company size';
+    if (!formData.country) newErrors.country = 'Please select a country';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    setLoading(true);
+    try {
+      const user = await db.auth.me();
+      
+      // Create company
+      const company = await db.entities.Company.create({
+        ...formData,
+        owner_email: user.email
+      });
+
+      // Update user with company_id
+      await db.auth.updateMe({ company_id: company.id });
+
+      // Use window.location for clean navigation
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error creating company:', error);
+      setErrors({ submit: 'Failed to create company. Please try again.' });
+      setLoading(false);
+    }
+  };
+
+  if (checkingUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#f8faf5] to-[#e8f0e0] flex items-center justify-center">
+        <div className="animate-pulse flex items-center gap-3">
+          <Leaf className="w-8 h-8 text-[#2D5016]" />
+          <span className="text-[#2D5016] font-medium">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#f8faf5] to-[#e8f0e0] flex items-center justify-center p-4">
+      <div className="w-full max-w-lg">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#2D5016] to-[#7CB342] mb-4">
+            <Leaf className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-[#2D5016]">Welcome to ESG Passport</h1>
+          <p className="text-[#2D5016]/70 mt-2">Let's set up your company profile</p>
+        </div>
+
+        {/* Form Card */}
+        <div className="glass-card rounded-2xl p-8 shadow-xl">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Company Name */}
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-[#2D5016] font-medium flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                Company Name
+              </Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Enter your company name"
+                className={`h-12 border-[#2D5016]/20 focus:border-[#7CB342] focus:ring-[#7CB342] ${errors.name ? 'border-red-500' : ''}`}
+              />
+              {errors.name && <p className="text-red-500 text-sm">{errors.name}</p>}
+            </div>
+
+            {/* Industry */}
+            <div className="space-y-2">
+              <Label className="text-[#2D5016] font-medium">Industry</Label>
+              <Select
+                value={formData.industry}
+                onValueChange={(value) => setFormData({ ...formData, industry: value })}
+              >
+                <SelectTrigger className={`h-12 border-[#2D5016]/20 focus:border-[#7CB342] focus:ring-[#7CB342] ${errors.industry ? 'border-red-500' : ''}`}>
+                  <SelectValue placeholder="Select your industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  {industries.map((industry) => (
+                    <SelectItem key={industry} value={industry}>{industry}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.industry && <p className="text-red-500 text-sm">{errors.industry}</p>}
+            </div>
+
+            {/* Company Size */}
+            <div className="space-y-2">
+              <Label className="text-[#2D5016] font-medium flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Company Size
+              </Label>
+              <Select
+                value={formData.size}
+                onValueChange={(value) => setFormData({ ...formData, size: value })}
+              >
+                <SelectTrigger className={`h-12 border-[#2D5016]/20 focus:border-[#7CB342] focus:ring-[#7CB342] ${errors.size ? 'border-red-500' : ''}`}>
+                  <SelectValue placeholder="Select number of employees" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companySizes.map((size) => (
+                    <SelectItem key={size} value={size}>{size} employees</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.size && <p className="text-red-500 text-sm">{errors.size}</p>}
+            </div>
+
+            {/* Country */}
+            <div className="space-y-2">
+              <Label className="text-[#2D5016] font-medium flex items-center gap-2">
+                <Globe className="w-4 h-4" />
+                Country
+              </Label>
+              <Select
+                value={formData.country}
+                onValueChange={(value) => setFormData({ ...formData, country: value })}
+              >
+                <SelectTrigger className={`h-12 border-[#2D5016]/20 focus:border-[#7CB342] focus:ring-[#7CB342] ${errors.country ? 'border-red-500' : ''}`}>
+                  <SelectValue placeholder="Select your country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {countries.map((country) => (
+                    <SelectItem key={country} value={country}>{country}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.country && <p className="text-red-500 text-sm">{errors.country}</p>}
+            </div>
+
+            {errors.submit && (
+              <div className="p-4 bg-red-50 rounded-lg text-red-600 text-sm">
+                {errors.submit}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 bg-gradient-to-r from-[#2D5016] to-[#3d6b1e] hover:from-[#3d6b1e] hover:to-[#4d7b2e] text-white font-medium rounded-xl shadow-lg shadow-[#2D5016]/20 transition-all duration-200"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  Continue to Dashboard
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </>
+              )}
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}

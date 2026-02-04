@@ -1,0 +1,189 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from '../utils';
+import { base44 } from '@/api/base44Client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Plus, 
+  Leaf,
+  Loader2,
+  ListTodo,
+  Calendar,
+  User,
+  Filter,
+  ArrowUpDown,
+  CheckCircle2,
+  Circle,
+  Clock,
+  AlertCircle
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const defaultTasks = {
+  'E1': { task: 'Collect 12 months of energy bills', description: 'Gather electricity, gas, and fuel consumption records for the past year' },
+  'S1': { task: 'Review employee safety policies', description: 'Audit existing safety procedures and identify gaps' },
+  'G1': { task: 'Draft code of conduct document', description: 'Create or update company code of conduct and ethics policy' }
+};
+
+export default function ActionPlan() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [companyId, setCompanyId] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [materialTopics, setMaterialTopics] = useState([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterTopic, setFilterTopic] = useState('all');
+  const [sortBy, setSortBy] = useState('due_date');
+  const [formData, setFormData] = useState({
+    task_name: '',
+    description: '',
+    topic_id: '',
+    assignee_user_id: '',
+    due_date: '',
+    status: 'todo',
+    priority: 'medium'
+  });
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const user = await base44.auth.me();
+      
+      if (!user?.company_id) {
+        navigate(createPageUrl('CompanySetup'));
+        return;
+      }
+
+      setCompanyId(user.company_id);
+      setUserId(user.id);
+
+      // Load material topics
+      const topics = await base44.entities.MaterialTopic.filter({ 
+        company_id: user.company_id,
+        is_material: true
+      });
+      setMaterialTopics(topics);
+
+      // Load tasks
+      const actionItems = await base44.entities.ActionItem.filter({ 
+        company_id: user.company_id 
+      });
+
+      // Auto-create default tasks for RED gap analysis items
+      if (actionItems.length === 0 && topics.length > 0) {
+        const gapAnalyses = await base44.entities.GapAnalysis.filter({ 
+          company_id: user.company_id,
+          rag_status: 'red'
+        });
+
+        const tasksToCreate = [];
+        for (const analysis of gapAnalyses) {
+          const topic = topics.find(t => t.id === analysis.topic_id);
+          if (topic && defaultTasks[topic.topic_code]) {
+            const defaultTask = defaultTasks[topic.topic_code];
+            tasksToCreate.push({
+              company_id: user.company_id,
+              topic_id: topic.id,
+              task_name: defaultTask.task,
+              description: defaultTask.description,
+              assignee_user_id: user.id,
+              status: 'todo',
+              priority: 'high',
+              due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            });
+          }
+        }
+
+        if (tasksToCreate.length > 0) {
+          await base44.entities.ActionItem.bulkCreate(tasksToCreate);
+          const updatedTasks = await base44.entities.ActionItem.filter({ 
+            company_id: user.company_id 
+          });
+          setTasks(updatedTasks);
+        }
+      } else {
+        setTasks(actionItems);
+      }
+
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (editingTask) {
+        await base44.entities.ActionItem.update(editingTask.id, {
+          ...formData,
+          assignee_user_id: formData.assignee_user_id || userId
+        });
+      } else {
+        await base44.entities.ActionItem.create({
+          company_id: companyId,
+          ...formData,
+          assignee_user_id: formData.assignee_user_id || userId
+        });
+      }
+
+      const updatedTasks = await base44.entities.ActionItem.filter({ 
+        company_id: companyId 
+      });
+      setTasks(updatedTasks);
+      setDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving task:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleStatusChange = async (taskId, newStatus) => {
+    try {
+      await base44.entities.ActionItem.update(taskId, { status: newStatus });
+      const updatedTasks = await base44.entities.ActionItem.filter({ 
+        company_id: companyId 
+      });
+      setTasks(updatedTasks);
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      task_name: '',
+      description: '',
+      topic_id: '',
+      assignee_user_id: '',
+      due_date: '',
+      status: 'todo',
+      priority: 'medium'
+    });
+    setEditingTask(null);
+  };
+
+  const openEditDialog = (task) => {
+    setEditingTask(task);
+    setFormData({
+      task_name: task.task_name,
+      description: task.description || '',
+      topic_id: task.topic_id || '',
+ 

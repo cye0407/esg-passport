@@ -1,0 +1,45 @@
+{
+  "name": "Company",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Company name"
+    },
+    "industry": {
+      "type": "string",
+      "enum": [
+        "Manufacturing",
+        "Services",
+        "Retail",
+        "Technology",
+        "Healthcare",
+        "Other"
+      ],
+      "description": "Industry sector"
+    },
+    "size": {
+      "type": "string",
+      "enum": [
+        "1-10",
+        "11-50",
+        "51-250"
+      ],
+      "description": "Number of employees"
+    },
+    "country": {
+      "type": "string",
+      "description": "Country of operation"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Email of the company owner/creator"
+    }
+  },
+  "required": [
+    "name",
+    "industry",
+    "size",
+    "country"
+  ]
+}
