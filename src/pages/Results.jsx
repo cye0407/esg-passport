@@ -200,13 +200,15 @@ export default function Results() {
       bySource[src] = (bySource[src] || 0) + 1;
     });
 
+    const withData = bySource.provided + bySource.estimated;
+    const needData = bySource.unknown;
     const answered = total - (byConfidence.none || 0);
-    const readinessPercent = total > 0 ? Math.round((answered / total) * 100) : 0;
+    const readinessPercent = total > 0 ? Math.round((withData / total) * 100) : 0;
     const weightedScore = total > 0 ? Math.round(
       ((bySource.provided * 1.0 + bySource.estimated * 0.5) / total) * 100
     ) : 0;
 
-    return { total, byConfidence, byType, bySource, answered, readinessPercent, weightedScore };
+    return { total, byConfidence, byType, bySource, withData, needData, answered, readinessPercent, weightedScore };
   }, [answerDrafts]);
 
   const dataQuality = useMemo(() => getDataQualitySummary(), []);
@@ -461,6 +463,23 @@ export default function Results() {
         </div>
       </div>
 
+      {/* No Data Warning */}
+      {stats && stats.needData > stats.withData && (
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">
+              {stats.withData === 0
+                ? 'No company data entered yet — all answers are generic templates.'
+                : `Only ${stats.withData} of ${stats.total} answers are backed by your data.`}
+            </p>
+            <p className="text-xs text-amber-700 mt-1">
+              Go to <Link to="/data" className="underline font-medium">Data</Link> to enter your metrics. Answers will improve automatically.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* AI Enhancement Error */}
       {enhanceError && (
         <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
@@ -482,10 +501,12 @@ export default function Results() {
           <div className="glass-card rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <BarChart3 className="w-5 h-5 text-[#2D5016]" />
-              <span className="text-sm text-[#2D5016]/60">Readiness</span>
+              <span className="text-sm text-[#2D5016]/60">Data Coverage</span>
             </div>
-            <p className="text-3xl font-bold text-[#2D5016]">{stats.weightedScore}%</p>
-            <p className="text-xs text-[#2D5016]/50">{stats.answered}/{stats.total} answered</p>
+            <p className={cn('text-3xl font-bold', stats.readinessPercent > 50 ? 'text-[#2D5016]' : 'text-amber-600')}>{stats.readinessPercent}%</p>
+            <p className="text-xs text-[#2D5016]/50">
+              {stats.withData} with data · {stats.needData} need data
+            </p>
           </div>
 
           {/* Data Quality */}

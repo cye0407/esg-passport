@@ -37,7 +37,7 @@ const FRAMEWORK_PATTERNS: Record<string, RegExp[]> = {
   UN_SDG: [/sdg/i, /un sdg/i]
 };
 
-function detectColumnMapping(headers: string[]): ColumnMapping {
+function detectColumnMapping(headers: string[], sampleRows?: Record<string, unknown>[]): ColumnMapping {
   const mapping: ColumnMapping = { questionText: '' };
   const normalizedHeaders = headers.map(h => h?.toLowerCase().trim() || '');
 
@@ -51,6 +51,27 @@ function detectColumnMapping(headers: string[]): ColumnMapping {
     }
   }
 
+  // If no question column found, heuristically pick the column with longest average text
+  if (!mapping.questionText && headers.length > 0 && sampleRows && sampleRows.length > 0) {
+    let bestCol = '';
+    let bestScore = 0;
+    for (const header of headers) {
+      const values = sampleRows.map(r => String(r[header] || ''));
+      const avgLen = values.reduce((sum, v) => sum + v.length, 0) / values.length;
+      const questionMarkRate = values.filter(v => v.includes('?')).length / values.length;
+      // Score = average length + big bonus for question marks
+      const score = avgLen + (questionMarkRate * 200);
+      if (score > bestScore) {
+        bestScore = score;
+        bestCol = header;
+      }
+    }
+    if (bestCol && bestScore > 20) {
+      mapping.questionText = bestCol;
+    }
+  }
+
+  // Last resort: use first column
   if (!mapping.questionText && headers.length > 0) {
     mapping.questionText = headers[0];
   }
@@ -87,17 +108,17 @@ function questionsFromText(text: string, fileName: string): ParseResult {
     const line = lines[i];
 
     // Heuristic: short lines that don't end with '?' are likely section headers
-    if (line.length < 60 && !line.includes('?') && !line.match(/^\d+[\.\)]/)) {
+    if (line.length < 80 && !line.includes('?') && !line.match(/^\d+[\.\)]/)) {
       currentCategory = line.replace(/[:.]$/, '').trim();
       continue;
     }
 
-    // Skip very short lines that aren't questions
-    if (line.length < 10 && !line.includes('?')) continue;
-
     // Strip leading numbering (e.g. "1.", "1)", "Q1.", "Q1:")
     const cleaned = line.replace(/^(?:Q?\d+[\.\)\:]?\s*)/i, '').trim();
     if (!cleaned) continue;
+
+    // Skip non-question content
+    if (!looksLikeQuestion(cleaned)) continue;
 
     questions.push({
       id: uuid(),
@@ -187,6 +208,23 @@ async function parseDocxFile(file: File): Promise<ParseResult> {
 // Excel / CSV parsing (original logic)
 // ---------------------------------------------------------------------------
 
+// Rows that look like instructions, headers, or metadata — not questions
+const SKIP_PATTERNS = [
+  /^(note|notes|instructions?|guidance|disclaimer|confidential|copyright|version|date|page|total|subtotal|sum|average|n\/a)/i,
+  /^(please|this (section|document|form|sheet)|complete the|fill in|refer to|see (above|below|section))/i,
+  /^\d+$/,                        // Just a number
+  /^[\d\.\-\/\s]+$/,              // Just numbers/dates
+  /^(yes|no|true|false|x|n\/a)$/i // Just a boolean/flag
+];
+
+function looksLikeQuestion(text: string): boolean {
+  if (text.length < 15) return text.includes('?');
+  if (SKIP_PATTERNS.some(p => p.test(text))) return false;
+  // Very long texts (>500 chars) are likely descriptions, not questions
+  if (text.length > 500) return false;
+  return true;
+}
+
 function parseSheetData(
   jsonData: Record<string, unknown>[],
   columnMapping: ColumnMapping,
@@ -197,7 +235,7 @@ function parseSheetData(
     const row = jsonData[i];
     const questionText = String(row[columnMapping.questionText] || '').trim();
     if (!questionText) continue;
-    if (questionText.length < 10 && !questionText.includes('?')) continue;
+    if (!looksLikeQuestion(questionText)) continue;
 
     const question: ParsedQuestion = { id: uuid(), rowIndex: i + 2, text: questionText, rawRow: row };
     if (columnMapping.category) question.category = String(row[columnMapping.category] || '').trim() || undefined;
@@ -234,7 +272,7 @@ async function parseSpreadsheetFile(file: File): Promise<ParseResult> {
       const headers = Object.keys(jsonData[0]);
       if (availableColumns.length === 0) availableColumns = headers;
 
-      const columnMapping = detectColumnMapping(headers);
+      const columnMapping = detectColumnMapping(headers, jsonData.slice(0, 10));
       if (!primaryMapping.questionText && columnMapping.questionText) {
         primaryMapping = columnMapping;
       }
