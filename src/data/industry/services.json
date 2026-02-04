@@ -1,0 +1,104 @@
+{
+  "industry": "Professional Services",
+  "plausibleMeasures": {
+    "ENVIRONMENT": {
+      "energy": [
+        "Office energy monitoring through smart metering and utility bill analysis",
+        "LED lighting retrofit and motion-sensor controls across office spaces",
+        "HVAC system optimisation including temperature set-point management and regular maintenance",
+        "Procurement of renewable electricity tariffs for office locations",
+        "IT equipment power management policies including default sleep modes and efficient hardware procurement"
+      ],
+      "emissions": [
+        "Business travel emissions tracking by mode (flights, rail, car rental, taxi)",
+        "Employee commuting survey and emissions estimation programme",
+        "Quarterly GHG inventory covering Scope 1 (company vehicles, gas heating) and Scope 2 (office electricity)",
+        "Virtual meeting-first policy to reduce business travel where appropriate",
+        "Evaluation of carbon offset or insetting programmes for residual travel emissions"
+      ],
+      "waste": [
+        "Paper reduction programme including digital-first document management",
+        "Office waste segregation: paper, cardboard, plastics, IT equipment, general waste",
+        "IT equipment lifecycle management including refurbishment and certified e-waste recycling",
+        "Single-use plastic reduction in office catering and facilities",
+        "Furniture reuse and donation programme for office refurbishments"
+      ],
+      "water": [
+        "Water-efficient fixtures in office facilities (low-flow taps, dual-flush systems)",
+        "Regular plumbing maintenance and leak detection",
+        "Water consumption monitoring through utility bills",
+        "Rainwater collection for grounds maintenance where applicable",
+        "Drinking water provision through filtered mains water rather than bottled water"
+      ]
+    },
+    "LABOR": {
+      "health_safety": [
+        "Office ergonomic assessments including workstation setup and display screen equipment (DSE) reviews",
+        "Hybrid and remote working health and safety guidelines",
+        "Mental health and wellbeing programme including employee assistance services",
+        "Fire safety and evacuation procedures with regular drills",
+        "First-aid provision and trained first-aiders per office location",
+        "Lone working policy for staff working remotely or at client sites",
+        "Stress risk assessment and workload management procedures"
+      ],
+      "training": [
+        "New-starter induction covering company values, IT security, and health and safety",
+        "Professional development programme including continuing education and certification support",
+        "Diversity and inclusion awareness training for all employees",
+        "Management and leadership development programme",
+        "Cybersecurity awareness training and phishing simulation exercises"
+      ],
+      "labor_practices": [
+        "Flexible working arrangements including hybrid, part-time, and compressed hours options",
+        "Equal pay analysis and transparent salary banding",
+        "Parental leave policy exceeding statutory minimums",
+        "Employee engagement survey programme with published results and action plans",
+        "Grievance and whistleblowing mechanism with independent escalation route"
+      ]
+    },
+    "ETHICS": {
+      "governance": [
+        "Anti-bribery and corruption policy with annual declaration requirements",
+        "Client and employee data protection programme aligned with GDPR",
+        "Conflict-of-interest management and disclosure procedures",
+        "Confidential whistleblowing channel with third-party management",
+        "Annual board-level review of ethics, compliance, and risk management"
+      ]
+    },
+    "SUPPLY_CHAIN": {
+      "procurement": [
+        "Sustainable procurement policy for office supplies, IT equipment, and facilities management",
+        "Supplier diversity programme encouraging engagement with SME and minority-owned businesses",
+        "IT vendor assessment including data security, environmental practices, and labour standards",
+        "Preference for cloud and IT service providers with disclosed carbon footprints and renewable energy commitments",
+        "Catering and facilities management supplier assessment on food waste, packaging, and fair labour practices"
+      ]
+    }
+  },
+  "policyLanguage": {
+    "ENVIRONMENT": {
+      "vision": "committed to reducing the environmental footprint of our office-based operations, business travel, and procurement activities",
+      "formal": "Our Environmental Policy, endorsed by senior management, establishes our commitment to energy efficiency in our offices, reducing business travel emissions, minimising waste, and procuring responsibly",
+      "informal": "Environmental management is embedded in our operations through office energy monitoring, digital-first document management, travel reduction initiatives, and responsible IT procurement",
+      "roadmap": "We are developing a formalised Environmental Policy for publication in {year}, building on our existing office energy management, travel reduction, and waste minimisation practices"
+    },
+    "LABOR": {
+      "vision": "committed to being an employer of choice by providing a healthy, inclusive, and supportive working environment for all employees",
+      "formal": "Our People Policy establishes our commitment to employee wellbeing, flexible working, professional development, diversity and inclusion, and compliance with employment legislation",
+      "informal": "Employee welfare is managed through flexible working arrangements, ergonomic assessments, mental health support services, and regular engagement surveys with management action planning",
+      "roadmap": "We are formalising our people and wellbeing management approach into a documented policy for {year}, consolidating our flexible working, D&I, and professional development commitments"
+    },
+    "ETHICS": {
+      "vision": "committed to conducting business with the highest standards of integrity, transparency, and data protection",
+      "formal": "Our Code of Business Conduct outlines expectations for ethical behaviour, anti-corruption, data protection, client confidentiality, and compliance with applicable regulations including GDPR",
+      "informal": "Ethical business conduct is supported through anti-corruption awareness, GDPR compliance programme, conflict-of-interest declarations, and a confidential whistleblowing channel",
+      "roadmap": "We are developing a formal Code of Conduct for {year}, consolidating our data protection, anti-corruption, and professional ethics expectations into a documented framework"
+    },
+    "SUPPLY_CHAIN": {
+      "vision": "committed to responsible procurement, supplier diversity, and maintaining ethical and environmental standards in our supply chain",
+      "formal": "Our Sustainable Procurement Policy establishes expectations for environmental practices, data security, labour standards, and ethical conduct for key suppliers including IT vendors, facilities management, and professional service providers",
+      "informal": "Supplier management is conducted through vendor assessment covering data security, environmental practices, and fair labour standards, with preference for suppliers demonstrating sustainability commitments",
+      "roadmap": "We are developing a formal Sustainable Procurement Policy for {year}, extending our existing vendor assessment to include comprehensive ESG criteria and supplier diversity targets"
+    }
+  }
+}

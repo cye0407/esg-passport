@@ -1,0 +1,104 @@
+{
+  "industry": "Chemicals",
+  "plausibleMeasures": {
+    "ENVIRONMENT": {
+      "energy": [
+        "Energy monitoring and optimisation of warehouse heating, ventilation, and lighting systems",
+        "LED lighting retrofit across storage facilities and office areas",
+        "Temperature-controlled storage optimisation to reduce unnecessary energy consumption",
+        "Evaluation of renewable energy procurement for warehouse and depot electricity",
+        "Fleet fuel consumption monitoring for chemical distribution vehicles"
+      ],
+      "emissions": [
+        "Monthly tracking of fleet emissions from distribution vehicles by route and load",
+        "VOC emission monitoring and control at storage and handling facilities",
+        "Quarterly GHG inventory covering Scope 1 (fleet, heating) and Scope 2 (grid electricity)",
+        "Evaluation of route optimisation and load consolidation to reduce transport emissions",
+        "Transition to lower-emission distribution vehicles (Euro VI, electric for last-mile)"
+      ],
+      "waste": [
+        "Chemical packaging return and refill programmes with suppliers and customers",
+        "Segregated waste streams: contaminated containers, clean recyclables, general waste",
+        "Expired or off-spec chemical product management and safe disposal procedures",
+        "Drumming and re-packaging waste minimisation through bulk delivery optimisation",
+        "Spill clean-up waste handling and disposal compliant with hazardous waste regulations"
+      ],
+      "water": [
+        "Bunding and secondary containment at all chemical storage areas to prevent ground and water contamination",
+        "Stormwater management and separation from potentially contaminated areas",
+        "Water metering at storage facilities for consumption monitoring",
+        "Vehicle and container wash water capture and treatment before discharge",
+        "Emergency spill response procedures designed to protect water courses and drainage"
+      ]
+    },
+    "LABOR": {
+      "health_safety": [
+        "Chemical exposure monitoring and occupational health surveillance for handling staff",
+        "ADR-compliant dangerous goods transport training and certification for all drivers",
+        "COSHH assessments and safety data sheet (SDS) management for all stored chemicals",
+        "Spill containment and emergency response drills at all storage facilities",
+        "PPE provision and compliance audits specific to chemical handling risks",
+        "ATEX zone classification and explosion prevention measures where applicable",
+        "Warehouse traffic management separating pedestrians from forklift and vehicle operations"
+      ],
+      "training": [
+        "Chemical safety and hazard awareness training for all warehouse and handling staff",
+        "SDS interpretation and GHS labelling training for relevant personnel",
+        "ADR certification and renewal for dangerous goods drivers",
+        "Emergency response and spill containment training with practical exercises",
+        "Supervisor development programme focused on safety culture in chemical environments"
+      ],
+      "labor_practices": [
+        "Working hours tracking through electronic time-and-attendance systems",
+        "Health surveillance programme for employees with chemical exposure risk",
+        "Return-to-work programme for staff following chemical exposure incidents",
+        "Annual employee engagement survey with action planning",
+        "Grievance mechanism accessible through line management or designated safety representative"
+      ]
+    },
+    "ETHICS": {
+      "governance": [
+        "Anti-bribery and corruption awareness integrated into employee onboarding",
+        "REACH compliance management and substance registration tracking",
+        "Confidential reporting channel for safety concerns and ethical issues",
+        "Customer and product data protection measures",
+        "Annual management review of regulatory compliance and business ethics"
+      ]
+    },
+    "SUPPLY_CHAIN": {
+      "procurement": [
+        "Supplier qualification including REACH registration status and regulatory compliance verification",
+        "Chemical supplier audit programme covering product quality, safety documentation, and environmental practices",
+        "Preference for suppliers with recognised management systems (ISO 9001, ISO 14001, Responsible Care)",
+        "Due diligence on chemical origins and supply chain transparency for high-concern substances",
+        "Incoming product inspection and SDS verification before acceptance into storage"
+      ]
+    }
+  },
+  "policyLanguage": {
+    "ENVIRONMENT": {
+      "vision": "committed to minimising the environmental impact of our chemical storage, handling, and distribution operations",
+      "formal": "Our Environmental Policy, endorsed by senior management, establishes our commitment to pollution prevention, safe chemical handling, spill prevention, and compliance with applicable environmental legislation including REACH and CLP regulations",
+      "informal": "Environmental management is embedded in our daily operations through bunding and containment systems, chemical waste segregation, fleet monitoring, and compliance with storage and handling regulations",
+      "roadmap": "We are developing a formalised Environmental Policy for publication in {year}, building on our existing chemical handling, containment, and regulatory compliance practices"
+    },
+    "LABOR": {
+      "vision": "committed to providing a safe working environment for all employees handling, storing, and distributing chemical products",
+      "formal": "Our Health & Safety Policy, signed by the Managing Director, establishes our zero-harm objective with specific provisions for chemical exposure prevention, dangerous goods transport safety, and emergency response preparedness",
+      "informal": "Health and safety is managed through established chemical handling protocols, ADR compliance for transport, COSHH assessments, and regular emergency response drills",
+      "roadmap": "We are formalising our health and safety management approach into a documented H&S Policy for {year}, aligning with ISO 45001 principles and Responsible Care commitments"
+    },
+    "ETHICS": {
+      "vision": "committed to conducting business with integrity, regulatory compliance, and transparency in all chemical distribution activities",
+      "formal": "Our Code of Business Conduct outlines expectations for ethical behaviour, regulatory compliance, anti-corruption, and responsible chemical distribution practices",
+      "informal": "Ethical business conduct and regulatory compliance expectations are communicated through onboarding, reinforced through management oversight, and supported by our REACH compliance programme",
+      "roadmap": "We are developing a formal Code of Conduct for {year}, consolidating our regulatory compliance obligations and business ethics expectations into a documented framework"
+    },
+    "SUPPLY_CHAIN": {
+      "vision": "committed to responsible sourcing, product stewardship, and maintaining high standards throughout our chemical supply chain",
+      "formal": "Our Supplier Code of Conduct establishes minimum expectations for product quality, safety documentation, REACH compliance, and environmental performance for all chemical suppliers",
+      "informal": "Supplier management is conducted through quality-focused assessment, REACH compliance verification, SDS review, and periodic supplier audits",
+      "roadmap": "We are developing a formal Supplier Code of Conduct for {year}, extending our existing quality and compliance-based supplier management to include comprehensive ESG criteria"
+    }
+  }
+}

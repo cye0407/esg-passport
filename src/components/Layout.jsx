@@ -13,6 +13,8 @@ import {
   Menu,
   X,
   HelpCircle,
+  Upload,
+  BookOpen,
 } from 'lucide-react';
 
 const navigation = [
@@ -21,6 +23,9 @@ const navigation = [
   { name: 'Confidence', href: '/confidence', icon: ShieldCheck },
   { name: 'Policies', href: '/policies', icon: FileText },
   { name: 'Requests', href: '/requests', icon: Inbox },
+  { name: 'Respond', href: '/upload', icon: Upload },
+  { name: 'Documents', href: '/documents', icon: FileText },
+  { name: 'Answers', href: '/answers', icon: BookOpen },
   { name: 'Export', href: '/export', icon: Download },
   { name: 'Guide', href: '/guide', icon: HelpCircle },
 ];

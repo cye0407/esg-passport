@@ -55,7 +55,7 @@ ${company?.esgContactEmail || ''}`;
         <FileText className="w-12 h-12 mx-auto text-[#2D5016]/30 mb-4" />
         <h2 className="text-xl font-semibold text-[#2D5016] mb-2">Complete Setup First</h2>
         <p className="text-[#2D5016]/60 mb-4">Set up your company profile before generating exports</p>
-        <Link to="/setup"><Button>Go to Setup</Button></Link>
+        <Link to="/onboarding"><Button>Get Started</Button></Link>
       </div>
     );
   }

@@ -1,19 +1,20 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  getCompanyProfile, 
-  getReadinessStats, 
-  getRequests, 
+import { Link, Navigate } from 'react-router-dom';
+import {
+  getCompanyProfile,
+  getReadinessStats,
+  getRequests,
   getDataRecords,
-  getAnnualTotals 
+  getAnnualTotals,
+  getSettings,
 } from '@/lib/store';
 import { MONTHS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { 
-  Database, 
-  ShieldCheck, 
-  FileText, 
+import {
+  Database,
+  ShieldCheck,
+  FileText,
   Inbox,
   Download,
   ArrowRight,
@@ -27,9 +28,15 @@ import {
   Sparkles,
   CalendarPlus,
   AlertTriangle,
+  Upload,
 } from 'lucide-react';
 
 export default function Home() {
+  const settings = getSettings();
+  if (!settings.setupCompleted) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   const company = getCompanyProfile();
   const stats = getReadinessStats();
   const requests = getRequests();
@@ -315,6 +322,17 @@ export default function Home() {
               <ArrowRight className="w-4 h-4 text-[#2D5016]/30 group-hover:text-[#2D5016] group-hover:translate-x-1 transition-all" />
             </Link>
 
+            <Link to="/upload" className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#2D5016]/5 transition-all group">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#2D5016] to-[#7CB342] flex items-center justify-center">
+                <Upload className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-[#2D5016]">Upload Questionnaire</p>
+                <p className="text-sm text-[#2D5016]/60">Generate answers from your data</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-[#2D5016]/30 group-hover:text-[#2D5016] group-hover:translate-x-1 transition-all" />
+            </Link>
+
             <Link to="/export" className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#2D5016]/5 transition-all group">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
                 <Download className="w-5 h-5 text-white" />
@@ -424,7 +442,7 @@ export default function Home() {
             </div>
             <div className="p-4 rounded-xl bg-[#2D5016]/5">
               <ShieldCheck className="w-5 h-5 text-red-600 mb-2" />
-              <p className="text-lg font-bold text-[#2D5016]">{formatNumber(annualTotals.workAccidents) ?? '0'}</p>
+              <p className="text-lg font-bold text-[#2D5016]">{formatNumber(annualTotals.workAccidents ?? 0)}</p>
               <p className="text-xs text-[#2D5016]/60">Accidents</p>
             </div>
           </div>

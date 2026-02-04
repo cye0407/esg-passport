@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, Building2, Calendar, CheckCircle2, AlertCircle, XCircle, Download, Send, Clock } from 'lucide-react';
+import { ArrowLeft, Building2, Calendar, CheckCircle2, AlertCircle, XCircle, Download, Send, Clock, Upload } from 'lucide-react';
 
 export default function RequestWorkspace() {
   const { id } = useParams();
@@ -195,6 +195,11 @@ export default function RequestWorkspace() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <Link to={`/upload?requestId=${request.id}`}>
+              <Button className="bg-gradient-to-r from-[#2D5016] to-[#7CB342] hover:opacity-90 text-white">
+                <Upload className="w-4 h-4 mr-2" /> Upload Questionnaire
+              </Button>
+            </Link>
             <Link to="/export">
               <Button className="bg-[#2D5016] hover:bg-[#3d6b1e] text-white">
                 <Download className="w-4 h-4 mr-2" /> Generate Response Pack

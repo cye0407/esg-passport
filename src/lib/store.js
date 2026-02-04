@@ -32,12 +32,20 @@ const getDefaultData = () => ({
     updatedAt: new Date().toISOString(),
   })),
   requests: [],
+  documents: [],
+  masterAnswers: [],
+  savedResults: [],
   settings: {
     gridCountry: 'EU_AVERAGE',
     currency: 'EUR',
     dateFormat: 'YYYY-MM-DD',
+    language: 'en',
     setupCompleted: false,
     onboardingStep: 0,
+    selectedQuestionnaires: [],
+    productionVolume: null,
+    productionUnit: 'units',
+    productionUnitLabel: 'Units produced',
   },
 });
 
@@ -346,15 +354,92 @@ export const getReadinessStats = () => {
     totalDataPoints,
     completeDataPoints,
     safeToShareDataPoints,
-    dataCompletionPercent: Math.round((completeDataPoints / totalDataPoints) * 100),
-    dataSafePercent: Math.round((safeToShareDataPoints / totalDataPoints) * 100),
+    dataCompletionPercent: totalDataPoints > 0 ? Math.round((completeDataPoints / totalDataPoints) * 100) : 0,
+    dataSafePercent: totalDataPoints > 0 ? Math.round((safeToShareDataPoints / totalDataPoints) * 100) : 0,
     totalPolicies,
     existingPolicies,
     approvedPolicies,
-    policyCompletionPercent: Math.round((approvedPolicies / totalPolicies) * 100),
+    policyCompletionPercent: totalPolicies > 0 ? Math.round((approvedPolicies / totalPolicies) * 100) : 0,
     openRequests,
   };
 };
+
+// ============================================
+// DOCUMENTS (evidence registry)
+// ============================================
+
+export const getDocuments = () => {
+  const data = loadData();
+  return data.documents || [];
+};
+
+export const saveDocument = (doc) => {
+  const data = loadData();
+  if (!data.documents) data.documents = [];
+  const existing = data.documents.findIndex(d => d.id === doc.id);
+  const updated = { ...doc, updatedAt: new Date().toISOString() };
+  if (existing >= 0) {
+    data.documents[existing] = updated;
+  } else {
+    updated.id = `doc_${Date.now()}`;
+    updated.createdAt = new Date().toISOString();
+    data.documents.push(updated);
+  }
+  saveData(data);
+  return updated;
+};
+
+export const deleteDocument = (id) => {
+  const data = loadData();
+  data.documents = (data.documents || []).filter(d => d.id !== id);
+  saveData(data);
+};
+
+// ============================================
+// MASTER ANSWERS (answer library)
+// ============================================
+
+export const getMasterAnswers = () => {
+  const data = loadData();
+  return data.masterAnswers || [];
+};
+
+export const saveMasterAnswer = (answer) => {
+  const data = loadData();
+  if (!data.masterAnswers) data.masterAnswers = [];
+  const existing = data.masterAnswers.findIndex(a => a.id === answer.id);
+  const updated = { ...answer, updatedAt: new Date().toISOString() };
+  if (existing >= 0) {
+    data.masterAnswers[existing] = updated;
+  } else {
+    updated.id = `ma_${Date.now()}`;
+    updated.createdAt = new Date().toISOString();
+    data.masterAnswers.push(updated);
+  }
+  saveData(data);
+  return updated;
+};
+
+export const deleteMasterAnswer = (id) => {
+  const data = loadData();
+  data.masterAnswers = (data.masterAnswers || []).filter(a => a.id !== id);
+  saveData(data);
+};
+
+export const findMasterAnswer = (topic, keywords) => {
+  const answers = getMasterAnswers();
+  return answers.find(a => {
+    if (a.topic === topic) return true;
+    if (keywords && keywords.length > 0) {
+      return keywords.some(kw => a.keywords?.includes(kw));
+    }
+    return false;
+  });
+};
+
+// ============================================
+// EXPORT / IMPORT
+// ============================================
 
 export const exportAllData = () => {
   return loadData();

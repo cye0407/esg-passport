@@ -1,0 +1,105 @@
+{
+  "industry": "Textiles & Apparel",
+  "plausibleMeasures": {
+    "ENVIRONMENT": {
+      "energy": [
+        "Steam system optimisation in dyeing and finishing operations to reduce thermal energy consumption",
+        "Heat recovery from process wastewater in wet processing departments",
+        "Installation of variable-frequency drives on spinning, weaving, and knitting machinery",
+        "LED lighting retrofit across production floors and cutting rooms",
+        "Scheduled equipment shutdown protocols during non-production hours"
+      ],
+      "emissions": [
+        "Monthly monitoring of boiler fuel consumption for steam generation",
+        "Evaluation of biomass or solar thermal for process heating",
+        "Quarterly GHG inventory covering Scope 1 (boilers, vehicles) and Scope 2 (grid electricity)",
+        "Transition from heavy fuel oil to natural gas for steam generation",
+        "Participation in industry decarbonisation initiatives (e.g., Fashion Industry Charter for Climate Action)"
+      ],
+      "waste": [
+        "Fabric cutting waste minimisation through marker optimisation and nesting software",
+        "Textile waste segregation: fabric offcuts, yarn waste, packaging, hazardous chemicals",
+        "Partnership with textile recyclers for pre-consumer fabric waste recovery",
+        "Chemical container return and refill programmes with dye and chemical suppliers",
+        "Yarn and fibre waste collection for recycling into lower-grade products"
+      ],
+      "water": [
+        "Wastewater treatment plant for process effluent from dyeing and finishing",
+        "Water recycling and reuse in rinsing and washing stages of wet processing",
+        "Water metering at major process points: dyeing, washing, finishing, boiler feed",
+        "Adoption of low-liquor-ratio dyeing equipment to reduce water consumption per kg fabric",
+        "Compliance with ZDHC Manufacturing Restricted Substances List (MRSL) for wastewater discharge"
+      ]
+    },
+    "LABOR": {
+      "health_safety": [
+        "Chemical handling and storage protocols compliant with GHS labelling requirements",
+        "Ventilation and dust extraction systems in spinning, carding, and cutting areas",
+        "Heat stress prevention measures in dyeing and finishing departments",
+        "Machine guarding and needle guard protocols on sewing and knitting equipment",
+        "Emergency response procedures including chemical spill containment and fire evacuation",
+        "Regular noise monitoring and hearing protection programmes in weaving areas",
+        "Ergonomic assessments for repetitive-task roles in garment assembly"
+      ],
+      "training": [
+        "New-starter induction covering chemical safety, machine operation, and fire procedures",
+        "Annual refresher training on chemical handling and SDS interpretation",
+        "Skills development and cross-training programmes for production operatives",
+        "Supervisor training on fair labour practices and grievance handling",
+        "First-aid and fire warden training for designated staff per shift"
+      ],
+      "labor_practices": [
+        "Working hours tracking and overtime management compliant with local labour law and buyer codes",
+        "Fair wage practices benchmarked against living wage standards",
+        "Freedom of association and worker representation mechanisms",
+        "No child labour and age verification procedures during recruitment",
+        "Grievance mechanism accessible to all workers including migrant and contract staff"
+      ]
+    },
+    "ETHICS": {
+      "governance": [
+        "Anti-bribery and corruption awareness integrated into management onboarding",
+        "Conflict-of-interest declaration required from sourcing and procurement staff",
+        "Confidential whistleblowing channel for reporting ethical and labour concerns",
+        "Data protection measures for worker personal information and buyer data",
+        "Annual management review of compliance with buyer codes of conduct"
+      ]
+    },
+    "SUPPLY_CHAIN": {
+      "procurement": [
+        "Raw material traceability for cotton, polyester, and other key fibres",
+        "Supplier qualification including social audit and environmental compliance review",
+        "Preference for certified raw materials (GOTS, OEKO-TEX, BCI, GRS)",
+        "Periodic supplier audits covering labour conditions, environmental practices, and chemical management",
+        "Conflict minerals and responsible sourcing due diligence for metal components (zippers, buttons)",
+        "Chemical supplier evaluation against ZDHC MRSL conformance"
+      ]
+    }
+  },
+  "policyLanguage": {
+    "ENVIRONMENT": {
+      "vision": "committed to minimising the environmental impact of our textile manufacturing operations, with a focus on water stewardship, chemical management, and energy efficiency",
+      "formal": "Our Environmental Policy, endorsed by senior management, establishes our commitment to responsible water use, wastewater treatment, chemical management aligned with ZDHC standards, and compliance with applicable environmental legislation",
+      "informal": "Environmental stewardship is embedded in our daily operations through wastewater treatment, chemical management procedures, energy monitoring, and fabric waste recovery programmes",
+      "roadmap": "We are developing a formalised Environmental Policy for publication in {year}, building on our existing water treatment, chemical management, and energy monitoring practices"
+    },
+    "LABOR": {
+      "vision": "committed to providing safe, fair, and dignified working conditions for all employees across our textile operations",
+      "formal": "Our Health, Safety & Labour Policy, aligned with international standards and buyer codes of conduct, establishes our commitment to worker safety, fair wages, reasonable working hours, and freedom of association",
+      "informal": "Worker welfare is managed through established protocols including chemical safety training, working hours tracking, fair wage practices, and accessible grievance mechanisms",
+      "roadmap": "We are formalising our labour and safety management approach into a documented policy for {year}, aligning with ILO conventions, SA8000 principles, and key buyer requirements"
+    },
+    "ETHICS": {
+      "vision": "committed to conducting business with integrity, transparency, and respect for workers, communities, and business partners",
+      "formal": "Our Code of Business Conduct outlines expectations for ethical behaviour, anti-corruption, and compliance, applicable to all employees and business partners throughout the supply chain",
+      "informal": "Ethical business conduct expectations are communicated through employee onboarding, reinforced through line management, and monitored through buyer audit programmes",
+      "roadmap": "We are developing a formal Code of Conduct for {year}, consolidating our existing ethics expectations and buyer compliance requirements into a single documented framework"
+    },
+    "SUPPLY_CHAIN": {
+      "vision": "committed to responsible sourcing, fibre traceability, and maintaining ethical and environmental standards throughout our textile supply chain",
+      "formal": "Our Supplier Code of Conduct establishes minimum expectations for environmental management, labour conditions, chemical safety, and ethical practices for all raw material and component suppliers",
+      "informal": "Supply chain management is conducted through supplier audits, raw material traceability efforts, and preference for certified inputs including GOTS and OEKO-TEX certified materials",
+      "roadmap": "We are developing a formal Supplier Code of Conduct for {year}, extending our existing quality and compliance-based supplier management to include comprehensive ESG criteria and fibre traceability requirements"
+    }
+  }
+}

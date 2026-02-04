@@ -1,0 +1,105 @@
+{
+  "industry": "Food & Agriculture",
+  "plausibleMeasures": {
+    "ENVIRONMENT": {
+      "energy": [
+        "Refrigeration and cold chain energy optimisation including door management and insulation upgrades",
+        "Heat recovery from cooking, pasteurisation, and sterilisation processes",
+        "LED lighting retrofit across production, packaging, and cold storage areas",
+        "Installation of variable-frequency drives on pumps, compressors, and conveyors",
+        "Evaluation of biogas generation from organic process waste"
+      ],
+      "emissions": [
+        "Refrigerant leak detection and management programme to reduce fugitive emissions",
+        "Monthly monitoring of boiler and oven fuel consumption",
+        "Quarterly GHG inventory covering Scope 1 (combustion, refrigerants) and Scope 2 (grid electricity)",
+        "Fleet emissions tracking for distribution vehicles and agricultural equipment",
+        "Evaluation of low-GWP refrigerants for cold storage and transport"
+      ],
+      "waste": [
+        "Organic waste segregation and composting or anaerobic digestion diversion",
+        "Food production waste reduction programme including yield optimisation and trim management",
+        "Packaging waste minimisation through lightweighting and material reduction",
+        "By-product valorisation — converting process waste into animal feed, fertiliser, or energy",
+        "Segregated waste streams: organic, packaging, hazardous cleaning chemicals, general waste"
+      ],
+      "water": [
+        "Water recycling and reuse in cleaning-in-place (CIP) and rinsing operations",
+        "Wastewater treatment for process effluent including BOD/COD management",
+        "Water metering at major process points: washing, processing, cleaning, boiler feed",
+        "Dry cleaning techniques and optimised cleaning schedules to reduce water consumption",
+        "Stormwater management and separation from process water drainage on agricultural sites"
+      ]
+    },
+    "LABOR": {
+      "health_safety": [
+        "Food hygiene and HACCP-based safety protocols for all production staff",
+        "Allergen management procedures and training for handling and labelling",
+        "Cold environment working protocols including exposure limits and PPE provision",
+        "Knife and cutting equipment safety training and cut-resistant PPE",
+        "Manual handling training for warehouse and production operatives",
+        "Slip, trip, and fall prevention programme in wet processing environments",
+        "Incident and near-miss reporting with food safety and occupational safety integration"
+      ],
+      "training": [
+        "Food safety and hygiene induction for all new production staff (HACCP Level 2 or equivalent)",
+        "Allergen awareness training and competency verification",
+        "Pest control awareness and good manufacturing practice (GMP) training",
+        "Supervisor development programme focused on food safety leadership",
+        "First-aid and fire warden training for designated employees per shift"
+      ],
+      "labor_practices": [
+        "Working hours tracking including seasonal overtime management",
+        "Fair wage practices benchmarked against local and industry standards",
+        "Migrant and seasonal worker welfare provisions and accommodation standards",
+        "Employee engagement and retention programme for production workforce",
+        "Grievance mechanism accessible to all workers including agency and seasonal staff"
+      ]
+    },
+    "ETHICS": {
+      "governance": [
+        "Anti-bribery and corruption awareness integrated into employee and supplier onboarding",
+        "Food fraud prevention and authenticity programme",
+        "Confidential reporting channel for food safety and ethical concerns",
+        "Customer and product data protection measures",
+        "Annual management review of food safety, compliance, and business ethics"
+      ]
+    },
+    "SUPPLY_CHAIN": {
+      "procurement": [
+        "Raw material traceability for key ingredients to farm or origin level",
+        "Supplier qualification including food safety certification (BRC, FSSC 22000, IFS) verification",
+        "Preference for certified sustainable ingredients (Rainforest Alliance, Fairtrade, MSC, organic)",
+        "Periodic supplier audits covering food safety, labour conditions, and environmental practices",
+        "Palm oil, soy, and other deforestation-linked commodity sourcing policy",
+        "Packaging supplier assessment including recyclability and recycled content evaluation"
+      ]
+    }
+  },
+  "policyLanguage": {
+    "ENVIRONMENT": {
+      "vision": "committed to minimising the environmental impact of our food production and agricultural operations, with a focus on water stewardship, waste reduction, and sustainable sourcing",
+      "formal": "Our Environmental Policy, endorsed by senior management, establishes our commitment to resource efficiency, organic waste diversion, responsible water use, and compliance with applicable environmental legislation",
+      "informal": "Environmental management is embedded in our daily operations through waste segregation, water monitoring, cold chain efficiency measures, and by-product recovery programmes",
+      "roadmap": "We are developing a formalised Environmental Policy for publication in {year}, building on our existing waste management, water treatment, and energy monitoring practices"
+    },
+    "LABOR": {
+      "vision": "committed to providing a safe, hygienic, and fair working environment for all employees across our food production operations",
+      "formal": "Our Health, Safety & Food Safety Policy establishes our commitment to HACCP-based food safety, occupational safety, fair labour practices, and compliance with food industry regulations",
+      "informal": "Worker safety and food safety are managed through established protocols including HACCP procedures, hygiene training, working hours tracking, and accessible grievance mechanisms",
+      "roadmap": "We are formalising our health, safety, and labour management approach into a documented policy for {year}, aligning with BRC/FSSC requirements and ISO 45001 principles"
+    },
+    "ETHICS": {
+      "vision": "committed to conducting business with integrity, food authenticity, and respect for workers, communities, and the environment",
+      "formal": "Our Code of Business Conduct outlines expectations for ethical behaviour, food integrity, anti-corruption, and compliance throughout our operations and supply chain",
+      "informal": "Ethical business conduct expectations are communicated through onboarding, reinforced through food safety culture, and supported by our food fraud prevention programme",
+      "roadmap": "We are developing a formal Code of Conduct for {year}, consolidating our food integrity, ethics, and compliance expectations into a documented framework"
+    },
+    "SUPPLY_CHAIN": {
+      "vision": "committed to responsible sourcing, ingredient traceability, and maintaining food safety, ethical, and environmental standards throughout our supply chain",
+      "formal": "Our Supplier Code of Conduct establishes minimum expectations for food safety certification, ingredient traceability, labour standards, and environmental performance for all suppliers",
+      "informal": "Supply chain management is conducted through supplier food safety audits, ingredient traceability programmes, and preference for certified sustainable raw materials",
+      "roadmap": "We are developing a formal Supplier Code of Conduct for {year}, extending our existing food safety-based supplier management to include comprehensive ESG criteria and deforestation-free sourcing commitments"
+    }
+  }
+}

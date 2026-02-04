@@ -1,0 +1,105 @@
+{
+  "industry": "Electronics & Technology",
+  "plausibleMeasures": {
+    "ENVIRONMENT": {
+      "energy": [
+        "Energy efficiency optimisation of cleanroom HVAC and environmental control systems",
+        "LED lighting retrofit across production floors, laboratories, and office areas",
+        "Server room and data centre cooling efficiency improvements",
+        "Power factor correction and electrical distribution optimisation",
+        "Procurement of renewable electricity through green tariff or PPA arrangements"
+      ],
+      "emissions": [
+        "Quarterly GHG inventory covering Scope 1 (process gases, heating), Scope 2 (grid electricity), and partial Scope 3",
+        "Process gas management and abatement for semiconductor or PCB manufacturing processes",
+        "Transition to lower-GWP cleaning solvents and process chemicals",
+        "Fleet electrification for company vehicles and employee shuttles",
+        "Carbon footprint assessment at product level for key product lines"
+      ],
+      "waste": [
+        "WEEE (Waste Electrical and Electronic Equipment) compliance and take-back programme",
+        "Electronic component and PCB scrap recovery through certified recyclers",
+        "Solder dross and paste waste recycling for precious metal recovery",
+        "Segregated waste streams: electronic scrap, packaging, general waste, hazardous chemicals",
+        "Design-for-disassembly principles integrated into new product development"
+      ],
+      "water": [
+        "Ultrapure water system optimisation and recycling in PCB or semiconductor wet processing",
+        "Wastewater treatment for process effluent containing metals and chemicals",
+        "Water metering at major process points for consumption monitoring and leak detection",
+        "Closed-loop cooling water systems for process equipment",
+        "Stormwater management and separation from process water drainage"
+      ]
+    },
+    "LABOR": {
+      "health_safety": [
+        "Chemical exposure monitoring for soldering, cleaning, and etching operations",
+        "ESD (electrostatic discharge) protection protocols and training for production staff",
+        "Ergonomic assessments for microscope work, manual assembly, and screen-based roles",
+        "Cleanroom safety protocols including gowning procedures and contamination control",
+        "Incident and near-miss reporting system with corrective action tracking",
+        "Fire prevention measures specific to lithium battery storage and electronic component areas",
+        "Noise monitoring and hearing protection in noisy manufacturing areas"
+      ],
+      "training": [
+        "New-starter induction covering ESD awareness, chemical safety, and quality procedures",
+        "IPC certification training for soldering and PCB assembly staff",
+        "Annual refresher training on RoHS compliance and material restrictions",
+        "Quality management training aligned with ISO 9001 and industry standards",
+        "Supervisor development programme focused on continuous improvement and safety leadership"
+      ],
+      "labor_practices": [
+        "Working hours tracking and overtime management compliant with local labour law and RBA Code",
+        "Fair wage benchmarking against industry and regional standards",
+        "Anti-forced-labour and anti-child-labour policies aligned with Responsible Business Alliance (RBA) standards",
+        "Employee engagement survey programme with management action planning",
+        "Grievance mechanism accessible to all employees including temporary and contract workers"
+      ]
+    },
+    "ETHICS": {
+      "governance": [
+        "Conflict minerals (3TG) due diligence and CMRT reporting aligned with OECD guidance",
+        "Anti-bribery and corruption awareness integrated into employee and supplier onboarding",
+        "Data protection and cybersecurity measures for customer IP and personal data",
+        "Export control and trade compliance programme",
+        "Annual management review of RBA Code compliance and business ethics"
+      ]
+    },
+    "SUPPLY_CHAIN": {
+      "procurement": [
+        "Conflict minerals due diligence programme with CMRT collection from smelters and refiners",
+        "Supplier qualification including RoHS/REACH compliance verification and substance declarations",
+        "Responsible Business Alliance (RBA) Code-aligned supplier assessment and auditing",
+        "Preference for component suppliers with ISO 14001 and ISO 45001 certifications",
+        "Incoming component inspection and material compliance verification",
+        "Extended supply chain mapping for critical raw materials and high-risk geographies"
+      ]
+    }
+  },
+  "policyLanguage": {
+    "ENVIRONMENT": {
+      "vision": "committed to minimising the environmental impact of our electronics manufacturing and technology operations, with a focus on resource efficiency, product lifecycle responsibility, and regulatory compliance",
+      "formal": "Our Environmental Policy, endorsed by senior management, establishes our commitment to RoHS and REACH compliance, WEEE responsibilities, energy efficiency, and responsible management of process chemicals and electronic waste",
+      "informal": "Environmental management is embedded in our operations through RoHS-compliant manufacturing, electronic waste recycling, energy monitoring, and process chemical management procedures",
+      "roadmap": "We are developing a formalised Environmental Policy for publication in {year}, building on our existing RoHS/REACH compliance, waste electronics management, and energy monitoring practices"
+    },
+    "LABOR": {
+      "vision": "committed to providing a safe, fair, and professional working environment aligned with Responsible Business Alliance standards",
+      "formal": "Our Health, Safety & Labour Policy establishes our commitment to worker safety, fair labour practices, and compliance with applicable regulations and the RBA Code of Conduct",
+      "informal": "Worker health and safety is managed through established protocols including chemical safety procedures, ESD controls, ergonomic assessments, and working hours management",
+      "roadmap": "We are formalising our health, safety, and labour management approach into a documented policy for {year}, aligning with ISO 45001 and RBA Code requirements"
+    },
+    "ETHICS": {
+      "vision": "committed to conducting business with integrity, including responsible mineral sourcing, data protection, and ethical practices throughout our operations and supply chain",
+      "formal": "Our Code of Business Conduct outlines expectations for ethical behaviour, conflict minerals due diligence, anti-corruption, data protection, and export control compliance",
+      "informal": "Ethical business conduct is supported through conflict minerals reporting (CMRT), anti-corruption awareness, data security measures, and compliance with export control regulations",
+      "roadmap": "We are developing a formal Code of Conduct for {year}, consolidating our conflict minerals programme, data protection measures, and business ethics expectations into a single documented framework"
+    },
+    "SUPPLY_CHAIN": {
+      "vision": "committed to responsible sourcing, conflict-free minerals, and maintaining high ethical and environmental standards throughout our electronics supply chain",
+      "formal": "Our Supplier Code of Conduct establishes minimum expectations for RoHS/REACH compliance, conflict minerals due diligence, labour standards aligned with the RBA Code, and environmental management",
+      "informal": "Supply chain management is conducted through supplier qualification including material compliance checks, conflict minerals surveys, and periodic assessments aligned with RBA expectations",
+      "roadmap": "We are developing a formal Supplier Code of Conduct for {year}, extending our existing compliance-based supplier management to include comprehensive ESG criteria, conflict minerals traceability, and RBA alignment"
+    }
+  }
+}

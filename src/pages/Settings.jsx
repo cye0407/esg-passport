@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings as SettingsIcon, Building2, Zap, Trash2, Download, Upload } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, Zap, Trash2, Download, Upload, Sparkles, Eye, EyeOff } from 'lucide-react';
 
 export default function Settings() {
   const navigate = useNavigate();
   const [company, setCompany] = useState(null);
   const [settings, setSettings] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     setCompany(getCompanyProfile());
@@ -69,7 +70,7 @@ export default function Settings() {
     if (!confirm('Are you sure you want to reset ALL data? This cannot be undone.')) return;
     if (!confirm('Really delete everything?')) return;
     resetData();
-    navigate('/setup');
+    navigate('/onboarding');
   };
 
   if (!company || !settings) {
@@ -156,6 +157,66 @@ export default function Settings() {
             </Select>
             <p className="text-xs text-[#2D5016]/50">Used to calculate Scope 2 emissions from electricity</p>
           </div>
+        </div>
+      </div>
+
+      {/* AI Enhancement */}
+      <div className="glass-card rounded-2xl p-6">
+        <h2 className="text-lg font-semibold text-[#2D5016] mb-4 flex items-center gap-2">
+          <Sparkles className="w-5 h-5" /> AI Answer Enhancement
+        </h2>
+        <p className="text-sm text-[#2D5016]/60 mb-4">
+          Optionally use AI to rewrite template answers into natural, company-specific language.
+        </p>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Mode</Label>
+            <Select value={settings.aiMode || 'proxy'} onValueChange={(v) => handleSettingsUpdate('aiMode', v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="proxy">Server proxy (no key needed)</SelectItem>
+                <SelectItem value="direct">Use my own API key</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-[#2D5016]/50">
+              {(settings.aiMode || 'proxy') === 'proxy'
+                ? 'Requests go through the ESG Passport server. Works out of the box.'
+                : 'Your API key is stored locally and calls go directly from your browser.'}
+            </p>
+          </div>
+
+          {settings.aiMode === 'direct' && (
+            <>
+              <div className="space-y-2">
+                <Label>Provider</Label>
+                <Select value={settings.aiProvider || 'claude'} onValueChange={(v) => handleSettingsUpdate('aiProvider', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="claude">Anthropic (Claude)</SelectItem>
+                    <SelectItem value="openai">OpenAI (GPT)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>API Key</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={settings.aiApiKey || ''}
+                    onChange={(e) => handleSettingsUpdate('aiApiKey', e.target.value)}
+                    placeholder={settings.aiProvider === 'openai' ? 'sk-...' : 'sk-ant-...'}
+                  />
+                  <Button variant="ghost" size="sm" onClick={() => setShowApiKey(!showApiKey)} className="px-2">
+                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-[#2D5016]/50">
+                  Your key stays in your browser. It is never sent to our servers.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
