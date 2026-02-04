@@ -108,7 +108,7 @@ function questionsFromText(text: string, fileName: string): ParseResult {
     const line = lines[i];
 
     // Heuristic: short lines that don't end with '?' are likely section headers
-    if (line.length < 80 && !line.includes('?') && !line.match(/^\d+[\.\)]/)) {
+    if (line.length < 50 && !line.includes('?') && !line.match(/^\d+[\.\)]/)) {
       currentCategory = line.replace(/[:.]$/, '').trim();
       continue;
     }
@@ -208,20 +208,19 @@ async function parseDocxFile(file: File): Promise<ParseResult> {
 // Excel / CSV parsing (original logic)
 // ---------------------------------------------------------------------------
 
-// Rows that look like instructions, headers, or metadata — not questions
+// Only skip content that is clearly NOT a question
 const SKIP_PATTERNS = [
-  /^(note|notes|instructions?|guidance|disclaimer|confidential|copyright|version|date|page|total|subtotal|sum|average|n\/a)/i,
-  /^(please|this (section|document|form|sheet)|complete the|fill in|refer to|see (above|below|section))/i,
+  /^(copyright|confidential|disclaimer|version\s*[\d\.]|page\s*\d|©)/i,
   /^\d+$/,                        // Just a number
   /^[\d\.\-\/\s]+$/,              // Just numbers/dates
-  /^(yes|no|true|false|x|n\/a)$/i // Just a boolean/flag
+  /^(yes|no|true|false|x|n\/a)$/i // Just a boolean/flag value
 ];
 
 function looksLikeQuestion(text: string): boolean {
-  if (text.length < 15) return text.includes('?');
+  // Too short to be a meaningful question (unless it has a ?)
+  if (text.length < 10) return text.includes('?');
+  // Obvious junk
   if (SKIP_PATTERNS.some(p => p.test(text))) return false;
-  // Very long texts (>500 chars) are likely descriptions, not questions
-  if (text.length > 500) return false;
   return true;
 }
 

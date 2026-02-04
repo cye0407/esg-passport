@@ -109,6 +109,38 @@ export function buildCompanyData(year) {
 }
 
 /**
+ * Build a CompanyProfile object for the answer engine.
+ * This is the contextual profile that helps the engine generate
+ * industry-aware, company-specific answers.
+ * @returns {import('../types/context').CompanyProfile}
+ */
+export function buildCompanyProfile() {
+  const profile = getCompanyProfile();
+  const companyName = profile?.tradingName || profile?.legalName || '';
+  const industry = profile?.industrySector || '';
+  const country = profile?.countryOfIncorporation
+    ? (CODE_TO_NAME[profile.countryOfIncorporation] || profile.countryOfIncorporation)
+    : '';
+  const employeeCount = parseInt(profile?.totalEmployees) || 0;
+  const numberOfSites = parseInt(profile?.numberOfFacilities) || 1;
+  const reportingPeriod = profile?.baselineYear || new Date().getFullYear().toString();
+  const revenueBand = profile?.annualRevenue || '';
+
+  return {
+    companyName,
+    industry,
+    country,
+    employeeCount,
+    numberOfSites,
+    reportingPeriod,
+    revenueBand,
+    informalPractices: [],
+    maturityLevel: 'Emerging',
+    maturityScore: 0,
+  };
+}
+
+/**
  * Compute year-over-year trends for key metrics.
  * Returns trend narratives that can be injected into answers.
  * @param {string} [currentYear] - The current reporting year

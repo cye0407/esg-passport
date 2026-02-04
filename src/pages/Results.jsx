@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { buildCompanyData, getDataQualitySummary, computeYoYTrends } from '@/lib/dataBridge';
+import { buildCompanyData, buildCompanyProfile, getDataQualitySummary, computeYoYTrends } from '@/lib/dataBridge';
 import { loadData, saveData, saveMasterAnswer, getMasterAnswers, getDocuments } from '@/lib/store';
 import { computeFrameworkScores } from '@/lib/frameworkScoring';
 import { generateDataChecklist } from '@/lib/dataCollectionGuide';
@@ -171,7 +171,8 @@ export default function Results() {
         aggregateSites: true,
       };
 
-      const drafts = generateAnswerDrafts(questions, matchResults, dataContexts, config, undefined, classifications);
+      const profile = buildCompanyProfile();
+      const drafts = generateAnswerDrafts(questions, matchResults, dataContexts, config, profile, classifications);
       setAnswerDrafts(drafts);
 
       // Save to history
