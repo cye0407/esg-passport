@@ -16,6 +16,15 @@ import Documents from '@/pages/Documents';
 import AnswerLibrary from '@/pages/AnswerLibrary';
 import Onboarding from '@/pages/Onboarding';
 
+// Free tools (standalone, no auth)
+import ToolsIndex from '@/pages/tools/index';
+import CarbonCalculator from '@/pages/tools/CarbonCalculator';
+import EcoVadisReadiness from '@/pages/tools/EcoVadisReadiness';
+import Scope2Calculator from '@/pages/tools/Scope2Calculator';
+import WaterCalculator from '@/pages/tools/WaterCalculator';
+import WasteCalculator from '@/pages/tools/WasteCalculator';
+import TimeEstimator from '@/pages/tools/TimeEstimator';
+
 function App() {
   return (
     <BrowserRouter>
@@ -23,6 +32,15 @@ function App() {
         {/* Standalone pages (no nav) */}
         <Route path="/setup" element={<Setup />} />
         <Route path="/onboarding" element={<Onboarding />} />
+
+        {/* Free tools (standalone, SEO-friendly) */}
+        <Route path="/tools" element={<ToolsIndex />} />
+        <Route path="/tools/carbon-calculator" element={<CarbonCalculator />} />
+        <Route path="/tools/ecovadis-readiness" element={<EcoVadisReadiness />} />
+        <Route path="/tools/scope2-calculator" element={<Scope2Calculator />} />
+        <Route path="/tools/water-calculator" element={<WaterCalculator />} />
+        <Route path="/tools/waste-calculator" element={<WasteCalculator />} />
+        <Route path="/tools/time-estimator" element={<TimeEstimator />} />
         
         {/* Main app with layout */}
         <Route element={<Layout />}>
