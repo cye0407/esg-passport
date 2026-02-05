@@ -69,16 +69,16 @@ export default function Requests() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#2D5016] flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Inbox className="w-6 h-6" />
             Customer Requests
           </h1>
-          <p className="text-[#2D5016]/70 mt-1">Track and respond to sustainability data requests</p>
+          <p className="text-slate-600 mt-1">Track and respond to sustainability data requests</p>
         </div>
 
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
-            <Button className="bg-[#2D5016] hover:bg-[#3d6b1e] text-white">
+            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
               <Plus className="w-4 h-4 mr-2" /> Log Request
             </Button>
           </DialogTrigger>
@@ -122,19 +122,19 @@ export default function Requests() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="glass-card rounded-xl p-4">
-          <p className="text-sm text-[#2D5016]/60">Total</p>
-          <p className="text-2xl font-bold text-[#2D5016]">{requests.length}</p>
+          <p className="text-sm text-slate-500">Total</p>
+          <p className="text-2xl font-bold text-slate-900">{requests.length}</p>
         </div>
         <div className="glass-card rounded-xl p-4">
-          <p className="text-sm text-[#2D5016]/60">Open</p>
+          <p className="text-sm text-slate-500">Open</p>
           <p className="text-2xl font-bold text-yellow-600">{openRequests.length}</p>
         </div>
         <div className="glass-card rounded-xl p-4">
-          <p className="text-sm text-[#2D5016]/60">Sent</p>
+          <p className="text-sm text-slate-500">Sent</p>
           <p className="text-2xl font-bold text-green-600">{requests.filter(r => r.status === 'sent').length}</p>
         </div>
         <div className="glass-card rounded-xl p-4">
-          <p className="text-sm text-[#2D5016]/60">Overdue</p>
+          <p className="text-sm text-slate-500">Overdue</p>
           <p className="text-2xl font-bold text-red-600">{openRequests.filter(r => getDaysUntil(r.deadline) < 0).length}</p>
         </div>
       </div>
@@ -142,9 +142,9 @@ export default function Requests() {
       {/* Request List */}
       {requests.length === 0 ? (
         <div className="glass-card rounded-2xl p-8 text-center">
-          <Inbox className="w-12 h-12 mx-auto text-[#2D5016]/30 mb-4" />
-          <h2 className="text-xl font-semibold text-[#2D5016] mb-2">No requests yet</h2>
-          <p className="text-[#2D5016]/60 mb-4">Log your first customer request to get started</p>
+          <Inbox className="w-12 h-12 mx-auto text-slate-300 mb-4" />
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">No requests yet</h2>
+          <p className="text-slate-500 mb-4">Log your first customer request to get started</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -156,11 +156,11 @@ export default function Requests() {
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-1">
-                      <Building2 className="w-4 h-4 text-[#2D5016]/50" />
-                      <span className="font-semibold text-[#2D5016]">{req.customerName}</span>
+                      <Building2 className="w-4 h-4 text-slate-400" />
+                      <span className="font-semibold text-slate-900">{req.customerName}</span>
                       <span className={cn('px-2 py-0.5 rounded text-xs', badge.color)}>{badge.label}</span>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-[#2D5016]/60">
+                    <div className="flex items-center gap-4 text-sm text-slate-500">
                       <span>{REQUEST_PLATFORMS.find(p => p.value === req.platform)?.label || req.platform}</span>
                       <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{formatDate(req.dateReceived)}</span>
                       {req.dataRequested && <span className="truncate max-w-xs">{req.dataRequested}</span>}
@@ -175,7 +175,7 @@ export default function Requests() {
                     <Button variant="ghost" size="sm" onClick={(e) => handleDelete(req.id, e)} className="text-red-500 hover:text-red-700">
                       <Trash2 className="w-4 h-4" />
                     </Button>
-                    <ArrowRight className="w-4 h-4 text-[#2D5016]/30" />
+                    <ArrowRight className="w-4 h-4 text-slate-300" />
                   </div>
                 </div>
               </Link>

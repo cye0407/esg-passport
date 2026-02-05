@@ -6,7 +6,32 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings as SettingsIcon, Building2, Zap, Trash2, Download, Upload, Sparkles, Eye, EyeOff } from 'lucide-react';
+import {
+  Settings as SettingsIcon, Building2, Zap, Trash2, Download, Upload,
+  Sparkles, Eye, EyeOff, FileText, BookOpen, ChevronDown, ChevronRight,
+} from 'lucide-react';
+import PoliciesSection from '@/components/settings/PoliciesSection';
+import DocumentsSection from '@/components/settings/DocumentsSection';
+import AnswerLibrarySection from '@/components/settings/AnswerLibrarySection';
+import { cn } from '@/lib/utils';
+
+function CollapsibleSection({ icon: Icon, title, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="glass-card rounded-2xl overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition-colors"
+      >
+        <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+          <Icon className="w-5 h-5" /> {title}
+        </h2>
+        {open ? <ChevronDown className="w-5 h-5 text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-400" />}
+      </button>
+      {open && <div className="px-6 pb-6 border-t border-slate-100">{children}</div>}
+    </div>
+  );
+}
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -24,17 +49,17 @@ export default function Settings() {
     const updated = { ...company, [field]: value };
     setCompany(updated);
     saveCompanyProfile(updated);
-    showSaved();
+    showSavedToast();
   };
 
   const handleSettingsUpdate = (field, value) => {
     const updated = { ...settings, [field]: value };
     setSettings(updated);
     saveSettings(updated);
-    showSaved();
+    showSavedToast();
   };
 
-  const showSaved = () => {
+  const showSavedToast = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -74,28 +99,28 @@ export default function Settings() {
   };
 
   if (!company || !settings) {
-    return <div className="p-8 text-center text-[#2D5016]/50">Loading...</div>;
+    return <div className="p-8 text-center text-slate-400">Loading...</div>;
   }
 
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-[#2D5016] flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <SettingsIcon className="w-6 h-6" />
           Settings
         </h1>
-        <p className="text-[#2D5016]/70 mt-1">Manage your profile and preferences</p>
+        <p className="text-slate-600 mt-1">Manage your profile, documents, and preferences</p>
       </div>
 
       {saved && (
-        <div className="fixed top-20 right-4 bg-green-100 text-green-800 px-4 py-2 rounded-lg shadow-lg">
+        <div className="fixed top-20 right-4 bg-green-100 text-green-800 px-4 py-2 rounded-lg shadow-lg z-50">
           Saved!
         </div>
       )}
 
       {/* Company Profile */}
       <div className="glass-card rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-[#2D5016] mb-4 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
           <Building2 className="w-5 h-5" /> Company Profile
         </h2>
         <div className="space-y-4">
@@ -137,12 +162,24 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Policies (collapsible) */}
+      <CollapsibleSection icon={FileText} title="Policies">
+        <PoliciesSection />
+      </CollapsibleSection>
+
+      {/* Documents (collapsible) */}
+      <CollapsibleSection icon={FileText} title="Documents">
+        <DocumentsSection />
+      </CollapsibleSection>
+
+      {/* Answer Library (collapsible) */}
+      <CollapsibleSection icon={BookOpen} title="Answer Library">
+        <AnswerLibrarySection />
+      </CollapsibleSection>
+
       {/* Calculation Settings */}
-      <div className="glass-card rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-[#2D5016] mb-4 flex items-center gap-2">
-          <Zap className="w-5 h-5" /> Emission Calculations
-        </h2>
-        <div className="space-y-4">
+      <CollapsibleSection icon={Zap} title="Emission Calculations">
+        <div className="space-y-4 pt-4">
           <div className="space-y-2">
             <Label>Grid Emission Factor Country</Label>
             <Select value={settings.gridCountry} onValueChange={(v) => handleSettingsUpdate('gridCountry', v)}>
@@ -155,20 +192,17 @@ export default function Settings() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-[#2D5016]/50">Used to calculate Scope 2 emissions from electricity</p>
+            <p className="text-xs text-slate-400">Used to calculate Scope 2 emissions from electricity</p>
           </div>
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* AI Enhancement */}
-      <div className="glass-card rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-[#2D5016] mb-4 flex items-center gap-2">
-          <Sparkles className="w-5 h-5" /> AI Answer Enhancement
-        </h2>
-        <p className="text-sm text-[#2D5016]/60 mb-4">
-          Optionally use AI to rewrite template answers into natural, company-specific language.
-        </p>
-        <div className="space-y-4">
+      <CollapsibleSection icon={Sparkles} title="AI Answer Enhancement">
+        <div className="space-y-4 pt-4">
+          <p className="text-sm text-slate-500">
+            Optionally use AI to rewrite template answers into natural, company-specific language.
+          </p>
           <div className="space-y-2">
             <Label>Mode</Label>
             <Select value={settings.aiMode || 'proxy'} onValueChange={(v) => handleSettingsUpdate('aiMode', v)}>
@@ -178,7 +212,7 @@ export default function Settings() {
                 <SelectItem value="direct">Use my own API key</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-[#2D5016]/50">
+            <p className="text-xs text-slate-400">
               {(settings.aiMode || 'proxy') === 'proxy'
                 ? 'Requests go through the ESG Passport server. Works out of the box.'
                 : 'Your API key is stored locally and calls go directly from your browser.'}
@@ -211,18 +245,18 @@ export default function Settings() {
                     {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </Button>
                 </div>
-                <p className="text-xs text-[#2D5016]/50">
+                <p className="text-xs text-slate-400">
                   Your key stays in your browser. It is never sent to our servers.
                 </p>
               </div>
             </>
           )}
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* Data Management */}
       <div className="glass-card rounded-2xl p-6">
-        <h2 className="text-lg font-semibold text-[#2D5016] mb-4">Data Management</h2>
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Data Management</h2>
         <div className="space-y-4">
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" onClick={handleExportData}>
@@ -235,7 +269,7 @@ export default function Settings() {
               <input type="file" accept=".json" onChange={handleImportData} className="hidden" />
             </label>
           </div>
-          <p className="text-sm text-[#2D5016]/60">
+          <p className="text-sm text-slate-500">
             Your data is stored locally in your browser. Export regularly to avoid data loss.
           </p>
         </div>
@@ -246,7 +280,7 @@ export default function Settings() {
         <h2 className="text-lg font-semibold text-red-600 mb-4 flex items-center gap-2">
           <Trash2 className="w-5 h-5" /> Danger Zone
         </h2>
-        <p className="text-sm text-[#2D5016]/60 mb-4">
+        <p className="text-sm text-slate-500 mb-4">
           This will permanently delete all your data including company profile, metrics, policies, and requests.
         </p>
         <Button variant="destructive" onClick={handleReset}>

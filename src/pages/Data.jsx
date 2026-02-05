@@ -470,23 +470,23 @@ export default function Data() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#2D5016] flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Database className="w-6 h-6" />
             {entryMode === 'monthly' ? t('data.title.monthly', lang) : t('data.title.annual', lang)}
           </h1>
-          <p className="text-[#2D5016]/70 mt-1">
+          <p className="text-slate-600 mt-1">
             {t('data.subtitle', lang).replace('{mode}', entryMode === 'monthly' ? t('btn.monthly', lang).toLowerCase() : t('btn.annual', lang).toLowerCase()).replace('{year}', selectedYear)}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Entry mode toggle */}
-          <div className="flex bg-[#2D5016]/5 rounded-lg p-0.5 mr-2">
+          <div className="flex bg-slate-50 rounded-lg p-0.5 mr-2">
             <button
               onClick={switchToMonthly}
               className={cn(
                 'px-3 py-1.5 rounded-md text-xs font-medium transition-all',
-                entryMode === 'monthly' ? 'bg-white text-[#2D5016] shadow-sm' : 'text-[#2D5016]/50'
+                entryMode === 'monthly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'
               )}
             >
               {t('btn.monthly', lang)}
@@ -495,7 +495,7 @@ export default function Data() {
               onClick={switchToAnnual}
               className={cn(
                 'px-3 py-1.5 rounded-md text-xs font-medium transition-all',
-                entryMode === 'annual' ? 'bg-white text-[#2D5016] shadow-sm' : 'text-[#2D5016]/50'
+                entryMode === 'annual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'
               )}
             >
               {t('btn.annual', lang)}
@@ -511,7 +511,7 @@ export default function Data() {
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="font-semibold text-[#2D5016] w-16 text-center">{selectedYear}</span>
+          <span className="font-semibold text-slate-900 w-16 text-center">{selectedYear}</span>
           <Button
             variant="outline"
             size="sm"
@@ -536,7 +536,7 @@ export default function Data() {
           variant="outline"
           size="sm"
           onClick={() => csvInputRef.current?.click()}
-          className="text-[#2D5016] border-[#2D5016]/20"
+          className="text-slate-900 border-slate-200"
         >
           <UploadIcon className="w-4 h-4 mr-1" />
           {t('btn.import', lang)}
@@ -545,7 +545,7 @@ export default function Data() {
           variant="outline"
           size="sm"
           onClick={downloadCsvTemplate}
-          className="text-[#2D5016] border-[#2D5016]/20"
+          className="text-slate-900 border-slate-200"
         >
           <Download className="w-4 h-4 mr-1" />
           {t('btn.template', lang)}
@@ -555,8 +555,8 @@ export default function Data() {
           className={cn(
             'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border',
             showComparison
-              ? 'bg-[#2D5016] text-white border-[#2D5016]'
-              : 'text-[#2D5016]/60 border-[#2D5016]/20 hover:text-[#2D5016]'
+              ? 'bg-indigo-600 text-white border-indigo-600'
+              : 'text-slate-500 border-slate-200 hover:text-slate-900'
           )}
         >
           <ArrowUpRight className="w-3 h-3" />
@@ -566,12 +566,12 @@ export default function Data() {
 
       {/* Industry hint */}
       {industry && optionalFields.length > 0 && (
-        <div className="flex items-center gap-2 text-sm text-[#2D5016]/60 bg-[#2D5016]/5 rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
           <Factory className="w-4 h-4 flex-shrink-0" />
           <span>Showing metrics most relevant for <strong>{industry}</strong>.</span>
           <button
             onClick={() => setShowAllMetrics(!showAllMetrics)}
-            className="text-[#2D5016] underline ml-1"
+            className="text-slate-900 underline ml-1"
           >
             {showAllMetrics ? t('btn.showRecommended', lang) : `${t('btn.showAll', lang)} (+${optionalRows.length})`}
           </button>
@@ -579,9 +579,9 @@ export default function Data() {
       )}
 
       {/* Production Volume (for intensity metrics) */}
-      <div className="flex items-center gap-3 bg-[#2D5016]/5 rounded-lg px-3 py-2">
-        <Zap className="w-4 h-4 text-[#2D5016]/60 flex-shrink-0" />
-        <span className="text-sm text-[#2D5016]/70">{t('data.productionVolume', lang)}:</span>
+      <div className="flex items-center gap-3 bg-slate-50 rounded-lg px-3 py-2">
+        <Zap className="w-4 h-4 text-slate-500 flex-shrink-0" />
+        <span className="text-sm text-slate-600">{t('data.productionVolume', lang)}:</span>
         <input
           type="text"
           inputMode="numeric"
@@ -592,9 +592,9 @@ export default function Data() {
             saveSettings({ productionVolume: parseFloat(val) || null });
           }}
           placeholder={productionUnitLabel}
-          className="w-32 h-7 text-center text-sm px-2 border rounded-md bg-white border-[#2D5016]/20 focus:border-[#2D5016] focus:ring-1 focus:ring-[#2D5016]/20 focus:outline-none"
+          className="w-32 h-7 text-center text-sm px-2 border rounded-md bg-white border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20 focus:outline-none"
         />
-        <span className="text-xs text-[#2D5016]/50">{productionUnit}</span>
+        <span className="text-xs text-slate-400">{productionUnit}</span>
       </div>
 
       {/* Error Banner */}
@@ -616,14 +616,14 @@ export default function Data() {
       <div className="glass-card rounded-xl p-4 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#2D5016]/20">
-              <th className="text-left py-2 pr-2 font-medium text-[#2D5016] w-[140px]">Metric</th>
+            <tr className="border-b border-slate-200">
+              <th className="text-left py-2 pr-2 font-medium text-slate-900 w-[140px]">Metric</th>
               {entryMode === 'monthly' ? (
                 <>
                   {monthsToShow.map(month => (
                     <th key={month.period} className={cn(
                       "py-2 px-1 font-medium text-center",
-                      month.isFuture ? "text-[#2D5016]/30" : "text-[#2D5016]"
+                      month.isFuture ? "text-slate-300" : "text-slate-900"
                     )}>
                       <div className="flex flex-col items-center">
                         <span className="text-xs">{month.label}</span>
@@ -631,10 +631,10 @@ export default function Data() {
                       </div>
                     </th>
                   ))}
-                  <th className="py-2 pl-2 font-medium text-[#2D5016] text-right w-[80px]">Total</th>
+                  <th className="py-2 pl-2 font-medium text-slate-900 text-right w-[80px]">Total</th>
                 </>
               ) : (
-                <th className="py-2 px-4 font-medium text-center text-[#2D5016]">
+                <th className="py-2 px-4 font-medium text-center text-slate-900">
                   <div className="flex items-center justify-center gap-1">
                     <Calendar className="w-4 h-4" />
                     <span>{selectedYear} Total</span>
@@ -648,18 +648,18 @@ export default function Data() {
               <React.Fragment key={`${row.section}-${row.field}`}>
                 {/* Industry metrics section header */}
                 {idx === coreDataRows.length && industryMetricRows.length > 0 && (
-                  <tr className="border-t-2 border-[#7CB342]/30">
-                    <td colSpan={entryMode === 'monthly' ? 14 : 2} className="py-2 text-xs font-semibold text-[#7CB342] uppercase tracking-wide">
+                  <tr className="border-t-2 border-indigo-500/30">
+                    <td colSpan={entryMode === 'monthly' ? 14 : 2} className="py-2 text-xs font-semibold text-indigo-500 uppercase tracking-wide">
                       <span className="flex items-center gap-1"><Zap className="w-3 h-3" />{industry} {t('data.industryMetrics', lang)}</span>
                     </td>
                   </tr>
                 )}
-              <tr className={cn('border-b border-[#2D5016]/10', idx % 2 === 0 ? '' : 'bg-[#2D5016]/[0.02]')}>
-                <td className="py-1.5 pr-2 text-[#2D5016]">
+              <tr className={cn('border-b border-slate-200', idx % 2 === 0 ? '' : 'bg-slate-50/50')}>
+                <td className="py-1.5 pr-2 text-slate-900">
                   <span className="flex items-center gap-1">
                     {row.required && <Flag className="w-3 h-3 text-orange-500 flex-shrink-0" title="Required for 80% of questionnaires" />}
                     {row.label}
-                    {row.noSum && entryMode === 'annual' && <span className="text-[10px] text-[#2D5016]/40 ml-1">(snapshot)</span>}
+                    {row.noSum && entryMode === 'annual' && <span className="text-[10px] text-slate-400 ml-1">(snapshot)</span>}
                   </span>
                 </td>
 
@@ -686,13 +686,13 @@ export default function Data() {
                                 ? "bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed"
                                 : error
                                   ? "bg-red-50 border-red-400 text-red-900 focus:border-red-500 focus:ring-1 focus:ring-red-200"
-                                  : "bg-white border-[#2D5016]/20 focus:border-[#2D5016] focus:ring-1 focus:ring-[#2D5016]/20"
+                                  : "bg-white border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20"
                             )}
                           />
                         </td>
                       );
                     })}
-                    <td className="py-1.5 pl-2 text-right font-medium text-[#2D5016]">
+                    <td className="py-1.5 pl-2 text-right font-medium text-slate-900">
                       {row.noSum ? '' : (calculateYearTotal(row.section, row.field) || '')}
                     </td>
                   </>
@@ -708,7 +708,7 @@ export default function Data() {
                         updateAnnualValue(row.section, row.field, val);
                       }}
                       placeholder={row.noSum ? 'Current value' : 'Annual total'}
-                      className="w-full max-w-[200px] mx-auto h-8 text-center text-sm px-2 border rounded-md focus:outline-none bg-white border-[#2D5016]/20 focus:border-[#2D5016] focus:ring-1 focus:ring-[#2D5016]/20 block"
+                      className="w-full max-w-[200px] mx-auto h-8 text-center text-sm px-2 border rounded-md focus:outline-none bg-white border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20 block"
                     />
                   </td>
                 )}
@@ -717,8 +717,8 @@ export default function Data() {
             ))}
 
             {/* Emissions Row */}
-            <tr className="bg-[#2D5016]/5 border-t border-[#2D5016]/20">
-              <td className="py-2 pr-2 font-medium text-[#2D5016]">CO&#x2082;e (tonnes)</td>
+            <tr className="bg-slate-50 border-t border-slate-200">
+              <td className="py-2 pr-2 font-medium text-slate-900">CO&#x2082;e (tonnes)</td>
               {entryMode === 'monthly' ? (
                 <>
                   {monthsToShow.map(month => {
@@ -728,13 +728,13 @@ export default function Data() {
                     return (
                       <td key={month.period} className={cn(
                         "py-2 px-1 text-center font-medium",
-                        month.isFuture ? "text-gray-300" : "text-[#2D5016]"
+                        month.isFuture ? "text-gray-300" : "text-slate-900"
                       )}>
                         {month.isFuture ? '' : (total > 0 ? total.toFixed(2) : '')}
                       </td>
                     );
                   })}
-                  <td className="py-2 pl-2 text-right font-bold text-[#2D5016]">
+                  <td className="py-2 pl-2 text-right font-bold text-slate-900">
                     {(() => {
                       const total = monthsToShow.reduce((acc, month) => {
                         const record = getRecord(month.period);
@@ -746,7 +746,7 @@ export default function Data() {
                   </td>
                 </>
               ) : (
-                <td className="py-2 px-4 text-center font-bold text-[#2D5016]">
+                <td className="py-2 px-4 text-center font-bold text-slate-900">
                   {(() => {
                     const electricity = parseFloat(getAnnualInputValue('energy', 'electricityKwh')) || 0;
                     const gas = parseFloat(getAnnualInputValue('energy', 'naturalGasKwh')) || 0;
@@ -762,8 +762,8 @@ export default function Data() {
 
             {/* Intensity Row (emissions per production unit) */}
             {productionVolume && parseFloat(productionVolume) > 0 && (
-              <tr className="bg-[#2D5016]/5 border-t border-[#2D5016]/20">
-                <td className="py-2 pr-2 font-medium text-[#2D5016] flex items-center gap-1">
+              <tr className="bg-slate-50 border-t border-slate-200">
+                <td className="py-2 pr-2 font-medium text-slate-900 flex items-center gap-1">
                   <Zap className="w-3 h-3" />
                   {t('data.intensity', lang)}
                 </td>
@@ -775,12 +775,12 @@ export default function Data() {
                       const total = emissions.scope1Tco2e + emissions.scope2Tco2e;
                       const intensity = total > 0 ? (total / parseFloat(productionVolume) * 12).toFixed(4) : '';
                       return (
-                        <td key={month.period} className={cn("py-2 px-1 text-center text-xs", month.isFuture ? "text-gray-300" : "text-[#2D5016]/70")}>
+                        <td key={month.period} className={cn("py-2 px-1 text-center text-xs", month.isFuture ? "text-gray-300" : "text-slate-600")}>
                           {month.isFuture ? '' : intensity}
                         </td>
                       );
                     })}
-                    <td className="py-2 pl-2 text-right text-xs font-medium text-[#2D5016]">
+                    <td className="py-2 pl-2 text-right text-xs font-medium text-slate-900">
                       {(() => {
                         const total = monthsToShow.reduce((acc, month) => {
                           const record = getRecord(month.period);
@@ -792,7 +792,7 @@ export default function Data() {
                     </td>
                   </>
                 ) : (
-                  <td className="py-2 px-4 text-center text-xs font-medium text-[#2D5016]">
+                  <td className="py-2 px-4 text-center text-xs font-medium text-slate-900">
                     {(() => {
                       const electricity = parseFloat(getAnnualInputValue('energy', 'electricityKwh')) || 0;
                       const gas = parseFloat(getAnnualInputValue('energy', 'naturalGasKwh')) || 0;
@@ -811,7 +811,7 @@ export default function Data() {
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-xs text-[#2D5016]/60">
+      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
         <span className="flex items-center gap-1">
           <Flag className="w-3 h-3 text-orange-500" />
           Required for 80% of questionnaires
@@ -831,19 +831,19 @@ export default function Data() {
       {/* Year-over-Year Comparison */}
       {showComparison && (
         <div className="glass-card rounded-xl p-4">
-          <h3 className="font-semibold text-[#2D5016] mb-4 flex items-center gap-2">
+          <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <ArrowUpRight className="w-5 h-5" />
             Year-over-Year Comparison
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#2D5016]/20">
-                  <th className="text-left py-2 pr-4 font-medium text-[#2D5016]">Metric</th>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-2 pr-4 font-medium text-slate-900">Metric</th>
                   {comparisonYears.map(y => (
-                    <th key={y} className="py-2 px-4 text-center font-medium text-[#2D5016]">{y}</th>
+                    <th key={y} className="py-2 px-4 text-center font-medium text-slate-900">{y}</th>
                   ))}
-                  <th className="py-2 px-4 text-center font-medium text-[#2D5016]">Trend</th>
+                  <th className="py-2 px-4 text-center font-medium text-slate-900">Trend</th>
                 </tr>
               </thead>
               <tbody>
@@ -856,10 +856,10 @@ export default function Data() {
                     : null;
 
                   return (
-                    <tr key={metric.key} className="border-b border-[#2D5016]/10">
-                      <td className="py-2 pr-4 text-[#2D5016]">{metric.label}</td>
+                    <tr key={metric.key} className="border-b border-slate-200">
+                      <td className="py-2 pr-4 text-slate-900">{metric.label}</td>
                       {values.map((v, i) => (
-                        <td key={i} className="py-2 px-4 text-center text-[#2D5016]">
+                        <td key={i} className="py-2 px-4 text-center text-slate-900">
                           {v > 0 ? metric.format(v) : '-'}
                         </td>
                       ))}
@@ -879,7 +879,7 @@ export default function Data() {
                             {Math.abs(parseFloat(trend))}%
                           </span>
                         ) : (
-                          <span className="text-xs text-[#2D5016]/30">-</span>
+                          <span className="text-xs text-slate-300">-</span>
                         )}
                       </td>
                     </tr>
@@ -895,7 +895,7 @@ export default function Data() {
       <div className="flex items-center justify-between p-4 glass-card rounded-xl sticky bottom-4">
         <span className={cn(
           "text-sm",
-          hasErrors ? "text-red-600" : "text-[#2D5016]/60"
+          hasErrors ? "text-red-600" : "text-slate-500"
         )}>
           {hasErrors
             ? t('status.errors', lang).replace('{count}', Object.keys(errors).length)
@@ -916,7 +916,7 @@ export default function Data() {
               "text-white",
               hasErrors
                 ? "bg-gray-400 cursor-not-allowed"
-                : "bg-gradient-to-r from-[#2D5016] to-[#3d6b1e] hover:from-[#3d6b1e] hover:to-[#4d7b2e]"
+                : "bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800"
             )}
           >
             <Save className="w-4 h-4 mr-2" />

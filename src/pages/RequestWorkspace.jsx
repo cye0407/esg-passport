@@ -52,7 +52,7 @@ export default function RequestWorkspace() {
     }
   };
 
-  if (!request) return <div className="p-8 text-center text-[#2D5016]/50">Loading...</div>;
+  if (!request) return <div className="p-8 text-center text-slate-400">Loading...</div>;
 
   // Analyze readiness for selected topics
   const getDataPointsForTopics = () => {
@@ -99,10 +99,10 @@ export default function RequestWorkspace() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <Building2 className="w-6 h-6 text-[#2D5016]" />
-              <h1 className="text-2xl font-bold text-[#2D5016]">{request.customerName}</h1>
+              <Building2 className="w-6 h-6 text-slate-900" />
+              <h1 className="text-2xl font-bold text-slate-900">{request.customerName}</h1>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-[#2D5016]/60">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
               <span className={cn('px-2 py-1 rounded', statusBadge.color)}>{statusBadge.label}</span>
               <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> Received: {new Date(request.dateReceived).toLocaleDateString()}</span>
               {request.deadline && (
@@ -123,11 +123,11 @@ export default function RequestWorkspace() {
 
         {/* Quick Template Selector */}
         <div className="mb-6">
-          <Label className="text-sm text-[#2D5016]/60 mb-2 block">Quick select questionnaire type:</Label>
+          <Label className="text-sm text-slate-500 mb-2 block">Quick select questionnaire type:</Label>
           <div className="flex flex-wrap gap-2">
             {Object.entries(QUESTIONNAIRE_TEMPLATES).map(([key, template]) => (
               <Button key={key} variant="outline" size="sm" onClick={() => applyTemplate(key)}
-                className={cn(request.questionnaire?.type === key && 'bg-[#2D5016] text-white')}>
+                className={cn(request.questionnaire?.type === key && 'bg-indigo-600 text-white')}>
                 {template.name}
               </Button>
             ))}
@@ -136,12 +136,12 @@ export default function RequestWorkspace() {
 
         {/* What They're Asking For */}
         <div className="mb-6">
-          <Label className="text-sm font-medium text-[#2D5016] mb-3 block">What they're asking for:</Label>
+          <Label className="text-sm font-medium text-slate-900 mb-3 block">What they're asking for:</Label>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {QUESTIONNAIRE_TOPICS.map(topic => (
-              <label key={topic.id} className="flex items-center gap-2 p-2 rounded-lg border border-[#2D5016]/10 hover:bg-[#2D5016]/5 cursor-pointer">
+              <label key={topic.id} className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
                 <Checkbox checked={selectedTopics.includes(topic.id)} onCheckedChange={() => handleTopicToggle(topic.id)} />
-                <span className="text-sm text-[#2D5016]">{topic.label}</span>
+                <span className="text-sm text-slate-900">{topic.label}</span>
               </label>
             ))}
           </div>
@@ -151,7 +151,7 @@ export default function RequestWorkspace() {
       {/* Readiness Analysis */}
       {selectedTopics.length > 0 && (
         <div className="glass-card rounded-2xl p-6">
-          <h2 className="text-lg font-semibold text-[#2D5016] mb-4">Your Data Readiness</h2>
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Your Data Readiness</h2>
           
           <div className="grid sm:grid-cols-3 gap-4 mb-6">
             <div className="p-4 rounded-xl bg-green-50 border border-green-200">
@@ -195,13 +195,13 @@ export default function RequestWorkspace() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link to={`/upload?requestId=${request.id}`}>
-              <Button className="bg-gradient-to-r from-[#2D5016] to-[#7CB342] hover:opacity-90 text-white">
+            <Link to={`/respond?requestId=${request.id}`}>
+              <Button className="bg-gradient-to-r from-indigo-600 to-indigo-500 hover:bg-indigo-700 text-white">
                 <Upload className="w-4 h-4 mr-2" /> Upload Questionnaire
               </Button>
             </Link>
-            <Link to="/export">
-              <Button className="bg-[#2D5016] hover:bg-[#3d6b1e] text-white">
+            <Link to="/respond">
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
                 <Download className="w-4 h-4 mr-2" /> Generate Response Pack
               </Button>
             </Link>
@@ -214,7 +214,7 @@ export default function RequestWorkspace() {
 
       {/* Notes */}
       <div className="glass-card rounded-2xl p-6">
-        <Label className="text-sm font-medium text-[#2D5016] mb-2 block">Notes</Label>
+        <Label className="text-sm font-medium text-slate-900 mb-2 block">Notes</Label>
         <Textarea
           value={request.notes || ''}
           onChange={(e) => handleUpdate({ notes: e.target.value })}
