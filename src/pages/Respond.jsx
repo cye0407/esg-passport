@@ -21,6 +21,17 @@ import {
   Pencil, Sparkles,
 } from 'lucide-react';
 
+// Lazy engine singleton — created on first use
+let _engine = null;
+async function getEngine() {
+  if (!_engine) {
+    const { createResponseEngine } = await import('response-ready');
+    const { esgDomainPack } = await import('response-ready/domain-packs/esg');
+    _engine = createResponseEngine(esgDomainPack);
+  }
+  return _engine;
+}
+
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
 
 const CONFIDENCE_STYLES = {
@@ -144,10 +155,10 @@ export default function Respond() {
     setParsing(true);
     setParseError(null);
     try {
-      const { parseQuestionFile, reprocessWithMapping } = await import('@/lib/respond/questionParser');
+      const engine = await getEngine();
       const result = showMapping && columnMapping.questionText
-        ? await reprocessWithMapping(file, columnMapping)
-        : await parseQuestionFile(file);
+        ? await engine.parseWithMapping(file, columnMapping)
+        : await engine.parseFile(file);
 
       if (result.success && result.questions.length > 0) {
         runPipeline(result, file.name);
@@ -250,14 +261,11 @@ export default function Respond() {
       const cd = buildCompanyData();
       setCompanyData(cd);
 
-      const { matchQuestions } = await import('@/lib/respond/keywordMatcher');
-      const { classifyQuestions } = await import('@/lib/respond/questionClassifier');
-      const { retrieveDataForCompany } = await import('@/lib/respond/dataRetrieval');
-      const { generateAnswerDrafts } = await import('@/lib/respond/answerGenerator');
+      const engine = await getEngine();
 
-      const matchResults = matchQuestions(questions);
-      const classifications = classifyQuestions(questions);
-      const dataContexts = matchResults.map(mr => retrieveDataForCompany(mr, cd));
+      const matchResults = engine.matchQuestions(questions);
+      const classifications = engine.classifyQuestions?.(questions) || [];
+      const dataContexts = matchResults.map(mr => engine.retrieveData(mr, cd));
 
       const config = {
         useLLM: false,
@@ -269,7 +277,7 @@ export default function Respond() {
       };
 
       const profile = buildCompanyProfile();
-      const drafts = generateAnswerDrafts(questions, matchResults, dataContexts, config, profile, classifications);
+      const drafts = engine.generateDrafts(questions, matchResults, dataContexts, config, profile, classifications);
       setAnswerDrafts(drafts);
 
       saveResults(drafts, name, fw, pr);
@@ -448,8 +456,18 @@ export default function Respond() {
 
   const handleExport = async () => {
     try {
-      const { exportToExcel } = await import('@/lib/respond/excelExporter');
-      exportToExcel({ answerDrafts, companyData, questionnaireName, framework });
+      const engine = await getEngine();
+      engine.exportToExcel({
+        answerDrafts,
+        metadata: {
+          companyName: companyData?.companyName || '',
+          framework: framework || undefined,
+          reportingPeriod: companyData?.reportingPeriod || '',
+          generatedAt: new Date().toISOString(),
+          packName: 'esg',
+          packVersion: '1.0.0',
+        },
+      });
     } catch (err) {
       console.error('Export error:', err);
     }

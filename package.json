@@ -28,7 +28,8 @@
     "react-router-dom": "^7.13.0",
     "tailwind-merge": "^3.4.0",
     "uuid": "^13.0.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "response-ready": "file:../response-ready"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

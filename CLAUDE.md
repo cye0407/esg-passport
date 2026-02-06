@@ -5,12 +5,14 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 
 ## Tech Stack
 - Vite + React 19
-- JavaScript (JSX) + TypeScript (engine modules)
+- JavaScript (JSX)
 - Tailwind CSS 3 + Radix UI components
 - localStorage for persistence
+- response-ready (local dependency) — domain-agnostic questionnaire engine + ESG domain pack
 
 ## Current State
-- Merged ESG Response Generator engine into Passport
+- Consumes response-ready package (file:../response-ready) for questionnaire engine
+- Engine accessed via lazy singleton: `getEngine()` → `createResponseEngine(esgDomainPack)`
 - Upload Questionnaire page (Excel/CSV/PDF/DOCX parsing, template selection, saved history)
 - Results page (answer cards, confidence breakdown, Excel export, multi-language EN/DE/FR/ES)
 - Data bridge connects Passport data to answer engine
@@ -27,7 +29,7 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - Build passes successfully
 
 ## Relationship to Other Projects
-- Merged with esg-response-generator (from ecosystems-united/tools/)
+- Consumes response-ready (../response-ready) via file: dependency + Vite alias
 - Part of the broader Ecosystems United / Five Stacks Framework ecosystem
 - Stack 1 = baseline data; this app is the operational product
 
@@ -35,12 +37,7 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - src/pages/ — React page components (Home, Data, Confidence, Policies, Requests, Upload, Results, Export, Settings, Guide)
 - src/lib/store.js — localStorage CRUD layer
 - src/lib/dataBridge.js — translates Passport store data to engine CompanyData format
-- src/lib/respond/ — answer generation engine (TypeScript, copied from Response Generator)
-  - types.ts, keywordMatcher.ts, answerGenerator.ts, questionClassifier.ts
-  - dataRetrieval.ts, emissionFactors.ts, industryContext.ts, defensiveRewriter.ts
-  - excelExporter.ts, questionParser.ts, configLoader.ts
-- src/data/industry/ — 8 industry JSON files (plausible measures + policy language)
-- src/types/context.ts — company profile, maturity, readiness types
+- response-ready (external) — questionnaire engine + ESG domain pack (via Vite alias to ../response-ready source)
 - src/lib/translations.js — multi-language phrase translation (DE/FR/ES)
 - src/data/questionnaire-templates.js — pre-loaded EcoVadis/CDP/Basic/CSRD templates
 - src/components/ — Layout, UI components (Radix-based)

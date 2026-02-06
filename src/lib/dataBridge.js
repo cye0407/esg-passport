@@ -6,7 +6,7 @@
 
 import { loadData, getAnnualTotals, getCompanyProfile, getPolicies, getConfidenceRecords } from './store';
 import { COUNTRIES } from './constants';
-import { GAS_M3_TO_KWH } from './respond/emissionFactors';
+const GAS_M3_TO_KWH = 10.55; // kWh per m³ natural gas
 
 /**
  * Country code → full name mapping for the Response Generator engine
@@ -26,7 +26,7 @@ Object.assign(CODE_TO_NAME, {
 /**
  * Build a CompanyData object from the Passport's stored data.
  * @param {string} [year] — reporting year to aggregate (defaults to current year)
- * @returns {import('./respond/types').CompanyData}
+ * @returns {Object} CompanyData for the response engine
  */
 export function buildCompanyData(year) {
   const profile = getCompanyProfile();
@@ -112,7 +112,7 @@ export function buildCompanyData(year) {
  * Build a CompanyProfile object for the answer engine.
  * This is the contextual profile that helps the engine generate
  * industry-aware, company-specific answers.
- * @returns {import('../types/context').CompanyProfile}
+ * @returns {Object} CompanyProfile for the response engine
  */
 export function buildCompanyProfile() {
   const profile = getCompanyProfile();
