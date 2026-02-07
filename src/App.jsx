@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import LicenseGate from '@/components/LicenseGate';
 import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
 import Data from '@/pages/Data';
@@ -10,6 +11,7 @@ import Onboarding from '@/pages/Onboarding';
 
 function App() {
   return (
+    <LicenseGate>
     <BrowserRouter>
       <Routes>
         {/* Standalone pages (no nav) */}
@@ -41,6 +43,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </LicenseGate>
   );
 }
 

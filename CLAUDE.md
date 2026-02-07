@@ -11,6 +11,7 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - response-ready (local dependency) — domain-agnostic questionnaire engine + ESG domain pack
 
 ## Current State
+- **License gate** — LemonSqueezy license key validation on app launch (src/lib/license.js + src/components/LicenseGate.jsx)
 - Consumes response-ready package (file:../response-ready) for questionnaire engine
 - Engine accessed via lazy singleton: `getEngine()` → `createResponseEngine(esgDomainPack)`
 - Upload Questionnaire page (Excel/CSV/PDF/DOCX parsing, template selection, saved history)
@@ -26,7 +27,17 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - Industry-adaptive data entry (hides irrelevant metrics based on company industry)
 - Year-over-year comparison table with trend indicators
 - Multi-language answer rendering (EN/DE/FR/ES phrase-based translation)
+- Optional AI enhancement (bring your own Claude or OpenAI API key)
+- License deactivation in Settings (for device transfer)
 - Build passes successfully
+
+## License System
+- Gate wraps entire app in App.jsx via `<LicenseGate>`
+- Validates keys via LemonSqueezy API: `POST /v1/licenses/validate`
+- Stores validated key + instance_id in localStorage (`esg_passport_license`)
+- Re-validates once per 7 days (background check on app launch)
+- Deactivate via Settings → calls LemonSqueezy `/v1/licenses/deactivate`
+- **To set up:** Create a license-key product in LemonSqueezy, price at €99/year
 
 ## Relationship to Other Projects
 - Consumes response-ready (../response-ready) via file: dependency + Vite alias
@@ -34,7 +45,9 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - Stack 1 = baseline data; this app is the operational product
 
 ## Architecture
-- src/pages/ — React page components (Home, Data, Confidence, Policies, Requests, Upload, Results, Export, Settings, Guide)
+- src/components/LicenseGate.jsx — License key activation screen (wraps entire app)
+- src/lib/license.js — LemonSqueezy license validation, storage, deactivation
+- src/pages/ — React page components (Home, Data, Respond, Requests, RequestWorkspace, Settings, Onboarding)
 - src/lib/store.js — localStorage CRUD layer
 - src/lib/dataBridge.js — translates Passport store data to engine CompanyData format
 - response-ready (external) — questionnaire engine + ESG domain pack (via Vite alias to ../response-ready source)

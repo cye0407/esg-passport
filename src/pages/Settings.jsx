@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Settings as SettingsIcon, Building2, Zap, Trash2, Download, Upload,
-  Sparkles, Eye, EyeOff, FileText, BookOpen, ChevronDown, ChevronRight,
+  Sparkles, Eye, EyeOff, FileText, BookOpen, ChevronDown, ChevronRight, KeyRound,
 } from 'lucide-react';
+import { deactivateLicense, getStoredLicense } from '@/lib/license';
 import PoliciesSection from '@/components/settings/PoliciesSection';
 import DocumentsSection from '@/components/settings/DocumentsSection';
 import AnswerLibrarySection from '@/components/settings/AnswerLibrarySection';
@@ -273,6 +274,29 @@ export default function Settings() {
             Your data is stored locally in your browser. Export regularly to avoid data loss.
           </p>
         </div>
+      </div>
+
+      {/* License */}
+      <div className="glass-card rounded-2xl p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+          <KeyRound className="w-5 h-5" /> License
+        </h2>
+        <p className="text-sm text-slate-500 mb-4">
+          {getStoredLicense()
+            ? `License active since ${new Date(getStoredLicense().activated_at).toLocaleDateString()}.`
+            : 'No license activated.'}
+          {' '}Deactivate to transfer to another device.
+        </p>
+        <Button
+          variant="outline"
+          onClick={async () => {
+            if (!confirm('Deactivate your license on this device? You can reactivate on another device.')) return;
+            await deactivateLicense();
+            window.location.reload();
+          }}
+        >
+          Deactivate License
+        </Button>
       </div>
 
       {/* Danger Zone */}
