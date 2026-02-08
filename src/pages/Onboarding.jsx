@@ -54,6 +54,7 @@ export default function Onboarding() {
       countryOfIncorporation: country,
       totalEmployees: employeeCount || '',
       annualRevenue: revenueBand || '',
+      revenueBand: revenueBand || '',
       numberOfFacilities: '1',
     });
 

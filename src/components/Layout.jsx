@@ -6,6 +6,7 @@ import {
   Home,
   Database,
   Upload,
+  Inbox,
   Settings,
   Menu,
   X,
@@ -15,6 +16,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Data', href: '/data', icon: Database },
   { name: 'Respond', href: '/respond', icon: Upload },
+  { name: 'Requests', href: '/requests', icon: Inbox },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

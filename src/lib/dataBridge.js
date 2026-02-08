@@ -4,7 +4,7 @@
 // Translates the ESG Passport's localStorage data model
 // into the flat CompanyData type the answer engine expects.
 
-import { loadData, getAnnualTotals, getCompanyProfile, getPolicies, getConfidenceRecords } from './store';
+import { loadData, getDataRecords, getAnnualTotals, getCompanyProfile, getPolicies, getConfidenceRecords } from './store';
 import { COUNTRIES } from './constants';
 const GAS_M3_TO_KWH = 10.55; // kWh per m³ natural gas
 
@@ -30,7 +30,20 @@ Object.assign(CODE_TO_NAME, {
  */
 export function buildCompanyData(year) {
   const profile = getCompanyProfile();
-  const reportingYear = year || profile?.baselineYear || new Date().getFullYear().toString();
+  let reportingYear = year || profile?.baselineYear;
+
+  // Auto-detect: use the most recent year that has data records
+  if (!reportingYear) {
+    const records = getDataRecords();
+    if (records.length > 0) {
+      const years = [...new Set(records.map(r => r.period.slice(0, 4)))];
+      years.sort().reverse();
+      reportingYear = years[0];
+    } else {
+      reportingYear = new Date().getFullYear().toString();
+    }
+  }
+
   const totals = getAnnualTotals(reportingYear);
   const policies = getPolicies();
 

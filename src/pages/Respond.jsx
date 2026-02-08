@@ -18,7 +18,7 @@ import {
   Download, ChevronDown, ChevronUp, AlertTriangle, HelpCircle,
   BarChart3, Shield, Target, RefreshCw, Globe, Ban, BookmarkPlus,
   BookmarkCheck, TrendingUp, TrendingDown, ClipboardList, Paperclip,
-  Pencil, Sparkles,
+  Pencil, Sparkles, Check,
 } from 'lucide-react';
 
 // Lazy engine singleton — created on first use
@@ -34,24 +34,11 @@ async function getEngine() {
 
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
 
-const CONFIDENCE_STYLES = {
-  high: { bg: 'bg-green-100', text: 'text-green-800', label: 'High' },
-  medium: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Medium' },
-  low: { bg: 'bg-orange-100', text: 'text-orange-800', label: 'Low' },
-  none: { bg: 'bg-red-100', text: 'text-red-800', label: 'Unknown' },
-};
-
-const CONFIDENCE_ICONS = {
-  high: CheckCircle2,
-  medium: AlertTriangle,
-  low: AlertCircle,
-  none: HelpCircle,
-};
-
-const TYPE_STYLES = {
-  POLICY: { bg: 'bg-blue-100', text: 'text-blue-800' },
-  MEASURE: { bg: 'bg-purple-100', text: 'text-purple-800' },
-  KPI: { bg: 'bg-teal-100', text: 'text-teal-800' },
+const CONFIDENCE_CONFIG = {
+  high: { color: 'text-green-700', bg: 'bg-green-50', dot: 'bg-green-500', label: 'High' },
+  medium: { color: 'text-amber-700', bg: 'bg-amber-50', dot: 'bg-amber-500', label: 'Medium' },
+  low: { color: 'text-orange-700', bg: 'bg-orange-50', dot: 'bg-orange-500', label: 'Low' },
+  none: { color: 'text-red-700', bg: 'bg-red-50', dot: 'bg-red-500', label: 'No data' },
 };
 
 export default function Respond() {
@@ -61,6 +48,7 @@ export default function Respond() {
 
   // Phase: 'upload' | 'generating' | 'results'
   const [phase, setPhase] = useState('upload');
+  const [generatingProgress, setGeneratingProgress] = useState({ step: '', percent: 0 });
 
   // --- Upload State ---
   const fileInputRef = useRef(null);
@@ -89,14 +77,12 @@ export default function Respond() {
   const [framework, setFramework] = useState(null);
   const [parseResult, setParseResult] = useState(null);
   const [pipelineError, setPipelineError] = useState(null);
-  const [expandedCards, setExpandedCards] = useState(new Set());
   const [filterConfidence, setFilterConfidence] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [language, setLanguage] = useState('en');
   const [naJustifications, setNaJustifications] = useState({});
   const [naEditing, setNaEditing] = useState(null);
   const [savedMasterIds, setSavedMasterIds] = useState(new Set());
-  const [showChecklist, setShowChecklist] = useState(false);
   const [linkedDocs, setLinkedDocs] = useState({});
   const [docPickerOpen, setDocPickerOpen] = useState(null);
   const [editingAnswerId, setEditingAnswerId] = useState(null);
@@ -105,7 +91,8 @@ export default function Respond() {
   const [enhancingAll, setEnhancingAll] = useState(false);
   const [enhanceProgress, setEnhanceProgress] = useState({ done: 0, total: 0 });
   const [enhanceError, setEnhanceError] = useState(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showDetails, setShowDetails] = useState(new Set());
+  const [savedFeedback, setSavedFeedback] = useState(null);
 
   const templates = Object.values(QUESTIONNAIRE_TEMPLATES);
 
@@ -133,7 +120,7 @@ export default function Respond() {
   const validateAndSetFile = (f) => {
     const ext = '.' + f.name.split('.').pop().toLowerCase();
     if (!ACCEPTED_EXTENSIONS.includes(ext)) {
-      setParseError(`Unsupported file type: ${ext}. Supports .xlsx, .csv, .pdf, .docx`);
+      setParseError(`Unsupported file type: ${ext}. We support Excel (.xlsx, .csv), PDF, and Word (.docx).`);
       return;
     }
     setFile(f);
@@ -163,14 +150,14 @@ export default function Respond() {
       if (result.success && result.questions.length > 0) {
         runPipeline(result, file.name);
       } else if (result.questions.length === 0) {
-        setParseError('No questions found. Try adjusting the column mapping.');
+        setParseError('No questions found in this file. Try using the column mapping option, or export your questionnaire as .xlsx and try again.');
         setShowMapping(true);
         if (result.metadata?.availableColumns) setMappingColumns(result.metadata.availableColumns);
       } else {
         setParseError(result.errors.join('. '));
       }
     } catch (err) {
-      setParseError(`Failed to parse: ${err.message}`);
+      setParseError(`We couldn't read this file. Try exporting it from Excel as .xlsx and uploading again.`);
     } finally {
       setParsing(false);
     }
@@ -202,13 +189,6 @@ export default function Respond() {
     })));
     setCompanyData(buildCompanyData());
     setPhase('results');
-  };
-
-  const getFileIcon = () => {
-    if (!file) return null;
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (['xlsx', 'xls', 'csv'].includes(ext)) return <FileSpreadsheet className="w-8 h-8 text-indigo-600" />;
-    return <FileText className="w-8 h-8 text-blue-600" />;
   };
 
   // ============ PIPELINE ============
@@ -251,6 +231,7 @@ export default function Respond() {
     setPhase('generating');
     setPipelineError(null);
     setQuestionnaireName(name);
+    setGeneratingProgress({ step: 'Loading engine...', percent: 10 });
 
     try {
       setParseResult(pr);
@@ -258,15 +239,18 @@ export default function Respond() {
       const fw = pr.metadata?.detectedFramework || null;
       setFramework(fw);
 
+      setGeneratingProgress({ step: `Analysing ${questions.length} questions...`, percent: 25 });
       const cd = buildCompanyData();
       setCompanyData(cd);
 
       const engine = await getEngine();
 
+      setGeneratingProgress({ step: 'Matching questions to your data...', percent: 50 });
       const matchResults = engine.matchQuestions(questions);
       const classifications = engine.classifyQuestions?.(questions) || [];
       const dataContexts = matchResults.map(mr => engine.retrieveData(mr, cd));
 
+      setGeneratingProgress({ step: 'Generating answers...', percent: 75 });
       const config = {
         useLLM: false,
         includeMethodology: true,
@@ -280,6 +264,7 @@ export default function Respond() {
       const drafts = engine.generateDrafts(questions, matchResults, dataContexts, config, profile, classifications);
       setAnswerDrafts(drafts);
 
+      setGeneratingProgress({ step: 'Saving results...', percent: 95 });
       saveResults(drafts, name, fw, pr);
       setPhase('results');
     } catch (err) {
@@ -318,15 +303,7 @@ export default function Respond() {
   }, [answerDrafts]);
 
   const dataQuality = useMemo(() => getDataQualitySummary(), []);
-  const frameworkScores = useMemo(() => {
-    if (answerDrafts.length === 0) return null;
-    return computeFrameworkScores(answerDrafts, framework);
-  }, [answerDrafts, framework]);
   const trends = useMemo(() => computeYoYTrends(), []);
-  const checklist = useMemo(() => {
-    if (!parseResult?.questions) return [];
-    return generateDataChecklist(parseResult.questions);
-  }, [parseResult]);
   const allDocuments = useMemo(() => getDocuments(), []);
 
   const filtered = useMemo(() => {
@@ -337,17 +314,14 @@ export default function Respond() {
     });
   }, [answerDrafts, filterConfidence, filterType]);
 
-  const toggleCard = (id) => {
-    setExpandedCards(prev => {
+  const toggleDetails = (id) => {
+    setShowDetails(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
   };
-
-  const expandAll = () => setExpandedCards(new Set(filtered.map(d => d.questionId)));
-  const collapseAll = () => setExpandedCards(new Set());
 
   const toggleNA = (questionId, justification) => {
     setAnswerDrafts(prev => prev.map(d => {
@@ -373,6 +347,12 @@ export default function Respond() {
       framework: framework || '',
     });
     setSavedMasterIds(prev => new Set([...prev, draft.questionId]));
+    showFeedback('Saved to answer library');
+  };
+
+  const showFeedback = (msg) => {
+    setSavedFeedback(msg);
+    setTimeout(() => setSavedFeedback(null), 2000);
   };
 
   const startEditing = (draft) => {
@@ -386,6 +366,7 @@ export default function Respond() {
     ));
     setEditingAnswerId(null);
     setEditingText('');
+    showFeedback('Answer saved');
   };
 
   const cancelEdit = () => {
@@ -468,6 +449,7 @@ export default function Respond() {
           packVersion: '1.0.0',
         },
       });
+      showFeedback('Excel downloaded');
     } catch (err) {
       console.error('Export error:', err);
     }
@@ -481,12 +463,10 @@ export default function Respond() {
     setMappingColumns(null);
     setAnswerDrafts([]);
     setPipelineError(null);
-    setExpandedCards(new Set());
+    setShowDetails(new Set());
     setFilterConfidence('all');
     setFilterType('all');
-    setShowAdvanced(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
-    // Refresh saved results
     const data = loadData();
     setSavedResults(data.savedResults || []);
   };
@@ -494,10 +474,21 @@ export default function Respond() {
   // ============ RENDER: GENERATING ============
   if (phase === 'generating') {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
-        <p className="text-lg font-medium text-slate-900">Generating answers...</p>
-        <p className="text-sm text-slate-500 mt-1">Matching questions to your data</p>
+      <div className="flex flex-col items-center justify-center py-24">
+        <div className="w-full max-w-sm">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-100 flex items-center justify-center mx-auto mb-6">
+            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+          </div>
+          <h2 className="text-xl font-semibold text-slate-900 text-center mb-2">Generating your answers</h2>
+          <p className="text-sm text-slate-500 text-center mb-6">{generatingProgress.step}</p>
+          <div className="w-full bg-slate-200 rounded-full h-2">
+            <div
+              className="bg-indigo-600 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${generatingProgress.percent}%` }}
+            />
+          </div>
+          <p className="text-xs text-slate-400 text-center mt-2">{generatingProgress.percent}%</p>
+        </div>
       </div>
     );
   }
@@ -510,566 +501,397 @@ export default function Respond() {
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <p className="text-lg font-medium text-slate-900 mb-2">Something went wrong</p>
           <p className="text-sm text-red-600 mb-6">{pipelineError}</p>
-          <div className="flex gap-3 justify-center">
-            <Button variant="outline" onClick={resetToUpload}>Try Again</Button>
-          </div>
+          <Button variant="outline" onClick={resetToUpload}>Try Again</Button>
         </div>
       );
     }
 
-    return (
-      <div className="space-y-6">
-        {/* Header + Download */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Generated Answers</h1>
-            <p className="text-slate-500 text-sm mt-1">{questionnaireName}{framework && ` · ${framework}`}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={resetToUpload} className="text-slate-600">
-              Upload Another
-            </Button>
-            <Button onClick={handleExport} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              <Download className="w-4 h-4 mr-2" />
-              Download Excel
-            </Button>
-          </div>
-        </div>
+    const activeFilterCount = (filterConfidence !== 'all' ? 1 : 0) + (filterType !== 'all' ? 1 : 0);
 
-        {/* No Data Warning */}
-        {stats && stats.needData > stats.withData && (
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
-            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-amber-800">
-                {stats.withData === 0
-                  ? 'No company data entered yet — all answers are generic templates.'
-                  : `Only ${stats.withData} of ${stats.total} answers are backed by your data.`}
-              </p>
-              <p className="text-xs text-amber-700 mt-1">
-                Go to <Link to="/data" className="underline font-medium">Data</Link> to enter your metrics. Answers will improve automatically.
-              </p>
-            </div>
+    return (
+      <div className="space-y-0">
+        {/* Feedback toast */}
+        {savedFeedback && (
+          <div className="fixed top-20 right-4 bg-green-100 text-green-800 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
+            <Check className="w-4 h-4" /> {savedFeedback}
           </div>
         )}
 
         {/* AI Enhancement Error */}
         {enhanceError && (
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200 mb-4">
             <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm text-red-700">{enhanceError}</p>
-              {enhanceError.includes('Settings') && (
-                <Link to="/settings" className="text-xs text-red-600 underline mt-1 block">Open Settings</Link>
+              {enhanceError.toLowerCase().includes('key') && (
+                <Link to="/settings" className="text-xs text-red-600 underline mt-1 block">Configure API key in Settings</Link>
               )}
             </div>
             <button onClick={() => setEnhanceError(null)} className="text-red-400 hover:text-red-600"><XIcon className="w-4 h-4" /></button>
           </div>
         )}
 
-        {/* Stats Cards */}
+        {/* ===== REPORT HEADER ===== */}
+        <div className="bg-white border border-slate-200 rounded-t-xl px-6 py-5">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Questionnaire Response Report</p>
+              <h1 className="text-xl font-semibold text-slate-900">{questionnaireName}</h1>
+              <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
+                {framework && <span>{framework}</span>}
+                <span>{stats?.total} questions</span>
+                <span>{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={resetToUpload}>
+                <UploadIcon className="w-4 h-4 mr-1.5" /> New
+              </Button>
+              <Button size="sm" onClick={handleExport} className="bg-slate-900 hover:bg-slate-800 text-white">
+                <Download className="w-4 h-4 mr-1.5" /> Export Excel
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== SUMMARY BAR ===== */}
         {stats && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="glass-card rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <BarChart3 className="w-5 h-5 text-indigo-600" />
-                <span className="text-sm text-slate-500">Data Coverage</span>
-              </div>
-              <p className={cn('text-3xl font-bold', stats.readinessPercent > 50 ? 'text-slate-900' : 'text-amber-600')}>{stats.readinessPercent}%</p>
-              <p className="text-xs text-slate-400">{stats.withData} with data · {stats.needData} need data</p>
-            </div>
-            <div className="glass-card rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Shield className="w-5 h-5 text-green-600" />
-                <span className="text-sm text-slate-500">Passport Data</span>
-              </div>
-              <p className="text-3xl font-bold text-slate-900">{dataQuality.safePercent}%</p>
-              <p className="text-xs text-slate-400">{dataQuality.safeToShare}/{dataQuality.total} safe to share</p>
-            </div>
-            <div className="glass-card rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="w-5 h-5 text-purple-600" />
-                <span className="text-sm text-slate-500">Confidence</span>
-              </div>
-              <div className="flex gap-1 mt-1">
-                {['high', 'medium', 'low', 'none'].map(level => (
-                  <div
-                    key={level}
-                    className={cn('flex-1 h-6 rounded-sm flex items-center justify-center text-xs font-medium', CONFIDENCE_STYLES[level].bg, CONFIDENCE_STYLES[level].text)}
-                    title={`${CONFIDENCE_STYLES[level].label}: ${stats.byConfidence[level]}`}
-                  >
-                    {stats.byConfidence[level]}
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-1 mt-1 text-[9px] text-slate-400">
-                <span className="flex-1 text-center">High</span>
-                <span className="flex-1 text-center">Med</span>
-                <span className="flex-1 text-center">Low</span>
-                <span className="flex-1 text-center">None</span>
-              </div>
-            </div>
-            <div className="glass-card rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <FileSpreadsheet className="w-5 h-5 text-blue-600" />
-                <span className="text-sm text-slate-500">Question Types</span>
-              </div>
-              <div className="space-y-1 mt-1">
-                {['POLICY', 'MEASURE', 'KPI'].map(type => (
-                  <div key={type} className="flex items-center justify-between">
-                    <span className={cn('text-xs px-1.5 py-0.5 rounded', TYPE_STYLES[type].bg, TYPE_STYLES[type].text)}>{type}</span>
-                    <span className="text-sm font-medium text-slate-900">{stats.byType[type]}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Data Improvement CTA */}
-        {stats && stats.byConfidence.none > 0 && (
-          <div className="glass-card rounded-xl p-4 border-l-4 border-yellow-500">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <div className="bg-slate-50 border-x border-slate-200 px-6 py-4">
+            <div className="flex flex-wrap items-center gap-6">
               <div>
-                <p className="font-medium text-slate-900">
-                  {stats.byConfidence.none} question{stats.byConfidence.none > 1 ? 's' : ''} couldn't be answered
-                </p>
-                <p className="text-sm text-slate-500 mt-1">Add more data in your Passport to improve coverage.</p>
-                <Link to="/data">
-                  <Button variant="outline" size="sm" className="mt-3 text-slate-700 border-slate-300">Enter Data</Button>
-                </Link>
+                <p className="text-2xl font-bold text-slate-900">{stats.answered}<span className="text-base font-normal text-slate-400">/{stats.total}</span></p>
+                <p className="text-xs text-slate-500">answered</p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Advanced Section Toggle */}
-        <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
-        >
-          {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          Advanced ({[
-            frameworkScores && 'Framework Scores',
-            trends.length > 0 && 'YoY Trends',
-            checklist.length > 0 && 'Data Checklist',
-          ].filter(Boolean).join(', ') || 'Scores, Trends, Checklist'})
-        </button>
-
-        {showAdvanced && (
-          <div className="space-y-4">
-            {/* Framework Scoring */}
-            {frameworkScores && (
-              <div className="glass-card rounded-xl p-4">
-                <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                  <Target className="w-5 h-5" />
-                  {frameworkScores.frameworkLabel} — {frameworkScores.overall}% Readiness
-                </h3>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {frameworkScores.themes.map(theme => {
-                    const colorMap = { green: 'bg-green-500', blue: 'bg-blue-500', purple: 'bg-purple-500', amber: 'bg-amber-500', red: 'bg-red-500' };
-                    const bgMap = { green: 'bg-green-50', blue: 'bg-blue-50', purple: 'bg-purple-50', amber: 'bg-amber-50', red: 'bg-red-50' };
-                    const textMap = { green: 'text-green-700', blue: 'text-blue-700', purple: 'text-purple-700', amber: 'text-amber-700', red: 'text-red-700' };
-                    return (
-                      <div key={theme.id} className={cn('rounded-lg p-3', bgMap[theme.color] || 'bg-gray-50')}>
-                        <p className={cn('text-xs font-medium mb-1', textMap[theme.color] || 'text-gray-700')}>{theme.label}</p>
-                        <div className="flex items-end gap-2">
-                          <span className={cn('text-2xl font-bold', textMap[theme.color] || 'text-gray-700')}>{theme.score}%</span>
-                          <span className="text-[10px] text-slate-400 mb-1">{theme.total}q</span>
-                        </div>
-                        <div className="w-full bg-white/50 rounded-full h-1.5 mt-1.5">
-                          <div className={cn('h-1.5 rounded-full transition-all', colorMap[theme.color] || 'bg-gray-400')} style={{ width: `${theme.score}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div className="h-8 w-px bg-slate-200" />
+              <div>
+                <p className="text-2xl font-bold text-slate-900">{stats.readinessPercent}%</p>
+                <p className="text-xs text-slate-500">data backed</p>
               </div>
-            )}
-
-            {/* YoY Trends */}
-            {trends.length > 0 && (
-              <div className="glass-card rounded-xl p-4">
-                <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />Year-over-Year Trends
-                </h3>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                  {trends.map(trend => (
-                    <div key={trend.metric} className={cn('rounded-lg p-2 text-xs', trend.improved ? 'bg-green-50' : 'bg-red-50')}>
-                      <div className="flex items-center gap-1 mb-0.5">
-                        {trend.improved ? <TrendingDown className="w-3 h-3 text-green-600" /> : <TrendingUp className="w-3 h-3 text-red-600" />}
-                        <span className={cn('font-medium', trend.improved ? 'text-green-700' : 'text-red-700')}>
-                          {Math.abs(trend.change)}% {trend.change < 0 ? 'decrease' : 'increase'}
-                        </span>
-                      </div>
-                      <p className="text-slate-600 capitalize">{trend.label}</p>
-                    </div>
+              <div className="h-8 w-px bg-slate-200" />
+              <div className="flex items-center gap-2">
+                {['high', 'medium', 'low', 'none'].map(level => (
+                  <button
+                    key={level}
+                    onClick={() => setFilterConfidence(filterConfidence === level ? 'all' : level)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all',
+                      filterConfidence === level ? 'ring-2 ring-indigo-500 ring-offset-1' : 'hover:bg-white',
+                      CONFIDENCE_CONFIG[level].bg, CONFIDENCE_CONFIG[level].color
+                    )}
+                  >
+                    <span className={cn('w-2 h-2 rounded-full', CONFIDENCE_CONFIG[level].dot)} />
+                    {stats.byConfidence[level]}
+                  </button>
+                ))}
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                {/* Language */}
+                <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded p-0.5">
+                  {LANGUAGES.map(lang => (
+                    <button
+                      key={lang.code}
+                      onClick={() => setLanguage(lang.code)}
+                      className={cn(
+                        'px-2 py-1 rounded text-xs font-medium transition-all',
+                        language === lang.code ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700'
+                      )}
+                    >
+                      {lang.code.toUpperCase()}
+                    </button>
                   ))}
                 </div>
+                {/* AI Enhance All */}
+                <Button
+                  onClick={handleEnhanceAll}
+                  disabled={enhancingAll}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  {enhancingAll ? (
+                    <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {enhanceProgress.done}/{enhanceProgress.total}</>
+                  ) : (
+                    <><Sparkles className="w-3 h-3 mr-1.5" /> AI Enhance</>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Active filter indicator */}
+            {activeFilterCount > 0 && (
+              <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                <span>Showing {filtered.length} of {answerDrafts.length} —</span>
+                {filterConfidence !== 'all' && (
+                  <span className={cn('px-2 py-0.5 rounded', CONFIDENCE_CONFIG[filterConfidence].bg, CONFIDENCE_CONFIG[filterConfidence].color)}>
+                    {CONFIDENCE_CONFIG[filterConfidence].label}
+                  </span>
+                )}
+                {filterType !== 'all' && (
+                  <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600">{filterType}</span>
+                )}
+                <button onClick={() => { setFilterConfidence('all'); setFilterType('all'); }} className="text-indigo-600 hover:underline ml-1">Clear</button>
               </div>
             )}
 
-            {/* Data Collection Checklist */}
-            {checklist.length > 0 && (
-              <div className="glass-card rounded-xl p-4">
-                <button onClick={() => setShowChecklist(!showChecklist)} className="w-full flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                    <ClipboardList className="w-5 h-5" />Data Collection Guide ({checklist.length} categories)
-                  </h3>
-                  {showChecklist ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                </button>
-                {showChecklist && (
-                  <div className="mt-3 grid sm:grid-cols-2 gap-3">
-                    {checklist.map(cat => (
-                      <div key={cat.id} className="rounded-lg bg-slate-50 p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm font-medium text-slate-900">{cat.label}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-500">{cat.questionCount} questions</span>
-                        </div>
-                        <ul className="space-y-1">
-                          {cat.items.map((item, i) => (
-                            <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
-                              <span className={cn('mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0', item.priority === 1 ? 'bg-red-400' : item.priority === 2 ? 'bg-yellow-400' : 'bg-gray-300')} />
-                              {item.label}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            {/* No Data Warning */}
+            {stats.needData > stats.withData && (
+              <div className="mt-3 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>
+                  {stats.withData === 0
+                    ? 'No company data entered — answers are generic templates. '
+                    : `Only ${stats.withData} of ${stats.total} answers use your data. `}
+                  <Link to="/data" className="underline font-medium">Enter your data</Link> to get personalized answers.
+                </span>
               </div>
             )}
           </div>
         )}
 
-        {/* Language + Enhance All + Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5" title="Keyword translation (beta)">
-            <Globe className="w-4 h-4 text-slate-400 ml-2" />
-            {LANGUAGES.map(lang => (
-              <button
-                key={lang.code}
-                onClick={() => setLanguage(lang.code)}
-                className={cn(
-                  'px-2 py-1.5 rounded-md text-xs font-medium transition-all',
-                  language === lang.code ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                )}
-                title={lang.label}
-              >
-                {lang.code.toUpperCase()}
-              </button>
-            ))}
+        {/* ===== ANSWER TABLE ===== */}
+        <div className="bg-white border border-slate-200 rounded-b-xl overflow-hidden">
+          {/* Table header */}
+          <div className="grid grid-cols-[3rem_1fr_6rem_5rem] gap-0 px-6 py-2.5 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wider">
+            <span>#</span>
+            <span>Question & Answer</span>
+            <span className="text-center">Confidence</span>
+            <span className="text-right">Actions</span>
           </div>
-          <Button
-            onClick={handleEnhanceAll}
-            disabled={enhancingAll}
-            variant="outline"
-            size="sm"
-            className="border-purple-300 text-purple-700 hover:bg-purple-50"
-          >
-            {enhancingAll ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {enhanceProgress.done}/{enhanceProgress.total}</>
-            ) : (
-              <><Sparkles className="w-4 h-4 mr-2" /> Enhance All</>
-            )}
-          </Button>
-        </div>
 
-        {/* Confidence + Type Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-1">
-            {['all', 'high', 'medium', 'low', 'none'].map(level => (
-              <button
-                key={level}
-                onClick={() => setFilterConfidence(level)}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-                  filterConfidence === level
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                )}
-              >
-                {level === 'all' ? 'All' : CONFIDENCE_STYLES[level].label}
-                {level !== 'all' && ` (${stats?.byConfidence[level] || 0})`}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-1">
-            {['all', 'POLICY', 'MEASURE', 'KPI'].map(type => (
-              <button
-                key={type}
-                onClick={() => setFilterType(type)}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-                  filterType === type
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                )}
-              >
-                {type === 'all' ? 'All Types' : type}
-              </button>
-            ))}
-          </div>
-          <div className="ml-auto flex gap-2">
-            <button onClick={expandAll} className="text-xs text-slate-500 hover:text-slate-700">Expand all</button>
-            <span className="text-slate-300">|</span>
-            <button onClick={collapseAll} className="text-xs text-slate-500 hover:text-slate-700">Collapse all</button>
-          </div>
-        </div>
+          {/* Answer rows */}
+          {filtered.length === 0 && answerDrafts.length > 0 && (
+            <div className="text-center py-12 text-slate-500">
+              <p>No answers match the current filters.</p>
+              <button onClick={() => { setFilterConfidence('all'); setFilterType('all'); }} className="text-indigo-600 underline text-sm mt-2">Clear filters</button>
+            </div>
+          )}
 
-        {/* Answer Cards */}
-        <div className="space-y-3">
           {filtered.map((draft, i) => {
-            const expanded = expandedCards.has(draft.questionId);
-            const ConfIcon = CONFIDENCE_ICONS[draft.answerConfidence];
-            const confStyle = CONFIDENCE_STYLES[draft.answerConfidence];
-            const typeStyle = draft.questionType ? TYPE_STYLES[draft.questionType] : null;
+            const conf = CONFIDENCE_CONFIG[draft.answerConfidence] || CONFIDENCE_CONFIG.none;
+            const isExpanded = showDetails.has(draft.questionId);
+            const isEditing = editingAnswerId === draft.questionId;
+            const isEnhancing = enhancingId === draft.questionId;
 
             return (
-              <div key={draft.questionId} className="glass-card rounded-xl overflow-hidden">
-                <button
-                  onClick={() => toggleCard(draft.questionId)}
-                  className="w-full p-4 flex items-start gap-3 text-left hover:bg-slate-50 transition-colors"
-                >
-                  <span className="text-sm text-slate-400 font-mono mt-0.5 w-6 flex-shrink-0">{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 leading-snug">
-                      {draft.questionText.length > 150 && !expanded
-                        ? draft.questionText.slice(0, 150) + '...'
-                        : draft.questionText}
-                    </p>
-                    {draft.category && <p className="text-xs text-slate-400 mt-1">{draft.category}</p>}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {typeStyle && (
-                      <span className={cn('text-[10px] px-1.5 py-0.5 rounded font-medium', typeStyle.bg, typeStyle.text)}>{draft.questionType}</span>
-                    )}
-                    <span className={cn('flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium', confStyle.bg, confStyle.text)}>
-                      <ConfIcon className="w-3 h-3" />{confStyle.label}
-                    </span>
-                    {expanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-                  </div>
-                </button>
-
-                {expanded && (
-                  <div className="px-4 pb-4 border-t border-slate-200">
-                    {(draft.answerConfidence === 'low' || (draft.confidenceSource === 'estimated' && draft.answerConfidence !== 'high')) && (
-                      <div className="mt-3 flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-amber-700">
-                          {draft.answerConfidence === 'low'
-                            ? 'This answer uses low-confidence or estimated data. Review carefully before sharing.'
-                            : 'This answer includes estimated values. Consider verifying with primary data sources.'}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className={cn('mt-3 p-3 rounded-lg', draft.answerConfidence === 'none' ? 'bg-red-50 border border-red-200' : 'bg-slate-50')}>
-                      {editingAnswerId === draft.questionId ? (
-                        <div className="space-y-2">
-                          <Textarea value={editingText} onChange={(e) => setEditingText(e.target.value)} rows={6} className="text-sm w-full" autoFocus />
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={() => saveEdit(draft.questionId)} className="bg-indigo-600 text-white text-xs">Save</Button>
-                            <Button size="sm" variant="ghost" onClick={cancelEdit} className="text-xs">Cancel</Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="group relative">
-                          <p className="text-sm text-slate-900 whitespace-pre-line">{translateAnswer(draft.answer, language)}</p>
-                          {draft._edited && <span className="text-[10px] text-slate-400 italic ml-1">(edited)</span>}
-                          <button
-                            onClick={() => startEditing(draft)}
-                            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-slate-200"
-                            title="Edit answer"
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-slate-500" />
-                          </button>
-                        </div>
-                      )}
-                      {/* Trend narrative */}
-                      {(() => {
-                        const matchedKeywords = draft.matchResult?.matchedKeywords || [];
-                        const keywordStr = matchedKeywords.join(' ').toLowerCase();
-                        const relevantTrend = trends.find(t => {
-                          if (keywordStr.includes('energy') && t.metric === 'electricityKwh') return true;
-                          if ((keywordStr.includes('emission') || keywordStr.includes('ghg') || keywordStr.includes('carbon')) && (t.metric === 'scope1Tco2e' || t.metric === 'scope2Tco2e')) return true;
-                          if (keywordStr.includes('waste') && t.metric === 'totalWasteKg') return true;
-                          if (keywordStr.includes('water') && t.metric === 'waterM3') return true;
-                          if (keywordStr.includes('recycl') && t.metric === 'recyclingRate') return true;
-                          if ((keywordStr.includes('accident') || keywordStr.includes('safety') || keywordStr.includes('incident')) && t.metric === 'workAccidents') return true;
-                          if (keywordStr.includes('training') && t.metric === 'trainingHours') return true;
-                          return false;
-                        });
-                        if (!relevantTrend) return null;
-                        return (
-                          <div className={cn('mt-2 p-2 rounded text-xs flex items-start gap-1.5', relevantTrend.improved ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700')}>
-                            {relevantTrend.improved ? <TrendingDown className="w-3 h-3 flex-shrink-0 mt-0.5" /> : <TrendingUp className="w-3 h-3 flex-shrink-0 mt-0.5" />}
-                            <span>{relevantTrend.narrative}</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    {draft.dataValue && (
-                      <div className="mt-2 flex gap-4 text-xs text-slate-500">
-                        <span>Value: <strong className="text-slate-900">{draft.dataValue}</strong>{draft.dataUnit && ` ${draft.dataUnit}`}</span>
-                        {draft.dataPeriod && <span>Period: {draft.dataPeriod}</span>}
-                        {draft.dataSource && <span>Source: {draft.dataSource}</span>}
-                      </div>
-                    )}
-
-                    {draft.assumptions?.length > 0 && (
-                      <div className="mt-2 text-xs text-yellow-700 bg-yellow-50 p-2 rounded">
-                        <span className="font-medium">Assumptions: </span>{draft.assumptions.join('. ')}
-                      </div>
-                    )}
-                    {draft.limitations?.length > 0 && (
-                      <div className="mt-2 text-xs text-orange-700 bg-orange-50 p-2 rounded">
-                        <span className="font-medium">Data gaps: </span>{draft.limitations.join('. ')}
-                      </div>
-                    )}
-
-                    {draft.matchResult?.matchedKeywords?.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {draft.matchResult.matchedKeywords.map(kw => (
-                          <span key={kw} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{kw}</span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="mt-3 pt-3 border-t border-slate-200 flex flex-wrap items-center gap-2">
-                      {naEditing === draft.questionId ? (
-                        <div className="flex-1 space-y-2">
-                          <Textarea
-                            value={naJustifications[draft.questionId] || ''}
-                            onChange={(e) => setNaJustifications(prev => ({ ...prev, [draft.questionId]: e.target.value }))}
-                            placeholder="Justification: why is this not applicable?"
-                            rows={2}
-                            className="text-sm"
-                          />
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={() => toggleNA(draft.questionId, naJustifications[draft.questionId])} className="bg-indigo-600 text-white text-xs">Confirm N/A</Button>
-                            <Button size="sm" variant="ghost" onClick={() => setNaEditing(null)} className="text-xs">Cancel</Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => draft._markedNA ? toggleNA(draft.questionId) : setNaEditing(draft.questionId)}
-                          className={cn(
-                            'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border',
-                            draft._markedNA ? 'bg-gray-200 text-gray-700 border-gray-300' : 'text-slate-500 border-slate-200 hover:bg-slate-50'
-                          )}
-                        >
-                          <Ban className="w-3 h-3" />{draft._markedNA ? 'Marked N/A — Undo' : 'Mark N/A'}
-                        </button>
-                      )}
-
-                      {draft.answerConfidence !== 'none' && !draft._markedNA && (
-                        <button
-                          onClick={() => handleSaveAsMaster(draft)}
-                          disabled={savedMasterIds.has(draft.questionId)}
-                          className={cn(
-                            'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border',
-                            savedMasterIds.has(draft.questionId)
-                              ? 'bg-green-50 text-green-700 border-green-200'
-                              : 'text-slate-500 border-slate-200 hover:bg-slate-50'
-                          )}
-                        >
-                          {savedMasterIds.has(draft.questionId) ? <><BookmarkCheck className="w-3 h-3" /> Saved</> : <><BookmarkPlus className="w-3 h-3" /> Save as Master</>}
-                        </button>
-                      )}
-
-                      {draft.answerConfidence !== 'none' && !draft._markedNA && (
-                        <button
-                          onClick={() => handleEnhanceSingle(draft)}
-                          disabled={enhancingId === draft.questionId || draft._enhanced}
-                          className={cn(
-                            'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border',
-                            draft._enhanced
-                              ? 'bg-purple-50 text-purple-700 border-purple-200'
-                              : enhancingId === draft.questionId
-                                ? 'bg-purple-50 text-purple-500 border-purple-200'
-                                : 'text-slate-500 border-slate-200 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200'
-                          )}
-                        >
-                          {enhancingId === draft.questionId
-                            ? <><Loader2 className="w-3 h-3 animate-spin" /> Enhancing...</>
-                            : draft._enhanced
-                              ? <><Sparkles className="w-3 h-3" /> Enhanced</>
-                              : <><Sparkles className="w-3 h-3" /> Enhance</>}
-                        </button>
-                      )}
-
-                      {allDocuments.length > 0 && (
-                        <div className="relative">
-                          <button
-                            onClick={() => setDocPickerOpen(docPickerOpen === draft.questionId ? null : draft.questionId)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border text-slate-500 border-slate-200 hover:bg-slate-50"
-                          >
-                            <Paperclip className="w-3 h-3" /> Attach Evidence
-                          </button>
-                          {docPickerOpen === draft.questionId && (
-                            <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-lg border border-slate-200 z-10 max-h-48 overflow-y-auto">
-                              {allDocuments.map(doc => {
-                                const isLinked = (linkedDocs[draft.questionId] || []).includes(doc.id);
-                                return (
-                                  <button
-                                    key={doc.id}
-                                    onClick={() => isLinked ? unlinkDocument(draft.questionId, doc.id) : linkDocument(draft.questionId, doc.id)}
-                                    className={cn('w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center gap-2', isLinked && 'bg-green-50')}
-                                  >
-                                    <CheckCircle2 className={cn('w-3 h-3 flex-shrink-0', isLinked ? 'text-green-600' : 'text-transparent')} />
-                                    <span className="truncate text-slate-900">{doc.name}</span>
-                                    {doc.referenceNumber && <span className="text-slate-400 flex-shrink-0">{doc.referenceNumber}</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {(linkedDocs[draft.questionId] || []).length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {(linkedDocs[draft.questionId] || []).map(docId => {
-                          const doc = allDocuments.find(d => d.id === docId);
-                          if (!doc) return null;
-                          return (
-                            <span key={docId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-medium">
-                              <Paperclip className="w-2.5 h-2.5" />{doc.name}
-                              <button onClick={() => unlinkDocument(draft.questionId, docId)} className="hover:text-red-600 ml-0.5"><XIcon className="w-2.5 h-2.5" /></button>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+              <div
+                key={draft.questionId}
+                className={cn(
+                  'border-b border-slate-100 last:border-b-0',
+                  draft.answerConfidence === 'none' && 'bg-red-50/30',
+                  draft._markedNA && 'bg-slate-50/50',
                 )}
+              >
+                {/* Main row */}
+                <div className="grid grid-cols-[3rem_1fr_6rem_5rem] gap-0 px-6 py-4 items-start">
+                  {/* Number */}
+                  <span className="text-sm text-slate-400 font-mono pt-0.5">{i + 1}</span>
+
+                  {/* Question + Answer */}
+                  <div className="pr-4 min-w-0">
+                    {/* Question */}
+                    <p className="text-sm font-medium text-slate-900 leading-relaxed">{draft.questionText}</p>
+                    {draft.category && (
+                      <span className="text-[11px] text-slate-400 mt-0.5 inline-block">{draft.category}</span>
+                    )}
+
+                    {/* Answer */}
+                    <div className={cn('mt-3', draft.answerConfidence === 'none' && 'opacity-60')}>
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <Textarea value={editingText} onChange={(e) => setEditingText(e.target.value)} rows={5} className="text-sm" autoFocus />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => saveEdit(draft.questionId)} className="bg-slate-900 text-white text-xs h-7">Save</Button>
+                            <Button size="sm" variant="ghost" onClick={cancelEdit} className="text-xs h-7">Cancel</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                          {translateAnswer(draft.answer, language)}
+                          {draft._edited && <span className="text-[10px] text-slate-400 italic ml-1">(edited)</span>}
+                          {draft._enhanced && <span className="text-[10px] text-indigo-400 italic ml-1">(AI enhanced)</span>}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Data backing — shown inline for items with real data */}
+                    {draft.dataValue && !isExpanded && (
+                      <p className="mt-1.5 text-xs text-slate-400">
+                        Based on: <span className="font-medium text-slate-500">{draft.dataValue}{draft.dataUnit && ` ${draft.dataUnit}`}</span>
+                        {draft.dataPeriod && ` (${draft.dataPeriod})`}
+                      </p>
+                    )}
+
+                    {/* Expanded details */}
+                    {isExpanded && (
+                      <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                        {draft.dataValue && (
+                          <div className="flex gap-4 text-xs text-slate-500">
+                            <span>Value: <strong className="text-slate-700">{draft.dataValue}</strong>{draft.dataUnit && ` ${draft.dataUnit}`}</span>
+                            {draft.dataPeriod && <span>Period: {draft.dataPeriod}</span>}
+                            {draft.dataSource && <span>Source: {draft.dataSource}</span>}
+                          </div>
+                        )}
+                        {draft.assumptions?.length > 0 && (
+                          <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                            Assumptions: {draft.assumptions.join('. ')}
+                          </p>
+                        )}
+                        {draft.limitations?.length > 0 && (
+                          <p className="text-xs text-orange-700 bg-orange-50 px-2 py-1 rounded">
+                            Data gaps: {draft.limitations.join('. ')}
+                          </p>
+                        )}
+                        {draft.matchResult?.matchedKeywords?.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {draft.matchResult.matchedKeywords.map(kw => (
+                              <span key={kw} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{kw}</span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* N/A section */}
+                        {naEditing === draft.questionId ? (
+                          <div className="space-y-2 pt-2">
+                            <Textarea
+                              value={naJustifications[draft.questionId] || ''}
+                              onChange={(e) => setNaJustifications(prev => ({ ...prev, [draft.questionId]: e.target.value }))}
+                              placeholder="Why is this question not applicable to your company?"
+                              rows={2}
+                              className="text-sm"
+                            />
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => toggleNA(draft.questionId, naJustifications[draft.questionId])} className="bg-slate-900 text-white text-xs h-7">Confirm N/A</Button>
+                              <Button size="sm" variant="ghost" onClick={() => setNaEditing(null)} className="text-xs h-7">Cancel</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2 pt-2">
+                            <button
+                              onClick={() => draft._markedNA ? toggleNA(draft.questionId) : setNaEditing(draft.questionId)}
+                              className={cn(
+                                'text-xs px-2 py-1 rounded border transition-colors',
+                                draft._markedNA ? 'bg-slate-200 text-slate-700 border-slate-300' : 'text-slate-500 border-slate-200 hover:bg-slate-50'
+                              )}
+                            >
+                              <Ban className="w-3 h-3 inline mr-1" />{draft._markedNA ? 'Undo N/A' : 'Mark N/A'}
+                            </button>
+                            {draft.answerConfidence !== 'none' && !draft._markedNA && (
+                              <button
+                                onClick={() => handleSaveAsMaster(draft)}
+                                disabled={savedMasterIds.has(draft.questionId)}
+                                className={cn(
+                                  'text-xs px-2 py-1 rounded border transition-colors',
+                                  savedMasterIds.has(draft.questionId)
+                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                    : 'text-slate-500 border-slate-200 hover:bg-slate-50'
+                                )}
+                              >
+                                {savedMasterIds.has(draft.questionId) ? <><BookmarkCheck className="w-3 h-3 inline mr-1" /> Saved</> : <><BookmarkPlus className="w-3 h-3 inline mr-1" /> Save to library</>}
+                              </button>
+                            )}
+                            {allDocuments.length > 0 && (
+                              <div className="relative">
+                                <button
+                                  onClick={() => setDocPickerOpen(docPickerOpen === draft.questionId ? null : draft.questionId)}
+                                  className="text-xs px-2 py-1 rounded border text-slate-500 border-slate-200 hover:bg-slate-50 transition-colors"
+                                >
+                                  <Paperclip className="w-3 h-3 inline mr-1" /> Evidence
+                                </button>
+                                {docPickerOpen === draft.questionId && (
+                                  <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-lg border border-slate-200 z-10 max-h-48 overflow-y-auto">
+                                    {allDocuments.map(doc => {
+                                      const isLinked = (linkedDocs[draft.questionId] || []).includes(doc.id);
+                                      return (
+                                        <button
+                                          key={doc.id}
+                                          onClick={() => isLinked ? unlinkDocument(draft.questionId, doc.id) : linkDocument(draft.questionId, doc.id)}
+                                          className={cn('w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center gap-2', isLinked && 'bg-green-50')}
+                                        >
+                                          <CheckCircle2 className={cn('w-3 h-3 flex-shrink-0', isLinked ? 'text-green-600' : 'text-transparent')} />
+                                          <span className="truncate text-slate-900">{doc.name}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {(linkedDocs[draft.questionId] || []).length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {(linkedDocs[draft.questionId] || []).map(docId => {
+                              const doc = allDocuments.find(d => d.id === docId);
+                              if (!doc) return null;
+                              return (
+                                <span key={docId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-medium">
+                                  <Paperclip className="w-2.5 h-2.5" />{doc.name}
+                                  <button onClick={() => unlinkDocument(draft.questionId, docId)} className="hover:text-red-600 ml-0.5"><XIcon className="w-2.5 h-2.5" /></button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Confidence */}
+                  <div className="flex justify-center pt-0.5">
+                    <span className={cn('inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded', conf.bg, conf.color)}>
+                      <span className={cn('w-1.5 h-1.5 rounded-full', conf.dot)} />
+                      {conf.label}
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-start justify-end gap-1 pt-0.5">
+                    {!draft._markedNA && draft.answerConfidence !== 'none' && (
+                      <button
+                        onClick={() => handleEnhanceSingle(draft)}
+                        disabled={isEnhancing || draft._enhanced}
+                        className={cn(
+                          'p-1.5 rounded transition-colors',
+                          draft._enhanced ? 'text-indigo-400' : isEnhancing ? 'text-slate-300' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
+                        )}
+                        title={draft._enhanced ? 'AI enhanced' : 'Enhance with AI'}
+                      >
+                        {isEnhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => startEditing(draft)}
+                      className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                      title="Edit answer"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => toggleDetails(draft.questionId)}
+                      className={cn(
+                        'p-1.5 rounded transition-colors',
+                        isExpanded ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                      )}
+                      title="Details"
+                    >
+                      {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
               </div>
             );
           })}
         </div>
 
-        {/* Empty filter state */}
-        {filtered.length === 0 && answerDrafts.length > 0 && (
-          <div className="text-center py-8 text-slate-500">
-            <p>No answers match the current filters.</p>
-            <button onClick={() => { setFilterConfidence('all'); setFilterType('all'); }} className="text-indigo-600 underline text-sm mt-2">Clear filters</button>
-          </div>
-        )}
-
-        {/* Bottom bar */}
+        {/* ===== BOTTOM BAR ===== */}
         {answerDrafts.length > 0 && (
-          <div className="glass-card rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="mt-6 bg-white border border-slate-200 rounded-xl px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-slate-500">
-              {stats?.answered} of {stats?.total} questions answered · Score: {stats?.weightedScore}%
+              {stats?.answered} of {stats?.total} questions answered · {stats?.readinessPercent}% data backed · Score: {stats?.weightedScore}%
             </p>
-            <Button onClick={handleExport} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              <Download className="w-4 h-4 mr-2" />Download Excel
+            <Button onClick={handleExport} className="bg-slate-900 hover:bg-slate-800 text-white">
+              <Download className="w-4 h-4 mr-2" />Export to Excel
             </Button>
           </div>
         )}
@@ -1086,7 +908,7 @@ export default function Respond() {
       </div>
 
       {linkedRequest && (
-        <div className="glass-card rounded-xl p-4 border-l-4 border-indigo-600">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 border-l-4 border-l-indigo-600">
           <p className="text-sm text-slate-500">Linked to request</p>
           <p className="font-medium text-slate-900">{linkedRequest.customerName} - {linkedRequest.platform}</p>
         </div>
@@ -1117,9 +939,9 @@ export default function Respond() {
         <>
           <div
             className={cn(
-              'glass-card rounded-2xl p-8 border-2 border-dashed transition-all cursor-pointer',
+              'bg-white border-2 border-dashed rounded-xl p-8 transition-all cursor-pointer',
               dragActive ? 'border-indigo-600 bg-indigo-50' : 'border-slate-300 hover:border-slate-400',
-              file && 'border-solid border-slate-300'
+              file && 'border-solid border-slate-200'
             )}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -1130,7 +952,7 @@ export default function Respond() {
             <input ref={fileInputRef} type="file" accept={ACCEPTED_EXTENSIONS.join(',')} onChange={handleFileSelect} className="hidden" />
             {file ? (
               <div className="flex items-center gap-4">
-                {getFileIcon()}
+                <FileSpreadsheet className="w-8 h-8 text-indigo-600" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-900 truncate">{file.name}</p>
                   <p className="text-sm text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
@@ -1144,13 +966,13 @@ export default function Respond() {
                 <UploadIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                 <p className="font-medium text-slate-900">Drop your questionnaire here</p>
                 <p className="text-sm text-slate-500 mt-1">or click to browse</p>
-                <p className="text-xs text-slate-400 mt-3">Supports Excel (.xlsx, .csv), PDF, and Word (.docx)</p>
+                <p className="text-xs text-slate-400 mt-3">Excel (.xlsx, .csv), PDF, or Word (.docx)</p>
               </div>
             )}
           </div>
 
           {!linkedRequest && requests.length > 0 && (
-            <div className="glass-card rounded-xl p-4">
+            <div className="bg-white border border-slate-200 rounded-xl p-4">
               <Label className="text-sm text-slate-600 mb-2 block">Link to a customer request (optional)</Label>
               <Select value={selectedRequestId} onValueChange={setSelectedRequestId}>
                 <SelectTrigger><SelectValue placeholder="Select a request..." /></SelectTrigger>
@@ -1165,7 +987,7 @@ export default function Respond() {
           )}
 
           {showMapping && mappingColumns && (
-            <div className="glass-card rounded-xl p-4 space-y-3">
+            <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
               <h3 className="font-medium text-slate-900">Column Mapping</h3>
               <p className="text-sm text-slate-500">We couldn't auto-detect the columns. Map them manually.</p>
               {['questionText', 'category', 'subcategory', 'referenceId'].map(field => (
@@ -1186,7 +1008,7 @@ export default function Respond() {
           )}
 
           {parseError && (
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 text-red-700">
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <p className="text-sm">{parseError}</p>
             </div>
@@ -1194,9 +1016,9 @@ export default function Respond() {
 
           <div className="flex gap-3">
             {file && (
-              <Button onClick={parseFile} disabled={parsing} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button onClick={parseFile} disabled={parsing} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white">
                 {parsing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Parsing...</>
-                  : <><FileSpreadsheet className="w-4 h-4 mr-2" />{showMapping ? 'Re-parse with Mapping' : 'Parse & Generate Answers'}</>}
+                  : <><FileSpreadsheet className="w-4 h-4 mr-2" />{showMapping ? 'Re-parse with Mapping' : 'Generate Answers'}</>}
               </Button>
             )}
             {!showMapping && file && !parsing && (
@@ -1213,7 +1035,7 @@ export default function Respond() {
             <button
               key={t.id}
               onClick={() => selectTemplate(t.id)}
-              className="w-full glass-card rounded-xl p-4 text-left hover:bg-slate-50 hover:shadow-md transition-all group"
+              className="w-full bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-slate-300 hover:shadow-sm transition-all group"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -1239,7 +1061,7 @@ export default function Respond() {
             </div>
           ) : (
             savedResults.map(saved => (
-              <div key={saved.id} className="glass-card rounded-xl p-4 flex items-center gap-4">
+              <div key={saved.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-4">
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => loadSavedResult(saved)}>
                   <p className="font-medium text-slate-900 truncate">{saved.name}</p>
                   <p className="text-sm text-slate-500">

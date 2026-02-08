@@ -357,8 +357,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Key Metrics */}
-      {hasAnyData && (
+      {/* Key Metrics — only show if there's actual data with values */}
+      {hasAnyData && annualTotals.totalEnergyKwh > 0 && (
         <div className="glass-card rounded-2xl p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
