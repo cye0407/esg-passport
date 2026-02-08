@@ -1,16 +1,25 @@
 // ============================================
-// LICENSE KEY VALIDATION (LemonSqueezy)
+// LICENSE KEY VALIDATION (via Vercel proxy)
 // ============================================
+// Browser can't call LemonSqueezy API directly (CORS).
+// Calls /api/validate-license and /api/deactivate-license instead.
 
 const LICENSE_STORAGE_KEY = 'esg_passport_license';
 
+// Use relative URL in production (same origin), absolute for local dev
+function apiUrl(path) {
+  // Vite dev server runs on a different port than Vercel functions
+  // In production, /api/* routes are served by Vercel serverless functions
+  return path;
+}
+
 /**
- * Validate a license key against LemonSqueezy's API.
+ * Validate a license key via our server-side proxy.
  * Returns { valid, error, instance_id } on success.
  */
 export async function validateLicenseKey(key) {
   try {
-    const response = await fetch('https://api.lemonsqueezy.com/v1/licenses/validate', {
+    const response = await fetch(apiUrl('/api/validate-license'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -53,7 +62,7 @@ export async function deactivateLicense() {
   if (!stored?.key || !stored?.instance_id) return;
 
   try {
-    await fetch('https://api.lemonsqueezy.com/v1/licenses/deactivate', {
+    await fetch(apiUrl('/api/deactivate-license'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -94,7 +103,6 @@ export function getStoredLicense() {
 
 /**
  * Check if the user has an active license (local check only).
- * For periodic re-validation, call validateLicenseKey() with the stored key.
  */
 export function hasActiveLicense() {
   const stored = getStoredLicense();
@@ -104,6 +112,7 @@ export function hasActiveLicense() {
 /**
  * Re-validate a stored license key (e.g., on app launch, once per week).
  * Returns true if still valid, false if expired/revoked.
+ * On network error, assumes still valid (offline-friendly).
  */
 export async function revalidateStoredLicense() {
   const stored = getStoredLicense();
@@ -114,15 +123,23 @@ export async function revalidateStoredLicense() {
   const daysSinceValidation = (Date.now() - lastValidated.getTime()) / (1000 * 60 * 60 * 24);
   if (daysSinceValidation < 7) return true;
 
-  const result = await validateLicenseKey(stored.key);
-  if (result.valid) {
-    storeLicense(stored.key, result.instance_id || stored.instance_id);
-    return true;
+  try {
+    const result = await validateLicenseKey(stored.key);
+    if (result.valid) {
+      storeLicense(stored.key, result.instance_id || stored.instance_id);
+      return true;
+    }
+
+    // Only revoke if we got a definitive "invalid" from the API
+    if (result.error && !result.error.includes('internet connection')) {
+      localStorage.removeItem(LICENSE_STORAGE_KEY);
+      return false;
+    }
+  } catch {
+    // Network error — don't revoke, assume still valid
   }
 
-  // License is no longer valid — clear it
-  localStorage.removeItem(LICENSE_STORAGE_KEY);
-  return false;
+  return true;
 }
 
 /**

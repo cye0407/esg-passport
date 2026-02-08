@@ -1,9 +1,15 @@
 {
   "buildCommand": "echo 'Using pre-built output'",
-  "installCommand": "echo 'Skipping install'",
+  "installCommand": "npm install --ignore-scripts",
   "outputDirectory": "dist",
   "framework": null,
+  "functions": {
+    "api/*.js": {
+      "runtime": "@vercel/node@3"
+    }
+  },
   "rewrites": [
-    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
