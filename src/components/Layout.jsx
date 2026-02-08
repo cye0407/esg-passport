@@ -32,7 +32,7 @@ export default function Layout() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-none bg-slate-800 flex items-center justify-center">
                 <Shield className="w-5 h-5 text-white" />
               </div>
               <div className="hidden sm:block">
@@ -87,7 +87,7 @@ export default function Layout() {
                     to={item.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={cn(
-                      'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors',
+                      'flex items-center gap-3 px-4 py-3 rounded-none text-sm font-medium transition-colors',
                       isActive
                         ? 'bg-indigo-600 text-white'
                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'

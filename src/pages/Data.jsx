@@ -599,7 +599,7 @@ export default function Data() {
 
       {/* Error Banner */}
       {hasErrors && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+        <div className="bg-red-50 border border-red-200 rounded-none p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-red-800">Please fix the following errors:</p>
@@ -613,7 +613,7 @@ export default function Data() {
       )}
 
       {/* Data Grid */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 overflow-x-auto">
+      <div className="bg-white border border-slate-200 rounded-none p-4 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200">
@@ -830,7 +830,7 @@ export default function Data() {
 
       {/* Year-over-Year Comparison */}
       {showComparison && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <div className="bg-white border border-slate-200 rounded-none p-4">
           <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <ArrowUpRight className="w-5 h-5" />
             Year-over-Year Comparison
@@ -892,7 +892,7 @@ export default function Data() {
       )}
 
       {/* Save Bar */}
-      <div className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl sticky bottom-4">
+      <div className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-none sticky bottom-4">
         <span className={cn(
           "text-sm",
           hasErrors ? "text-red-600" : "text-slate-500"

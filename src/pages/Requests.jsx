@@ -127,25 +127,25 @@ export default function Requests() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <div className="bg-white border border-slate-200 rounded-none p-4">
           <p className="text-sm text-slate-500">Total</p>
           <p className="text-2xl font-bold text-slate-900">{requests.length}</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <div className="bg-white border border-slate-200 rounded-none p-4">
           <div className="flex items-center gap-2">
             <p className="text-sm text-slate-500">Open</p>
             {openRequests.length > 0 && <span className="w-2 h-2 rounded-full bg-amber-500" />}
           </div>
           <p className="text-2xl font-bold text-slate-900">{openRequests.length}</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <div className="bg-white border border-slate-200 rounded-none p-4">
           <div className="flex items-center gap-2">
             <p className="text-sm text-slate-500">Sent</p>
             {requests.filter(r => r.status === 'sent').length > 0 && <span className="w-2 h-2 rounded-full bg-green-500" />}
           </div>
           <p className="text-2xl font-bold text-slate-900">{requests.filter(r => r.status === 'sent').length}</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-4">
+        <div className="bg-white border border-slate-200 rounded-none p-4">
           <div className="flex items-center gap-2">
             <p className="text-sm text-slate-500">Overdue</p>
             {openRequests.filter(r => getDaysUntil(r.deadline) < 0).length > 0 && <span className="w-2 h-2 rounded-full bg-red-500" />}
@@ -156,7 +156,7 @@ export default function Requests() {
 
       {/* Request List */}
       {requests.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-8 text-center">
+        <div className="bg-white border border-slate-200 rounded-none p-8 text-center">
           <Inbox className="w-12 h-12 mx-auto text-slate-300 mb-4" />
           <h2 className="text-lg font-semibold text-slate-900 mb-2">No requests yet</h2>
           <p className="text-slate-500 text-sm mb-4">Log your first customer request to get started</p>
@@ -172,7 +172,7 @@ export default function Requests() {
                 key={req.id}
                 to={`/requests/${req.id}`}
                 className={cn(
-                  'block bg-white border rounded-xl p-4 transition-colors group',
+                  'block bg-white border rounded-none p-4 transition-colors group',
                   isDeleting ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                 )}
               >

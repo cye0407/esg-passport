@@ -109,7 +109,7 @@ export default function RequestWorkspace() {
         </Link>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-6">
+      <div className="bg-white border border-slate-200 rounded-none p-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -164,11 +164,11 @@ export default function RequestWorkspace() {
 
       {/* Readiness Analysis */}
       {selectedTopics.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
+        <div className="bg-white border border-slate-200 rounded-none p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Your Data Readiness</h2>
 
           <div className="grid sm:grid-cols-3 gap-4 mb-6">
-            <div className="p-4 rounded-xl bg-green-50 border border-green-200">
+            <div className="p-4 rounded-none bg-green-50 border border-green-200">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
                 <span className="font-medium text-green-800">Ready to Share ({readyDataPoints.length})</span>
@@ -181,7 +181,7 @@ export default function RequestWorkspace() {
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-yellow-50 border border-yellow-200">
+            <div className="p-4 rounded-none bg-yellow-50 border border-yellow-200">
               <div className="flex items-center gap-2 mb-2">
                 <AlertCircle className="w-5 h-5 text-yellow-600" />
                 <span className="font-medium text-yellow-800">Needs Attention ({needsAttention.length})</span>
@@ -194,7 +194,7 @@ export default function RequestWorkspace() {
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
+            <div className="p-4 rounded-none bg-gray-50 border border-gray-200">
               <div className="flex items-center gap-2 mb-2">
                 <XCircle className="w-5 h-5 text-gray-500" />
                 <span className="font-medium text-gray-700">Not Tracked ({notTracked.length})</span>
@@ -226,14 +226,14 @@ export default function RequestWorkspace() {
 
       {/* Empty state when no topics selected */}
       {selectedTopics.length === 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-400">
+        <div className="bg-white border border-slate-200 rounded-none p-8 text-center text-slate-400">
           <p className="font-medium text-slate-500">Select questionnaire topics above to see your data readiness</p>
           <p className="text-sm mt-1">Or choose a quick template (EcoVadis, CDP, etc.) to auto-select relevant topics</p>
         </div>
       )}
 
       {/* Notes */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6">
+      <div className="bg-white border border-slate-200 rounded-none p-6">
         <Label className="text-sm font-medium text-slate-900 mb-2 block">Notes</Label>
         <Textarea
           value={request.notes || ''}

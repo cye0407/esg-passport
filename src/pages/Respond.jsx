@@ -476,7 +476,7 @@ export default function Respond() {
     return (
       <div className="flex flex-col items-center justify-center py-24">
         <div className="w-full max-w-sm">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-100 flex items-center justify-center mx-auto mb-6">
+          <div className="w-16 h-16 rounded-none bg-indigo-100 flex items-center justify-center mx-auto mb-6">
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
           </div>
           <h2 className="text-xl font-semibold text-slate-900 text-center mb-2">Generating your answers</h2>
@@ -532,7 +532,7 @@ export default function Respond() {
         )}
 
         {/* ===== REPORT HEADER ===== */}
-        <div className="bg-white border border-slate-200 rounded-t-xl px-6 py-5">
+        <div className="bg-white border border-slate-200 rounded-none px-6 py-5">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Questionnaire Response Report</p>
@@ -649,7 +649,7 @@ export default function Respond() {
         )}
 
         {/* ===== ANSWER TABLE ===== */}
-        <div className="bg-white border border-slate-200 rounded-b-xl overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-none overflow-hidden">
           {/* Table header */}
           <div className="grid grid-cols-[3rem_1fr_6rem_5rem] gap-0 px-6 py-2.5 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wider">
             <span>#</span>
@@ -886,7 +886,7 @@ export default function Respond() {
 
         {/* ===== BOTTOM BAR ===== */}
         {answerDrafts.length > 0 && (
-          <div className="mt-6 bg-white border border-slate-200 rounded-xl px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="mt-6 bg-white border border-slate-200 rounded-none px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-slate-500">
               {stats?.answered} of {stats?.total} questions answered · {stats?.readinessPercent}% data backed · Score: {stats?.weightedScore}%
             </p>
@@ -908,14 +908,14 @@ export default function Respond() {
       </div>
 
       {linkedRequest && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 border-l-4 border-l-indigo-600">
+        <div className="bg-white border border-slate-200 rounded-none p-4 border-l-4 border-l-indigo-600">
           <p className="text-sm text-slate-500">Linked to request</p>
           <p className="font-medium text-slate-900">{linkedRequest.customerName} - {linkedRequest.platform}</p>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+      <div className="flex gap-1 bg-slate-100 rounded-none p-1">
         {[
           { id: 'upload', label: 'Upload File', icon: UploadIcon },
           { id: 'template', label: 'Use Template', icon: ListChecks },
@@ -939,7 +939,7 @@ export default function Respond() {
         <>
           <div
             className={cn(
-              'bg-white border-2 border-dashed rounded-xl p-8 transition-all cursor-pointer',
+              'bg-white border-2 border-dashed rounded-none p-8 transition-all cursor-pointer',
               dragActive ? 'border-indigo-600 bg-indigo-50' : 'border-slate-300 hover:border-slate-400',
               file && 'border-solid border-slate-200'
             )}
@@ -972,7 +972,7 @@ export default function Respond() {
           </div>
 
           {!linkedRequest && requests.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <div className="bg-white border border-slate-200 rounded-none p-4">
               <Label className="text-sm text-slate-600 mb-2 block">Link to a customer request (optional)</Label>
               <Select value={selectedRequestId} onValueChange={setSelectedRequestId}>
                 <SelectTrigger><SelectValue placeholder="Select a request..." /></SelectTrigger>
@@ -987,7 +987,7 @@ export default function Respond() {
           )}
 
           {showMapping && mappingColumns && (
-            <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+            <div className="bg-white border border-slate-200 rounded-none p-4 space-y-3">
               <h3 className="font-medium text-slate-900">Column Mapping</h3>
               <p className="text-sm text-slate-500">We couldn't auto-detect the columns. Map them manually.</p>
               {['questionText', 'category', 'subcategory', 'referenceId'].map(field => (
@@ -1008,7 +1008,7 @@ export default function Respond() {
           )}
 
           {parseError && (
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700">
+            <div className="flex items-start gap-3 p-4 rounded-none bg-red-50 border border-red-200 text-red-700">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <p className="text-sm">{parseError}</p>
             </div>
@@ -1035,7 +1035,7 @@ export default function Respond() {
             <button
               key={t.id}
               onClick={() => selectTemplate(t.id)}
-              className="w-full bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-slate-300 hover:shadow-sm transition-all group"
+              className="w-full bg-white border border-slate-200 rounded-none p-4 text-left hover:border-slate-300 hover:shadow-sm transition-all group"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -1061,7 +1061,7 @@ export default function Respond() {
             </div>
           ) : (
             savedResults.map(saved => (
-              <div key={saved.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-4">
+              <div key={saved.id} className="bg-white border border-slate-200 rounded-none p-4 flex items-center gap-4">
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => loadSavedResult(saved)}>
                   <p className="font-medium text-slate-900 truncate">{saved.name}</p>
                   <p className="text-sm text-slate-500">

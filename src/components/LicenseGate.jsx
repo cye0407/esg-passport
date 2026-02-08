@@ -75,9 +75,9 @@ export default function LicenseGate({ children }) {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl p-8 shadow-xl border border-slate-200">
+        <div className="bg-white rounded-none p-8 border border-slate-200">
           <div className="text-center space-y-3 mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-800 mb-2">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-none bg-slate-800 mb-2">
               <Shield className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-slate-900">ESG Passport</h1>

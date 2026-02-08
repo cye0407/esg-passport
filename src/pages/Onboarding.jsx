@@ -78,11 +78,11 @@ export default function Onboarding() {
           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${step >= 2 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>2</div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-xl">
+        <div className="bg-white border border-slate-200 rounded-none p-8">
           {step === 1 && (
             <div className="space-y-6">
               <div className="text-center space-y-3">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-800 mb-2">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-none bg-slate-800 mb-2">
                   <Shield className="w-8 h-8 text-white" />
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900">Welcome to ESG Passport</h2>
@@ -145,7 +145,7 @@ export default function Onboarding() {
               <Button
                 onClick={() => setStep(2)}
                 disabled={!canProceed()}
-                className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl"
+                className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none"
               >
                 Continue
                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -162,7 +162,7 @@ export default function Onboarding() {
                 </p>
               </div>
 
-              <div className="rounded-xl bg-slate-50 border border-slate-200 divide-y divide-slate-200">
+              <div className="rounded-none bg-slate-50 border border-slate-200 divide-y divide-slate-200">
                 <div className="flex items-center justify-between p-3">
                   <span className="text-sm text-slate-500">Company</span>
                   <span className="text-sm font-medium text-slate-900">{companyName}</span>
@@ -186,7 +186,7 @@ export default function Onboarding() {
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   onClick={() => handleComplete('/data')}
-                  className="h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl"
+                  className="h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none"
                 >
                   <Database className="w-4 h-4 mr-2" />
                   Enter Data
@@ -194,7 +194,7 @@ export default function Onboarding() {
                 <Button
                   onClick={() => handleComplete('/respond')}
                   variant="outline"
-                  className="h-12 border-slate-300 text-slate-700 hover:bg-slate-50 font-medium rounded-xl"
+                  className="h-12 border-slate-300 text-slate-700 hover:bg-slate-50 font-medium rounded-none"
                 >
                   <Upload className="w-4 h-4 mr-2" />
                   Upload Questionnaire
