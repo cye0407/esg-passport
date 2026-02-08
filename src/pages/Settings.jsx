@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 function CollapsibleSection({ icon: Icon, title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="glass-card rounded-2xl overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
         className="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition-colors"
@@ -110,7 +110,7 @@ export default function Settings() {
           <SettingsIcon className="w-6 h-6" />
           Settings
         </h1>
-        <p className="text-slate-600 mt-1">Manage your profile, documents, and preferences</p>
+        <p className="text-slate-500 text-sm mt-1">Manage your profile, documents, and preferences</p>
       </div>
 
       {saved && (
@@ -120,7 +120,7 @@ export default function Settings() {
       )}
 
       {/* Company Profile */}
-      <div className="glass-card rounded-2xl p-6">
+      <div className="bg-white border border-slate-200 rounded-xl p-6">
         <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
           <Building2 className="w-5 h-5" /> Company Profile
         </h2>
@@ -256,7 +256,7 @@ export default function Settings() {
       </CollapsibleSection>
 
       {/* Data Management */}
-      <div className="glass-card rounded-2xl p-6">
+      <div className="bg-white border border-slate-200 rounded-xl p-6">
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Data Management</h2>
         <div className="space-y-4">
           <div className="flex flex-wrap gap-3">
@@ -277,7 +277,7 @@ export default function Settings() {
       </div>
 
       {/* License */}
-      <div className="glass-card rounded-2xl p-6">
+      <div className="bg-white border border-slate-200 rounded-xl p-6">
         <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
           <KeyRound className="w-5 h-5" /> License
         </h2>
@@ -300,7 +300,7 @@ export default function Settings() {
       </div>
 
       {/* Danger Zone */}
-      <div className="glass-card rounded-2xl p-6 border-2 border-red-200">
+      <div className="bg-white rounded-xl p-6 border-2 border-red-200">
         <h2 className="text-lg font-semibold text-red-600 mb-4 flex items-center gap-2">
           <Trash2 className="w-5 h-5" /> Danger Zone
         </h2>

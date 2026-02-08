@@ -78,7 +78,7 @@ export default function Onboarding() {
           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${step >= 2 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>2</div>
         </div>
 
-        <div className="glass-card rounded-2xl p-8 shadow-xl">
+        <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-xl">
           {step === 1 && (
             <div className="space-y-6">
               <div className="text-center space-y-3">
@@ -145,7 +145,7 @@ export default function Onboarding() {
               <Button
                 onClick={() => setStep(2)}
                 disabled={!canProceed()}
-                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl"
+                className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl"
               >
                 Continue
                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -186,7 +186,7 @@ export default function Onboarding() {
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   onClick={() => handleComplete('/data')}
-                  className="h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl"
+                  className="h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl"
                 >
                   <Database className="w-4 h-4 mr-2" />
                   Enter Data

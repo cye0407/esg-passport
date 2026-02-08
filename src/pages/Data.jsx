@@ -474,7 +474,7 @@ export default function Data() {
             <Database className="w-6 h-6" />
             {entryMode === 'monthly' ? t('data.title.monthly', lang) : t('data.title.annual', lang)}
           </h1>
-          <p className="text-slate-600 mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             {t('data.subtitle', lang).replace('{mode}', entryMode === 'monthly' ? t('btn.monthly', lang).toLowerCase() : t('btn.annual', lang).toLowerCase()).replace('{year}', selectedYear)}
           </p>
         </div>
@@ -613,7 +613,7 @@ export default function Data() {
       )}
 
       {/* Data Grid */}
-      <div className="glass-card rounded-xl p-4 overflow-x-auto">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200">
@@ -830,7 +830,7 @@ export default function Data() {
 
       {/* Year-over-Year Comparison */}
       {showComparison && (
-        <div className="glass-card rounded-xl p-4">
+        <div className="bg-white border border-slate-200 rounded-xl p-4">
           <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <ArrowUpRight className="w-5 h-5" />
             Year-over-Year Comparison
@@ -892,7 +892,7 @@ export default function Data() {
       )}
 
       {/* Save Bar */}
-      <div className="flex items-center justify-between p-4 glass-card rounded-xl sticky bottom-4">
+      <div className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl sticky bottom-4">
         <span className={cn(
           "text-sm",
           hasErrors ? "text-red-600" : "text-slate-500"
@@ -916,7 +916,7 @@ export default function Data() {
               "text-white",
               hasErrors
                 ? "bg-gray-400 cursor-not-allowed"
-                : "bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800"
+                : "bg-slate-900 hover:bg-slate-800"
             )}
           >
             <Save className="w-4 h-4 mr-2" />

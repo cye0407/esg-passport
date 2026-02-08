@@ -109,7 +109,7 @@ export default function RequestWorkspace() {
         </Link>
       </div>
 
-      <div className="glass-card rounded-2xl p-6">
+      <div className="bg-white border border-slate-200 rounded-xl p-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -164,7 +164,7 @@ export default function RequestWorkspace() {
 
       {/* Readiness Analysis */}
       {selectedTopics.length > 0 && (
-        <div className="glass-card rounded-2xl p-6">
+        <div className="bg-white border border-slate-200 rounded-xl p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Your Data Readiness</h2>
 
           <div className="grid sm:grid-cols-3 gap-4 mb-6">
@@ -211,7 +211,7 @@ export default function RequestWorkspace() {
           {/* Single clear CTA */}
           <div className="flex flex-wrap gap-3">
             <Link to={`/respond?requestId=${request.id}`}>
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button className="bg-slate-900 hover:bg-slate-800 text-white">
                 <Upload className="w-4 h-4 mr-2" /> Upload & Generate Answers
               </Button>
             </Link>
@@ -226,14 +226,14 @@ export default function RequestWorkspace() {
 
       {/* Empty state when no topics selected */}
       {selectedTopics.length === 0 && (
-        <div className="glass-card rounded-2xl p-8 text-center text-slate-400">
+        <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-400">
           <p className="font-medium text-slate-500">Select questionnaire topics above to see your data readiness</p>
           <p className="text-sm mt-1">Or choose a quick template (EcoVadis, CDP, etc.) to auto-select relevant topics</p>
         </div>
       )}
 
       {/* Notes */}
-      <div className="glass-card rounded-2xl p-6">
+      <div className="bg-white border border-slate-200 rounded-xl p-6">
         <Label className="text-sm font-medium text-slate-900 mb-2 block">Notes</Label>
         <Textarea
           value={request.notes || ''}
