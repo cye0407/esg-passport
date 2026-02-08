@@ -1,0 +1,9 @@
+{
+  "buildCommand": "echo 'Using pre-built output'",
+  "installCommand": "echo 'Skipping install'",
+  "outputDirectory": "dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+  ]
+}
