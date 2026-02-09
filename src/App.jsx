@@ -70,10 +70,13 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
+  // When served via Vercel rewrite on esgforsuppliers.com, routes live under /passport
+  const basename = window.location.pathname.startsWith('/passport') ? '/passport' : '/';
+
   return (
     <ErrorBoundary>
     <LicenseProvider>
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
         {/* Standalone pages (no nav) */}
         <Route path="/onboarding" element={<Onboarding />} />
