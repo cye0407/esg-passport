@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
+import { useLicense } from '@/components/LicenseContext';
 import { cn } from '@/lib/utils';
 import {
   Shield,
@@ -10,18 +11,20 @@ import {
   Settings,
   Menu,
   X,
+  Lock,
 } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Data', href: '/data', icon: Database },
-  { name: 'Respond', href: '/respond', icon: Upload },
-  { name: 'Requests', href: '/requests', icon: Inbox },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/', icon: Home, paid: false },
+  { name: 'Data', href: '/data', icon: Database, paid: false },
+  { name: 'Respond', href: '/respond', icon: Upload, paid: true },
+  { name: 'Requests', href: '/requests', icon: Inbox, paid: true },
+  { name: 'Settings', href: '/settings', icon: Settings, paid: false },
 ];
 
 export default function Layout() {
   const location = useLocation();
+  const { isPaid } = useLicense();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   return (
@@ -46,6 +49,7 @@ export default function Layout() {
               {navigation.map((item) => {
                 const isActive = location.pathname === item.href ||
                   (item.href !== '/' && location.pathname.startsWith(item.href));
+                const showLock = item.paid && !isPaid;
                 return (
                   <Link
                     key={item.name}
@@ -59,6 +63,7 @@ export default function Layout() {
                   >
                     <item.icon className="w-4 h-4" />
                     {item.name}
+                    {showLock && <Lock className="w-3 h-3 opacity-50" />}
                   </Link>
                 );
               })}
@@ -81,6 +86,7 @@ export default function Layout() {
               {navigation.map((item) => {
                 const isActive = location.pathname === item.href ||
                   (item.href !== '/' && location.pathname.startsWith(item.href));
+                const showLock = item.paid && !isPaid;
                 return (
                   <Link
                     key={item.name}
@@ -95,6 +101,7 @@ export default function Layout() {
                   >
                     <item.icon className="w-5 h-5" />
                     {item.name}
+                    {showLock && <Lock className="w-3.5 h-3.5 opacity-50 ml-auto" />}
                   </Link>
                 );
               })}

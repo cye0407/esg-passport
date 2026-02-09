@@ -110,6 +110,15 @@ export function hasActiveLicense() {
 }
 
 /**
+ * Check if the user has paid Pro features (response generator, requests).
+ * Free tier: data tracking, dashboard, settings, onboarding.
+ * Paid tier: questionnaire upload, answer generation, request management.
+ */
+export function isPaidUser() {
+  return hasActiveLicense();
+}
+
+/**
  * Re-validate a stored license key (e.g., on app launch, once per week).
  * Returns true if still valid, false if expired/revoked.
  * On network error, assumes still valid (offline-friendly).

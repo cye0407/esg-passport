@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import LicenseGate from '@/components/LicenseGate';
+import { LicenseProvider, useLicense } from '@/components/LicenseContext';
+import UpgradeGate from '@/components/UpgradeGate';
 import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
 import Data from '@/pages/Data';
@@ -9,6 +10,28 @@ import RequestWorkspace from '@/pages/RequestWorkspace';
 import Settings from '@/pages/Settings';
 import Respond from '@/pages/Respond';
 import Onboarding from '@/pages/Onboarding';
+
+/**
+ * Route wrapper that shows an upgrade prompt for free users.
+ * Paid users see the child component as normal.
+ */
+function PaidRoute({ feature, children }) {
+  const { isPaid, isChecking } = useLicense();
+
+  if (isChecking) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isPaid) {
+    return <UpgradeGate feature={feature} />;
+  }
+
+  return children;
+}
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -49,7 +72,7 @@ class ErrorBoundary extends React.Component {
 function App() {
   return (
     <ErrorBoundary>
-    <LicenseGate>
+    <LicenseProvider>
     <BrowserRouter>
       <Routes>
         {/* Standalone pages (no nav) */}
@@ -59,9 +82,9 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
           <Route path="/data" element={<Data />} />
-          <Route path="/respond" element={<Respond />} />
-          <Route path="/requests" element={<Requests />} />
-          <Route path="/requests/:id" element={<RequestWorkspace />} />
+          <Route path="/respond" element={<PaidRoute feature="Response Generator"><Respond /></PaidRoute>} />
+          <Route path="/requests" element={<PaidRoute feature="Request Management"><Requests /></PaidRoute>} />
+          <Route path="/requests/:id" element={<PaidRoute feature="Request Management"><RequestWorkspace /></PaidRoute>} />
           <Route path="/settings" element={<Settings />} />
         </Route>
 
@@ -81,7 +104,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
-    </LicenseGate>
+    </LicenseProvider>
     </ErrorBoundary>
   );
 }

@@ -183,23 +183,13 @@ export default function Onboarding() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  onClick={() => handleComplete('/data')}
-                  className="h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none"
-                >
-                  <Database className="w-4 h-4 mr-2" />
-                  Enter Data
-                </Button>
-                <Button
-                  onClick={() => handleComplete('/respond')}
-                  variant="outline"
-                  className="h-12 border-slate-300 text-slate-700 hover:bg-slate-50 font-medium rounded-none"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Questionnaire
-                </Button>
-              </div>
+              <Button
+                onClick={() => handleComplete('/data')}
+                className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none"
+              >
+                <Database className="w-4 h-4 mr-2" />
+                Start Tracking Your Data
+              </Button>
 
               <button
                 onClick={() => setStep(1)}
