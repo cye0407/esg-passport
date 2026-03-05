@@ -44,7 +44,7 @@ export async function enhanceAnswer({
   confidence,
 }) {
   const settings = getSettings();
-  const mode = settings.aiMode || 'proxy'; // 'direct' or 'proxy'
+  const mode = settings.aiMode || 'direct'; // 'direct' — proxy mode removed (no serverless backend)
   const apiKey = settings.aiApiKey || '';
   const provider = settings.aiProvider || 'claude';
 

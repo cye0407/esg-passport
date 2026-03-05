@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LicenseProvider, useLicense } from '@/components/LicenseContext';
 import UpgradeGate from '@/components/UpgradeGate';
 import Layout from '@/components/Layout';
@@ -10,21 +10,16 @@ import RequestWorkspace from '@/pages/RequestWorkspace';
 import Settings from '@/pages/Settings';
 import Respond from '@/pages/Respond';
 import Onboarding from '@/pages/Onboarding';
+import Policies from '@/pages/Policies';
+import Documents from '@/pages/Documents';
+import Report from '@/pages/Report';
 
 /**
  * Route wrapper that shows an upgrade prompt for free users.
  * Paid users see the child component as normal.
  */
 function PaidRoute({ feature, children }) {
-  const { isPaid, isChecking } = useLicense();
-
-  if (isChecking) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-800 rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const { isPaid } = useLicense();
 
   if (!isPaid) {
     return <UpgradeGate feature={feature} />;
@@ -70,13 +65,10 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
-  // When served via Vercel rewrite on esgforsuppliers.com, routes live under /passport
-  const basename = window.location.pathname.startsWith('/passport') ? '/passport' : '/';
-
   return (
     <ErrorBoundary>
     <LicenseProvider>
-    <BrowserRouter basename={basename}>
+    <HashRouter>
       <Routes>
         {/* Standalone pages (no nav) */}
         <Route path="/onboarding" element={<Onboarding />} />
@@ -85,6 +77,9 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
           <Route path="/data" element={<Data />} />
+          <Route path="/policies" element={<Policies />} />
+          <Route path="/documents" element={<Documents />} />
+          <Route path="/report" element={<Report />} />
           <Route path="/respond" element={<PaidRoute feature="Response Generator"><Respond /></PaidRoute>} />
           <Route path="/requests" element={<PaidRoute feature="Request Management"><Requests /></PaidRoute>} />
           <Route path="/requests/:id" element={<PaidRoute feature="Request Management"><RequestWorkspace /></PaidRoute>} />
@@ -95,9 +90,7 @@ function App() {
         <Route path="/upload" element={<Navigate to="/respond" replace />} />
         <Route path="/results" element={<Navigate to="/respond" replace />} />
         <Route path="/confidence" element={<Navigate to="/data" replace />} />
-        <Route path="/policies" element={<Navigate to="/settings" replace />} />
-        <Route path="/documents" element={<Navigate to="/settings" replace />} />
-        <Route path="/answers" element={<Navigate to="/settings" replace />} />
+        <Route path="/answers" element={<Navigate to="/respond" replace />} />
         <Route path="/guide" element={<Navigate to="/settings" replace />} />
         <Route path="/export" element={<Navigate to="/respond" replace />} />
         <Route path="/tools/*" element={<Navigate to="/" replace />} />
@@ -106,7 +99,7 @@ function App() {
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
     </LicenseProvider>
     </ErrorBoundary>
   );
