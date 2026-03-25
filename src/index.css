@@ -62,3 +62,11 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
 }
+
+/* Print styles for ESG Passport Report */
+@media print {
+  body { background: white !important; }
+  nav, [data-no-export] { display: none !important; }
+  .report { max-width: none !important; padding: 0 !important; border: none !important; box-shadow: none !important; }
+  @page { margin: 20mm 15mm; size: A4; }
+}

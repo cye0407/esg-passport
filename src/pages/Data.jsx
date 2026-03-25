@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getDataRecords,
   saveDataRecord,
@@ -51,6 +51,20 @@ export default function Data() {
 
   // Year-over-year comparison
   const [showComparison, setShowComparison] = useState(false);
+
+  // Auto-save after CSV import (flag triggers save via effect below handleSave)
+  const [pendingAutoSave, setPendingAutoSave] = useState(false);
+
+  // Warn on navigation with unsaved changes
+  useEffect(() => {
+    if (!hasChanges) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasChanges]);
 
   // CSV import
   const csvInputRef = useRef(null);
@@ -286,6 +300,14 @@ export default function Data() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  // Auto-save after CSV import — runs once records state has settled
+  useEffect(() => {
+    if (pendingAutoSave && hasChanges) {
+      setPendingAutoSave(false);
+      handleSave();
+    }
+  }, [pendingAutoSave, hasChanges, records]);
+
   const lang = settings.language || 'en';
 
   // Ordered by importance: required (80% of questionnaires) first, then commonly requested
@@ -419,7 +441,10 @@ export default function Data() {
         imported++;
       }
 
-      if (imported > 0) setHasChanges(true);
+      if (imported > 0) {
+        setHasChanges(true);
+        setPendingAutoSave(true);
+      }
     } catch (err) {
       console.error('CSV import error:', err);
     }
@@ -892,15 +917,20 @@ export default function Data() {
       )}
 
       {/* Save Bar */}
-      <div className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-none sticky bottom-4">
+      <div className={cn(
+        "flex items-center justify-between p-4 border rounded-none sticky bottom-4 transition-all duration-300",
+        hasChanges && !hasErrors
+          ? "bg-amber-50 border-amber-400 shadow-lg"
+          : "bg-white border-slate-200"
+      )}>
         <span className={cn(
           "text-sm",
-          hasErrors ? "text-red-600" : "text-slate-500"
+          hasErrors ? "text-red-600" : hasChanges ? "text-amber-700 font-medium" : "text-slate-500"
         )}>
           {hasErrors
             ? t('status.errors', lang).replace('{count}', Object.keys(errors).length)
             : hasChanges
-              ? t('status.unsaved', lang)
+              ? '⚠ Unsaved changes — click Save before leaving this page'
               : t('status.saved', lang)}
         </span>
         <div className="flex items-center gap-3">

@@ -8,12 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Settings as SettingsIcon, Building2, Zap, Trash2, Download, Upload,
-  Sparkles, Eye, EyeOff, FileText, BookOpen, ChevronDown, ChevronRight, KeyRound,
+  Sparkles, Eye, EyeOff, ChevronDown, ChevronRight, KeyRound,
 } from 'lucide-react';
 import { deactivateLicense, getStoredLicense } from '@/lib/license';
-import PoliciesSection from '@/components/settings/PoliciesSection';
-import DocumentsSection from '@/components/settings/DocumentsSection';
-import AnswerLibrarySection from '@/components/settings/AnswerLibrarySection';
 import { cn } from '@/lib/utils';
 
 function CollapsibleSection({ icon: Icon, title, children, defaultOpen = false }) {
@@ -162,21 +159,6 @@ export default function Settings() {
           </div>
         </div>
       </div>
-
-      {/* Policies (collapsible) */}
-      <CollapsibleSection icon={FileText} title="Policies">
-        <PoliciesSection />
-      </CollapsibleSection>
-
-      {/* Documents (collapsible) */}
-      <CollapsibleSection icon={FileText} title="Documents">
-        <DocumentsSection />
-      </CollapsibleSection>
-
-      {/* Answer Library (collapsible) */}
-      <CollapsibleSection icon={BookOpen} title="Answer Library">
-        <AnswerLibrarySection />
-      </CollapsibleSection>
 
       {/* Calculation Settings */}
       <CollapsibleSection icon={Zap} title="Emission Calculations">

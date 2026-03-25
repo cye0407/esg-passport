@@ -25,8 +25,7 @@ const getDefaultData = () => ({
   })),
   policies: DEFAULT_POLICIES.map(policy => ({
     ...policy,
-    exists: false,
-    status: 'not_started',
+    status: 'not_available',
     fileLocation: '',
     lastUpdated: null,
     updatedAt: new Date().toISOString(),
@@ -111,9 +110,20 @@ const mergeConfidenceRecords = (existing, defaults) => {
   return merged;
 };
 
+const LEGACY_STATUS_MAP = {
+  not_started: 'not_available',
+  drafting: 'in_progress',
+  under_review: 'in_progress',
+  approved: 'available',
+  published: 'available',
+};
+
 const mergePolicies = (existing, defaults) => {
   const existingIds = new Set(existing.map(p => p.id));
-  const merged = [...existing];
+  const merged = existing.map(p => ({
+    ...p,
+    status: LEGACY_STATUS_MAP[p.status] || p.status,
+  }));
   defaults.forEach(def => {
     if (!existingIds.has(def.id)) {
       merged.push(def);
@@ -226,8 +236,7 @@ export const addCustomPolicy = (policy) => {
   const newPolicy = {
     id: `custom_${Date.now()}`,
     ...policy,
-    exists: false,
-    status: 'not_started',
+    status: 'not_available',
     fileLocation: '',
     lastUpdated: null,
     updatedAt: new Date().toISOString(),
@@ -339,17 +348,68 @@ export const getReadinessStats = () => {
   const confidence = getConfidenceRecords();
   const policies = getPolicies();
   const requests = getRequests();
-  
+  const dataRecords = getDataRecords();
+
+  // Auto-calculate "safe to share" from actual data presence
+  // Map confidence item IDs to data record checks
+  const dataCheckMap = {
+    electricity: (r) => r.energy?.electricityKwh,
+    scope1: (r) => r.energy?.scope1Tco2e,
+    scope2: (r) => r.energy?.scope2Tco2e,
+    totalEmployees: (r) => r.workforce?.totalEmployees,
+    workInjuries: (r) => r.healthSafety?.workAccidents,
+    totalWaste: (r) => r.waste?.totalKg,
+    naturalGas: (r) => r.energy?.naturalGasKwh,
+    fleetFuel: (r) => r.energy?.vehicleFuelLiters,
+    waterConsumption: (r) => r.water?.consumptionM3,
+    recyclingRate: (r) => r.waste?.recyclingRate,
+    diversityData: (r) => r.workforce?.femaleEmployees,
+    trainingHours: (r) => r.training?.trainingHours,
+    hazardousWaste: (r) => r.waste?.hazardousKg,
+    scope3BusinessTravel: (r) => r.scope3?.totalScope3Tco2e,
+    scope3PurchasedGoods: (r) => r.scope3?.totalScope3Tco2e,
+    scope3Commuting: (r) => r.scope3?.totalScope3Tco2e,
+    turnoverRate: (r) => r.workforce?.departures,
+  };
+
+  // Policy-based confidence items map to policy IDs
+  const policyCheckMap = {
+    codeOfConduct: 'code_of_conduct',
+    environmentalPolicy: 'environmental_policy',
+    antiCorruptionPolicy: 'anti_corruption',
+    supplierCodeOfConduct: 'supplier_code',
+    climateTargets: 'energy_management',
+    externalVerification: null, // no direct policy match
+    livingWageCompliance: null,
+  };
+
+  const hasDataForItem = (itemId) => {
+    // Check if it's a data-based item
+    if (dataCheckMap[itemId]) {
+      return dataRecords.some(r => {
+        const val = dataCheckMap[itemId](r);
+        return val != null && val !== 0 && val !== '';
+      });
+    }
+    // Check if it's a policy-based item
+    if (policyCheckMap[itemId] !== undefined) {
+      const policyId = policyCheckMap[itemId];
+      if (!policyId) return false;
+      return policies.some(p => p.id === policyId && p.status === 'available');
+    }
+    return false;
+  };
+
   const totalDataPoints = confidence.length;
-  const completeDataPoints = confidence.filter(c => c.status === 'complete').length;
-  const safeToShareDataPoints = confidence.filter(c => c.safeToShare).length;
-  
+  const safeToShareDataPoints = confidence.filter(c => hasDataForItem(c.id)).length;
+  const completeDataPoints = safeToShareDataPoints;
+
   const totalPolicies = policies.length;
-  const existingPolicies = policies.filter(p => p.exists).length;
-  const approvedPolicies = policies.filter(p => p.status === 'approved' || p.status === 'published').length;
-  
+  const existingPolicies = policies.filter(p => p.status === 'available').length;
+  const approvedPolicies = policies.filter(p => p.status === 'available').length;
+
   const openRequests = requests.filter(r => r.status !== 'closed' && r.status !== 'sent').length;
-  
+
   return {
     totalDataPoints,
     completeDataPoints,

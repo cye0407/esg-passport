@@ -4,7 +4,7 @@
 // Translates the ESG Passport's localStorage data model
 // into the flat CompanyData type the answer engine expects.
 
-import { loadData, getDataRecords, getAnnualTotals, getCompanyProfile, getPolicies, getConfidenceRecords } from './store';
+import { loadData, getDataRecords, getAnnualTotals, getCompanyProfile, getPolicies, getDocuments, getConfidenceRecords } from './store';
 import { COUNTRIES } from './constants';
 const GAS_M3_TO_KWH = 10.55; // kWh per m³ natural gas
 
@@ -53,11 +53,11 @@ export function buildCompanyData(year) {
 
   // Collect certifications from approved/published policies that are certifications
   const certs = policies
-    .filter(p => p.isCertification && (p.status === 'approved' || p.status === 'published'))
+    .filter(p => p.isCertification && p.status === 'available')
     .map(p => p.name);
 
   // Collect sustainability goals from approved policies
-  const goalPolicy = policies.find(p => p.id === 'climate_ghg' && (p.status === 'approved' || p.status === 'published'));
+  const goalPolicy = policies.find(p => p.id === 'climate_ghg' && p.status === 'available');
 
   // Convert natural gas from kWh (Passport) to m3 (engine)
   const naturalGasKwh = totals.naturalGasKwh || 0;
@@ -82,6 +82,26 @@ export function buildCompanyData(year) {
   const recyclingPercent = (totals.totalWasteKg > 0 && totals.recycledWasteKg !== undefined)
     ? Math.round((totals.recycledWasteKg / totals.totalWasteKg) * 100)
     : undefined;
+
+  // Build structured policies array for the engine
+  const structuredPolicies = policies.map(p => ({
+    id: p.id,
+    name: p.name,
+    category: p.category || 'governance',
+    exists: p.status === 'available' || p.status === 'in_progress',
+    status: p.status || 'not_available',
+    isCertification: !!p.isCertification,
+  }));
+
+  // Build structured documents array for the engine
+  const documents = getDocuments();
+  const now = new Date();
+  const structuredDocuments = documents.map(d => ({
+    name: d.name,
+    category: d.category || 'other',
+    validUntil: d.validUntil || undefined,
+    isValid: d.validUntil ? new Date(d.validUntil) >= now : true,
+  }));
 
   return {
     companyName: profile?.tradingName || profile?.legalName || '',
@@ -118,6 +138,10 @@ export function buildCompanyData(year) {
     // Governance
     certifications: certs.length > 0 ? certs.join(', ') : undefined,
     sustainabilityGoal: goalPolicy ? goalPolicy.name : undefined,
+
+    // Structured policies & documents (boost confidence scoring)
+    policies: structuredPolicies,
+    documents: structuredDocuments,
   };
 }
 

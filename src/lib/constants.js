@@ -31,43 +31,45 @@ export const EMISSION_FACTORS = {
   }
 };
 
-// Countries list
+// Countries list (alphabetical, "Other" last)
 export const COUNTRIES = [
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'UK', name: 'United Kingdom' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'BE', name: 'Belgium' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'PT', name: 'Portugal' },
   { code: 'AT', name: 'Austria' },
-  { code: 'CH', name: 'Switzerland' },
-  { code: 'SE', name: 'Sweden' },
-  { code: 'DK', name: 'Denmark' },
-  { code: 'NO', name: 'Norway' },
-  { code: 'FI', name: 'Finland' },
-  { code: 'PL', name: 'Poland' },
+  { code: 'BE', name: 'Belgium' },
   { code: 'CZ', name: 'Czech Republic' },
+  { code: 'DK', name: 'Denmark' },
+  { code: 'FI', name: 'Finland' },
+  { code: 'FR', name: 'France' },
+  { code: 'DE', name: 'Germany' },
   { code: 'IE', name: 'Ireland' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'NL', name: 'Netherlands' },
+  { code: 'NO', name: 'Norway' },
+  { code: 'PL', name: 'Poland' },
+  { code: 'PT', name: 'Portugal' },
+  { code: 'ES', name: 'Spain' },
+  { code: 'SE', name: 'Sweden' },
+  { code: 'CH', name: 'Switzerland' },
+  { code: 'UK', name: 'United Kingdom' },
   { code: 'OTHER', name: 'Other' },
 ];
 
-// Industries
+// Industries (alphabetical, "Other" last)
 export const INDUSTRIES = [
-  'Manufacturing',
-  'Technology & Software',
-  'Professional Services',
-  'Wholesale & Distribution',
-  'Retail',
+  'Agriculture & Farming',
+  'Automotive',
+  'Chemicals',
   'Construction',
+  'Energy & Utilities',
   'Food & Beverage',
   'Healthcare',
   'Logistics & Transport',
-  'Energy & Utilities',
-  'Chemicals',
+  'Manufacturing',
+  'Mining & Metals',
+  'Professional Services',
+  'Retail',
+  'Technology & Software',
   'Textiles & Apparel',
-  'Automotive',
+  'Wholesale & Distribution',
   'Other',
 ];
 
@@ -114,11 +116,10 @@ export const DATA_STATUSES = [
 
 // Policy statuses
 export const POLICY_STATUSES = [
-  { value: 'not_started', label: 'Not Started', color: 'bg-gray-100 text-gray-600' },
-  { value: 'drafting', label: 'Drafting', color: 'bg-blue-100 text-blue-800' },
-  { value: 'under_review', label: 'Under Review', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'approved', label: 'Approved', color: 'bg-green-100 text-green-800' },
-  { value: 'published', label: 'Published', color: 'bg-green-100 text-green-800' },
+  { value: 'available', label: 'Available', color: 'bg-green-100 text-green-800' },
+  { value: 'in_progress', label: 'In Progress', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'not_available', label: 'Not Available', color: 'bg-gray-100 text-gray-600' },
+  { value: 'not_planned', label: 'Not Planned', color: 'bg-gray-100 text-gray-400' },
 ];
 
 // Default confidence items (VSME-aligned, ordered by importance)

@@ -26,6 +26,7 @@ import {
   CalendarPlus,
   AlertTriangle,
   Upload,
+  FileText,
 } from 'lucide-react';
 
 export default function Home() {
@@ -239,7 +240,7 @@ export default function Home() {
           <p className="text-sm text-slate-500">Safe to share</p>
         </Link>
 
-        <Link to="/settings" className="bg-white border border-slate-200 rounded-none p-4 hover:border-slate-300 transition-colors">
+        <Link to="/policies" className="bg-white border border-slate-200 rounded-none p-4 hover:border-slate-300 transition-colors">
           <div className="flex items-center justify-between mb-2">
             <ShieldCheck className="w-5 h-5 text-slate-400" />
           </div>
@@ -283,6 +284,17 @@ export default function Home() {
               <div className="flex-1">
                 <p className="font-medium text-slate-900 text-sm">Upload Questionnaire</p>
                 <p className="text-xs text-slate-500">Generate answers from your data</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all" />
+            </Link>
+
+            <Link to="/report" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors group">
+              <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                <FileText className="w-4 h-4 text-slate-600" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-slate-900 text-sm">Share ESG Passport</p>
+                <p className="text-xs text-slate-500">Download as PDF or HTML to send to customers</p>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all" />
             </Link>

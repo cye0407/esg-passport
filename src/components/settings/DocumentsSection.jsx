@@ -17,6 +17,26 @@ const DOC_CATEGORIES = [
   { value: 'other', label: 'Other', icon: FileText },
 ];
 
+const CERTIFICATE_TYPES = [
+  'B Corp Certification',
+  'CDP Score Letter',
+  'Cradle to Cradle',
+  'EcoVadis Medal',
+  'EMAS (EU Eco-Management)',
+  'Fairtrade Certification',
+  'FSC (Forest Stewardship Council)',
+  'GRS (Global Recycled Standard)',
+  'ISO 9001 (Quality Management)',
+  'ISO 14001 (Environmental Management)',
+  'ISO 27001 (Information Security)',
+  'ISO 45001 (Occupational Health & Safety)',
+  'ISO 50001 (Energy Management)',
+  'OEKO-TEX',
+  'PEFC (Sustainable Forestry)',
+  'SA8000 (Social Accountability)',
+  'Other',
+];
+
 export default function DocumentsSection() {
   const [documents, setDocuments] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -70,16 +90,29 @@ export default function DocumentsSection() {
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-slate-500">Name *</Label>
-              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g., ISO 14001 Certificate" className="h-8 text-sm" />
-            </div>
-            <div>
               <Label className="text-xs text-slate-500">Category</Label>
               <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
                 <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>{DOC_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {form.category === 'certificate' ? (
+              <div>
+                <Label className="text-xs text-slate-500">Certificate Type *</Label>
+                <Select
+                  value={CERTIFICATE_TYPES.includes(form.name) ? form.name : 'Other'}
+                  onValueChange={v => setForm(f => ({ ...f, name: v === 'Other' ? '' : v }))}
+                >
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>{CERTIFICATE_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div>
+                <Label className="text-xs text-slate-500">Name *</Label>
+                <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g., Annual Sustainability Report" className="h-8 text-sm" />
+              </div>
+            )}
             <div>
               <Label className="text-xs text-slate-500">Valid Until</Label>
               <Input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} className="h-8 text-sm" />
@@ -89,6 +122,12 @@ export default function DocumentsSection() {
               <Input value={form.referenceNumber} onChange={e => setForm(f => ({ ...f, referenceNumber: e.target.value }))} placeholder="e.g., CERT-2024-001" className="h-8 text-sm" />
             </div>
           </div>
+          {form.category === 'certificate' && !CERTIFICATE_TYPES.includes(form.name) && (
+            <div>
+              <Label className="text-xs text-slate-500">Certificate Name *</Label>
+              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Enter certificate name" className="h-8 text-sm" />
+            </div>
+          )}
           <div>
             <Label className="text-xs text-slate-500">Notes</Label>
             <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Additional details..." rows={2} className="text-sm" />
