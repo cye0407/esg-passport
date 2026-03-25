@@ -68,12 +68,12 @@ export default function UpgradeGate({ feature }) {
 
         {/* Buy button */}
         <a
-          href="https://ecosystemsunited.lemonsqueezy.com/checkout/buy/a8b7a3e5-2b8c-4f6f-922c-f5e04a08fe73"
+          href="https://esgforsuppliers.lemonsqueezy.com/checkout/buy/a8b7a3e5-2b8c-4f6f-922c-f5e04a08fe73"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none transition-colors mb-6"
         >
-          Upgrade to Pro — €99/year
+          Get ESG Passport Pro — €199
           <ExternalLink className="w-4 h-4" />
         </a>
 
