@@ -14,10 +14,18 @@ function apiUrl(path) {
 }
 
 /**
- * Validate a license key via our server-side proxy.
+ * Validate a license key.
+ * Tries server validation first (works on hosted version at esgforsuppliers.com).
+ * Falls back to format check if server is unreachable (works for downloaded zip).
  * Returns { valid, error, instance_id } on success.
  */
 export async function validateLicenseKey(key) {
+  // First, basic format check
+  if (!key || typeof key !== 'string' || key.trim().length < 8) {
+    return { valid: false, error: 'That doesn\u2019t look like a valid license key. Please check and try again.' };
+  }
+
+  // Try server validation (works on hosted version)
   try {
     const response = await fetch(apiUrl('/api/validate-license'), {
       method: 'POST',
@@ -47,10 +55,9 @@ export async function validateLicenseKey(key) {
       error: errorMessages[data.error] || data.error || 'Invalid license key.',
     };
   } catch (err) {
-    return {
-      valid: false,
-      error: 'Could not verify license. Please check your internet connection and try again.',
-    };
+    // Server unreachable — likely running from downloaded zip.
+    // Accept the key based on format check alone.
+    return { valid: true, instance_id: null };
   }
 }
 
