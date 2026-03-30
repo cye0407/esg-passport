@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import {
   Upload as UploadIcon, FileSpreadsheet, FileText, X as XIcon, ArrowRight,
@@ -38,7 +39,7 @@ const CONFIDENCE_CONFIG = {
   high: { color: 'text-green-700', bg: 'bg-green-50', dot: 'bg-green-500', label: 'High' },
   medium: { color: 'text-amber-700', bg: 'bg-amber-50', dot: 'bg-amber-500', label: 'Medium' },
   low: { color: 'text-orange-700', bg: 'bg-orange-50', dot: 'bg-orange-500', label: 'Low' },
-  none: { color: 'text-red-700', bg: 'bg-red-50', dot: 'bg-red-500', label: 'No data' },
+  none: { color: 'text-red-700', bg: 'bg-red-50', dot: 'bg-red-500', label: 'Needs review' },
 };
 
 export default function Respond() {
@@ -93,6 +94,8 @@ export default function Respond() {
   const [enhanceError, setEnhanceError] = useState(null);
   const [showDetails, setShowDetails] = useState(new Set());
   const [savedFeedback, setSavedFeedback] = useState(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const templates = Object.values(QUESTIONNAIRE_TEMPLATES);
 
@@ -262,7 +265,13 @@ export default function Respond() {
 
       const profile = buildCompanyProfile();
       const drafts = engine.generateDrafts(questions, matchResults, dataContexts, config, profile, classifications);
-      setAnswerDrafts(drafts);
+
+      // Preserve user-edited answers on regenerate
+      setAnswerDrafts(prev => {
+        if (prev.length === 0) return drafts;
+        const editedMap = new Map(prev.filter(d => d._edited).map(d => [d.questionId, d]));
+        return drafts.map(d => editedMap.has(d.questionId) ? { ...editedMap.get(d.questionId) } : d);
+      });
 
       setGeneratingProgress({ step: 'Saving results...', percent: 95 });
       saveResults(drafts, name, fw, pr);
@@ -435,10 +444,21 @@ export default function Respond() {
     });
   };
 
-  const handleExport = async () => {
+  const handleExport = () => {
+    setShowExportDialog(true);
+  };
+
+  const confirmExport = async () => {
+    setExporting(true);
     try {
       const engine = await getEngine();
-      engine.exportToExcel({
+      // Build policy names from structured policies
+      const policyNames = (companyData?.policies || [])
+        .filter(p => p.exists || p.status === 'available')
+        .map(p => p.name)
+        .join('|');
+
+      await engine.exportToExcel({
         answerDrafts,
         metadata: {
           companyName: companyData?.companyName || '',
@@ -447,13 +467,50 @@ export default function Respond() {
           generatedAt: new Date().toISOString(),
           packName: 'esg',
           packVersion: '1.0.0',
+          extra: {
+            industry: companyData?.industry,
+            country: companyData?.country,
+            employeeCount: companyData?.employeeCount,
+            numberOfSites: companyData?.numberOfSites,
+            revenueBand: companyData?.revenueBand,
+            electricityKwh: companyData?.electricityKwh,
+            renewablePercent: companyData?.renewablePercent,
+            naturalGasM3: companyData?.naturalGasM3,
+            dieselLiters: companyData?.dieselLiters,
+            scope1Tco2e: companyData?.scope1Tco2e,
+            scope2Tco2e: companyData?.scope2Tco2e,
+            scope3Tco2e: companyData?.scope3Tco2e,
+            waterM3: companyData?.waterM3,
+            totalWasteKg: companyData?.totalWasteKg,
+            recyclingPercent: companyData?.recyclingPercent,
+            hazardousWasteKg: companyData?.hazardousWasteKg,
+            femalePercent: companyData?.femalePercent,
+            trainingHoursPerEmployee: companyData?.trainingHoursPerEmployee,
+            trirRate: companyData?.trirRate,
+            certifications: companyData?.certifications,
+            policyNames,
+          },
         },
       });
       showFeedback('Excel downloaded');
+      setShowExportDialog(false);
     } catch (err) {
       console.error('Export error:', err);
+    } finally {
+      setExporting(false);
     }
   };
+
+  const exportWarnings = useMemo(() => {
+    if (answerDrafts.length === 0) return { unknown: [], estimated: [], allGood: true };
+    const unknown = answerDrafts
+      .filter(d => d.confidenceSource === 'unknown')
+      .map(d => ({ id: d.questionId, text: d.questionText, action: d.promptForMissing || 'Data not available' }));
+    const estimated = answerDrafts
+      .filter(d => d.confidenceSource === 'estimated')
+      .map(d => ({ id: d.questionId, text: d.questionText }));
+    return { unknown, estimated, allGood: unknown.length === 0 && estimated.length === 0 };
+  }, [answerDrafts]);
 
   const resetToUpload = () => {
     setPhase('upload');
@@ -544,6 +601,9 @@ export default function Respond() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => runPipeline(parseResult, questionnaireName)}>
+                <RefreshCw className="w-4 h-4 mr-1.5" /> Regenerate
+              </Button>
               <Button variant="outline" size="sm" onClick={resetToUpload}>
                 <UploadIcon className="w-4 h-4 mr-1.5" /> New
               </Button>
@@ -1082,6 +1142,81 @@ export default function Respond() {
           )}
         </div>
       )}
+      {/* Export validation dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {exportWarnings.allGood ? (
+                <><CheckCircle2 className="w-5 h-5 text-green-600" /> Ready to export</>
+              ) : (
+                <><AlertTriangle className="w-5 h-5 text-amber-500" /> Review before exporting</>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {exportWarnings.allGood
+                ? 'All questions have data-backed answers. Your export is ready.'
+                : `${exportWarnings.unknown.length + exportWarnings.estimated.length} of ${answerDrafts.length} answers need attention.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!exportWarnings.allGood && (
+            <div className="overflow-y-auto flex-1 space-y-4 pr-1">
+              {exportWarnings.unknown.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4" />
+                    Missing data ({exportWarnings.unknown.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {exportWarnings.unknown.map(q => (
+                      <div key={q.id} className="text-sm border-l-2 border-red-300 pl-3 py-1">
+                        <p className="text-slate-800 font-medium">{q.id}: {q.text.length > 80 ? q.text.slice(0, 80) + '...' : q.text}</p>
+                        <p className="text-slate-500 text-xs">{q.action}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {exportWarnings.estimated.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-1.5">
+                    <HelpCircle className="w-4 h-4" />
+                    Estimated answers ({exportWarnings.estimated.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {exportWarnings.estimated.map(q => (
+                      <div key={q.id} className="text-sm border-l-2 border-amber-300 pl-3 py-1">
+                        <p className="text-slate-800">{q.id}: {q.text.length > 80 ? q.text.slice(0, 80) + '...' : q.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowExportDialog(false)}>
+              Go back and fix
+            </Button>
+            <Button
+              onClick={confirmExport}
+              disabled={exporting}
+              className="bg-slate-900 hover:bg-slate-800 text-white"
+            >
+              {exporting ? (
+                <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Exporting...</>
+              ) : exportWarnings.allGood ? (
+                <><Download className="w-4 h-4 mr-1.5" /> Export Excel</>
+              ) : (
+                <><Download className="w-4 h-4 mr-1.5" /> Export anyway</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
