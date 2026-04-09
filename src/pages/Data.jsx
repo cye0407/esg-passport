@@ -62,9 +62,55 @@ export default function Data() {
   // CSV import preview (null when no import is pending confirmation)
   const [csvPreview, setCsvPreview] = useState(null);
 
+  // Per-metric source notes — "where I find this number each month"
+  // Keyed by `${section}.${field}`. One source per metric, edited inline.
+  const [dataSources, setDataSources] = useState({});
+  const [editingSource, setEditingSource] = useState(null); // key being edited
+  const [editingSourceValue, setEditingSourceValue] = useState('');
+  const [showSourceExplainer, setShowSourceExplainer] = useState(false);
+
   useEffect(() => {
     track('data_page_viewed');
+    const settings = getSettings();
+    setDataSources(settings.dataSources || {});
   }, []);
+
+  const sourceKey = (row) => `${row.section}.${row.field}`;
+
+  const startEditSource = (row) => {
+    const key = sourceKey(row);
+    setEditingSource(key);
+    setEditingSourceValue(dataSources[key] || '');
+    // Show the one-time explainer the first time anyone touches a source
+    try {
+      if (!localStorage.getItem('source_explainer_dismissed')) {
+        setShowSourceExplainer(true);
+      }
+    } catch {}
+  };
+
+  const saveEditSource = () => {
+    if (!editingSource) return;
+    const trimmed = editingSourceValue.trim();
+    const next = { ...dataSources };
+    if (trimmed) next[editingSource] = trimmed;
+    else delete next[editingSource];
+    setDataSources(next);
+    saveSettings({ dataSources: next });
+    track('source_set', { hasValue: !!trimmed });
+    setEditingSource(null);
+    setEditingSourceValue('');
+  };
+
+  const cancelEditSource = () => {
+    setEditingSource(null);
+    setEditingSourceValue('');
+  };
+
+  const dismissSourceExplainer = () => {
+    try { localStorage.setItem('source_explainer_dismissed', '1'); } catch {}
+    setShowSourceExplainer(false);
+  };
 
   // Warn on navigation with unsaved changes
   useEffect(() => {
@@ -752,12 +798,47 @@ export default function Data() {
                   </tr>
                 )}
               <tr className={cn('border-b border-slate-200', idx % 2 === 0 ? '' : 'bg-slate-50/50')}>
-                <td className="py-1.5 pr-2 text-slate-900">
+                <td className="py-1.5 pr-2 text-slate-900 align-top">
                   <span className="flex items-center gap-1">
                     {row.required && <Flag className="w-3 h-3 text-orange-500 flex-shrink-0" title="Required for 80% of questionnaires" />}
                     {row.label}
                     {row.noSum && entryMode === 'annual' && <span className="text-[10px] text-slate-400 ml-1">(snapshot)</span>}
                   </span>
+                  {editingSource === sourceKey(row) ? (
+                    <div className="mt-1 flex items-center gap-1">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={editingSourceValue}
+                        onChange={(e) => setEditingSourceValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveEditSource();
+                          if (e.key === 'Escape') cancelEditSource();
+                        }}
+                        placeholder="e.g. Stadtwerke portal → Strom tab"
+                        className="text-[11px] flex-1 min-w-0 h-6 px-1.5 border border-slate-300 rounded-none bg-white focus:outline-none focus:border-indigo-600"
+                      />
+                      <button onClick={saveEditSource} className="text-[11px] text-indigo-600 hover:text-indigo-800 px-1">save</button>
+                      <button onClick={cancelEditSource} className="text-[11px] text-slate-400 hover:text-slate-600 px-1">cancel</button>
+                    </div>
+                  ) : dataSources[sourceKey(row)] ? (
+                    <button
+                      type="button"
+                      onClick={() => startEditSource(row)}
+                      className="mt-0.5 block text-[11px] text-slate-400 hover:text-slate-700 text-left max-w-[260px] truncate"
+                      title={dataSources[sourceKey(row)]}
+                    >
+                      📎 {dataSources[sourceKey(row)]}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => startEditSource(row)}
+                      className="mt-0.5 block text-[11px] text-slate-300 hover:text-indigo-600 text-left"
+                    >
+                      + add source
+                    </button>
+                  )}
                 </td>
 
                 {entryMode === 'monthly' ? (
@@ -1026,6 +1107,36 @@ export default function Data() {
           </Button>
         </div>
       </div>
+
+      {/* One-time explainer: why sources are paste-only, not auto-open */}
+      <Dialog open={showSourceExplainer} onOpenChange={(open) => { if (!open) dismissSourceExplainer(); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>About source notes</DialogTitle>
+            <DialogDescription>One quick note before you set this up.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-slate-700">
+            <p>
+              Source notes are <span className="font-medium">paste-only</span>. You write down where each number lives —
+              a portal URL, a network path, &quot;the drawer in Anna&apos;s office&quot; — and copy-click-open it
+              yourself when you need it.
+            </p>
+            <p>
+              <span className="font-medium">Why we don&apos;t auto-open:</span> browsers block links to file shares
+              (<code className="text-xs bg-slate-100 px-1">S:\</code>, <code className="text-xs bg-slate-100 px-1">\\fileserver\</code>),
+              and SharePoint / Personio / utility portals each need their own logins. Pasting the path here means
+              the product never has to ask for your passwords or break when IT changes things.
+            </p>
+            <p className="text-slate-500">
+              Boring, reliable, yours. Future-you (the one not hunting for the electricity bill at 11pm) will
+              thank present-you.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button onClick={dismissSourceExplainer} className="bg-slate-900 hover:bg-slate-800 text-white">Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* CSV Import Preview */}
       <Dialog open={!!csvPreview} onOpenChange={(open) => { if (!open) cancelCsvImport(); }}>
