@@ -12,7 +12,10 @@ import { getIndustryMetrics } from '@/data/industry-metrics';
 import { FIELD_UNITS, getAlternativeUnits, convert } from '@/lib/units';
 import { t } from '@/lib/i18n';
 import { track, trackOnce } from '@/lib/track';
+import { detectNumberFormat, parseNumber, parsePeriod, buildColumnMap } from '@/lib/csvImport';
+import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import {
   Database,
@@ -55,6 +58,9 @@ export default function Data() {
 
   // Auto-save after CSV import (flag triggers save via effect below handleSave)
   const [pendingAutoSave, setPendingAutoSave] = useState(false);
+
+  // CSV import preview (null when no import is pending confirmation)
+  const [csvPreview, setCsvPreview] = useState(null);
 
   useEffect(() => {
     track('data_page_viewed');
@@ -411,54 +417,110 @@ export default function Data() {
     const file = e.target.files[0];
     if (!file) return;
     track('csv_import_started');
+
+    const finish = () => {
+      if (csvInputRef.current) csvInputRef.current.value = '';
+    };
+
     try {
       const text = await file.text();
-      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-      if (lines.length < 2) return;
+      Papa.parse(text, {
+        header: false,
+        skipEmptyLines: true,
+        complete: (result) => {
+          try {
+            const data = result.data;
+            if (!data || data.length < 2) {
+              track('csv_import_failed', { error: 'empty' });
+              finish();
+              return;
+            }
 
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      const findCol = (...terms) => headers.findIndex(h => terms.some(t => h.includes(t)));
+            const headers = data[0];
+            const colMap = buildColumnMap(headers);
 
-      const colMap = {
-        electricityKwh: { col: findCol('electricity'), section: 'energy' },
-        naturalGasKwh: { col: findCol('natural gas', 'gas (kwh)'), section: 'energy' },
-        vehicleFuelLiters: { col: findCol('vehicle fuel', 'fuel (l)', 'diesel'), section: 'energy' },
-        renewablePercent: { col: findCol('renewable'), section: 'energy' },
-        consumptionM3: { col: findCol('water'), section: 'water' },
-        totalKg: { col: findCol('total waste', 'waste (kg)'), section: 'waste' },
-        recycledKg: { col: findCol('recycled'), section: 'waste' },
-        hazardousKg: { col: findCol('hazardous'), section: 'waste' },
-        totalEmployees: { col: findCol('employee', 'fte', 'headcount'), section: 'workforce' },
-        femaleEmployees: { col: findCol('female'), section: 'workforce' },
-        maleEmployees: { col: headers.findIndex(h => h.includes('male') && !h.includes('female')), section: 'workforce' },
-        workAccidents: { col: findCol('accident', 'incident', 'injury'), section: 'healthSafety' },
-        trainingHours: { col: findCol('training'), section: 'training' },
-      };
+            // Sample the data columns (skip the period column at index 0) to
+            // detect EU vs US number format from real values.
+            const samples = [];
+            for (let i = 1; i < data.length && samples.length < 50; i++) {
+              for (let c = 1; c < (data[i] || []).length; c++) {
+                if (data[i][c]) samples.push(data[i][c]);
+              }
+            }
+            const numberFormat = detectNumberFormat(samples);
 
-      let imported = 0;
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',').map(c => c.trim());
-        const period = cols[0];
-        if (!period || !/^\d{4}-\d{2}$/.test(period)) continue;
+            // Parse rows into a normalized preview shape
+            const parsedRows = [];
+            const skipped = [];
+            for (let i = 1; i < data.length; i++) {
+              const row = data[i];
+              if (!row || row.length === 0) continue;
+              const period = parsePeriod(row[0]);
+              if (!period) {
+                skipped.push({ line: i + 1, reason: `Unrecognised period: "${row[0]}"` });
+                continue;
+              }
+              const values = {};
+              Object.entries(colMap).forEach(([field, { col, section }]) => {
+                if (col >= 0 && row[col] !== undefined && row[col] !== '') {
+                  values[field] = { section, raw: row[col] };
+                }
+              });
+              parsedRows.push({ period, values });
+            }
 
-        Object.entries(colMap).forEach(([field, { col, section }]) => {
-          if (col >= 0 && cols[col] !== undefined && cols[col] !== '') {
-            updateField(period, section, field, cols[col]);
+            if (parsedRows.length === 0) {
+              track('csv_import_failed', { error: 'no_valid_rows' });
+              setCsvPreview({ file: file.name, headers, colMap, numberFormat, parsedRows, skipped, error: 'No valid rows could be parsed. Check the period column format.' });
+              finish();
+              return;
+            }
+
+            setCsvPreview({ file: file.name, headers, colMap, numberFormat, parsedRows, skipped, error: null });
+          } catch (err) {
+            console.error('CSV preview error:', err);
+            track('csv_import_failed', { error: err?.name || 'parse' });
+          } finally {
+            finish();
           }
-        });
-        imported++;
-      }
-
-      if (imported > 0) {
-        setHasChanges(true);
-        setPendingAutoSave(true);
-      }
-      track('csv_import_succeeded', { rows: imported });
+        },
+        error: (err) => {
+          console.error('Papa parse error:', err);
+          track('csv_import_failed', { error: 'papa' });
+          finish();
+        },
+      });
     } catch (err) {
-      console.error('CSV import error:', err);
-      track('csv_import_failed', { error: err?.name || 'unknown' });
+      console.error('CSV read error:', err);
+      track('csv_import_failed', { error: err?.name || 'read' });
+      finish();
     }
-    if (csvInputRef.current) csvInputRef.current.value = '';
+  };
+
+  const commitCsvImport = () => {
+    if (!csvPreview || csvPreview.error) return;
+    const { parsedRows, numberFormat } = csvPreview;
+    let imported = 0;
+    for (const row of parsedRows) {
+      Object.entries(row.values).forEach(([field, { section, raw }]) => {
+        // Numbers run through locale-aware parser; non-numeric stays as string
+        const num = parseNumber(raw, numberFormat);
+        const value = num === null ? String(raw).trim() : String(num);
+        updateField(row.period, section, field, value);
+      });
+      imported++;
+    }
+    if (imported > 0) {
+      setHasChanges(true);
+      setPendingAutoSave(true);
+    }
+    track('csv_import_succeeded', { rows: imported, format: numberFormat });
+    setCsvPreview(null);
+  };
+
+  const cancelCsvImport = () => {
+    track('csv_import_cancelled');
+    setCsvPreview(null);
   };
 
   const downloadCsvTemplate = () => {
@@ -964,6 +1026,134 @@ export default function Data() {
           </Button>
         </div>
       </div>
+
+      {/* CSV Import Preview */}
+      <Dialog open={!!csvPreview} onOpenChange={(open) => { if (!open) cancelCsvImport(); }}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Preview CSV Import</DialogTitle>
+            <DialogDescription>
+              Review the parsed data before importing. Nothing is saved until you confirm.
+            </DialogDescription>
+          </DialogHeader>
+
+          {csvPreview && (
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              {csvPreview.error && (
+                <div className="p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700">
+                  {csvPreview.error}
+                </div>
+              )}
+
+              <div className="text-sm text-slate-600">
+                <span className="font-medium text-slate-900">File:</span> {csvPreview.file}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-slate-900">Number format:</span>
+                <div className="flex border border-slate-200 rounded-none overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setCsvPreview(p => ({ ...p, numberFormat: 'us' }))}
+                    className={cn(
+                      'px-3 py-1.5 text-xs',
+                      csvPreview.numberFormat === 'us' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600'
+                    )}
+                  >
+                    US (1,234.56)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCsvPreview(p => ({ ...p, numberFormat: 'eu' }))}
+                    className={cn(
+                      'px-3 py-1.5 text-xs',
+                      csvPreview.numberFormat === 'eu' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600'
+                    )}
+                  >
+                    EU (1.234,56)
+                  </button>
+                </div>
+                <span className="text-xs text-slate-500">auto-detected — change if numbers look wrong</span>
+              </div>
+
+              <div>
+                <div className="text-sm font-medium text-slate-900 mb-2">
+                  Detected columns ({Object.values(csvPreview.colMap).filter(c => c.col >= 0).length} of {Object.keys(csvPreview.colMap).length})
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(csvPreview.colMap).map(([field, { col }]) => (
+                    <span
+                      key={field}
+                      className={cn(
+                        'inline-flex items-center px-2 py-0.5 text-[11px] rounded-none border',
+                        col >= 0
+                          ? 'bg-green-50 border-green-200 text-green-700'
+                          : 'bg-slate-50 border-slate-200 text-slate-400'
+                      )}
+                    >
+                      {field}{col >= 0 ? ` ← ${csvPreview.headers[col]}` : ' (not found)'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-sm font-medium text-slate-900 mb-2">
+                  First {Math.min(3, csvPreview.parsedRows.length)} of {csvPreview.parsedRows.length} rows
+                </div>
+                <div className="border border-slate-200 rounded-none overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-medium text-slate-700">Period</th>
+                        <th className="px-2 py-1.5 text-left font-medium text-slate-700">Field</th>
+                        <th className="px-2 py-1.5 text-right font-medium text-slate-700">Raw value</th>
+                        <th className="px-2 py-1.5 text-right font-medium text-slate-700">Parsed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvPreview.parsedRows.slice(0, 3).flatMap((row, i) =>
+                        Object.entries(row.values).map(([field, { raw }], j) => {
+                          const parsed = parseNumber(raw, csvPreview.numberFormat);
+                          return (
+                            <tr key={`${i}-${j}`} className="border-t border-slate-100">
+                              <td className="px-2 py-1.5 text-slate-600">{j === 0 ? row.period : ''}</td>
+                              <td className="px-2 py-1.5 text-slate-600">{field}</td>
+                              <td className="px-2 py-1.5 text-right text-slate-500 font-mono">{String(raw)}</td>
+                              <td className={cn('px-2 py-1.5 text-right font-mono', parsed === null ? 'text-red-600' : 'text-slate-900')}>
+                                {parsed === null ? '—' : parsed}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {csvPreview.skipped.length > 0 && (
+                <div className="text-xs text-amber-700">
+                  <span className="font-medium">Skipped {csvPreview.skipped.length} row(s):</span>{' '}
+                  {csvPreview.skipped.slice(0, 3).map(s => s.reason).join('; ')}
+                  {csvPreview.skipped.length > 3 ? '…' : ''}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={cancelCsvImport}>Cancel</Button>
+            <Button
+              onClick={commitCsvImport}
+              disabled={!csvPreview || !!csvPreview.error || csvPreview.parsedRows.length === 0}
+              className="bg-slate-900 hover:bg-slate-800 text-white"
+            >
+              Import {csvPreview?.parsedRows.length || 0} row{csvPreview?.parsedRows.length === 1 ? '' : 's'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
