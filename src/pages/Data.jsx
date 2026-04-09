@@ -11,6 +11,7 @@ import { MONTHS, EMISSION_FACTORS } from '@/lib/constants';
 import { getIndustryMetrics } from '@/data/industry-metrics';
 import { FIELD_UNITS, getAlternativeUnits, convert } from '@/lib/units';
 import { t } from '@/lib/i18n';
+import { track, trackOnce } from '@/lib/track';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -54,6 +55,10 @@ export default function Data() {
 
   // Auto-save after CSV import (flag triggers save via effect below handleSave)
   const [pendingAutoSave, setPendingAutoSave] = useState(false);
+
+  useEffect(() => {
+    track('data_page_viewed');
+  }, []);
 
   // Warn on navigation with unsaved changes
   useEffect(() => {
@@ -297,6 +302,8 @@ export default function Data() {
     setHasChanges(false);
     setSaved(true);
     setSaving(false);
+    trackOnce('data_first_save');
+    track('data_saved', { mode: entryMode });
     setTimeout(() => setSaved(false), 2000);
   };
 
@@ -403,6 +410,7 @@ export default function Data() {
   const handleCsvImport = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    track('csv_import_started');
     try {
       const text = await file.text();
       const lines = text.split('\n').map(l => l.trim()).filter(l => l);
@@ -445,8 +453,10 @@ export default function Data() {
         setHasChanges(true);
         setPendingAutoSave(true);
       }
+      track('csv_import_succeeded', { rows: imported });
     } catch (err) {
       console.error('CSV import error:', err);
+      track('csv_import_failed', { error: err?.name || 'unknown' });
     }
     if (csvInputRef.current) csvInputRef.current.value = '';
   };

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LicenseProvider, useLicense } from '@/components/LicenseContext';
 import UpgradeGate from '@/components/UpgradeGate';
+import { track } from '@/lib/track';
 import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
 import Data from '@/pages/Data';
@@ -20,6 +21,10 @@ import Report from '@/pages/Report';
  */
 function PaidRoute({ feature, children }) {
   const { isPaid } = useLicense();
+
+  useEffect(() => {
+    if (!isPaid) track('paywall_hit', { feature });
+  }, [isPaid, feature]);
 
   if (!isPaid) {
     return <UpgradeGate feature={feature} />;

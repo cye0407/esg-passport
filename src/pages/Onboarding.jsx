@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { saveCompanyProfile, saveSettings } from '@/lib/store';
+import { track, trackOnce } from '@/lib/track';
 import { INDUSTRIES, COUNTRIES, EMISSION_FACTORS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,10 @@ export default function Onboarding() {
   const [customIndustry, setCustomIndustry] = useState('');
   const [country, setCountry] = useState('');
   const [employeeCount, setEmployeeCount] = useState('');
+
+  useEffect(() => {
+    trackOnce('onboarding_started');
+  }, []);
 
   const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
@@ -77,6 +82,7 @@ export default function Onboarding() {
       }),
     }).catch(() => {});
 
+    track('onboarding_completed', { destination });
     navigate(destination);
   };
 
@@ -127,7 +133,7 @@ export default function Onboarding() {
               </p>
 
               <Button
-                onClick={() => setStep(2)}
+                onClick={() => { track('onboarding_profile_started'); setStep(2); }}
                 className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none"
               >
                 Get Started
@@ -219,7 +225,7 @@ export default function Onboarding() {
               </div>
 
               <Button
-                onClick={() => setStep(3)}
+                onClick={() => { track('onboarding_profile_completed'); setStep(3); }}
                 disabled={!canProceed()}
                 className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none"
               >

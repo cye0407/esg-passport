@@ -7,6 +7,7 @@ import { computeFrameworkScores } from '@/lib/frameworkScoring';
 import { generateDataChecklist } from '@/lib/dataCollectionGuide';
 import { LANGUAGES, translateAnswer } from '@/lib/translations';
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
+import { track } from '@/lib/track';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -99,6 +100,10 @@ export default function Respond() {
 
   const templates = Object.values(QUESTIONNAIRE_TEMPLATES);
 
+  useEffect(() => {
+    track('respond_page_viewed');
+  }, []);
+
   // ============ UPLOAD HANDLERS ============
 
   const handleDrag = useCallback((e) => {
@@ -123,9 +128,11 @@ export default function Respond() {
   const validateAndSetFile = (f) => {
     const ext = '.' + f.name.split('.').pop().toLowerCase();
     if (!ACCEPTED_EXTENSIONS.includes(ext)) {
+      track('respond_upload_rejected', { ext });
       setParseError(`Unsupported file type: ${ext}. We support Excel (.xlsx, .csv), PDF, and Word (.docx).`);
       return;
     }
+    track('respond_upload_started', { ext });
     setFile(f);
     setParseError(null);
     setShowMapping(false);
@@ -235,6 +242,7 @@ export default function Respond() {
     setPipelineError(null);
     setQuestionnaireName(name);
     setGeneratingProgress({ step: 'Loading engine...', percent: 10 });
+    track('respond_generation_started', { questions: pr?.questions?.length || 0 });
 
     try {
       setParseResult(pr);
@@ -275,9 +283,11 @@ export default function Respond() {
 
       setGeneratingProgress({ step: 'Saving results...', percent: 95 });
       saveResults(drafts, name, fw, pr);
+      track('respond_answers_generated', { count: drafts.length, framework: fw || 'none' });
       setPhase('results');
     } catch (err) {
       console.error('Pipeline error:', err);
+      track('respond_generation_failed', { error: err?.name || 'unknown' });
       setPipelineError(`Failed to generate answers: ${err.message}`);
       setPhase('results');
     }
