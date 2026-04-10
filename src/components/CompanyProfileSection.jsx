@@ -76,6 +76,14 @@ const FIELDS = [
   'reportingPeriod',
   'livingWageCompliant',
   'grievanceMechanismExists',
+  'registeredAddress',
+  'noSignificantFines',
+  'dataProtectionPolicy',
+  'publishesSustainabilityReport',
+  'reportingFramework',
+  'externalAssurance',
+  'assuranceStandard',
+  'csrdApplicable',
 ];
 
 export default function CompanyProfileSection() {
@@ -206,6 +214,16 @@ export default function CompanyProfileSection() {
               <Label className="text-xs font-medium text-slate-700">Year Founded</Label>
               <Input type="number" value={profile.yearFounded || ''} onChange={(e) => update('yearFounded', e.target.value)} placeholder="e.g. 1998" />
             </div>
+          </div>
+
+          {/* Registered address */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-slate-700">Registered Address</Label>
+            <Input
+              value={profile.registeredAddress || ''}
+              onChange={(e) => update('registeredAddress', e.target.value)}
+              placeholder="e.g. Industriestr. 24, 40231 Düsseldorf, Germany"
+            />
           </div>
 
           {/* Industry / location */}
@@ -367,6 +385,81 @@ export default function CompanyProfileSection() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Governance & compliance */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Significant Fines / Sanctions (past 3 years)</Label>
+              <Select value={profile.noSignificantFines || ''} onValueChange={(v) => update('noSignificantFines', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="yes">Yes — details available</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Data Protection / Privacy Policy</Label>
+              <Select value={profile.dataProtectionPolicy || ''} onValueChange={(v) => update('dataProtectionPolicy', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Yes — GDPR / data protection policy in place</SelectItem>
+                  <SelectItem value="no">No / In development</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">CSRD Applicability</Label>
+              <Select value={profile.csrdApplicable || ''} onValueChange={(v) => update('csrdApplicable', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Yes — in scope</SelectItem>
+                  <SelectItem value="assessing">Currently assessing</SelectItem>
+                  <SelectItem value="no">Not currently in scope</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">External ESG Data Assurance</Label>
+              <Select value={profile.externalAssurance || ''} onValueChange={(v) => update('externalAssurance', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Yes — externally assured</SelectItem>
+                  <SelectItem value="no">No — not yet assured</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {profile.externalAssurance === 'yes' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-700">Assurance Standard</Label>
+                <Input
+                  value={profile.assuranceStandard || ''}
+                  onChange={(e) => update('assuranceStandard', e.target.value)}
+                  placeholder="e.g. ISAE 3000, AA1000"
+                />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Publish Sustainability Report?</Label>
+              <Select value={profile.publishesSustainabilityReport || ''} onValueChange={(v) => update('publishesSustainabilityReport', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Yes — published</SelectItem>
+                  <SelectItem value="no">No — not yet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {profile.publishesSustainabilityReport === 'yes' && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-slate-700">Reporting Framework</Label>
+                <Input
+                  value={profile.reportingFramework || ''}
+                  onChange={(e) => update('reportingFramework', e.target.value)}
+                  placeholder="e.g. GRI, CSRD/ESRS, TCFD"
+                />
+              </div>
+            )}
           </div>
 
           {/* Reporting period */}

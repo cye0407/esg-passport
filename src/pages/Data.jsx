@@ -193,6 +193,7 @@ export default function Data() {
     workforce: {},
     healthSafety: {},
     training: {},
+    supplyChain: {},
   });
 
   const updateField = (period, section, field, value) => {
@@ -332,9 +333,13 @@ export default function Data() {
             naturalGasKwh: parseFloat(record.energy?.naturalGasKwh) || null,
             vehicleFuelLiters: parseFloat(record.energy?.vehicleFuelLiters) || null,
             renewablePercent: parseFloat(record.energy?.renewablePercent) || null,
+            energySavingsKwh: parseFloat(record.energy?.energySavingsKwh) || null,
             ...emissions,
           },
-          water: { consumptionM3: parseFloat(record.water?.consumptionM3) || null },
+          water: {
+            consumptionM3: parseFloat(record.water?.consumptionM3) || null,
+            waterSourceMunicipalPercent: parseFloat(record.water?.waterSourceMunicipalPercent) || null,
+          },
           waste: {
             totalKg: parseFloat(record.waste?.totalKg) || null,
             recycledKg: parseFloat(record.waste?.recycledKg) || null,
@@ -351,6 +356,7 @@ export default function Data() {
             livingWageCompliant: record.workforce?.livingWageCompliant === 'yes' || record.workforce?.livingWageCompliant === true || null,
             grievanceMechanismExists: record.workforce?.grievanceMechanismExists === 'yes' || record.workforce?.grievanceMechanismExists === true || null,
             grievancesReported: parseInt(record.workforce?.grievancesReported) || null,
+            newHires: parseInt(record.workforce?.newHires) || null,
           },
           healthSafety: {
             // workAccidents kept for backward compatibility (aliased to recordableIncidents on read)
@@ -361,6 +367,9 @@ export default function Data() {
           },
           training: {
             trainingHours: parseFloat(record.training?.trainingHours) || null,
+          },
+          supplyChain: {
+            suppliersAssessedPercent: parseFloat(record.supplyChain?.suppliersAssessedPercent) || null,
           },
           ...extraSections,
         };
@@ -413,6 +422,10 @@ export default function Data() {
     { section: 'workforce', field: 'womenInLeadershipPercent', label: 'Women in Leadership (%)', noSum: true, tooltip: 'Percentage of management/leadership positions held by women.' },
     { section: 'workforce', field: 'collectiveBargainingPercent', label: 'Collective Bargaining (%)', noSum: true, tooltip: 'Percentage of workforce covered by collective bargaining agreements or works councils.' },
     { section: 'workforce', field: 'grievancesReported', label: 'Grievances Reported', tooltip: 'Number of grievances reported through formal channels during the period.' },
+    { section: 'workforce', field: 'newHires', label: 'New Hires', tooltip: 'Number of new employees who joined during the period.' },
+    { section: 'energy', field: 'energySavingsKwh', label: 'Energy Savings (kWh)', tooltip: 'Estimated energy savings achieved through efficiency measures during the period.' },
+    { section: 'water', field: 'waterSourceMunicipalPercent', label: 'Municipal Water (%)', noSum: true, tooltip: 'Percentage of water withdrawal from municipal/public supply (vs groundwater, surface water).' },
+    { section: 'supplyChain', field: 'suppliersAssessedPercent', label: 'Suppliers ESG-Assessed (%)', noSum: true, tooltip: 'Percentage of critical Tier 1 suppliers assessed on ESG criteria.' },
   ];
 
   // Industry-specific metrics appended after core rows

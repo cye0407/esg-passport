@@ -128,12 +128,26 @@ export function buildCompanyData(year) {
       : undefined,
     mainMarkets: profile?.mainMarkets || undefined,
 
+    // Registered address
+    registeredAddress: profile?.registeredAddress || undefined,
+
+    // Governance flags
+    noSignificantFines: profile?.noSignificantFines || undefined,
+    dataProtectionPolicy: profile?.dataProtectionPolicy === 'yes' ? true : profile?.dataProtectionPolicy === 'no' ? false : undefined,
+    publishesSustainabilityReport: profile?.publishesSustainabilityReport === 'yes' ? true : profile?.publishesSustainabilityReport === 'no' ? false : undefined,
+    reportingFramework: profile?.reportingFramework || undefined,
+    externalAssurance: profile?.externalAssurance === 'yes' ? true : profile?.externalAssurance === 'no' ? false : undefined,
+    assuranceStandard: profile?.assuranceStandard || undefined,
+    csrdApplicable: profile?.csrdApplicable || undefined,
+
     // Energy
     electricityKwh: totals.electricityKwh || undefined,
+    energySavingsKwh: totals.energySavingsKwh || undefined,
     renewablePercent: totals.renewablePercent != null ? Math.round(totals.renewablePercent) : undefined,
     naturalGasM3,
     dieselLiters: totals.vehicleFuelLiters || undefined,
     waterM3: totals.waterM3 || undefined,
+    waterSourceMunicipalPercent: totals.waterSourceMunicipalPercent != null ? Math.round(totals.waterSourceMunicipalPercent) : undefined,
 
     // Emissions (pass through if user has entered them, otherwise engine auto-calculates)
     scope1Tco2e: totals.scope1Tco2e || undefined,
@@ -153,6 +167,8 @@ export function buildCompanyData(year) {
     livingWageCompliant: profile?.livingWageCompliant === 'yes' ? true : profile?.livingWageCompliant === 'no' ? false : undefined,
     grievanceMechanismExists: profile?.grievanceMechanismExists === 'yes' ? true : profile?.grievanceMechanismExists === 'no' ? false : undefined,
     grievancesReported: totals.grievancesReported || undefined,
+    newHires: totals.newHires || undefined,
+    suppliersAssessedPercent: totals.suppliersAssessedPercent != null ? Math.round(totals.suppliersAssessedPercent) : undefined,
     trainingHoursPerEmployee,
     trirRate,
     lostTimeIncidents: totals.lostTimeIncidents || undefined,

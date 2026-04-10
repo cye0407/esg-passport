@@ -344,10 +344,14 @@ export const getAnnualTotals = (year) => {
     fatalities: sum(r => r.healthSafety?.fatalities),
     hoursWorked: sum(r => r.healthSafety?.hoursWorked),
     trainingHours: sum(r => r.training?.trainingHours),
+    newHires: sum(r => r.workforce?.newHires),
     turnoverRate: avg(r => r.workforce?.turnoverRate),
     womenInLeadershipPercent: avg(r => r.workforce?.womenInLeadershipPercent),
     collectiveBargainingPercent: avg(r => r.workforce?.collectiveBargainingPercent),
     grievancesReported: sum(r => r.workforce?.grievancesReported),
+    energySavingsKwh: sum(r => r.energy?.energySavingsKwh),
+    waterSourceMunicipalPercent: avg(r => r.water?.waterSourceMunicipalPercent),
+    suppliersAssessedPercent: avg(r => r.supplyChain?.suppliersAssessedPercent),
     scope3Total: sum(r => r.scope3?.totalScope3Tco2e),
   };
 };
