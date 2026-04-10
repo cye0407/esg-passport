@@ -216,7 +216,7 @@ export default function Respond() {
       matchResult: { matchedKeywords: s.matchedKeywords || [] },
       dataContext: { company: [], operational: [], calculated: [], metadata: { dataGaps: s.limitations || [], sitesIncluded: [] } },
       evidence: '', metricKeysUsed: [], needsReview: s.answerConfidence !== 'high',
-      isEstimate: s.confidenceSource === 'estimated', hasDataGaps: (s.limitations || []).length > 0,
+      isEstimate: s.confidenceSource === 'estimated', isDrafted: s.confidenceSource === 'drafted' || !!s.isDrafted, hasDataGaps: (s.limitations || []).length > 0,
     })));
     setCompanyData(buildCompanyData());
     setPhase('results');
@@ -537,14 +537,17 @@ export default function Respond() {
   };
 
   const exportWarnings = useMemo(() => {
-    if (answerDrafts.length === 0) return { unknown: [], estimated: [], allGood: true };
+    if (answerDrafts.length === 0) return { unknown: [], estimated: [], drafted: [], allGood: true };
     const unknown = answerDrafts
       .filter(d => d.confidenceSource === 'unknown')
       .map(d => ({ id: d.questionId, text: d.questionText, action: d.promptForMissing || 'Data not available' }));
     const estimated = answerDrafts
       .filter(d => d.confidenceSource === 'estimated')
       .map(d => ({ id: d.questionId, text: d.questionText }));
-    return { unknown, estimated, allGood: unknown.length === 0 && estimated.length === 0 };
+    const drafted = answerDrafts
+      .filter(d => d.isDrafted)
+      .map(d => ({ id: d.questionId, text: d.questionText }));
+    return { unknown, estimated, drafted, allGood: unknown.length === 0 && estimated.length === 0 && drafted.length === 0 };
   }, [answerDrafts]);
 
   const resetToUpload = () => {
@@ -813,6 +816,9 @@ export default function Respond() {
                           {translateAnswer(draft.answer, language)}
                           {draft._edited && <span className="text-[10px] text-slate-400 italic ml-1">(edited)</span>}
                           {draft._enhanced && <span className="text-[10px] text-indigo-400 italic ml-1">(AI enhanced)</span>}
+                          {draft.isDrafted && !draft._edited && !draft._markedNA && (
+                            <span className="block mt-1.5 text-[10px] text-violet-600 font-medium">Not backed by tracked data — review before sending</span>
+                          )}
                         </p>
                       )}
                     </div>
@@ -938,11 +944,18 @@ export default function Respond() {
                   </div>
 
                   {/* Confidence */}
-                  <div className="flex justify-center pt-0.5">
-                    <span className={cn('inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded', conf.bg, conf.color)}>
-                      <span className={cn('w-1.5 h-1.5 rounded-full', conf.dot)} />
-                      {conf.label}
-                    </span>
+                  <div className="flex flex-col items-center gap-1 pt-0.5">
+                    {draft.isDrafted ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded bg-violet-50 text-violet-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                        Draft
+                      </span>
+                    ) : (
+                      <span className={cn('inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded', conf.bg, conf.color)}>
+                        <span className={cn('w-1.5 h-1.5 rounded-full', conf.dot)} />
+                        {conf.label}
+                      </span>
+                    )}
                   </div>
 
                   {/* Actions */}
@@ -1327,6 +1340,22 @@ export default function Respond() {
                       <div key={q.id} className="text-sm border-l-2 border-red-300 pl-3 py-1">
                         <p className="text-slate-800 font-medium">{q.id}: {q.text.length > 80 ? q.text.slice(0, 80) + '...' : q.text}</p>
                         <p className="text-slate-500 text-xs">{q.action}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {exportWarnings.drafted.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-violet-700 mb-2 flex items-center gap-1.5">
+                    <HelpCircle className="w-4 h-4" />
+                    Draft answers — not backed by tracked data ({exportWarnings.drafted.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {exportWarnings.drafted.map(q => (
+                      <div key={q.id} className="text-sm border-l-2 border-violet-300 pl-3 py-1">
+                        <p className="text-slate-800">{q.id}: {q.text.length > 80 ? q.text.slice(0, 80) + '...' : q.text}</p>
                       </div>
                     ))}
                   </div>
