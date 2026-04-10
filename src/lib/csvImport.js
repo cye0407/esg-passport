@@ -187,5 +187,23 @@ export function buildColumnMap(headers) {
       col: find('training', 'schulung', 'fortbildung', 'szkoleni', 'formation', 'formación', 'formazione', 'opleiding'),
       section: 'training',
     },
+
+    // Social metrics
+    turnoverRate: {
+      col: find('turnover rate', 'turnover %', 'attrition', 'fluktuation', 'fluktuationsrate', 'rotacja', 'rotation', 'rotación', 'tasso di rotazione', 'verloop'),
+      section: 'workforce',
+    },
+    womenInLeadershipPercent: {
+      col: find('women in leadership', 'women in management', 'female leadership', 'frauen in führung', 'kobiety w zarząd', 'femmes dirigeantes', 'mujeres directivas', 'donne dirigenti', 'vrouwen in leiding'),
+      section: 'workforce',
+    },
+    collectiveBargainingPercent: {
+      col: find('collective bargaining', 'bargaining coverage', 'tarifbindung', 'tarifvertrag', 'układ zbiorowy', 'convention collective', 'convenio colectivo', 'contratto collettivo', 'cao'),
+      section: 'workforce',
+    },
+    grievancesReported: {
+      col: find('grievance', 'complaint', 'beschwerde', 'skarga', 'réclamation', 'queja', 'reclamo', 'klacht'),
+      section: 'workforce',
+    },
   };
 }

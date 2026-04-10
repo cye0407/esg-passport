@@ -147,6 +147,12 @@ export function buildCompanyData(year) {
 
     // Workforce
     femalePercent,
+    womenInLeadershipPercent: totals.womenInLeadershipPercent != null ? Math.round(totals.womenInLeadershipPercent) : undefined,
+    turnoverRate: totals.turnoverRate != null ? Math.round(totals.turnoverRate * 10) / 10 : undefined,
+    collectiveBargainingPercent: totals.collectiveBargainingPercent != null ? Math.round(totals.collectiveBargainingPercent) : undefined,
+    livingWageCompliant: profile?.livingWageCompliant === 'yes' ? true : profile?.livingWageCompliant === 'no' ? false : undefined,
+    grievanceMechanismExists: profile?.grievanceMechanismExists === 'yes' ? true : profile?.grievanceMechanismExists === 'no' ? false : undefined,
+    grievancesReported: totals.grievancesReported || undefined,
     trainingHoursPerEmployee,
     trirRate,
     lostTimeIncidents: totals.lostTimeIncidents || undefined,
@@ -218,6 +224,7 @@ export function computeYoYTrends(currentYear) {
     { key: 'recyclingRate', label: 'recycling rate', unit: '%', lowerIsBetter: false },
     { key: 'workAccidents', label: 'workplace accidents', unit: 'incidents', lowerIsBetter: true },
     { key: 'trainingHours', label: 'training hours', unit: 'hours', lowerIsBetter: false },
+    { key: 'turnoverRate', label: 'employee turnover rate', unit: '%', lowerIsBetter: true },
   ];
 
   for (const m of metrics) {

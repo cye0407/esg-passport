@@ -345,6 +345,12 @@ export default function Data() {
             totalEmployees: parseInt(record.workforce?.totalEmployees) || null,
             femaleEmployees: parseInt(record.workforce?.femaleEmployees) || null,
             maleEmployees: parseInt(record.workforce?.maleEmployees) || null,
+            womenInLeadershipPercent: parseFloat(record.workforce?.womenInLeadershipPercent) || null,
+            turnoverRate: parseFloat(record.workforce?.turnoverRate) || null,
+            collectiveBargainingPercent: parseFloat(record.workforce?.collectiveBargainingPercent) || null,
+            livingWageCompliant: record.workforce?.livingWageCompliant === 'yes' || record.workforce?.livingWageCompliant === true || null,
+            grievanceMechanismExists: record.workforce?.grievanceMechanismExists === 'yes' || record.workforce?.grievanceMechanismExists === true || null,
+            grievancesReported: parseInt(record.workforce?.grievancesReported) || null,
           },
           healthSafety: {
             // workAccidents kept for backward compatibility (aliased to recordableIncidents on read)
@@ -402,6 +408,11 @@ export default function Data() {
     { section: 'workforce', field: 'femaleEmployees', label: t('data.female', lang) || 'Female', noSum: true },
     { section: 'workforce', field: 'maleEmployees', label: t('data.male', lang) || 'Male', noSum: true },
     { section: 'training', field: 'trainingHours', label: t('data.trainingHours', lang) || 'Training (hrs)' },
+    // === SOCIAL METRICS ===
+    { section: 'workforce', field: 'turnoverRate', label: 'Turnover Rate (%)', noSum: true, tooltip: 'Annual voluntary + involuntary turnover as a percentage of average headcount.' },
+    { section: 'workforce', field: 'womenInLeadershipPercent', label: 'Women in Leadership (%)', noSum: true, tooltip: 'Percentage of management/leadership positions held by women.' },
+    { section: 'workforce', field: 'collectiveBargainingPercent', label: 'Collective Bargaining (%)', noSum: true, tooltip: 'Percentage of workforce covered by collective bargaining agreements or works councils.' },
+    { section: 'workforce', field: 'grievancesReported', label: 'Grievances Reported', tooltip: 'Number of grievances reported through formal channels during the period.' },
   ];
 
   // Industry-specific metrics appended after core rows

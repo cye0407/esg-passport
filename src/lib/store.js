@@ -344,6 +344,10 @@ export const getAnnualTotals = (year) => {
     fatalities: sum(r => r.healthSafety?.fatalities),
     hoursWorked: sum(r => r.healthSafety?.hoursWorked),
     trainingHours: sum(r => r.training?.trainingHours),
+    turnoverRate: avg(r => r.workforce?.turnoverRate),
+    womenInLeadershipPercent: avg(r => r.workforce?.womenInLeadershipPercent),
+    collectiveBargainingPercent: avg(r => r.workforce?.collectiveBargainingPercent),
+    grievancesReported: sum(r => r.workforce?.grievancesReported),
     scope3Total: sum(r => r.scope3?.totalScope3Tco2e),
   };
 };

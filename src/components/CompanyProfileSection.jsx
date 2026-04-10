@@ -74,6 +74,8 @@ const FIELDS = [
   'certifications',
   'revenueBand',
   'reportingPeriod',
+  'livingWageCompliant',
+  'grievanceMechanismExists',
 ];
 
 export default function CompanyProfileSection() {
@@ -340,6 +342,30 @@ export default function CompanyProfileSection() {
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Social governance */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Living Wage Compliance</Label>
+              <Select value={profile.livingWageCompliant || ''} onValueChange={(v) => update('livingWageCompliant', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Yes — all employees paid at or above living wage</SelectItem>
+                  <SelectItem value="no">No / Not yet assessed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Formal Grievance Mechanism</Label>
+              <Select value={profile.grievanceMechanismExists || ''} onValueChange={(v) => update('grievanceMechanismExists', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Yes — formal channel in place</SelectItem>
+                  <SelectItem value="no">No / Informal only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
