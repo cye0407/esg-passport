@@ -117,6 +117,7 @@ export default function Respond() {
   const [showDetails, setShowDetails] = useState(new Set());
   const [savedFeedback, setSavedFeedback] = useState(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportReviewConfirmed, setExportReviewConfirmed] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const templates = Object.values(QUESTIONNAIRE_TEMPLATES);
@@ -334,15 +335,19 @@ export default function Respond() {
       bySource[src] = (bySource[src] || 0) + 1;
     });
 
-    const withData = bySource.provided + bySource.estimated;
-    const needData = bySource.unknown;
-    const answered = total - (byConfidence.none || 0);
-    const readinessPercent = total > 0 ? Math.round((withData / total) * 100) : 0;
+    // "Supported" = non-drafted, non-insufficient, non-none answers backed by real data
+    const supported = answerDrafts.filter(d => d.confidenceSource === 'provided' && !d.isDrafted).length;
+    const drafted = answerDrafts.filter(d => d.isDrafted).length;
+    const insufficient = byConfidence.none || 0;
+    const withData = supported;
+    const needData = drafted + insufficient;
+    const answered = supported;
+    const readinessPercent = total > 0 ? Math.round((supported / total) * 100) : 0;
     const weightedScore = total > 0 ? Math.round(
-      ((bySource.provided * 1.0 + bySource.estimated * 0.5) / total) * 100
+      ((supported * 1.0 + bySource.estimated * 0.3) / total) * 100
     ) : 0;
 
-    return { total, byConfidence, byType, bySource, withData, needData, answered, readinessPercent, weightedScore };
+    return { total, byConfidence, byType, bySource, withData, needData, answered, readinessPercent, weightedScore, supported, drafted, insufficient };
   }, [answerDrafts]);
 
   const dataQuality = useMemo(() => getDataQualitySummary(), []);
@@ -479,6 +484,7 @@ export default function Respond() {
   };
 
   const handleExport = () => {
+    setExportReviewConfirmed(false);
     setShowExportDialog(true);
   };
 
@@ -663,8 +669,13 @@ export default function Respond() {
           <div className="bg-slate-50 border-x border-slate-200 px-6 py-4">
             <div className="flex flex-wrap items-center gap-6">
               <div>
-                <p className="text-2xl font-bold text-slate-900">{stats.answered}<span className="text-base font-normal text-slate-400">/{stats.total}</span></p>
-                <p className="text-xs text-slate-500">answered</p>
+                <p className="text-2xl font-bold text-green-700">{stats.supported}<span className="text-base font-normal text-slate-400">/{stats.total}</span></p>
+                <p className="text-xs text-slate-500">supported</p>
+              </div>
+              <div className="h-8 w-px bg-slate-200" />
+              <div>
+                <p className="text-2xl font-bold text-violet-700">{stats.drafted}</p>
+                <p className="text-xs text-slate-500">drafts</p>
               </div>
               <div className="h-8 w-px bg-slate-200" />
               <div>
@@ -1057,7 +1068,7 @@ export default function Respond() {
         {answerDrafts.length > 0 && (
           <div className="mt-6 bg-white border border-slate-200 rounded-none px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-slate-500">
-              {stats?.answered} of {stats?.total} questions answered · {stats?.readinessPercent}% data backed · Score: {stats?.weightedScore}%
+              {stats?.supported} of {stats?.total} supported · {stats?.drafted} drafts · {stats?.readinessPercent}% data backed
             </p>
             <Button
               onClick={isPaid ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
@@ -1380,21 +1391,35 @@ export default function Respond() {
             </div>
           )}
 
+          {!exportWarnings.allGood && (
+            <label className="flex items-start gap-3 px-1 py-3 border-t border-slate-100 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={exportReviewConfirmed}
+                onChange={(e) => setExportReviewConfirmed(e.target.checked)}
+                className="mt-0.5 rounded border-slate-300"
+              />
+              <span className="text-sm text-slate-700">
+                I have reviewed all Draft and Insufficient answers. I understand these are not data-backed and require manual review before sending to a buyer.
+              </span>
+            </label>
+          )}
+
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowExportDialog(false)}>
-              Go back and fix
+              Go back and review
             </Button>
             <Button
               onClick={confirmExport}
-              disabled={exporting}
-              className="bg-slate-900 hover:bg-slate-800 text-white"
+              disabled={exporting || (!exportWarnings.allGood && !exportReviewConfirmed)}
+              className="bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-40"
             >
               {exporting ? (
                 <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Exporting...</>
               ) : exportWarnings.allGood ? (
                 <><Download className="w-4 h-4 mr-1.5" /> Export Excel</>
               ) : (
-                <><Download className="w-4 h-4 mr-1.5" /> Export anyway</>
+                <><Download className="w-4 h-4 mr-1.5" /> Export with review note</>
               )}
             </Button>
           </DialogFooter>
