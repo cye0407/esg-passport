@@ -530,6 +530,7 @@ export default function Respond() {
       setShowExportDialog(false);
     } catch (err) {
       console.error('Export error:', err);
+      showFeedback('Export failed — check console');
     } finally {
       setExporting(false);
     }
