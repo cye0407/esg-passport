@@ -368,6 +368,98 @@ export const QUESTIONNAIRE_TEMPLATES = {
       { id: 'gpp-15', text: 'Do you have an environmental management system (e.g., ISO 14001, EMAS) and can you provide evidence of certification?', category: 'Governance', subcategory: 'Compliance' },
     ],
   },
+  comprehensive_buyer: {
+    id: 'comprehensive_buyer',
+    name: 'Comprehensive Buyer ESG Assessment',
+    description: '60-question deep-dive covering environment, social, governance, and supply chain — modeled on what Tier 1 industrial buyers actually send. Tests every data field in the engine.',
+    framework: 'Buyer Assessment',
+    questionCount: 60,
+    questions: [
+      // ── COMPANY PROFILE (5) ──
+      { id: 'cb-1', text: 'Please provide your company\'s legal name, registered address, and country of incorporation.', category: 'Company Profile', subcategory: 'Identity' },
+      { id: 'cb-2', text: 'Describe your main products or services, primary markets, and customer segments.', category: 'Company Profile', subcategory: 'Products & Markets' },
+      { id: 'cb-3', text: 'What is your company\'s annual revenue band and ownership structure (e.g., private, PE-backed, public)?', category: 'Company Profile', subcategory: 'Financial' },
+      { id: 'cb-4', text: 'How many operational sites/facilities does your company operate, and in which countries?', category: 'Company Profile', subcategory: 'Facilities' },
+      { id: 'cb-5', text: 'Is your company a subsidiary of a larger group? If so, name the parent company and describe the group structure.', category: 'Company Profile', subcategory: 'Structure' },
+
+      // ── ENERGY & CLIMATE (8) ──
+      { id: 'cb-6', text: 'What was your total electricity consumption (in kWh) for the most recent reporting period?', category: 'Environment', subcategory: 'Energy' },
+      { id: 'cb-7', text: 'What percentage of your electricity was sourced from certified renewable sources (PPAs, green tariffs, on-site generation)?', category: 'Environment', subcategory: 'Renewable Energy' },
+      { id: 'cb-8', text: 'What was your natural gas consumption (in kWh or m³) and diesel/fuel consumption (in liters)?', category: 'Environment', subcategory: 'Fuel' },
+      { id: 'cb-9', text: 'What are your total Scope 1 (direct) greenhouse gas emissions in tCO₂e? Describe the methodology and emission factors used.', category: 'Environment', subcategory: 'Scope 1' },
+      { id: 'cb-10', text: 'What are your Scope 2 greenhouse gas emissions (both location-based and market-based) in tCO₂e?', category: 'Environment', subcategory: 'Scope 2' },
+      { id: 'cb-11', text: 'Do you measure Scope 3 emissions? If so, which categories do you report and what is the total?', category: 'Environment', subcategory: 'Scope 3' },
+      { id: 'cb-12', text: 'What specific energy efficiency measures have you implemented in the past 12 months, and what savings have they achieved?', category: 'Environment', subcategory: 'Energy Efficiency' },
+      { id: 'cb-13', text: 'Do you have science-based emissions reduction targets (SBTi-aligned)? Describe your decarbonization roadmap, including interim milestones.', category: 'Environment', subcategory: 'Climate Targets' },
+
+      // ── WATER (3) ──
+      { id: 'cb-14', text: 'What was your total water withdrawal (in m³) during the reporting period, and from which sources (municipal, groundwater, surface water)?', category: 'Environment', subcategory: 'Water' },
+      { id: 'cb-15', text: 'Do any of your facilities operate in water-stressed regions (as defined by WRI Aqueduct or equivalent)? If so, what measures are in place?', category: 'Environment', subcategory: 'Water Stress' },
+      { id: 'cb-16', text: 'How do you manage wastewater discharge? Describe treatment processes and compliance with local discharge permits.', category: 'Environment', subcategory: 'Wastewater' },
+
+      // ── WASTE & CIRCULAR ECONOMY (5) ──
+      { id: 'cb-17', text: 'What was the total weight of waste generated (in kg or tonnes) during the reporting period?', category: 'Environment', subcategory: 'Waste' },
+      { id: 'cb-18', text: 'What was your waste recycling/diversion rate (percentage diverted from landfill)?', category: 'Environment', subcategory: 'Recycling' },
+      { id: 'cb-19', text: 'How much hazardous waste did your operations generate? Describe your hazardous waste management and disposal procedures.', category: 'Environment', subcategory: 'Hazardous Waste' },
+      { id: 'cb-20', text: 'What packaging materials do you use, and what percentage is recyclable or made from recycled content?', category: 'Environment', subcategory: 'Packaging' },
+      { id: 'cb-21', text: 'Describe any circular economy initiatives (take-back programmes, design for disassembly, material recovery) currently in operation.', category: 'Environment', subcategory: 'Circular Economy' },
+
+      // ── WORKFORCE & DIVERSITY (8) ──
+      { id: 'cb-22', text: 'How many employees (full-time equivalents) does your company employ as of the end of the reporting period?', category: 'Social', subcategory: 'Workforce' },
+      { id: 'cb-23', text: 'Provide a gender breakdown of your total workforce (% female, % male).', category: 'Social', subcategory: 'Diversity' },
+      { id: 'cb-24', text: 'What percentage of your management and leadership positions are held by women?', category: 'Social', subcategory: 'Leadership Diversity' },
+      { id: 'cb-25', text: 'What was your total employee turnover rate (voluntary and involuntary combined) for the reporting period?', category: 'Social', subcategory: 'Turnover' },
+      { id: 'cb-26', text: 'What percentage of your workforce is covered by collective bargaining agreements or works council arrangements?', category: 'Social', subcategory: 'Collective Bargaining' },
+      { id: 'cb-27', text: 'Do all employees receive compensation at or above the applicable living wage (not just minimum wage)? Describe your approach to fair compensation benchmarking.', category: 'Social', subcategory: 'Living Wage' },
+      { id: 'cb-28', text: 'Do you have a diversity, equity, and inclusion (DEI) policy? Describe specific initiatives and measurable outcomes.', category: 'Social', subcategory: 'Diversity' },
+      { id: 'cb-29', text: 'How many new hires joined and how many employees departed during the reporting period?', category: 'Social', subcategory: 'Workforce' },
+
+      // ── HEALTH & SAFETY (5) ──
+      { id: 'cb-30', text: 'What is your Total Recordable Incident Rate (TRIR) for the reporting period? Provide the underlying data: recordable incidents and total hours worked.', category: 'Social', subcategory: 'Health & Safety' },
+      { id: 'cb-31', text: 'How many lost-time incidents occurred, and what was the resulting Lost Time Injury Rate (LTIR)?', category: 'Social', subcategory: 'Health & Safety' },
+      { id: 'cb-32', text: 'Were there any work-related fatalities during the reporting period? If yes, describe the circumstances and corrective actions.', category: 'Social', subcategory: 'Health & Safety' },
+      { id: 'cb-33', text: 'Do you have a certified occupational health and safety management system (e.g., ISO 45001)? Describe your safety management approach.', category: 'Social', subcategory: 'Safety Management' },
+      { id: 'cb-34', text: 'Describe your process for incident investigation, root cause analysis, and implementation of corrective actions.', category: 'Social', subcategory: 'Safety Management' },
+
+      // ── TRAINING & DEVELOPMENT (3) ──
+      { id: 'cb-35', text: 'What is the average number of training hours delivered per employee per year? Provide the total training hours and headcount used in the calculation.', category: 'Social', subcategory: 'Training' },
+      { id: 'cb-36', text: 'What types of training do you provide (e.g., health & safety, technical skills, sustainability awareness, compliance, leadership)?', category: 'Social', subcategory: 'Training' },
+      { id: 'cb-37', text: 'Do you have structured career development and succession planning programmes? How do you measure training effectiveness?', category: 'Social', subcategory: 'Development' },
+
+      // ── HUMAN RIGHTS & LABOR (5) ──
+      { id: 'cb-38', text: 'Do you have a formal human rights policy covering forced labor, child labor, and freedom of association? Describe its scope and how it is communicated.', category: 'Social', subcategory: 'Human Rights' },
+      { id: 'cb-39', text: 'What due diligence processes do you have in place to identify and mitigate human rights risks in your own operations and supply chain?', category: 'Social', subcategory: 'Human Rights' },
+      { id: 'cb-40', text: 'Do you have a formal grievance mechanism or whistleblowing channel available to all employees and external stakeholders? How many grievances were reported in the last reporting period?', category: 'Social', subcategory: 'Grievance Mechanism' },
+      { id: 'cb-41', text: 'Do you respect employees\' right to freedom of association and collective bargaining? Have there been any incidents of restriction?', category: 'Social', subcategory: 'Labor Rights' },
+      { id: 'cb-42', text: 'Describe the working conditions at your facilities, including standard working hours, overtime policy, rest periods, and leave entitlements.', category: 'Social', subcategory: 'Working Conditions' },
+
+      // ── GOVERNANCE & ETHICS (7) ──
+      { id: 'cb-43', text: 'Do you have a Code of Conduct or Business Ethics policy? Describe its scope, how it is communicated, and how compliance is enforced.', category: 'Governance', subcategory: 'Ethics' },
+      { id: 'cb-44', text: 'Do you have an anti-corruption and anti-bribery policy? Describe training, monitoring, and enforcement mechanisms.', category: 'Governance', subcategory: 'Anti-Corruption' },
+      { id: 'cb-45', text: 'Have there been any significant fines, sanctions, or legal proceedings related to environmental, social, or governance matters in the past three years?', category: 'Governance', subcategory: 'Compliance' },
+      { id: 'cb-46', text: 'Do you have a data protection and privacy policy (e.g., GDPR compliance)? Describe your approach to safeguarding personal and customer data.', category: 'Governance', subcategory: 'Data Protection' },
+      { id: 'cb-47', text: 'Describe your corporate governance structure. Does your board or senior management have explicit oversight of ESG and sustainability issues?', category: 'Governance', subcategory: 'Board Oversight' },
+      { id: 'cb-48', text: 'Do you have ESG-linked executive compensation or incentive structures? Describe.', category: 'Governance', subcategory: 'Incentives' },
+      { id: 'cb-49', text: 'How do you identify, assess, and manage material ESG risks and opportunities? Describe your risk management framework.', category: 'Governance', subcategory: 'Risk Management' },
+
+      // ── CERTIFICATIONS & REPORTING (4) ──
+      { id: 'cb-50', text: 'List all current certifications held (ISO 14001, ISO 45001, ISO 9001, ISO 50001, ISO 27001, SA8000, B Corp, EMAS, etc.) with validity dates.', category: 'Governance', subcategory: 'Certifications' },
+      { id: 'cb-51', text: 'Do you publish a sustainability or ESG report? Which reporting framework do you follow (GRI, CSRD/ESRS, TCFD, UN Global Compact)?', category: 'Governance', subcategory: 'Reporting' },
+      { id: 'cb-52', text: 'Has any of your ESG data been externally verified or assured by a third party? If so, to what standard (ISAE 3000, AA1000)?', category: 'Governance', subcategory: 'Verification' },
+      { id: 'cb-53', text: 'Are you subject to CSRD reporting obligations? If so, what is your timeline for compliance with the European Sustainability Reporting Standards (ESRS)?', category: 'Governance', subcategory: 'CSRD' },
+
+      // ── SUPPLY CHAIN (5) ──
+      { id: 'cb-54', text: 'Do you have a Supplier Code of Conduct? What ESG standards do you require from your suppliers?', category: 'Supply Chain', subcategory: 'Supplier Standards' },
+      { id: 'cb-55', text: 'What percentage of your critical Tier 1 suppliers have been assessed or audited on ESG criteria in the past 12 months?', category: 'Supply Chain', subcategory: 'Supplier Assessment' },
+      { id: 'cb-56', text: 'How do you monitor ongoing ESG performance of your supply chain? Describe your supplier risk screening and monitoring tools.', category: 'Supply Chain', subcategory: 'Supply Chain Monitoring' },
+      { id: 'cb-57', text: 'Do you have a responsible sourcing policy for raw materials? Do you conduct conflict minerals due diligence (CMRT/EMRT)?', category: 'Supply Chain', subcategory: 'Responsible Sourcing' },
+      { id: 'cb-58', text: 'How do you handle ESG non-compliance by a supplier? Describe your corrective action and escalation process.', category: 'Supply Chain', subcategory: 'Non-Compliance' },
+
+      // ── TRANSPORT & LOGISTICS (2) ──
+      { id: 'cb-59', text: 'What are your Scope 3 transport-related emissions? Describe your fleet composition, business travel volume (km), and employee commuting data.', category: 'Environment', subcategory: 'Transport' },
+      { id: 'cb-60', text: 'What measures are you taking to reduce transport emissions (fleet electrification, route optimization, modal shift, remote work policies)?', category: 'Environment', subcategory: 'Transport Reduction' },
+    ],
+  },
 };
 
 /**
