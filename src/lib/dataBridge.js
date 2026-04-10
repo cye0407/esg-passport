@@ -52,9 +52,12 @@ export function buildCompanyData(year) {
     : '';
 
   // Collect certifications from approved/published policies that are certifications
-  const certs = policies
+  const policyCerts = policies
     .filter(p => p.isCertification && p.status === 'available')
     .map(p => p.name);
+  // Merge in chip-form certifications from the Company Profile section
+  const profileCerts = Array.isArray(profile?.certifications) ? profile.certifications : [];
+  const certs = [...new Set([...policyCerts, ...profileCerts])];
 
   // Collect sustainability goals from approved policies
   const goalPolicy = policies.find(p => p.id === 'climate_ghg' && p.status === 'available');
@@ -73,9 +76,10 @@ export function buildCompanyData(year) {
     ? Math.round((totals.trainingHours / totalEmp) * 10) / 10
     : undefined;
 
-  // TRIR from accidents and hours worked
-  const trirRate = (totals.workAccidents !== undefined && totals.hoursWorked > 0)
-    ? Math.round((totals.workAccidents / totals.hoursWorked) * 200000 * 100) / 100
+  // TRIR from recordable incidents and hours worked
+  const recordable = totals.recordableIncidents ?? totals.workAccidents;
+  const trirRate = (recordable !== undefined && totals.hoursWorked > 0)
+    ? Math.round((recordable / totals.hoursWorked) * 200000 * 100) / 100
     : undefined;
 
   // Recycling percent
@@ -110,7 +114,19 @@ export function buildCompanyData(year) {
     employeeCount: totalEmp || parseInt(profile?.totalEmployees) || 0,
     numberOfSites: parseInt(profile?.numberOfFacilities) || 1,
     reportingPeriod: reportingYear,
-    revenueBand: profile?.annualRevenue || '',
+    revenueBand: profile?.revenueBand || profile?.annualRevenue || '',
+
+    // Extended company profile fields (from collapsible Company Profile section)
+    yearFounded: profile?.yearFounded || undefined,
+    productsServices: profile?.productsServices || undefined,
+    operatingCountries: profile?.operatingCountries || undefined,
+    ownership: profile?.ownership || undefined,
+    parentCompany: profile?.parentCompany || undefined,
+    subsidiaries: profile?.subsidiaries || undefined,
+    customerTypes: Array.isArray(profile?.customerTypes) && profile.customerTypes.length > 0
+      ? profile.customerTypes.join(', ')
+      : undefined,
+    mainMarkets: profile?.mainMarkets || undefined,
 
     // Energy
     electricityKwh: totals.electricityKwh || undefined,
@@ -133,7 +149,8 @@ export function buildCompanyData(year) {
     femalePercent,
     trainingHoursPerEmployee,
     trirRate,
-    lostTimeIncidents: totals.workAccidents || undefined,
+    lostTimeIncidents: totals.lostTimeIncidents || undefined,
+    fatalities: totals.fatalities || undefined,
 
     // Governance
     certifications: certs.length > 0 ? certs.join(', ') : undefined,

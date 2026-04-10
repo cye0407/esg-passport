@@ -94,25 +94,98 @@ export function parsePeriod(raw) {
 }
 
 /**
- * Build the column-to-field mapping from a header row. Same synonyms as the
- * old inline mapping, kept here so the Data page stays focused on rendering.
+ * Build the column-to-field mapping from a header row.
+ *
+ * Synonyms cover EN, DE, PL, FR, ES, IT, NL — the target markets for the
+ * Passport. A German user exporting their DATEV/Lexware bookkeeping CSV will
+ * have headers like "Strom" or "Wasser" rather than "Electricity"; without
+ * these aliases, the importer silently misses every column.
+ *
+ * Match is `String.includes`, case-insensitive, so partial headers like
+ * "Stromverbrauch (kWh)" still match the "strom" alias.
  */
 export function buildColumnMap(headers) {
   const lower = headers.map(h => String(h || '').trim().toLowerCase());
   const find = (...terms) => lower.findIndex(h => terms.some(t => h.includes(t)));
+  // For "male" we must avoid matching "female" — same trick across all languages
+  const findMaleNotFemale = (...terms) =>
+    lower.findIndex(h => terms.some(t => h.includes(t)) && !h.includes('female') && !h.includes('weiblich') && !h.includes('kobiet') && !h.includes('femme') && !h.includes('mujer') && !h.includes('donn') && !h.includes('vrouw'));
+
   return {
-    electricityKwh: { col: find('electricity'), section: 'energy' },
-    naturalGasKwh: { col: find('natural gas', 'gas (kwh)'), section: 'energy' },
-    vehicleFuelLiters: { col: find('vehicle fuel', 'fuel (l)', 'diesel'), section: 'energy' },
-    renewablePercent: { col: find('renewable'), section: 'energy' },
-    consumptionM3: { col: find('water'), section: 'water' },
-    totalKg: { col: find('total waste', 'waste (kg)'), section: 'waste' },
-    recycledKg: { col: find('recycled'), section: 'waste' },
-    hazardousKg: { col: find('hazardous'), section: 'waste' },
-    totalEmployees: { col: find('employee', 'fte', 'headcount'), section: 'workforce' },
-    femaleEmployees: { col: find('female'), section: 'workforce' },
-    maleEmployees: { col: lower.findIndex(h => h.includes('male') && !h.includes('female')), section: 'workforce' },
-    workAccidents: { col: find('accident', 'incident', 'injury'), section: 'healthSafety' },
-    trainingHours: { col: find('training'), section: 'training' },
+    // Energy
+    electricityKwh: {
+      col: find('electricity', 'strom', 'elektrizität', 'energia elektryczna', 'prąd', 'électricité', 'electricidad', 'elettricità', 'elektriciteit'),
+      section: 'energy',
+    },
+    naturalGasKwh: {
+      col: find('natural gas', 'gas (kwh)', 'erdgas', 'gaz ziemny', 'gaz naturel', 'gas natural', 'gas naturale', 'aardgas'),
+      section: 'energy',
+    },
+    vehicleFuelLiters: {
+      col: find('vehicle fuel', 'fuel (l)', 'diesel', 'kraftstoff', 'paliwo', 'carburant', 'combustible', 'carburante', 'brandstof'),
+      section: 'energy',
+    },
+    renewablePercent: {
+      col: find('renewable', 'erneuerbar', 'odnawialn', 'renouvelable', 'renovable', 'rinnovabil', 'hernieuwbaar'),
+      section: 'energy',
+    },
+
+    // Water
+    consumptionM3: {
+      col: find('water', 'wasser', 'woda', 'eau', 'agua', 'acqua'),
+      section: 'water',
+    },
+
+    // Waste
+    totalKg: {
+      col: find('total waste', 'waste (kg)', 'abfall', 'odpad', 'déchets', 'residuos', 'rifiuti', 'afval'),
+      section: 'waste',
+    },
+    recycledKg: {
+      col: find('recycled', 'recycelt', 'recykling', 'recyclé', 'reciclado', 'riciclat', 'gerecycl'),
+      section: 'waste',
+    },
+    hazardousKg: {
+      col: find('hazardous', 'gefährlich', 'sondermüll', 'niebezpieczn', 'dangereux', 'peligroso', 'pericolos', 'gevaarlijk'),
+      section: 'waste',
+    },
+
+    // Workforce
+    totalEmployees: {
+      col: find('employee', 'fte', 'headcount', 'mitarbeiter', 'beschäftigt', 'pracownik', 'zatrudni', 'employé', 'salarié', 'empleado', 'dipendent', 'medewerker', 'personeel'),
+      section: 'workforce',
+    },
+    femaleEmployees: {
+      col: find('female', 'weiblich', 'frauen', 'kobiet', 'femme', 'mujer', 'donn', 'vrouw'),
+      section: 'workforce',
+    },
+    maleEmployees: {
+      col: findMaleNotFemale('male', 'männlich', 'männer', 'mężcz', 'homme', 'hombre', 'uomo'),
+      section: 'workforce',
+    },
+
+    // Health & Safety
+    recordableIncidents: {
+      col: find('recordable', 'accident', 'incident', 'injury', 'unfall', 'verletz', 'wypadek', 'urazy', 'blessure', 'accidente', 'lesión', 'infortun', 'ongeval', 'letsel'),
+      section: 'healthSafety',
+    },
+    lostTimeIncidents: {
+      col: find('lost time', 'lost-time', 'ausfallzeit', 'arbeitsausfall', 'utracon', 'temps perdu', 'tiempo perdido', 'tempo perso', 'verlette tijd'),
+      section: 'healthSafety',
+    },
+    fatalities: {
+      col: find('fatalit', 'todesfäll', 'todesfall', 'śmierteln', 'décès', 'mortels', 'mortalidad', 'fallecid', 'mortale', 'doden', 'overled'),
+      section: 'healthSafety',
+    },
+    hoursWorked: {
+      col: find('hours worked', 'arbeitsstunden', 'godziny prac', 'heures travaillées', 'horas trabajadas', 'ore lavorate', 'gewerkte uren'),
+      section: 'healthSafety',
+    },
+
+    // Training
+    trainingHours: {
+      col: find('training', 'schulung', 'fortbildung', 'szkoleni', 'formation', 'formación', 'formazione', 'opleiding'),
+      section: 'training',
+    },
   };
 }

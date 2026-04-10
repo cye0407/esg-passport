@@ -2,7 +2,15 @@ import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LicenseProvider, useLicense } from '@/components/LicenseContext';
 import UpgradeGate from '@/components/UpgradeGate';
+import { handleDemoQueryParam } from '@/lib/demoData';
 import { track } from '@/lib/track';
+
+// Run before any routing — if ?demo=load or ?demo=reset is in the URL,
+// seed/wipe localStorage and reload. This is for screen recording prep,
+// not user-facing.
+if (typeof window !== 'undefined') {
+  handleDemoQueryParam();
+}
 import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
 import Data from '@/pages/Data';
@@ -84,8 +92,8 @@ function App() {
           <Route path="/data" element={<Data />} />
           <Route path="/policies" element={<Policies />} />
           <Route path="/documents" element={<Documents />} />
-          <Route path="/report" element={<Report />} />
-          <Route path="/respond" element={<PaidRoute feature="Response Generator"><Respond /></PaidRoute>} />
+          <Route path="/report" element={<PaidRoute feature="ESG Report"><Report /></PaidRoute>} />
+          <Route path="/respond" element={<Respond />} />
           <Route path="/requests" element={<PaidRoute feature="Request Management"><Requests /></PaidRoute>} />
           <Route path="/requests/:id" element={<PaidRoute feature="Request Management"><RequestWorkspace /></PaidRoute>} />
           <Route path="/settings" element={<Settings />} />

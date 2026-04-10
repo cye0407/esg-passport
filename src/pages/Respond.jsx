@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getMasterAnswers, getDocuments } from '@/lib/store';
+import { useLicense } from '@/components/LicenseContext';
+import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getMasterAnswers, getDocuments, getDataRecords } from '@/lib/store';
 import { QUESTIONNAIRE_TEMPLATES, templateToParseResult } from '@/data/questionnaire-templates';
 import { buildCompanyData, buildCompanyProfile, getDataQualitySummary, computeYoYTrends } from '@/lib/dataBridge';
 import { computeFrameworkScores } from '@/lib/frameworkScoring';
@@ -35,6 +36,8 @@ async function getEngine() {
 }
 
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
+const FREE_PREVIEW_LIMIT = 5;
+const CHECKOUT_URL = 'https://catyeldi.lemonsqueezy.com/checkout/buy/a8b7a3e5-2b8c-4f6f-922c-f5e04a08fe73';
 
 const CONFIDENCE_CONFIG = {
   high: { color: 'text-green-700', bg: 'bg-green-50', dot: 'bg-green-500', label: 'High' },
@@ -44,6 +47,7 @@ const CONFIDENCE_CONFIG = {
 };
 
 export default function Respond() {
+  const { isPaid } = useLicense();
   const [searchParams] = useSearchParams();
   const requestId = searchParams.get('requestId');
   const linkedRequest = requestId ? getRequestById(requestId) : null;
@@ -70,6 +74,23 @@ export default function Respond() {
   useEffect(() => {
     const data = loadData();
     setSavedResults(data.savedResults || []);
+  }, []);
+
+  // Auto-resume sample after user returns from entering data via the nudge
+  useEffect(() => {
+    if (sessionStorage.getItem('respond_resume_sample') !== '1') return;
+    const records = getDataRecords();
+    const hasAnyData = records.some(r =>
+      ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training'].some(section => {
+        const s = r[section];
+        return s && Object.values(s).some(v => v !== null && v !== undefined && v !== '');
+      })
+    );
+    if (!hasAnyData) return;
+    sessionStorage.removeItem('respond_resume_sample');
+    const sample = [...Object.values(QUESTIONNAIRE_TEMPLATES)].sort((a, b) => (a.questionCount || 999) - (b.questionCount || 999))[0];
+    if (sample) selectTemplate(sample.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Results State ---
@@ -282,7 +303,10 @@ export default function Respond() {
       });
 
       setGeneratingProgress({ step: 'Saving results...', percent: 95 });
-      saveResults(drafts, name, fw, pr);
+      // Free users get current-session preview only — no history persistence
+      if (isPaid) {
+        saveResults(drafts, name, fw, pr);
+      }
       track('respond_answers_generated', { count: drafts.length, framework: fw || 'none' });
       setPhase('results');
     } catch (err) {
@@ -617,8 +641,14 @@ export default function Respond() {
               <Button variant="outline" size="sm" onClick={resetToUpload}>
                 <UploadIcon className="w-4 h-4 mr-1.5" /> New
               </Button>
-              <Button size="sm" onClick={handleExport} className="bg-slate-900 hover:bg-slate-800 text-white">
-                <Download className="w-4 h-4 mr-1.5" /> Export Excel
+              <Button
+                size="sm"
+                onClick={isPaid ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
+                className="bg-slate-900 hover:bg-slate-800 text-white"
+                title={isPaid ? 'Export to Excel' : 'Pro feature — unlock for €199'}
+              >
+                {isPaid ? <Download className="w-4 h-4 mr-1.5" /> : <Shield className="w-4 h-4 mr-1.5" />}
+                {isPaid ? 'Export Excel' : 'Export — Pro'}
               </Button>
             </div>
           </div>
@@ -656,32 +686,22 @@ export default function Respond() {
               </div>
               <div className="ml-auto flex items-center gap-2">
                 {/* Language */}
-                <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded p-0.5">
-                  {LANGUAGES.map(lang => (
-                    <button
-                      key={lang.code}
-                      onClick={() => setLanguage(lang.code)}
-                      className={cn(
-                        'px-2 py-1 rounded text-xs font-medium transition-all',
-                        language === lang.code ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700'
-                      )}
-                    >
-                      {lang.code.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
+                {/* Language switcher removed — phrase-replacement translation was broken.
+                    Real multilingual support pending hand-translated template files.
+                    See strategy/TRANSLATION-DECISIONS.md */}
                 {/* AI Enhance All */}
                 <Button
-                  onClick={handleEnhanceAll}
+                  onClick={isPaid ? handleEnhanceAll : () => window.open(CHECKOUT_URL, '_blank')}
                   disabled={enhancingAll}
                   variant="outline"
                   size="sm"
                   className="text-xs"
+                  title={isPaid ? '' : 'Pro feature — unlock for €199'}
                 >
                   {enhancingAll ? (
                     <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {enhanceProgress.done}/{enhanceProgress.total}</>
                   ) : (
-                    <><Sparkles className="w-3 h-3 mr-1.5" /> AI Enhance</>
+                    <><Sparkles className="w-3 h-3 mr-1.5" /> {isPaid ? 'AI Enhance' : 'AI Enhance — Pro'}</>
                   )}
                 </Button>
               </div>
@@ -736,7 +756,7 @@ export default function Respond() {
             </div>
           )}
 
-          {filtered.map((draft, i) => {
+          {(isPaid ? filtered : filtered.slice(0, FREE_PREVIEW_LIMIT)).map((draft, i) => {
             const conf = CONFIDENCE_CONFIG[draft.answerConfidence] || CONFIDENCE_CONFIG.none;
             const isExpanded = showDetails.has(draft.questionId);
             const isEditing = editingAnswerId === draft.questionId;
@@ -760,8 +780,21 @@ export default function Respond() {
                   <div className="pr-4 min-w-0">
                     {/* Question */}
                     <p className="text-sm font-medium text-slate-900 leading-relaxed">{draft.questionText}</p>
-                    {draft.category && (
-                      <span className="text-[11px] text-slate-400 mt-0.5 inline-block">{draft.category}</span>
+                    {(draft.category || draft.dataValue) && (
+                      <Link
+                        to={draft.dataPeriod ? `/data?period=${encodeURIComponent(draft.dataPeriod)}` : '/data'}
+                        className="text-[11px] text-slate-400 hover:text-indigo-600 mt-0.5 inline-flex items-center gap-1.5 transition-colors"
+                        title={draft.dataValue ? `Source: ${draft.dataValue}${draft.dataUnit ? ' ' + draft.dataUnit : ''}${draft.dataPeriod ? ' (' + draft.dataPeriod + ')' : ''}` : 'View source data'}
+                      >
+                        {draft.category && <span>{draft.category}</span>}
+                        {draft.category && draft.dataValue && <span className="text-slate-300">·</span>}
+                        {draft.dataValue && (
+                          <span>
+                            {draft.dataValue}{draft.dataUnit && ` ${draft.dataUnit}`}
+                            {draft.dataPeriod && ` (${draft.dataPeriod})`}
+                          </span>
+                        )}
+                      </Link>
                     )}
 
                     {/* Answer */}
@@ -783,13 +816,7 @@ export default function Respond() {
                       )}
                     </div>
 
-                    {/* Data backing — shown inline for items with real data */}
-                    {draft.dataValue && !isExpanded && (
-                      <p className="mt-1.5 text-xs text-slate-400">
-                        Based on: <span className="font-medium text-slate-500">{draft.dataValue}{draft.dataUnit && ` ${draft.dataUnit}`}</span>
-                        {draft.dataPeriod && ` (${draft.dataPeriod})`}
-                      </p>
-                    )}
+                    {/* Data backing line removed — merged into category link above the answer */}
 
                     {/* Expanded details */}
                     {isExpanded && (
@@ -836,6 +863,7 @@ export default function Respond() {
                           </div>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2 pt-2">
+                            {isPaid && (
                             <button
                               onClick={() => draft._markedNA ? toggleNA(draft.questionId) : setNaEditing(draft.questionId)}
                               className={cn(
@@ -845,7 +873,8 @@ export default function Respond() {
                             >
                               <Ban className="w-3 h-3 inline mr-1" />{draft._markedNA ? 'Undo N/A' : 'Mark N/A'}
                             </button>
-                            {draft.answerConfidence !== 'none' && !draft._markedNA && (
+                            )}
+                            {isPaid && draft.answerConfidence !== 'none' && !draft._markedNA && (
                               <button
                                 onClick={() => handleSaveAsMaster(draft)}
                                 disabled={savedMasterIds.has(draft.questionId)}
@@ -917,7 +946,7 @@ export default function Respond() {
 
                   {/* Actions */}
                   <div className="flex items-start justify-end gap-1 pt-0.5">
-                    {!draft._markedNA && draft.answerConfidence !== 'none' && (
+                    {isPaid && !draft._markedNA && draft.answerConfidence !== 'none' && (
                       <button
                         onClick={() => handleEnhanceSingle(draft)}
                         disabled={isEnhancing || draft._enhanced}
@@ -930,13 +959,15 @@ export default function Respond() {
                         {isEnhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                       </button>
                     )}
-                    <button
-                      onClick={() => startEditing(draft)}
-                      className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                      title="Edit answer"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
+                    {isPaid && (
+                      <button
+                        onClick={() => startEditing(draft)}
+                        className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                        title="Edit answer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button
                       onClick={() => toggleDetails(draft.questionId)}
                       className={cn(
@@ -952,6 +983,60 @@ export default function Respond() {
               </div>
             );
           })}
+
+          {/* ===== UPGRADE CARD + LOCKED PLACEHOLDERS (free users only) ===== */}
+          {!isPaid && filtered.length > FREE_PREVIEW_LIMIT && (
+            <>
+              <div className="border-b border-slate-200 bg-gradient-to-b from-indigo-50 to-white px-6 py-8">
+                <div className="max-w-xl mx-auto text-center space-y-4">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-none bg-slate-900">
+                    <Shield className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    {filtered.length - FREE_PREVIEW_LIMIT} more answers ready
+                  </h3>
+                  <p className="text-sm text-slate-600">
+                    You're seeing the first {FREE_PREVIEW_LIMIT} of {filtered.length} answers. Unlock the rest, plus Excel export, multi-language, and AI enhancement — one-time payment, no subscription.
+                  </p>
+                  <a
+                    href={CHECKOUT_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none transition-colors"
+                  >
+                    Unlock all {filtered.length} answers — €199
+                  </a>
+                  <p className="text-xs text-slate-400">
+                    Already purchased? <Link to="/settings" className="underline">Activate your license key</Link>
+                  </p>
+                  <div className="flex items-center justify-center gap-3 text-xs text-slate-400 pt-1">
+                    <Link to="/" className="hover:text-slate-600 underline">Maybe later — dashboard</Link>
+                    <span>·</span>
+                    <Link to="/data" className="hover:text-slate-600 underline">Add more data</Link>
+                  </div>
+                </div>
+              </div>
+
+              {filtered.slice(FREE_PREVIEW_LIMIT).map((draft, i) => (
+                <div
+                  key={draft.questionId}
+                  className="border-b border-slate-100 last:border-b-0 px-6 py-4 grid grid-cols-[3rem_1fr_6rem_5rem] gap-0 items-start opacity-60"
+                >
+                  <span className="text-sm text-slate-400 font-mono pt-0.5">{FREE_PREVIEW_LIMIT + i + 1}</span>
+                  <div className="pr-4 min-w-0">
+                    <p className="text-sm font-medium text-slate-900 leading-relaxed blur-sm select-none">{draft.questionText}</p>
+                    <div className="mt-3 h-3 bg-slate-200 rounded w-full blur-sm" />
+                    <div className="mt-1.5 h-3 bg-slate-200 rounded w-5/6 blur-sm" />
+                    <div className="mt-1.5 h-3 bg-slate-200 rounded w-4/6 blur-sm" />
+                  </div>
+                  <div className="flex justify-center pt-0.5">
+                    <Shield className="w-4 h-4 text-slate-300" />
+                  </div>
+                  <div />
+                </div>
+              ))}
+            </>
+          )}
         </div>
 
         {/* ===== BOTTOM BAR ===== */}
@@ -960,8 +1045,13 @@ export default function Respond() {
             <p className="text-sm text-slate-500">
               {stats?.answered} of {stats?.total} questions answered · {stats?.readinessPercent}% data backed · Score: {stats?.weightedScore}%
             </p>
-            <Button onClick={handleExport} className="bg-slate-900 hover:bg-slate-800 text-white">
-              <Download className="w-4 h-4 mr-2" />Export to Excel
+            <Button
+              onClick={isPaid ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
+              className="bg-slate-900 hover:bg-slate-800 text-white"
+              title={isPaid ? '' : 'Pro feature — unlock for €199'}
+            >
+              {isPaid ? <Download className="w-4 h-4 mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
+              {isPaid ? 'Export to Excel' : 'Unlock Export — €199'}
             </Button>
           </div>
         )}
@@ -1004,9 +1094,62 @@ export default function Respond() {
         ))}
       </div>
 
+      {/* Data nudge — warn users with empty/sparse Data store before they upload */}
+      {(() => {
+        const records = getDataRecords();
+        const hasAnyData = records.some(r =>
+          ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training'].some(section => {
+            const s = r[section];
+            return s && Object.values(s).some(v => v !== null && v !== undefined && v !== '');
+          })
+        );
+        if (hasAnyData) return null;
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-none p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-900">For personalized answers, enter 2 minutes of data first</p>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Without your data, answers will be generic templates. Just electricity + headcount unlocks high-confidence answers for ~80% of questions.
+              </p>
+            </div>
+            <Link
+              to="/data"
+              onClick={() => sessionStorage.setItem('respond_resume_sample', '1')}
+              className="inline-flex items-center justify-center h-9 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-none flex-shrink-0"
+            >
+              Enter data — 2 min
+            </Link>
+          </div>
+        );
+      })()}
+
       {/* Upload Tab */}
       {uploadTab === 'upload' && (
         <>
+          {/* Try with sample — quick demo path for users without a real questionnaire */}
+          {(() => {
+            const sample = [...templates].sort((a, b) => (a.questionCount || 999) - (b.questionCount || 999))[0];
+            if (!sample) return null;
+            return (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-none p-4 flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900">Don't have a questionnaire handy?</p>
+                  <p className="text-xs text-slate-600 mt-0.5">Try the engine on a {sample.questionCount}-question {sample.framework} sample using your data.</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => selectTemplate(sample.id)}
+                  className="border-indigo-300 text-indigo-700 hover:bg-indigo-100 flex-shrink-0"
+                >
+                  Try with sample
+                </Button>
+              </div>
+            );
+          })()}
+
           <div
             className={cn(
               'bg-white border-2 border-dashed rounded-none p-8 transition-all cursor-pointer',

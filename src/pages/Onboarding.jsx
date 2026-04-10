@@ -264,14 +264,11 @@ export default function Onboarding() {
 
                 <button
                   onClick={() => handleComplete('/respond')}
-                  className="p-6 border border-slate-200 rounded-none hover:border-slate-400 hover:bg-slate-50 transition-colors text-left relative"
+                  className="p-6 border border-slate-200 rounded-none hover:border-slate-400 hover:bg-slate-50 transition-colors text-left"
                 >
-                  <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-indigo-100 text-indigo-700 rounded-full">
-                    <Lock className="w-3 h-3" /> Pro
-                  </span>
                   <Upload className="w-8 h-8 text-slate-700 mb-3" />
-                  <h3 className="text-base font-semibold text-slate-900 mb-1">Upload a Questionnaire</h3>
-                  <p className="text-sm text-slate-500">Generate answers from 200+ templates</p>
+                  <h3 className="text-base font-semibold text-slate-900 mb-1">See it in action</h3>
+                  <p className="text-sm text-slate-500">Upload a questionnaire or try a sample</p>
                 </button>
               </div>
 

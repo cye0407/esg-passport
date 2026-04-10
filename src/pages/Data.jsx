@@ -15,6 +15,7 @@ import { track, trackOnce } from '@/lib/track';
 import { detectNumberFormat, parseNumber, parsePeriod, buildColumnMap } from '@/lib/csvImport';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
+import CompanyProfileSection from '@/components/CompanyProfileSection';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import {
@@ -39,8 +40,16 @@ import {
 } from 'lucide-react';
 
 export default function Data() {
+  // Honor ?period=YYYY-MM query param from deep links on Respond answer cards
+  const initialYear = (() => {
+    if (typeof window === 'undefined') return new Date().getFullYear();
+    const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    const period = params.get('period');
+    if (period && /^\d{4}/.test(period)) return parseInt(period.slice(0, 4), 10);
+    return new Date().getFullYear();
+  })();
   const [records, setRecords] = useState({});
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(initialYear);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -338,7 +347,11 @@ export default function Data() {
             maleEmployees: parseInt(record.workforce?.maleEmployees) || null,
           },
           healthSafety: {
-            workAccidents: parseInt(record.healthSafety?.workAccidents) || null,
+            // workAccidents kept for backward compatibility (aliased to recordableIncidents on read)
+            recordableIncidents: parseInt(record.healthSafety?.recordableIncidents ?? record.healthSafety?.workAccidents) || null,
+            lostTimeIncidents: parseInt(record.healthSafety?.lostTimeIncidents) || null,
+            fatalities: parseInt(record.healthSafety?.fatalities) || null,
+            hoursWorked: parseInt(record.healthSafety?.hoursWorked) || null,
           },
           training: {
             trainingHours: parseFloat(record.training?.trainingHours) || null,
@@ -375,7 +388,10 @@ export default function Data() {
     { section: 'energy', field: 'electricityKwh', label: t('data.electricity', lang) || 'Electricity (kWh)', required: true },
     { section: 'workforce', field: 'totalEmployees', label: t('data.employees', lang) || 'Employees (FTE)', noSum: true, required: true },
     { section: 'waste', field: 'totalKg', label: t('data.totalWaste', lang) || 'Total Waste (kg)', required: true },
-    { section: 'healthSafety', field: 'workAccidents', label: t('data.workAccidents', lang) || 'Work Accidents', required: true },
+    { section: 'healthSafety', field: 'recordableIncidents', label: 'Recordable Incidents', tooltip: 'OSHA-recordable injuries/illnesses requiring more than first aid. Used to calculate TRIR.', required: true },
+    { section: 'healthSafety', field: 'lostTimeIncidents', label: 'Lost Time Incidents', tooltip: 'Incidents resulting in days away from work beyond the day of injury. Used to calculate LTIR.' },
+    { section: 'healthSafety', field: 'fatalities', label: 'Fatalities', tooltip: 'Work-related fatalities during the period.' },
+    { section: 'healthSafety', field: 'hoursWorked', label: 'Hours Worked', tooltip: 'Total hours worked by all employees during the period. Used to calculate TRIR. Estimate as FTE × 2,080 if you do not track precisely.' },
     // === COMMONLY REQUESTED ===
     { section: 'energy', field: 'naturalGasKwh', label: t('data.naturalGas', lang) || 'Natural Gas (kWh)' },
     { section: 'energy', field: 'vehicleFuelLiters', label: t('data.vehicleFuel', lang) || 'Vehicle Fuel (L)' },
@@ -665,6 +681,9 @@ export default function Data() {
           </Button>
         </div>
       </div>
+
+      {/* Company Profile (collapsible) */}
+      <CompanyProfileSection />
 
       {/* CSV Import / Template Toolbar */}
       <div className="flex flex-wrap items-center gap-2">

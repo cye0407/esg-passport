@@ -337,7 +337,11 @@ export const getAnnualTotals = (year) => {
     maleEmployees: last(r => r.workforce?.maleEmployees),
     newHires: sum(r => r.workforce?.newHires),
     departures: sum(r => r.workforce?.departures),
-    workAccidents: sum(r => r.healthSafety?.workAccidents),
+    // workAccidents kept for backward compatibility — aliased to recordableIncidents
+    workAccidents: sum(r => r.healthSafety?.recordableIncidents ?? r.healthSafety?.workAccidents),
+    recordableIncidents: sum(r => r.healthSafety?.recordableIncidents ?? r.healthSafety?.workAccidents),
+    lostTimeIncidents: sum(r => r.healthSafety?.lostTimeIncidents),
+    fatalities: sum(r => r.healthSafety?.fatalities),
     hoursWorked: sum(r => r.healthSafety?.hoursWorked),
     trainingHours: sum(r => r.training?.trainingHours),
     scope3Total: sum(r => r.scope3?.totalScope3Tco2e),

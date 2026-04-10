@@ -27,6 +27,11 @@ import {
   AlertTriangle,
   Upload,
   FileText,
+  Info,
+  X,
+  HardDrive,
+  PenLine,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 export default function Home() {
@@ -34,6 +39,15 @@ export default function Home() {
   if (!settings.setupCompleted) {
     return <Navigate to="/onboarding" replace />;
   }
+
+  const [showGuide, setShowGuide] = React.useState(() => {
+    return !localStorage.getItem('esg_passport_guide_dismissed');
+  });
+
+  const dismissGuide = () => {
+    localStorage.setItem('esg_passport_guide_dismissed', 'true');
+    setShowGuide(false);
+  };
 
   const company = getCompanyProfile();
   const stats = getReadinessStats();
@@ -220,6 +234,37 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Getting Started Guide */}
+      {showGuide && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-none p-6 relative">
+          <button onClick={dismissGuide} className="absolute top-4 right-4 text-indigo-400 hover:text-indigo-600" aria-label="Dismiss guide">
+            <X className="w-4 h-4" />
+          </button>
+          <h2 className="text-lg font-semibold text-slate-900 mb-1 flex items-center gap-2">
+            <Info className="w-5 h-5 text-indigo-600" />
+            Before you start
+          </h2>
+          <p className="text-sm text-slate-600 mb-4">Three things to know about ESG Passport.</p>
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div className="bg-white p-4 border border-indigo-100">
+              <PenLine className="w-5 h-5 text-indigo-600 mb-2" />
+              <h3 className="font-medium text-slate-900 text-sm mb-1">You enter the data</h3>
+              <p className="text-xs text-slate-600">The response engine uses the data you track here to fill in answers. More data = better answers. Start with energy and employees.</p>
+            </div>
+            <div className="bg-white p-4 border border-indigo-100">
+              <HardDrive className="w-5 h-5 text-indigo-600 mb-2" />
+              <h3 className="font-medium text-slate-900 text-sm mb-1">Your data lives in this browser</h3>
+              <p className="text-xs text-slate-600">Everything is stored locally. If you clear your browser data, it's gone. Use Settings &rarr; Export to back up regularly.</p>
+            </div>
+            <div className="bg-white p-4 border border-indigo-100">
+              <FileSpreadsheet className="w-5 h-5 text-indigo-600 mb-2" />
+              <h3 className="font-medium text-slate-900 text-sm mb-1">Review every answer</h3>
+              <p className="text-xs text-slate-600">Generated answers are drafts based on templates and your data. Always review and edit before sending to a customer.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -38,7 +38,7 @@ export default function UpgradeGate({ feature }) {
     { icon: Upload, text: 'Upload any questionnaire — Excel, CSV, PDF, or Word' },
     { icon: Sparkles, text: '200+ answer templates matched to your questions automatically' },
     { icon: ListChecks, text: 'Pre-loaded templates for EcoVadis, CDP, and CSRD/VSME' },
-    { icon: Globe, text: 'Multi-language export (English, German, French, Spanish)' },
+    { icon: Globe, text: 'Editable answers with inline edit, mark N/A, and save to library' },
   ];
 
   return (
@@ -68,7 +68,7 @@ export default function UpgradeGate({ feature }) {
 
         {/* Buy button */}
         <a
-          href="https://esgforsuppliers.lemonsqueezy.com/checkout/buy/a8b7a3e5-2b8c-4f6f-922c-f5e04a08fe73"
+          href="https://catyeldi.lemonsqueezy.com/checkout/buy/a8b7a3e5-2b8c-4f6f-922c-f5e04a08fe73"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none transition-colors mb-6"

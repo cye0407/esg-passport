@@ -22,11 +22,13 @@ export function useLicense() {
  * which features are available (data tracking = free, response generator = paid).
  */
 export function LicenseProvider({ children }) {
-  const [isPaid, setIsPaid] = useState(false);
+  const [isPaid, setIsPaid] = useState(true); // DEV: forced paid — revert before commit
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    checkLicense();
+    // DEV: skip license check while forced paid — revert before commit
+    setIsChecking(false);
+    // checkLicense();
   }, []);
 
   async function checkLicense() {
