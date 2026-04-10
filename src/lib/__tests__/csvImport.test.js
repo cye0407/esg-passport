@@ -129,7 +129,7 @@ describe('buildColumnMap', () => {
   it('returns -1 for missing columns', () => {
     const map = buildColumnMap(['period', 'electricity']);
     expect(map.consumptionM3.col).toBe(-1);
-    expect(map.workAccidents.col).toBe(-1);
+    expect(map.recordableIncidents.col).toBe(-1);
   });
 
   it('distinguishes male from female employees', () => {
