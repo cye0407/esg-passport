@@ -140,40 +140,40 @@ export function buildCompanyData(year) {
     assuranceStandard: profile?.assuranceStandard || undefined,
     csrdApplicable: profile?.csrdApplicable || undefined,
 
-    // Energy
-    electricityKwh: totals.electricityKwh || undefined,
-    energySavingsKwh: totals.energySavingsKwh || undefined,
+    // Energy — use != null to preserve zero values
+    electricityKwh: totals.electricityKwh != null ? totals.electricityKwh : undefined,
+    energySavingsKwh: totals.energySavingsKwh != null ? totals.energySavingsKwh : undefined,
     renewablePercent: totals.renewablePercent != null ? Math.round(totals.renewablePercent) : undefined,
     naturalGasM3,
-    dieselLiters: totals.vehicleFuelLiters || undefined,
-    waterM3: totals.waterM3 || undefined,
+    dieselLiters: totals.vehicleFuelLiters != null ? totals.vehicleFuelLiters : undefined,
+    waterM3: totals.waterM3 != null ? totals.waterM3 : undefined,
     waterSourceMunicipalPercent: totals.waterSourceMunicipalPercent != null ? Math.round(totals.waterSourceMunicipalPercent) : undefined,
 
-    // Emissions (pass through if user has entered them, otherwise engine auto-calculates)
-    scope1Tco2e: totals.scope1Tco2e || undefined,
-    scope2Tco2e: totals.scope2Tco2e || undefined,
-    scope3Tco2e: totals.scope3Total || undefined,
+    // Emissions — use != null to preserve zero values
+    scope1Tco2e: totals.scope1Tco2e != null ? totals.scope1Tco2e : undefined,
+    scope2Tco2e: totals.scope2Tco2e != null ? totals.scope2Tco2e : undefined,
+    scope3Tco2e: totals.scope3Total != null ? totals.scope3Total : undefined,
 
-    // Waste
-    totalWasteKg: totals.totalWasteKg || undefined,
+    // Waste — use != null to preserve zero values (zero hazardous waste is meaningful)
+    totalWasteKg: totals.totalWasteKg != null ? totals.totalWasteKg : undefined,
     recyclingPercent,
-    hazardousWasteKg: totals.hazardousWasteKg || undefined,
+    hazardousWasteKg: totals.hazardousWasteKg != null ? totals.hazardousWasteKg : undefined,
 
-    // Workforce
+    // Workforce — use != null to preserve zero values
     femalePercent,
     womenInLeadershipPercent: totals.womenInLeadershipPercent != null ? Math.round(totals.womenInLeadershipPercent) : undefined,
     turnoverRate: totals.turnoverRate != null ? Math.round(totals.turnoverRate * 10) / 10 : undefined,
     collectiveBargainingPercent: totals.collectiveBargainingPercent != null ? Math.round(totals.collectiveBargainingPercent) : undefined,
     livingWageCompliant: profile?.livingWageCompliant === 'yes' ? true : profile?.livingWageCompliant === 'no' ? false : undefined,
     grievanceMechanismExists: profile?.grievanceMechanismExists === 'yes' ? true : profile?.grievanceMechanismExists === 'no' ? false : undefined,
-    grievancesReported: totals.grievancesReported || undefined,
-    newHires: totals.newHires || undefined,
+    grievancesReported: totals.grievancesReported != null ? totals.grievancesReported : undefined,
+    newHires: totals.newHires != null ? totals.newHires : undefined,
     suppliersAssessedPercent: totals.suppliersAssessedPercent != null ? Math.round(totals.suppliersAssessedPercent) : undefined,
     trainingHoursPerEmployee,
     trirRate,
-    lostTimeIncidents: totals.lostTimeIncidents || undefined,
-    fatalities: totals.fatalities || undefined,
-    hoursWorked: totals.hoursWorked || undefined,
+    lostTimeIncidents: totals.lostTimeIncidents != null ? totals.lostTimeIncidents : undefined,
+    fatalities: totals.fatalities != null ? totals.fatalities : undefined,
+    hoursWorked: totals.hoursWorked != null ? totals.hoursWorked : undefined,
 
     // Governance
     certifications: certs.length > 0 ? certs.join(', ') : undefined,

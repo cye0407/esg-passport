@@ -309,7 +309,10 @@ export const saveSettings = (settings) => {
 export const getAnnualTotals = (year) => {
   const records = getDataRecords().filter(r => r.period.startsWith(year));
   
-  const sum = (getter) => records.reduce((acc, r) => acc + (getter(r) || 0), 0);
+  const sum = (getter) => {
+    const values = records.map(getter).filter(v => v != null);
+    return values.length > 0 ? values.reduce((a, b) => a + b, 0) : null;
+  };
   const avg = (getter) => {
     const values = records.map(getter).filter(v => v != null);
     return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
