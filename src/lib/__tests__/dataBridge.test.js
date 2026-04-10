@@ -169,6 +169,22 @@ describe('buildCompanyData', () => {
     expect(data.naturalGasM3).toBeUndefined();
   });
 
+  it('preserves zero values as 0, not undefined', () => {
+    seedProfile();
+    seedMonthlyData('2025', 1, {
+      healthSafety: { fatalities: 0, lostTimeIncidents: 0, recordableIncidents: 0, hoursWorked: 40000 },
+      waste: { hazardousKg: 0, totalKg: 5000, recycledKg: 3000 },
+      workforce: { totalEmployees: 100, grievancesReported: 0, newHires: 0 },
+    });
+    const data = buildCompanyData('2025');
+    // Zero is a real answer — must not become undefined
+    expect(data.fatalities).toBe(0);
+    expect(data.lostTimeIncidents).toBe(0);
+    expect(data.hazardousWasteKg).toBe(0);
+    expect(data.grievancesReported).toBe(0);
+    expect(data.hoursWorked).toBe(40000);
+  });
+
   it('passes through scope 1/2/3 when user has entered them', () => {
     seedProfile();
     seedMonthlyData('2025', 1, {
