@@ -157,6 +157,7 @@ export function buildCompanyData(year) {
     trirRate,
     lostTimeIncidents: totals.lostTimeIncidents || undefined,
     fatalities: totals.fatalities || undefined,
+    hoursWorked: totals.hoursWorked || undefined,
 
     // Governance
     certifications: certs.length > 0 ? certs.join(', ') : undefined,
