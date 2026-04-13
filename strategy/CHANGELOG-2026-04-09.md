@@ -100,3 +100,20 @@
 - domain-packs/esg/answerTemplates.ts
 - domain-packs/esg/TRANSLATION-SOURCE.md (new)
 - src/__tests__/domainCoverage.test.ts (new)
+
+## Response trust-model overhaul
+- Introduced explicit `supported` vs `draft` answer states in the response engine and UI
+- Added `verifiedAnswer`, `draftAnswer`, `supportLevel`, `dataCoverage`, `draftRisk`, and evidence-aware review behavior
+- Tightened ESG answer templates so supported answers are closer to disclosure facts and less consultant-style
+- Added support for negative disclosures such as "not measured" / "not tracked" without forcing all such answers into speculative prose
+- Separated response status from confidence in the review UI so support state and confidence are not shown as the same visual signal
+- Expanded export options from Excel-only to Excel, PDF print preview, Word-compatible `.doc`, and HTML
+
+## Next steps
+- Fix live `Q11` behavior if the UI still shows explicit negative Scope 3 disclosures as `Draft` after regeneration
+- Revisit `Q1` question-fit if the legal-name/incorporation answer still includes extra identity context after hard refresh/regeneration
+- Decide on one confidence-badge policy: either every answer gets a confidence badge, or none do
+- Tighten remaining supported answers that may still overstate process maturity:
+- wastewater / circularity / grievance / governance / supply-chain monitoring paths
+- Confirm the latest export flow end-to-end in the browser for Excel, PDF, Word, and HTML
+- Integrate extractor output and rerun the full pipeline against real extracted data before final polish

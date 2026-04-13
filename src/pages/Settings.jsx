@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Settings as SettingsIcon, Building2, Zap, Trash2, Download, Upload,
-  Sparkles, Eye, EyeOff, ChevronDown, ChevronRight, KeyRound,
+  Sparkles, Eye, EyeOff, ChevronDown, ChevronRight, KeyRound, Mail,
 } from 'lucide-react';
 import { deactivateLicense, getStoredLicense } from '@/lib/license';
 import { cn } from '@/lib/utils';
@@ -279,6 +279,22 @@ export default function Settings() {
         >
           Deactivate License
         </Button>
+      </div>
+
+      {/* Support */}
+      <div className="bg-white border border-slate-200 rounded-none p-6">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+          <Mail className="w-5 h-5" /> Support
+        </h2>
+        <p className="text-sm text-slate-500 mb-3">
+          Questions about features, licensing, or data? We're here to help.
+        </p>
+        <a
+          href="mailto:contact@esgforsuppliers.com"
+          className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900 underline"
+        >
+          contact@esgforsuppliers.com
+        </a>
       </div>
 
       {/* Danger Zone */}

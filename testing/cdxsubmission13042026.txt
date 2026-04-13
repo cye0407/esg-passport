@@ -1,0 +1,439 @@
+Comprehensive Buyer ESG Assessment
+Buyer Assessment60 questions13 Apr 2026
+
+42/60
+
+supported
+
+14
+
+drafts
+
+70%
+
+data backed
+#Question & AnswerConfidenceActions
+1
+
+Please provide your company's legal name, registered address, and country of incorporation.
+Company Profile·Hartmann Precision (2025)
+
+The legal name of our organization is Hartmann Precision. The company is incorporated in Germany. Registered address: Industriestraße 24, 40231 Düsseldorf, Germany. We operate in the Manufacturing sector. Ownership structure: Private (family-owned). Revenue band: €10M – €50M. This data covers the reporting period 2025.Not backed by tracked data — review before sending
+Draft
+2
+
+Describe your main products or services, primary markets, and customer segments.
+Company Profile·Hartmann Precision (2025)
+
+Hartmann Precision is a Manufacturing company based in Germany. Our main products and services: CNC-machined precision components for automotive drivetrain and braking systems, including transmission housings, brake caliper brackets, and bearing carriers. Secondary line: custom industrial tooling for wind-turbine gearbox OEMs. We primarily serve Germany, France, Czech Republic, Northern Italy, Sweden. Our customer base is B2B. We employ 283 people.Not backed by tracked data — review before sending
+Draft
+3
+
+What is your company's annual revenue band and ownership structure (e.g., private, PE-backed, public)?
+Company Profile·€10M – €50M (2025)
+
+Our annual revenue band is €10M – €50M.Not backed by tracked data — review before sending
+Draft
+4
+
+How many operational sites/facilities does your company operate, and in which countries?
+Company Profile·Hartmann Precision (2025)
+
+Hartmann Precision operates 2 facilities across Germany, Poland, with headquarters in Germany. The total workforce across all sites is 283 FTE employees.Not backed by tracked data — review before sending
+Draft
+5
+
+Is your company a subsidiary of a larger group? If so, name the parent company and describe the group structure.
+Company Profile·Hartmann Precision (2025)
+
+No, Hartmann Precision is not a subsidiary of a larger group. The company operates as an independent private (family-owned) business. We have the following subsidiary operations: Hartmann Precision Sp. z o.o. (Wrocław, Poland).Not backed by tracked data — review before sending
+Draft
+6
+
+What was your total electricity consumption (in kWh) for the most recent reporting period?
+Environment·Environmental Policy, Energy Management Policy, Climate/GHG Emissions Policy (2025)
+
+Our total electricity consumption was 2,321,000 kWh during the reporting period. Of this, 52% (approximately 1,206,920 kWh) was sourced from renewable energy. We continue to prioritize the transition to renewable electricity across our operations.
+High
+7
+
+What percentage of your electricity was sourced from certified renewable sources (PPAs, green tariffs, on-site generation)?
+Environment·Hartmann Precision (2025)
+
+52% of our electricity for 2025 was sourced from renewable energy. Out of 2,321,000 kWh total consumption, approximately 1,206,920 kWh was renewable. We are on track to further increase renewable procurement across our operations.
+High
+8
+
+What was your natural gas consumption (in kWh or m³) and diesel/fuel consumption (in liters)?
+Environment·Environmental Policy, Energy Management Policy, Climate/GHG Emissions Policy (2025)
+
+Our fuel consumption during the reporting period: Natural gas: 95,640 m³. Diesel: 33,950 litres. Fuel consumption is a key input for our Scope 1 emissions calculation. We are evaluating opportunities to reduce fossil fuel dependency through electrification and energy efficiency measures.
+High
+9
+
+What are your total Scope 1 (direct) greenhouse gas emissions in tCO₂e? Describe the methodology and emission factors used.
+Environment·Environmental Policy, Energy Management Policy, Climate/GHG Emissions Policy (2025)
+
+Our greenhouse gas (GHG) emissions for the reporting period are as follows: Scope 1 (direct) emissions: 284.2 tCO2e, covering stationary combustion, mobile sources, and any fugitive emissions. Scope 2 (indirect, location-based) emissions: 893.6 tCO2e from purchased electricity. Scope 2 (market-based) emissions: 428.9 tCO2e, reflecting our renewable energy procurement. Note: Some figures are estimates derived from activity data (fuel consumption, electricity use) and standard emission factors. We are working to improve the granularity of our GHG inventory. Total Scope 1 + Scope 2 (location-based): 1,177.8 tCO2e.
+Medium
+10
+
+What are your Scope 2 greenhouse gas emissions (both location-based and market-based) in tCO₂e?
+Environment·Hartmann Precision (2025)
+
+Our Scope 2 (indirect) greenhouse gas emissions from purchased electricity for 2025: Location-based: 893.6 tCO2e. Market-based: 428.9 tCO2e, reflecting our renewable energy procurement strategy. Note: Scope 2 figures are calculated using country-level grid emission factors applied to our electricity consumption data.
+Medium
+11
+
+Do you measure Scope 3 emissions? If so, which categories do you report and what is the total?
+Environment·Environmental Policy, Energy Management Policy, Climate/GHG Emissions Policy (2025)
+
+Scope 3 emissions are not yet fully quantified. We are in the process of establishing data collection processes for the most material Scope 3 categories, including purchased goods and services, upstream transportation, business travel, and employee commuting. We are working to expand the coverage of our Scope 3 inventory and engage with key suppliers on emissions data.
+Medium
+12
+
+What specific energy efficiency measures have you implemented in the past 12 months, and what savings have they achieved?
+Environment·Environmental Policy, Energy Management Policy, Climate/GHG Emissions Policy (2025)
+
+Our energy efficiency programme focuses on reducing consumption and increasing the share of renewable sources. Our current electricity consumption is 2,321,000 kWh, with 52% from renewable sources. Key efficiency measures include regular energy audits, equipment maintenance schedules, LED lighting upgrades, and monitoring of consumption patterns to identify reduction opportunities.
+Medium
+13
+
+Do you have science-based emissions reduction targets (SBTi-aligned)? Describe your decarbonization roadmap, including interim milestones.
+Environment·Hartmann Precision (2025)
+
+Our primary sustainability commitment is: Climate/GHG Emissions Policy. We are integrating this target into our business strategy and operational planning, and we track progress against this goal as part of our regular management review process.
+
+Data gaps: Scope 1 emissions not calculated.
+Medium
+14
+
+What was your total water withdrawal (in m³) during the reporting period, and from which sources (municipal, groundwater, surface water)?
+Environment·Environmental Policy, Energy Management Policy, Climate/GHG Emissions Policy (2025)
+
+Our total water withdrawal during the reporting period was 8,080 m³. 95% was sourced from municipal/public supply. We do not currently withdraw water directly from groundwater or surface water sources. We monitor water usage across our operations and seek to reduce consumption through efficiency measures.
+Medium
+15
+
+Do any of your facilities operate in water-stressed regions (as defined by WRI Aqueduct or equivalent)? If so, what measures are in place?
+Environment·Environmental Policy, Energy Management Policy, Climate/GHG Emissions Policy (2025)
+
+We assess water stress risks as part of our environmental management approach. We do not currently operate in regions classified as high water stress by the WRI Aqueduct tool, though we monitor this as part of our site-level risk assessments. Our total water withdrawal is 8,080 m³ per year, primarily from municipal supply.
+High
+16
+
+How do you manage wastewater discharge? Describe treatment processes and compliance with local discharge permits.
+Environment·Hartmann Precision (2025)
+
+Wastewater from our operations is managed in accordance with local environmental regulations and discharge permits where applicable. Sanitary wastewater is discharged to municipal treatment systems. Where our processes generate industrial wastewater, we apply appropriate pre-treatment before discharge and maintain records to support regulatory reporting. We are formalising our water management practices, including discharge monitoring and treatment standards, as part of our ongoing ESG programme. Our total water withdrawal is 8,080 m³ per year, providing a baseline for future discharge tracking.Not backed by tracked data — review before sending
+Draft
+17
+
+What was the total weight of waste generated (in kg or tonnes) during the reporting period?
+Environment·Environmental Policy, Energy Management Policy, Climate/GHG Emissions Policy (2025)
+
+Our total waste generated during the reporting period was 157,500 kg (157.5 tonnes). We achieved a waste diversion rate of 80%. Of this, 8,370 kg was classified as hazardous waste.
+High
+18
+
+What was your waste recycling/diversion rate (percentage diverted from landfill)?
+Environment·Environmental Policy, Energy Management Policy, Climate/GHG Emissions Policy (2025)
+
+Our waste diversion (recycling) rate during the reporting period was 80%. Of 157,500 kg total waste, 126,000 kg was recycled or recovered rather than sent to landfill. This reflects our commitment to circular economy principles.
+High
+19
+
+How much hazardous waste did your operations generate? Describe your hazardous waste management and disposal procedures.
+Environment·Environmental Policy, Energy Management Policy, Climate/GHG Emissions Policy (2025)
+
+Our total waste generated during the reporting period was 157,500 kg (157.5 tonnes). We achieved a waste diversion rate of 80%, meaning 126,000 kg was recycled or recovered rather than sent to landfill. Of this total, 8,370 kg was classified as hazardous waste, managed in accordance with applicable regulations. Our high diversion rate reflects our commitment to circular economy principles and waste minimization.
+High
+20
+
+What packaging materials do you use, and what percentage is recyclable or made from recycled content?
+Environment·Hartmann Precision (2025)
+
+Our primary packaging materials include corrugated cardboard, wooden pallets, PE protective film, and reusable metal or plastic transport containers for selected customer shipments. The majority of our packaging by weight is recyclable. We use reusable transport packaging where customer logistics arrangements permit. We are working to increase the share of recycled-content cardboard and reduce single-use plastic packaging. A precise percentage breakdown is currently being consolidated. Our waste diversion rate is 80%, which includes packaging waste streams.Not backed by tracked data — review before sending
+Draft
+21
+
+Describe any circular economy initiatives (take-back programmes, design for disassembly, material recovery) currently in operation.
+Environment·Environmental Policy, Energy Management Policy, Climate/GHG Emissions Policy (2025)
+
+Our circular economy initiatives focus on reducing waste generation at source, maximizing material recovery, and designing out waste where possible. Current measures include waste segregation across all operational areas, partnerships with recycling contractors, and evaluation of take-back schemes for key material streams. We currently achieve a 80% waste diversion rate from 157,500 kg total waste, and are targeting further improvement.
+High
+22
+
+How many employees (full-time equivalents) does your company employ as of the end of the reporting period?
+Social·Manufacturing (2025)
+
+As of the end of the reporting period, our organization employs 283 full-time equivalent (FTE) employees, headquartered in Germany.
+High
+23
+
+Provide a gender breakdown of your total workforce (% female, % male).
+Social·Manufacturing (2025)
+
+Our workforce of 283 FTE employees comprises 27% female and 73% male employees. We recognize the need to improve gender diversity and are implementing initiatives to attract and retain a more diverse workforce.
+High
+24
+
+What percentage of your management and leadership positions are held by women?
+Social·Manufacturing (2025)
+
+Women represent 29% of our leadership and management positions. This compares to 27% female representation across our total workforce of 283 employees. We are actively working to improve gender diversity at leadership level through mentoring, succession planning, and inclusive recruitment practices.
+High
+25
+
+What was your total employee turnover rate (voluntary and involuntary combined) for the reporting period?
+Social·Manufacturing (2025)
+
+Our employee turnover rate during the reporting period was 10.9%. This is based on our workforce of 283 FTE employees. We monitor turnover trends and invest in retention measures including career development, training, and employee wellbeing programmes.
+High
+26
+
+What percentage of your workforce is covered by collective bargaining agreements or works council arrangements?
+Social·Manufacturing (2025)
+
+69% of our workforce is covered by collective bargaining agreements. This covers approximately 195 of our 283 employees. We respect freedom of association and the right to collective bargaining in all our operations.
+High
+27
+
+Do all employees receive compensation at or above the applicable living wage (not just minimum wage)? Describe your approach to fair compensation benchmarking.
+Social·Manufacturing (2025)
+
+Yes, all employees in Germany are compensated at or above the applicable living wage — not merely the legal minimum wage. We benchmark compensation against recognized living wage standards and review pay levels annually to ensure continued compliance. This applies to all 283 FTE employees.
+High
+28
+
+Do you have a diversity, equity, and inclusion (DEI) policy? Describe specific initiatives and measurable outcomes.
+Social·Manufacturing (2025)
+
+We are committed to diversity, equity, and inclusion across our organization. We track workforce composition and leadership diversity as part of our ongoing DEI efforts. Women currently represent 27% of our total workforce of 283 employees. 29% of management and leadership positions are held by women. We apply non-discrimination principles in recruitment, promotion, and employment practices, and are working to formalize these commitments into a standalone DEI policy.
+High
+29
+
+How many new hires joined and how many employees departed during the reporting period?
+Social·Manufacturing (2025)
+
+As of the end of the reporting period, our workforce comprises 283 FTE employees. 27 new employees joined and approximately 31 departed during the reporting period (turnover rate: 10.9%).
+High
+30
+
+What is your Total Recordable Incident Rate (TRIR) for the reporting period? Provide the underlying data: recordable incidents and total hours worked.
+Social·Manufacturing (2025)
+
+Our occupational health and safety performance during the reporting period: Total Recordable Incident Rate (TRIR): 1.49. Lost time incidents: 1. Lost Time Injury Rate (LTIR): 0.37. Fatalities: 0. Total hours worked: 536,800. While we recorded zero fatalities, we continue to investigate all incidents to prevent recurrence and strengthen our safety culture.
+High
+31
+
+How many lost-time incidents occurred, and what was the resulting Lost Time Injury Rate (LTIR)?
+Social·Manufacturing (2025)
+
+Our occupational health and safety performance during the reporting period: Total Recordable Incident Rate (TRIR): 1.49. Lost time incidents: 1. Lost Time Injury Rate (LTIR): 0.37. Fatalities: 0. Total hours worked: 536,800. While we recorded zero fatalities, we continue to investigate all incidents to prevent recurrence and strengthen our safety culture.
+High
+32
+
+Were there any work-related fatalities during the reporting period? If yes, describe the circumstances and corrective actions.
+Social·Manufacturing (2025)
+
+No, there were no work-related fatalities during the reporting period.
+High
+33
+
+Do you have a certified occupational health and safety management system (e.g., ISO 45001)? Describe your safety management approach.
+Social·Hartmann Precision (2025)
+
+Our organization holds the following certifications: ISO 9001 (Quality); ISO 14001 (Environment); ISO 45001 (Health & Safety); ISO 14001:2015 Certificate; ISO 45001:2018 Certificate; ISO 9001:2015 Certificate. These certifications are maintained through regular external surveillance audits and demonstrate our commitment to internationally recognized management standards. Certificate numbers and validity dates are available on request.
+High
+34
+
+Describe your process for incident investigation, root cause analysis, and implementation of corrective actions.
+Social·Manufacturing (2025)
+
+All workplace incidents, including near-misses, are subject to a structured investigation process. Our approach includes immediate incident reporting and scene preservation, root cause analysis using structured methods (e.g., 5-Why analysis), identification of corrective and preventive actions with assigned owners and deadlines, and follow-up verification to confirm effectiveness. This process is embedded in our ISO 45001-certified occupational health and safety management system. Investigation findings are shared with relevant teams to prevent recurrence and are reviewed as part of management review meetings. Current safety performance: TRIR 1.49, lost time incidents: 1.
+High
+35
+
+What is the average number of training hours delivered per employee per year? Provide the total training hours and headcount used in the calculation.
+Social·Manufacturing (2025)
+
+During the reporting period, we delivered an average of 16.3 training hours per employee. This represents a total of 4,612.9 hours of training across our 283 employees. Training programmes cover areas including health and safety, technical skills, and sustainability awareness.
+High
+36
+
+What types of training do you provide (e.g., health & safety, technical skills, sustainability awareness, compliance, leadership)?
+Social·Manufacturing (2025)
+
+Our occupational health and safety management system is designed around hazard identification, risk assessment, and continuous improvement. Key elements include regular workplace inspections, incident investigation and root cause analysis, safety training for all employees, and emergency preparedness procedures. Our system is certified to ISO 45001, maintained through regular external audits. Current performance: TRIR 1.49, lost time incidents 1.
+Medium
+37
+
+Do you have structured career development and succession planning programmes? How do you measure training effectiveness?
+Social·16.3 hours (2025)
+
+During the reporting period, we delivered an average of 16.3 training hours per employee. Training programmes cover areas including health and safety, technical skills, and sustainability awareness.
+High
+38
+
+Do you have a formal human rights policy covering forced labor, child labor, and freedom of association? Describe its scope and how it is communicated.
+Social·Manufacturing (2025)
+
+Yes, we respect employees' right to freedom of association and collective bargaining in all our operations. Employees are free to join, form, or refrain from joining trade unions or works councils without fear of intimidation, retaliation, or discrimination. Currently, 69% of our workforce is covered by collective bargaining agreements, representing approximately 195 of our 283 employees. These rights are addressed within the framework of applicable labor law in Germany.
+High
+39
+
+What due diligence processes do you have in place to identify and mitigate human rights risks in your own operations and supply chain?
+Social·Manufacturing (2025)
+
+Hartmann Precision integrates sustainability considerations into procurement decisions through several mechanisms. These include preference for suppliers with environmental certifications, evaluation of packaging and transport efficiency, and consideration of product lifecycle impacts. We are formalising these criteria into a sustainable procurement policy that will apply to all significant purchasing decisions.
+Medium
+40
+
+Do you have a formal grievance mechanism or whistleblowing channel available to all employees and external stakeholders? How many grievances were reported in the last reporting period?
+Social·Manufacturing (2025)
+
+Yes, we maintain a formal grievance mechanism available to all employees and external stakeholders. Channels include direct reporting to management, an anonymous reporting channel, and escalation procedures to ensure issues are addressed promptly and without retaliation. 4 grievances were reported through these channels.
+High
+41
+
+Do you respect employees' right to freedom of association and collective bargaining? Have there been any incidents of restriction?
+Social·Manufacturing (2025)
+
+Yes, we respect employees' right to freedom of association and collective bargaining in all our operations. Employees are free to join, form, or refrain from joining trade unions or works councils without fear of intimidation, retaliation, or discrimination. Currently, 69% of our workforce is covered by collective bargaining agreements, representing approximately 195 of our 283 employees. These rights are addressed within the framework of applicable labor law in Germany.
+High
+42
+
+Describe the working conditions at your facilities, including standard working hours, overtime policy, rest periods, and leave entitlements.
+Social·Manufacturing (2025)
+
+Working conditions at our facilities in Germany are governed by employment contracts and applicable labor legislation. Standard working hours do not exceed the legal maximum and are defined in individual employment contracts. Overtime is voluntary, compensated in accordance with legal requirements, and subject to management approval. All employees are entitled to legally mandated rest periods, daily and weekly rest, annual paid leave, public holidays, and parental leave provisions. 69% of our workforce is covered by collective bargaining agreements, which provide additional working condition protections. These conditions apply to all 283 FTE employees.
+High
+43
+
+Do you have a Code of Conduct or Business Ethics policy? Describe its scope, how it is communicated, and how compliance is enforced.
+Governance·Hartmann Precision (2025)
+
+Our ethical standards are formalized in the following policies: Code of Conduct / Business Ethics, Anti-Corruption / Anti-Bribery Policy, Supplier Code of Conduct. These policies cover anti-corruption, anti-bribery, conflicts of interest, and fair business practices, and apply to all employees and business partners.
+High
+44
+
+Do you have an anti-corruption and anti-bribery policy? Describe training, monitoring, and enforcement mechanisms.
+Governance·Hartmann Precision (2025)
+
+Our ethical standards are formalized in the following policies: Code of Conduct / Business Ethics, Anti-Corruption / Anti-Bribery Policy, Supplier Code of Conduct. These policies cover anti-corruption, anti-bribery, conflicts of interest, and fair business practices, and apply to all employees and business partners.
+High
+45
+
+Have there been any significant fines, sanctions, or legal proceedings related to environmental, social, or governance matters in the past three years?
+Governance·Hartmann Precision (2025)
+
+To the best of our knowledge, Hartmann Precision has not been subject to any significant environmental, social, or governance-related fines, sanctions, or legal proceedings in the past three years.
+High
+46
+
+Do you have a data protection and privacy policy (e.g., GDPR compliance)? Describe your approach to safeguarding personal and customer data.
+Governance·Hartmann Precision (2025)
+
+Yes, Hartmann Precision maintains data protection and privacy controls aligned with the EU General Data Protection Regulation (GDPR). Personal data of employees, customers, and business partners is protected through access controls, role-based permissions, contractual confidentiality obligations, and employee awareness training. We maintain procedures for data subject requests, breach notification, and secure handling of personal data.
+High
+47
+
+Describe your corporate governance structure. Does your board or senior management have explicit oversight of ESG and sustainability issues?
+Governance·Hartmann Precision (2025)
+
+Hartmann Precision's senior management has direct oversight of sustainability and ESG matters. ESG performance is reviewed as part of our regular management review cycle, with key metrics reported to the management board at least quarterly. Our governance framework is supported by the following policies: Code of Conduct / Business Ethics, Anti-Corruption / Anti-Bribery Policy, Supplier Code of Conduct. Our management system certifications (ISO 9001 (Quality), ISO 14001 (Environment), ISO 45001 (Health & Safety)) provide additional structured oversight through regular external audits. A formalized ESG governance structure with explicit accountability and reporting lines has not yet been established.
+High
+48
+
+Do you have ESG-linked executive compensation or incentive structures? Describe.
+Governance·Hartmann Precision (2025)
+
+Hartmann Precision is evaluating the integration of sustainability performance metrics into executive compensation and incentive structures. Currently, ESG oversight is managed through senior leadership review with sustainability KPIs tracked as part of operational targets. Sustainability performance is not yet formally embedded into incentive structures.
+Medium
+49
+
+How do you identify, assess, and manage material ESG risks and opportunities? Describe your risk management framework.
+Governance·Hartmann Precision (2025)
+
+Hartmann Precision identifies and manages material ESG risks through a combination of regulatory monitoring, stakeholder engagement, and operational risk assessment. Key risk areas reviewed include climate-related risks (physical and transitional), supply chain disruption, regulatory compliance (including CSRD), and workforce-related risks. ESG risks are integrated into our management review process and inform our sustainability strategy and target-setting.Not backed by tracked data — review before sending
+Draft
+50
+
+List all current certifications held (ISO 14001, ISO 45001, ISO 9001, ISO 50001, ISO 27001, SA8000, B Corp, EMAS, etc.) with validity dates.
+Governance·Hartmann Precision (2025)
+
+Our organization holds the following certifications: ISO 9001 (Quality); ISO 14001 (Environment); ISO 45001 (Health & Safety); ISO 14001:2015 Certificate; ISO 45001:2018 Certificate; ISO 9001:2015 Certificate. These certifications are maintained through regular external surveillance audits and demonstrate our commitment to internationally recognized management standards. Certificate numbers and validity dates are available on request.
+High
+51
+
+Do you publish a sustainability or ESG report? Which reporting framework do you follow (GRI, CSRD/ESRS, TCFD, UN Global Compact)?
+Governance·Hartmann Precision (2025)
+
+No, Hartmann Precision does not currently publish a standalone sustainability or ESG report.
+High
+52
+
+Has any of your ESG data been externally verified or assured by a third party? If so, to what standard (ISAE 3000, AA1000)?
+Governance·Hartmann Precision (2025)
+
+Hartmann Precision's ESG data has not yet been externally assured under standards such as ISAE 3000 or AA1000. Our management systems are externally audited for certification purposes (ISO 9001 (Quality), ISO 14001 (Environment), ISO 45001 (Health & Safety), ISO 14001:2015 Certificate, ISO 45001:2018 Certificate, ISO 9001:2015 Certificate), but these certification audits are distinct from ESG data assurance.
+High
+53
+
+Are you subject to CSRD reporting obligations? If so, what is your timeline for compliance with the European Sustainability Reporting Standards (ESRS)?
+Governance·Hartmann Precision (2025)
+
+Hartmann Precision is currently assessing its applicability under CSRD based on entity size, legal structure, and group-reporting context. Based on our current profile (283 employees, revenue band €10M – €50M), we are determining whether and when CSRD reporting obligations will apply. We are building the internal data foundation needed to support ESRS-aligned reporting.
+High
+54
+
+Do you have a Supplier Code of Conduct? What ESG standards do you require from your suppliers?
+Supply Chain·Hartmann Precision (2025)
+
+Hartmann Precision integrates sustainability considerations into procurement decisions through several mechanisms. These include preference for suppliers with environmental certifications, evaluation of packaging and transport efficiency, and consideration of product lifecycle impacts. We are formalising these criteria into a sustainable procurement policy that will apply to all significant purchasing decisions.Not backed by tracked data — review before sending
+Draft
+55
+
+What percentage of your critical Tier 1 suppliers have been assessed or audited on ESG criteria in the past 12 months?
+Supply Chain·Hartmann Precision (2025)
+
+42% of our critical Tier 1 suppliers have been assessed on ESG criteria in the past 12 months. Assessments cover environmental compliance, health & safety standards, and labor practices as part of our supplier qualification and review process.
+High
+56
+
+How do you monitor ongoing ESG performance of your supply chain? Describe your supplier risk screening and monitoring tools.
+Supply Chain·Hartmann Precision (2025)
+
+Hartmann Precision integrates sustainability considerations into procurement decisions through several mechanisms. These include preference for suppliers with environmental certifications, evaluation of packaging and transport efficiency, and consideration of product lifecycle impacts. We are formalising these criteria into a sustainable procurement policy that will apply to all significant purchasing decisions.Not backed by tracked data — review before sending
+Draft
+57
+
+Do you have a responsible sourcing policy for raw materials? Do you conduct conflict minerals due diligence (CMRT/EMRT)?
+Supply Chain·Hartmann Precision (2025)
+
+Hartmann Precision uses a range of materials in our manufacturing operations. We are in the process of quantifying our raw material consumption by type and tracking the percentage sourced from recycled or secondary sources. Our procurement approach prioritises suppliers who can provide materials with verified recycled content and environmental certifications.Not backed by tracked data — review before sending
+Draft
+58
+
+How do you handle ESG non-compliance by a supplier? Describe your corrective action and escalation process.
+Supply Chain·Hartmann Precision (2025)
+
+Hartmann Precision integrates sustainability considerations into procurement decisions through several mechanisms. These include preference for suppliers with environmental certifications, evaluation of packaging and transport efficiency, and consideration of product lifecycle impacts. We are formalising these criteria into a sustainable procurement policy that will apply to all significant purchasing decisions.Not backed by tracked data — review before sending
+Draft
+59
+
+What are your Scope 3 transport-related emissions? Describe your fleet composition, business travel volume (km), and employee commuting data.
+Environment·Manufacturing (2025)
+
+We manage the environmental impact of transportation and logistics through carrier selection, route optimisation, and shipment consolidation where feasible. Where we engage third-party logistics providers, we factor environmental performance into procurement decisions and prefer carriers with documented emissions reduction programmes. We are working towards more granular tracking of freight tonne-kilometres and associated Scope 3 emissions, which will allow us to set quantitative reduction targets in future reporting cycles.Not backed by tracked data — review before sending
+Draft
+60
+
+What measures are you taking to reduce transport emissions (fleet electrification, route optimization, modal shift, remote work policies)?
+Environment·Manufacturing (2025)
+
+We manage the environmental impact of transportation and logistics through carrier selection, route optimisation, and shipment consolidation where feasible. Where we engage third-party logistics providers, we factor environmental performance into procurement decisions and prefer carriers with documented emissions reduction programmes. We are working towards more granular tracking of freight tonne-kilometres and associated Scope 3 emissions, which will allow us to set quantitative reduction targets in future reporting cycles.Not backed by tracked data — review before sending
+Draft
+
+42 of 60 supported · 14 drafts · 70% data backed

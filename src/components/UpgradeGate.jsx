@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLicense } from '@/components/LicenseContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Shield, Key, ExternalLink, Loader2, Upload, Sparkles, ListChecks, Globe } from 'lucide-react';
+import { Shield, Key, ExternalLink, Loader2, Upload, Sparkles, ListChecks, Globe, Mail } from 'lucide-react';
 
 /**
  * Shows an upgrade prompt for free users trying to access paid features.
@@ -73,7 +73,7 @@ export default function UpgradeGate({ feature }) {
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none transition-colors mb-6"
         >
-          Get ESG Passport Pro — €199
+          Get ESG Passport Pro — €299
           <ExternalLink className="w-4 h-4" />
         </a>
 
@@ -118,6 +118,12 @@ export default function UpgradeGate({ feature }) {
             )}
           </Button>
         </form>
+
+        {/* Support contact */}
+        <p className="text-center text-xs text-slate-400 mt-6">
+          <Mail className="w-3 h-3 inline mr-1" />
+          Questions? <a href="mailto:contact@esgforsuppliers.com" className="underline hover:text-slate-600">contact@esgforsuppliers.com</a>
+        </p>
       </div>
     </div>
   );

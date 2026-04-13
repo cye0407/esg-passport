@@ -59,9 +59,6 @@ export function buildCompanyData(year) {
   const profileCerts = Array.isArray(profile?.certifications) ? profile.certifications : [];
   const certs = [...new Set([...policyCerts, ...profileCerts])];
 
-  // Collect sustainability goals from approved policies
-  const goalPolicy = policies.find(p => p.id === 'climate_ghg' && p.status === 'available');
-
   // Convert natural gas from kWh (Passport) to m3 (engine)
   const naturalGasKwh = totals.naturalGasKwh || 0;
   const naturalGasM3 = naturalGasKwh > 0 ? Math.round(naturalGasKwh / GAS_M3_TO_KWH) : undefined;
@@ -139,6 +136,18 @@ export function buildCompanyData(year) {
     externalAssurance: profile?.externalAssurance === 'yes' ? true : profile?.externalAssurance === 'no' ? false : undefined,
     assuranceStandard: profile?.assuranceStandard || undefined,
     csrdApplicable: profile?.csrdApplicable || undefined,
+    humanRightsPolicyStatus: profile?.humanRightsPolicyStatus || undefined,
+    humanRightsDueDiligenceStatus: profile?.humanRightsDueDiligenceStatus || undefined,
+    supplierCodeStatus: profile?.supplierCodeStatus || undefined,
+    supplierCorrectiveActionProcess: profile?.supplierCorrectiveActionProcess || undefined,
+    responsibleSourcingPolicyStatus: profile?.responsibleSourcingPolicyStatus || undefined,
+    conflictMineralsStatus: profile?.conflictMineralsStatus || undefined,
+    cmrtStatus: profile?.cmrtStatus || undefined,
+    emrtStatus: profile?.emrtStatus || undefined,
+    wastewaterTreatmentDetails: profile?.wastewaterTreatmentDetails || undefined,
+    transportReductionMeasures: profile?.transportReductionMeasures || undefined,
+    fleetComposition: profile?.fleetComposition || undefined,
+    packagingRecycledContentPercent: profile?.packagingRecycledContentPercent ? parseFloat(profile.packagingRecycledContentPercent) : undefined,
 
     // Energy — use != null to preserve zero values
     electricityKwh: totals.electricityKwh != null ? totals.electricityKwh : undefined,
@@ -177,7 +186,7 @@ export function buildCompanyData(year) {
 
     // Governance
     certifications: certs.length > 0 ? certs.join(', ') : undefined,
-    sustainabilityGoal: goalPolicy ? goalPolicy.name : undefined,
+    sustainabilityGoal: profile?.sustainabilityGoal || undefined,
 
     // Structured policies & documents (boost confidence scoring)
     policies: structuredPolicies,

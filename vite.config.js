@@ -18,6 +18,8 @@ export default defineConfig({
     alias: {
       'response-ready/domain-packs/esg': path.resolve(__dirname, '../response-ready/domain-packs/esg/index.ts'),
       'response-ready': path.resolve(__dirname, '../response-ready/src/index.ts'),
+      'esg-extract': path.resolve(__dirname, '../esg-extract/src/index.ts'),
+      '@extract': path.resolve(__dirname, '../esg-extract/src'),
       '@': path.resolve(__dirname, './src'),
     },
   },

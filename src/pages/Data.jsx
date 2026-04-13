@@ -16,6 +16,7 @@ import { detectNumberFormat, parseNumber, parsePeriod, buildColumnMap } from '@/
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import CompanyProfileSection from '@/components/CompanyProfileSection';
+import BillDrop from '@/components/BillDrop';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import {
@@ -213,6 +214,54 @@ export default function Data() {
     setHasChanges(true);
     setSaved(false);
   };
+
+  // Bill extraction → data grid mapping
+  const EXTRACT_FIELD_MAP = {
+    electricityKwh: { section: 'energy', field: 'electricityKwh' },
+    naturalGasKwh: { section: 'energy', field: 'naturalGasKwh' },
+    dieselLiters: { section: 'energy', field: 'vehicleFuelLiters' },
+    petrolLiters: { section: 'energy', field: 'vehicleFuelLiters' },
+    waterM3: { section: 'water', field: 'consumptionM3' },
+    totalWasteKg: { section: 'waste', field: 'totalKg' },
+    hazardousWasteKg: { section: 'waste', field: 'hazardousKg' },
+    recycledWasteKg: { section: 'waste', field: 'recycledKg' },
+    totalEmployees: { section: 'workforce', field: 'totalEmployees' },
+    femaleEmployees: { section: 'workforce', field: 'femaleEmployees' },
+    maleEmployees: { section: 'workforce', field: 'maleEmployees' },
+    newHires: { section: 'workforce', field: 'newHires' },
+    turnoverRate: { section: 'workforce', field: 'turnoverRate' },
+    trainingHours: { section: 'training', field: 'trainingHours' },
+    recordableIncidents: { section: 'healthSafety', field: 'recordableIncidents' },
+    lostTimeIncidents: { section: 'healthSafety', field: 'lostTimeIncidents' },
+    hoursWorked: { section: 'healthSafety', field: 'hoursWorked' },
+    departures: { section: 'workforce', field: 'departures' },
+  };
+
+  const handleBillExtracted = useCallback((fields, extractedPeriod) => {
+    // Determine which month to write to
+    // If extracted period is YYYY-MM, use that. If YYYY, use January. If missing, use current month.
+    let targetPeriod;
+    if (extractedPeriod && /^\d{4}-\d{2}$/.test(extractedPeriod)) {
+      targetPeriod = extractedPeriod;
+    } else if (extractedPeriod && /^\d{4}$/.test(extractedPeriod)) {
+      targetPeriod = `${extractedPeriod}-01`;
+    } else {
+      targetPeriod = `${selectedYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    for (const f of fields) {
+      const mapping = EXTRACT_FIELD_MAP[f.field];
+      if (!mapping) continue;
+      const val = typeof f.value === 'number' ? f.value : parseFloat(f.value);
+      if (isNaN(val)) continue;
+      updateField(targetPeriod, mapping.section, mapping.field, val);
+    }
+
+    track('bill_extracted', {
+      fields: fields.length,
+      documentType: fields[0]?.source?.rawText?.slice(0, 30) || 'unknown',
+    });
+  }, [selectedYear, updateField]);
 
   const getValue = (period, section, field) => {
     const record = records[period];
@@ -708,6 +757,9 @@ export default function Data() {
 
       {/* Company Profile (collapsible) */}
       <CompanyProfileSection />
+
+      {/* Bill extraction drop zone */}
+      <BillDrop onDataExtracted={handleBillExtracted} year={selectedYear} />
 
       {/* CSV Import / Template Toolbar */}
       <div className="flex flex-wrap items-center gap-2">

@@ -84,6 +84,18 @@ const FIELDS = [
   'externalAssurance',
   'assuranceStandard',
   'csrdApplicable',
+  'humanRightsPolicyStatus',
+  'humanRightsDueDiligenceStatus',
+  'supplierCodeStatus',
+  'supplierCorrectiveActionProcess',
+  'responsibleSourcingPolicyStatus',
+  'conflictMineralsStatus',
+  'cmrtStatus',
+  'emrtStatus',
+  'wastewaterTreatmentDetails',
+  'transportReductionMeasures',
+  'fleetComposition',
+  'packagingRecycledContentPercent',
 ];
 
 export default function CompanyProfileSection() {
@@ -460,6 +472,134 @@ export default function CompanyProfileSection() {
                 />
               </div>
             )}
+          </div>
+
+          {/* Policy and process status */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Human Rights Policy</Label>
+              <Select value={profile.humanRightsPolicyStatus || ''} onValueChange={(v) => update('humanRightsPolicyStatus', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="implemented">Implemented</SelectItem>
+                  <SelectItem value="in_progress">In progress</SelectItem>
+                  <SelectItem value="not_in_place">Not in place</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Human Rights Due Diligence</Label>
+              <Select value={profile.humanRightsDueDiligenceStatus || ''} onValueChange={(v) => update('humanRightsDueDiligenceStatus', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="implemented">Implemented</SelectItem>
+                  <SelectItem value="in_progress">In progress</SelectItem>
+                  <SelectItem value="not_in_place">Not in place</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Supplier Code of Conduct</Label>
+              <Select value={profile.supplierCodeStatus || ''} onValueChange={(v) => update('supplierCodeStatus', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="implemented">Implemented</SelectItem>
+                  <SelectItem value="in_progress">In progress</SelectItem>
+                  <SelectItem value="not_in_place">Not in place</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Responsible Sourcing Policy</Label>
+              <Select value={profile.responsibleSourcingPolicyStatus || ''} onValueChange={(v) => update('responsibleSourcingPolicyStatus', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="implemented">Implemented</SelectItem>
+                  <SelectItem value="in_progress">In progress</SelectItem>
+                  <SelectItem value="not_in_place">Not in place</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Conflict Minerals Due Diligence</Label>
+              <Select value={profile.conflictMineralsStatus || ''} onValueChange={(v) => update('conflictMineralsStatus', v)}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="implemented">Implemented</SelectItem>
+                  <SelectItem value="in_progress">In progress</SelectItem>
+                  <SelectItem value="not_in_place">Not in place</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">CMRT / EMRT Collection</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={profile.cmrtStatus || ''} onValueChange={(v) => update('cmrtStatus', v)}>
+                  <SelectTrigger><SelectValue placeholder="CMRT" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="implemented">CMRT live</SelectItem>
+                    <SelectItem value="in_progress">CMRT in progress</SelectItem>
+                    <SelectItem value="not_in_place">No CMRT</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={profile.emrtStatus || ''} onValueChange={(v) => update('emrtStatus', v)}>
+                  <SelectTrigger><SelectValue placeholder="EMRT" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="implemented">EMRT live</SelectItem>
+                    <SelectItem value="in_progress">EMRT in progress</SelectItem>
+                    <SelectItem value="not_in_place">No EMRT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Operational notes for draft generation */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Supplier Corrective / Escalation Process</Label>
+              <Textarea
+                value={profile.supplierCorrectiveActionProcess || ''}
+                onChange={(e) => update('supplierCorrectiveActionProcess', e.target.value)}
+                rows={3}
+                placeholder="Describe how supplier ESG non-compliance is handled."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Wastewater Treatment / Discharge</Label>
+              <Textarea
+                value={profile.wastewaterTreatmentDetails || ''}
+                onChange={(e) => update('wastewaterTreatmentDetails', e.target.value)}
+                rows={3}
+                placeholder="Describe treatment, discharge routes, and permit basis."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Transport Reduction Measures</Label>
+              <Textarea
+                value={profile.transportReductionMeasures || ''}
+                onChange={(e) => update('transportReductionMeasures', e.target.value)}
+                rows={3}
+                placeholder="e.g. route optimisation, carrier selection, fleet electrification, remote work."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Fleet Composition</Label>
+              <Input
+                value={profile.fleetComposition || ''}
+                onChange={(e) => update('fleetComposition', e.target.value)}
+                placeholder="e.g. 6 diesel vans, 2 EVs, no owned HGV fleet"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-700">Packaging Recycled Content (%)</Label>
+              <Input
+                type="number"
+                value={profile.packagingRecycledContentPercent || ''}
+                onChange={(e) => update('packagingRecycledContentPercent', e.target.value)}
+                placeholder="e.g. 35"
+              />
+            </div>
           </div>
 
           {/* Reporting period */}

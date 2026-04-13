@@ -6,12 +6,14 @@ import { QUESTIONNAIRE_TEMPLATES, templateToParseResult } from '@/data/questionn
 import { buildCompanyData, buildCompanyProfile, getDataQualitySummary, computeYoYTrends } from '@/lib/dataBridge';
 import { computeFrameworkScores } from '@/lib/frameworkScoring';
 import { generateDataChecklist } from '@/lib/dataCollectionGuide';
-import { LANGUAGES, translateAnswer } from '@/lib/translations';
+import { LANGUAGES, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
+import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { track } from '@/lib/track';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -44,6 +46,11 @@ const CONFIDENCE_CONFIG = {
   medium: { color: 'text-amber-700', bg: 'bg-amber-50', dot: 'bg-amber-500', label: 'Medium' },
   low: { color: 'text-orange-700', bg: 'bg-orange-50', dot: 'bg-orange-500', label: 'Low' },
   none: { color: 'text-red-700', bg: 'bg-red-50', dot: 'bg-red-500', label: 'Needs review' },
+};
+
+const SUPPORT_CONFIG = {
+  supported: { color: 'text-emerald-700', bg: 'bg-emerald-50', dot: 'bg-emerald-500', label: 'Supported' },
+  draft: { color: 'text-violet-700', bg: 'bg-violet-50', dot: 'bg-violet-500', label: 'Draft' },
 };
 
 export default function Respond() {
@@ -102,7 +109,11 @@ export default function Respond() {
   const [pipelineError, setPipelineError] = useState(null);
   const [filterConfidence, setFilterConfidence] = useState('all');
   const [filterType, setFilterType] = useState('all');
-  const [language, setLanguage] = useState('en');
+  const [language, setLanguage] = useState(() => {
+    const saved = loadData()?.settings?.language;
+    if (saved) return saved;
+    return (navigator.language || 'en').split('-')[0];
+  });
   const [naJustifications, setNaJustifications] = useState({});
   const [naEditing, setNaEditing] = useState(null);
   const [savedMasterIds, setSavedMasterIds] = useState(new Set());
@@ -119,12 +130,24 @@ export default function Respond() {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportReviewConfirmed, setExportReviewConfirmed] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState('xlsx');
 
   const templates = Object.values(QUESTIONNAIRE_TEMPLATES);
 
   useEffect(() => {
     track('respond_page_viewed');
   }, []);
+
+  useEffect(() => {
+    const data = loadData();
+    saveData({
+      ...data,
+      settings: {
+        ...(data.settings || {}),
+        language,
+      },
+    });
+  }, [language]);
 
   // ============ UPLOAD HANDLERS ============
 
@@ -217,6 +240,17 @@ export default function Respond() {
       matchResult: { matchedKeywords: s.matchedKeywords || [] },
       dataContext: { company: [], operational: [], calculated: [], metadata: { dataGaps: s.limitations || [], sitesIncluded: [] } },
       evidence: '', metricKeysUsed: [], needsReview: s.answerConfidence !== 'high',
+      verifiedAnswer: s.verifiedAnswer ?? s.answer ?? null,
+      draftAnswer: s.draftAnswer ?? (s.isDrafted ? s.answer : null),
+      supportLevel: s.supportLevel || (s.confidenceSource === 'provided' && !s.isDrafted ? 'supported' : 'draft'),
+      dataCoverage: s.dataCoverage || (s.confidenceSource === 'provided' && !s.isDrafted ? 'complete' : (s.limitations?.length ? 'partial' : 'missing')),
+      contentMode: s.contentMode || (s.isDrafted ? 'mixed' : 'verified_only'),
+      evidenceRefs: s.evidenceRefs || [],
+      missingFields: s.missingFields || [],
+      suggestedFieldsToTrack: s.suggestedFieldsToTrack || [],
+      draftRisk: s.draftRisk || 'safe',
+      draftReason: s.draftReason || [],
+      consistencyFlags: s.consistencyFlags || [],
       isEstimate: s.confidenceSource === 'estimated', isDrafted: s.confidenceSource === 'drafted' || !!s.isDrafted, hasDataGaps: (s.limitations || []).length > 0,
     })));
     setCompanyData(buildCompanyData());
@@ -249,6 +283,10 @@ export default function Respond() {
         questionType: d.questionType, answer: d.answer, answerConfidence: d.answerConfidence,
         confidenceSource: d.confidenceSource, dataValue: d.dataValue, dataUnit: d.dataUnit,
         dataPeriod: d.dataPeriod, dataSource: d.dataSource,
+        verifiedAnswer: d.verifiedAnswer, draftAnswer: d.draftAnswer,
+        supportLevel: d.supportLevel, dataCoverage: d.dataCoverage, contentMode: d.contentMode,
+        evidenceRefs: d.evidenceRefs, missingFields: d.missingFields, suggestedFieldsToTrack: d.suggestedFieldsToTrack,
+        draftRisk: d.draftRisk, draftReason: d.draftReason, consistencyFlags: d.consistencyFlags,
         assumptions: d.assumptions, limitations: d.limitations,
         matchedKeywords: d.matchResult?.matchedKeywords,
       })),
@@ -336,8 +374,8 @@ export default function Respond() {
     });
 
     // "Supported" = non-drafted, non-insufficient, non-none answers backed by real data
-    const supported = answerDrafts.filter(d => d.confidenceSource === 'provided' && !d.isDrafted).length;
-    const drafted = answerDrafts.filter(d => d.isDrafted).length;
+    const supported = answerDrafts.filter(d => d.supportLevel === 'supported').length;
+    const drafted = answerDrafts.filter(d => d.supportLevel === 'draft').length;
     const insufficient = byConfidence.none || 0;
     const withData = supported;
     const needData = drafted + insufficient;
@@ -361,6 +399,21 @@ export default function Respond() {
       return true;
     });
   }, [answerDrafts, filterConfidence, filterType]);
+
+  const getDisplayedVerified = (draft) => draft.verifiedAnswer || draft.answer || '';
+  const getDisplayedDraft = (draft) => {
+    if (!draft.draftAnswer) return '';
+    if (draft.draftAnswer === draft.verifiedAnswer) return '';
+    return draft.draftAnswer;
+  };
+  const getCoverageLabel = (draft) => {
+    switch (draft.dataCoverage) {
+      case 'complete': return 'Data backed';
+      case 'partial': return 'Partially backed by tracked data';
+      case 'missing': return 'Not backed by tracked data';
+      default: return draft.supportLevel === 'draft' ? 'Not backed by tracked data' : 'Data backed';
+    }
+  };
 
   const toggleDetails = (id) => {
     setShowDetails(prev => {
@@ -405,12 +458,12 @@ export default function Respond() {
 
   const startEditing = (draft) => {
     setEditingAnswerId(draft.questionId);
-    setEditingText(draft.answer);
+    setEditingText(draft.draftAnswer || draft.answer);
   };
 
   const saveEdit = (questionId) => {
     setAnswerDrafts(prev => prev.map(d =>
-      d.questionId === questionId ? { ...d, answer: editingText, _edited: true } : d
+      d.questionId === questionId ? { ...d, answer: editingText, draftAnswer: editingText, supportLevel: 'draft', contentMode: d.verifiedAnswer ? 'mixed' : 'draft_only', _edited: true } : d
     ));
     setEditingAnswerId(null);
     setEditingText('');
@@ -427,7 +480,7 @@ export default function Respond() {
     setEnhanceError(null);
     const result = await enhanceAnswer({
       questionText: draft.questionText,
-      templateAnswer: draft.answer,
+      templateAnswer: draft.draftAnswer || draft.answer,
       companyName: companyData?.companyName,
       industry: companyData?.industry,
       framework,
@@ -439,7 +492,7 @@ export default function Respond() {
     } else {
       setAnswerDrafts(prev => prev.map(d =>
         d.questionId === draft.questionId
-          ? { ...d, answer: result.enhanced, _enhanced: true, _originalTemplate: d._originalTemplate || d.answer }
+          ? { ...d, answer: d.verifiedAnswer || result.enhanced, draftAnswer: result.enhanced, supportLevel: 'draft', contentMode: d.verifiedAnswer ? 'mixed' : 'draft_only', _enhanced: true, _originalTemplate: d._originalTemplate || d.draftAnswer || d.answer }
           : d
       ));
     }
@@ -459,8 +512,8 @@ export default function Respond() {
 
     setAnswerDrafts(prev => prev.map(d => {
       const enhanced = results.get(d.questionId);
-      if (enhanced && enhanced !== d.answer) {
-        return { ...d, answer: enhanced, _enhanced: true, _originalTemplate: d._originalTemplate || d.answer };
+      if (enhanced && enhanced !== (d.draftAnswer || d.answer)) {
+        return { ...d, answer: d.verifiedAnswer || enhanced, draftAnswer: enhanced, supportLevel: 'draft', contentMode: d.verifiedAnswer ? 'mixed' : 'draft_only', _enhanced: true, _originalTemplate: d._originalTemplate || d.draftAnswer || d.answer };
       }
       return d;
     }));
@@ -485,6 +538,7 @@ export default function Respond() {
 
   const handleExport = () => {
     setExportReviewConfirmed(false);
+    setExportFormat('xlsx');
     setShowExportDialog(true);
   };
 
@@ -498,42 +552,55 @@ export default function Respond() {
         .map(p => p.name)
         .join('|');
 
-      await engine.exportToExcel({
-        answerDrafts,
-        metadata: {
-          companyName: companyData?.companyName || '',
-          framework: framework || undefined,
-          reportingPeriod: companyData?.reportingPeriod || '',
-          generatedAt: new Date().toISOString(),
-          packName: 'esg',
-          packVersion: '1.0.0',
-          creator: 'ESG Passport',
-          extra: {
-            industry: companyData?.industry,
-            country: companyData?.country,
-            employeeCount: companyData?.employeeCount,
-            numberOfSites: companyData?.numberOfSites,
-            revenueBand: companyData?.revenueBand,
-            electricityKwh: companyData?.electricityKwh,
-            renewablePercent: companyData?.renewablePercent,
-            naturalGasM3: companyData?.naturalGasM3,
-            dieselLiters: companyData?.dieselLiters,
-            scope1Tco2e: companyData?.scope1Tco2e,
-            scope2Tco2e: companyData?.scope2Tco2e,
-            scope3Tco2e: companyData?.scope3Tco2e,
-            waterM3: companyData?.waterM3,
-            totalWasteKg: companyData?.totalWasteKg,
-            recyclingPercent: companyData?.recyclingPercent,
-            hazardousWasteKg: companyData?.hazardousWasteKg,
-            femalePercent: companyData?.femalePercent,
-            trainingHoursPerEmployee: companyData?.trainingHoursPerEmployee,
-            trirRate: companyData?.trirRate,
-            certifications: companyData?.certifications,
-            policyNames,
-          },
+      const exportMetadata = {
+        companyName: companyData?.companyName || '',
+        framework: framework || undefined,
+        reportingPeriod: companyData?.reportingPeriod || '',
+        generatedAt: new Date().toISOString(),
+        language,
+        packName: 'esg',
+        packVersion: '1.0.0',
+        creator: 'ESG Passport',
+        extra: {
+          industry: companyData?.industry,
+          country: companyData?.country,
+          employeeCount: companyData?.employeeCount,
+          numberOfSites: companyData?.numberOfSites,
+          revenueBand: companyData?.revenueBand,
+          electricityKwh: companyData?.electricityKwh,
+          renewablePercent: companyData?.renewablePercent,
+          naturalGasM3: companyData?.naturalGasM3,
+          dieselLiters: companyData?.dieselLiters,
+          scope1Tco2e: companyData?.scope1Tco2e,
+          scope2Tco2e: companyData?.scope2Tco2e,
+          scope3Tco2e: companyData?.scope3Tco2e,
+          waterM3: companyData?.waterM3,
+          totalWasteKg: companyData?.totalWasteKg,
+          recyclingPercent: companyData?.recyclingPercent,
+          hazardousWasteKg: companyData?.hazardousWasteKg,
+          femalePercent: companyData?.femalePercent,
+          trainingHoursPerEmployee: companyData?.trainingHoursPerEmployee,
+          trirRate: companyData?.trirRate,
+          certifications: companyData?.certifications,
+          policyNames,
         },
-      });
-      showFeedback('Excel downloaded');
+      };
+
+      const localizedDrafts = localizeAnswerDrafts(answerDrafts, language);
+
+      if (exportFormat === 'xlsx') {
+        await engine.exportToExcel({ answerDrafts: localizedDrafts, metadata: exportMetadata });
+        showFeedback('Excel downloaded');
+      } else if (exportFormat === 'html') {
+        exportAnswersAsHtml(localizedDrafts, exportMetadata);
+        showFeedback('HTML downloaded');
+      } else if (exportFormat === 'doc') {
+        exportAnswersAsWord(localizedDrafts, exportMetadata);
+        showFeedback('Word document downloaded');
+      } else if (exportFormat === 'pdf') {
+        printAnswersAsPdf(localizedDrafts, exportMetadata);
+        showFeedback('Print preview opened');
+      }
       setShowExportDialog(false);
     } catch (err) {
       console.error('Export error:', err);
@@ -546,13 +613,13 @@ export default function Respond() {
   const exportWarnings = useMemo(() => {
     if (answerDrafts.length === 0) return { unknown: [], estimated: [], drafted: [], allGood: true };
     const unknown = answerDrafts
-      .filter(d => d.confidenceSource === 'unknown')
+      .filter(d => d.dataCoverage === 'missing')
       .map(d => ({ id: d.questionId, text: d.questionText, action: d.promptForMissing || 'Data not available' }));
     const estimated = answerDrafts
-      .filter(d => d.confidenceSource === 'estimated')
+      .filter(d => d.confidenceSource === 'estimated' || d.dataCoverage === 'partial')
       .map(d => ({ id: d.questionId, text: d.questionText }));
     const drafted = answerDrafts
-      .filter(d => d.isDrafted)
+      .filter(d => d.supportLevel === 'draft')
       .map(d => ({ id: d.questionId, text: d.questionText }));
     return { unknown, estimated, drafted, allGood: unknown.length === 0 && estimated.length === 0 && drafted.length === 0 };
   }, [answerDrafts]);
@@ -701,6 +768,19 @@ export default function Respond() {
                 ))}
               </div>
               <div className="ml-auto flex items-center gap-2">
+                <Select value={language} onValueChange={setLanguage}>
+                  <SelectTrigger className="h-8 w-[140px] text-xs">
+                    <Globe className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+                    <SelectValue placeholder="Language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((option) => (
+                      <SelectItem key={option.code} value={option.code}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {/* Language */}
                 {/* Language switcher removed — phrase-replacement translation was broken.
                     Real multilingual support pending hand-translated template files.
@@ -774,16 +854,20 @@ export default function Respond() {
 
           {(isPaid ? filtered : filtered.slice(0, FREE_PREVIEW_LIMIT)).map((draft, i) => {
             const conf = CONFIDENCE_CONFIG[draft.answerConfidence] || CONFIDENCE_CONFIG.none;
+            const support = SUPPORT_CONFIG[draft.supportLevel || 'draft'] || SUPPORT_CONFIG.draft;
             const isExpanded = showDetails.has(draft.questionId);
             const isEditing = editingAnswerId === draft.questionId;
             const isEnhancing = enhancingId === draft.questionId;
+            const verifiedText = getDisplayedVerified(draft);
+            const draftText = getDisplayedDraft(draft);
+            const coverageLabel = getCoverageLabel(draft);
 
             return (
               <div
                 key={draft.questionId}
                 className={cn(
                   'border-b border-slate-100 last:border-b-0',
-                  draft.answerConfidence === 'none' && 'bg-red-50/30',
+                  draft.supportLevel === 'draft' && draft.dataCoverage === 'missing' && 'bg-violet-50/20',
                   draft._markedNA && 'bg-slate-50/50',
                 )}
               >
@@ -814,7 +898,7 @@ export default function Respond() {
                     )}
 
                     {/* Answer */}
-                    <div className={cn('mt-3', draft.answerConfidence === 'none' && 'opacity-60')}>
+                    <div className={cn('mt-3', draft.supportLevel === 'draft' && draft.dataCoverage === 'missing' && 'opacity-90')}>
                       {isEditing ? (
                         <div className="space-y-2">
                           <Textarea value={editingText} onChange={(e) => setEditingText(e.target.value)} rows={5} className="text-sm" autoFocus />
@@ -824,14 +908,24 @@ export default function Respond() {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
-                          {translateAnswer(draft.answer, language)}
+                        <div>
+                          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                          {translateAnswer(verifiedText, language)}
                           {draft._edited && <span className="text-[10px] text-slate-400 italic ml-1">(edited)</span>}
                           {draft._enhanced && <span className="text-[10px] text-indigo-400 italic ml-1">(AI enhanced)</span>}
-                          {draft.isDrafted && !draft._edited && !draft._markedNA && (
+                          {draft.supportLevel === 'draft' && !draft._edited && !draft._markedNA && (
                             <span className="block mt-1.5 text-[10px] text-violet-600 font-medium">Not backed by tracked data — review before sending</span>
                           )}
                         </p>
+                          {draftText && !draft._markedNA && (
+                            <span className="block mt-2 rounded bg-violet-50/70 border border-violet-100 px-3 py-2">
+                              <span className="block text-[10px] font-semibold uppercase tracking-wide text-violet-700">Suggested draft</span>
+                              <span className="block mt-1 text-sm text-violet-900 leading-relaxed whitespace-pre-line">
+                                {translateAnswer(draftText, language)}
+                              </span>
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
 
@@ -856,6 +950,23 @@ export default function Respond() {
                           <p className="text-xs text-orange-700 bg-orange-50 px-2 py-1 rounded">
                             Data gaps: {draft.limitations.join('. ')}
                           </p>
+                        )}
+                        {draft.draftReason?.length > 0 && (
+                          <p className="text-xs text-violet-700 bg-violet-50 px-2 py-1 rounded">
+                            Why this is draft: {draft.draftReason.join(' ')}
+                          </p>
+                        )}
+                        {draft.consistencyFlags?.length > 0 && (
+                          <p className="text-xs text-red-700 bg-red-50 px-2 py-1 rounded">
+                            Consistency checks: {draft.consistencyFlags.join(' ')}
+                          </p>
+                        )}
+                        {draft.evidenceRefs?.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {draft.evidenceRefs.map(ref => (
+                              <span key={`${ref.type}:${ref.key}`} className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100">{ref.label}</span>
+                            ))}
+                          </div>
                         )}
                         {draft.matchResult?.matchedKeywords?.length > 0 && (
                           <div className="flex flex-wrap gap-1">
@@ -893,7 +1004,7 @@ export default function Respond() {
                               <Ban className="w-3 h-3 inline mr-1" />{draft._markedNA ? 'Undo N/A' : 'Mark N/A'}
                             </button>
                             )}
-                            {isPaid && draft.answerConfidence !== 'none' && !draft._markedNA && (
+                            {isPaid && (draft.answerConfidence !== 'none' || draft.supportLevel === 'supported') && !draft._markedNA && (
                               <button
                                 onClick={() => handleSaveAsMaster(draft)}
                                 disabled={savedMasterIds.has(draft.questionId)}
@@ -957,22 +1068,29 @@ export default function Respond() {
 
                   {/* Confidence */}
                   <div className="flex flex-col items-center gap-1 pt-0.5">
-                    {draft.isDrafted ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded bg-violet-50 text-violet-700">
-                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                        Draft
-                      </span>
-                    ) : (
-                      <span className={cn('inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded', conf.bg, conf.color)}>
+                    <span className={cn('inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded', support.bg, support.color)}>
+                      <span className={cn('w-1.5 h-1.5 rounded-full', support.dot)} />
+                      {support.label}
+                    </span>
+                    {draft.supportLevel === 'supported' && draft.answerConfidence !== 'none' && (
+                      <span className={cn(
+                        'inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border bg-white',
+                        conf.color,
+                        draft.answerConfidence === 'high' && 'border-green-200',
+                        draft.answerConfidence === 'medium' && 'border-amber-200',
+                        draft.answerConfidence === 'low' && 'border-orange-200',
+                        draft.answerConfidence === 'none' && 'border-red-200'
+                      )}>
                         <span className={cn('w-1.5 h-1.5 rounded-full', conf.dot)} />
                         {conf.label}
                       </span>
                     )}
+                    <span className="text-[10px] text-slate-400 text-center">{coverageLabel}</span>
                   </div>
 
                   {/* Actions */}
                   <div className="flex items-start justify-end gap-1 pt-0.5">
-                    {isPaid && !draft._markedNA && draft.answerConfidence !== 'none' && (
+                    {isPaid && !draft._markedNA && (draft.answerConfidence !== 'none' || draft.supportLevel === 'supported') && (
                       <button
                         onClick={() => handleEnhanceSingle(draft)}
                         disabled={isEnhancing || draft._enhanced}
@@ -1392,6 +1510,40 @@ export default function Respond() {
             </div>
           )}
 
+          <div className="border-t border-slate-100 pt-4">
+            <p className="text-sm font-semibold text-slate-900 mb-2">Export format</p>
+            <RadioGroup value={exportFormat} onValueChange={setExportFormat} className="grid grid-cols-2 gap-3">
+              <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                <RadioGroupItem value="xlsx" className="mt-0.5" />
+                <span className="text-sm text-slate-700">
+                  <span className="block font-medium text-slate-900">Excel</span>
+                  <span className="block text-xs text-slate-500">Best for buyer questionnaires</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                <RadioGroupItem value="pdf" className="mt-0.5" />
+                <span className="text-sm text-slate-700">
+                  <span className="block font-medium text-slate-900">PDF</span>
+                  <span className="block text-xs text-slate-500">Opens print preview for PDF save</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                <RadioGroupItem value="doc" className="mt-0.5" />
+                <span className="text-sm text-slate-700">
+                  <span className="block font-medium text-slate-900">Word</span>
+                  <span className="block text-xs text-slate-500">Editable .doc export</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                <RadioGroupItem value="html" className="mt-0.5" />
+                <span className="text-sm text-slate-700">
+                  <span className="block font-medium text-slate-900">HTML</span>
+                  <span className="block text-xs text-slate-500">Browser preview file</span>
+                </span>
+              </label>
+            </RadioGroup>
+          </div>
+
           {!exportWarnings.allGood && (
             <label className="flex items-start gap-3 px-1 py-3 border-t border-slate-100 cursor-pointer">
               <input
@@ -1417,10 +1569,8 @@ export default function Respond() {
             >
               {exporting ? (
                 <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Exporting...</>
-              ) : exportWarnings.allGood ? (
-                <><Download className="w-4 h-4 mr-1.5" /> Export Excel</>
               ) : (
-                <><Download className="w-4 h-4 mr-1.5" /> Export with review note</>
+                <><Download className="w-4 h-4 mr-1.5" /> Export {exportFormat === 'xlsx' ? 'Excel' : exportFormat === 'pdf' ? 'PDF' : exportFormat === 'doc' ? 'Word' : 'HTML'}</>
               )}
             </Button>
           </DialogFooter>
