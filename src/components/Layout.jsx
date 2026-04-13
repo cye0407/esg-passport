@@ -90,7 +90,7 @@ export default function Layout() {
               </div>
               <div className="hidden sm:block">
                 <span className="text-xl font-bold text-slate-800">ESG Passport</span>
-                <p className="text-xs text-slate-500">Questionnaire response tool</p>
+                <p className="text-xs text-slate-500">ESG response assistant</p>
               </div>
             </Link>
 

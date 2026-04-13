@@ -49,10 +49,10 @@ export default function UpgradeGate({ feature }) {
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900">
-            Unlock {feature || 'Response Generator'}
+            Unlock {feature || 'Response Assistant'}
           </h2>
           <p className="text-slate-500 max-w-md mx-auto">
-            Upgrade to ESG Passport Pro to upload questionnaires and generate professional answers from your tracked data.
+            Upgrade to ESG Passport Pro to upload questionnaires and prepare professional answer drafts from your tracked data.
           </p>
         </div>
 

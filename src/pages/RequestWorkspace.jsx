@@ -212,7 +212,7 @@ export default function RequestWorkspace() {
           <div className="flex flex-wrap gap-3">
             <Link to={`/respond?requestId=${request.id}`}>
               <Button className="bg-slate-900 hover:bg-slate-800 text-white">
-                <Upload className="w-4 h-4 mr-2" /> Upload & Generate Answers
+                <Upload className="w-4 h-4 mr-2" /> Upload & Prepare Answers
               </Button>
             </Link>
             {request.status !== 'sent' && (

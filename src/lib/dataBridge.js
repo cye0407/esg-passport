@@ -1,5 +1,5 @@
 // ============================================
-// Data Bridge: Passport Store → Response Generator CompanyData
+// Data Bridge: Passport Store → Response Engine CompanyData
 // ============================================
 // Translates the ESG Passport's localStorage data model
 // into the flat CompanyData type the answer engine expects.

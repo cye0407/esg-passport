@@ -117,7 +117,7 @@ export function hasActiveLicense() {
 }
 
 /**
- * Check if the user has paid Pro features (response generator, requests).
+ * Check if the user has paid Pro features (response assistant, requests).
  * Free tier: data tracking, dashboard, settings, onboarding.
  * Paid tier: questionnaire upload, answer generation, request management.
  */

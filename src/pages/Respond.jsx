@@ -507,6 +507,7 @@ export default function Respond() {
           generatedAt: new Date().toISOString(),
           packName: 'esg',
           packVersion: '1.0.0',
+          creator: 'ESG Passport',
           extra: {
             industry: companyData?.industry,
             country: companyData?.country,
@@ -636,7 +637,7 @@ export default function Respond() {
         <div className="bg-white border border-slate-200 rounded-none px-6 py-5">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Questionnaire Response Report</p>
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Questionnaire Response Drafts</p>
               <h1 className="text-xl font-semibold text-slate-900">{questionnaireName}</h1>
               <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
                 {framework && <span>{framework}</span>}
@@ -646,7 +647,7 @@ export default function Respond() {
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => runPipeline(parseResult, questionnaireName)}>
-                <RefreshCw className="w-4 h-4 mr-1.5" /> Regenerate
+                <RefreshCw className="w-4 h-4 mr-1.5" /> Re-prepare
               </Button>
               <Button variant="outline" size="sm" onClick={resetToUpload}>
                 <UploadIcon className="w-4 h-4 mr-1.5" /> New
@@ -1256,7 +1257,7 @@ export default function Respond() {
             {file && (
               <Button onClick={parseFile} disabled={parsing} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white">
                 {parsing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Parsing...</>
-                  : <><FileSpreadsheet className="w-4 h-4 mr-2" />{showMapping ? 'Re-parse with Mapping' : 'Generate Answers'}</>}
+                  : <><FileSpreadsheet className="w-4 h-4 mr-2" />{showMapping ? 'Re-parse with Mapping' : 'Prepare Answers'}</>}
               </Button>
             )}
             {!showMapping && file && !parsing && (
@@ -1295,7 +1296,7 @@ export default function Respond() {
             <div className="text-center py-12 text-slate-400">
               <Clock className="w-10 h-10 mx-auto mb-3 opacity-50" />
               <p className="font-medium">No previous results</p>
-              <p className="text-sm mt-1">Results will appear here after you generate answers.</p>
+              <p className="text-sm mt-1">Results will appear here after you prepare answers.</p>
             </div>
           ) : (
             savedResults.map(saved => (

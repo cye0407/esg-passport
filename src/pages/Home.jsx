@@ -250,7 +250,7 @@ export default function Home() {
             <div className="bg-white p-4 border border-indigo-100">
               <PenLine className="w-5 h-5 text-indigo-600 mb-2" />
               <h3 className="font-medium text-slate-900 text-sm mb-1">You enter the data</h3>
-              <p className="text-xs text-slate-600">The response engine uses the data you track here to fill in answers. More data = better answers. Start with energy and employees.</p>
+              <p className="text-xs text-slate-600">The assistant uses the data you track here to prepare answer drafts. More data = better drafts. Start with energy and employees.</p>
             </div>
             <div className="bg-white p-4 border border-indigo-100">
               <HardDrive className="w-5 h-5 text-indigo-600 mb-2" />
@@ -260,7 +260,7 @@ export default function Home() {
             <div className="bg-white p-4 border border-indigo-100">
               <FileSpreadsheet className="w-5 h-5 text-indigo-600 mb-2" />
               <h3 className="font-medium text-slate-900 text-sm mb-1">Review every answer</h3>
-              <p className="text-xs text-slate-600">Generated answers are drafts based on templates and your data. Always review and edit before sending to a customer.</p>
+              <p className="text-xs text-slate-600">Answers are drafts based on templates and your data. Always review and edit before sending to a customer.</p>
             </div>
           </div>
         </div>
@@ -328,7 +328,7 @@ export default function Home() {
               </div>
               <div className="flex-1">
                 <p className="font-medium text-slate-900 text-sm">Upload Questionnaire</p>
-                <p className="text-xs text-slate-500">Generate answers from your data</p>
+                <p className="text-xs text-slate-500">Prepare answers from your data</p>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all" />
             </Link>
