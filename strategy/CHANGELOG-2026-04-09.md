@@ -117,3 +117,24 @@
 - wastewater / circularity / grievance / governance / supply-chain monitoring paths
 - Confirm the latest export flow end-to-end in the browser for Excel, PDF, Word, and HTML
 - Integrate extractor output and rerun the full pipeline against real extracted data before final polish
+
+## 2026-04-13 pricing and messaging decision
+- Position ESG Passport as one end-to-end workflow, not two separate products:
+  get the data in, get the answers out
+- Keep three tiers:
+  Free, Pro `EUR299`, Pro+ `EUR499`
+- Pro is the complete response workflow with manual data entry
+- Pro+ is the same outcome with less manual extraction work from bills, invoices, manifests, and HR reports
+- Do not frame `EUR499` as "the real product" and `EUR299` as crippled; both must complete the job
+- Do not sell `Teams` yet while the product is local-first; use `Consultant` / multi-company wording instead
+- Core positioning:
+  focused supplier questionnaire response system, local-first, auditable, alternative to annual compliance SaaS
+- Homepage header selected:
+  "Your ESG answers are already in your invoices, records, and reports."
+
+## 2026-04-13 site copy updates
+- Updated `esgforsuppliers/src/lib/pricing.ts` to reflect:
+  Free preview workflow, Pro `EUR299`, Pro+ `EUR499`, and `Consultant` naming
+- Updated `esgforsuppliers/src/app/page.tsx` messaging to:
+  present extraction + response as one workflow, shift pricing framing from "cheap tool" to "focused practical system", and reinforce the local-first trust model
+- Rendering still needs a quick browser check; copy was updated but not visually verified in-app

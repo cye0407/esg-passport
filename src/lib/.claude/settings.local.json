@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/User/Documents/CY/esg-passport/**)",
+      "Bash(node -e ':*)",
+      "Bash(node --input-type=module -e ':*)"
+    ]
+  }
+}

@@ -187,6 +187,18 @@ export const deleteDataRecord = (period) => {
 
 export const getConfidenceRecords = () => {
   const data = loadData();
+  // If confidence records were wiped or never seeded, restore defaults
+  if (!data.confidenceRecords || data.confidenceRecords.length === 0) {
+    data.confidenceRecords = DEFAULT_CONFIDENCE_ITEMS.map(item => ({
+      ...item,
+      status: 'not_started',
+      confidence: null,
+      safeToShare: false,
+      notes: item.defaultNotes,
+      updatedAt: new Date().toISOString(),
+    }));
+    saveData(data);
+  }
   return data.confidenceRecords;
 };
 
@@ -212,6 +224,16 @@ export const saveConfidenceRecord = (record) => {
 
 export const getPolicies = () => {
   const data = loadData();
+  if (!data.policies || data.policies.length === 0) {
+    data.policies = DEFAULT_POLICIES.map(policy => ({
+      ...policy,
+      status: 'not_available',
+      fileLocation: '',
+      lastUpdated: null,
+      updatedAt: new Date().toISOString(),
+    }));
+    saveData(data);
+  }
   return data.policies;
 };
 

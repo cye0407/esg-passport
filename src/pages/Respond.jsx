@@ -781,10 +781,6 @@ export default function Respond() {
                     ))}
                   </SelectContent>
                 </Select>
-                {/* Language */}
-                {/* Language switcher removed — phrase-replacement translation was broken.
-                    Real multilingual support pending hand-translated template files.
-                    See strategy/TRANSLATION-DECISIONS.md */}
                 {/* AI Enhance All */}
                 <Button
                   onClick={isPaid ? handleEnhanceAll : () => window.open(CHECKOUT_URL, '_blank')}
