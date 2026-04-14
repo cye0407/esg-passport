@@ -13,6 +13,21 @@ const toTriStateBoolean = (value) => {
   if (value === 'not_applicable') return 'not_applicable';
   return undefined;
 };
+
+const policyStatusToImplementation = (status) => {
+  if (status === 'available') return 'implemented';
+  if (status === 'in_progress') return 'in_progress';
+  if (status === 'not_applicable') return 'not_applicable';
+  if (status === 'not_available' || status === 'not_planned') return 'not_in_place';
+  return undefined;
+};
+
+const policyStatusToTriState = (status) => {
+  if (status === 'available') return true;
+  if (status === 'not_applicable') return 'not_applicable';
+  if (status === 'in_progress' || status === 'not_available' || status === 'not_planned') return false;
+  return undefined;
+};
 const GAS_M3_TO_KWH = 10.55; // kWh per m³ natural gas
 
 /**
@@ -64,6 +79,7 @@ export function buildCompanyData(year) {
   const policyCerts = policies
     .filter(p => p.isCertification && p.status === 'available')
     .map(p => p.name);
+  const policyMap = Object.fromEntries(policies.map((p) => [p.id, p]));
   // Merge in chip-form certifications from the Company Profile section
   const profileCerts = Array.isArray(profile?.certifications) ? profile.certifications : [];
   const certs = [...new Set([...policyCerts, ...profileCerts])];
@@ -139,15 +155,15 @@ export function buildCompanyData(year) {
 
     // Governance flags
     noSignificantFines: profile?.noSignificantFines || undefined,
-    dataProtectionPolicy: toTriStateBoolean(profile?.dataProtectionPolicy),
+    dataProtectionPolicy: toTriStateBoolean(profile?.dataProtectionPolicy) ?? policyStatusToTriState(policyMap.data_privacy?.status),
     publishesSustainabilityReport: toTriStateBoolean(profile?.publishesSustainabilityReport),
     reportingFramework: profile?.reportingFramework || undefined,
     externalAssurance: toTriStateBoolean(profile?.externalAssurance),
     assuranceStandard: profile?.assuranceStandard || undefined,
     csrdApplicable: profile?.csrdApplicable || undefined,
-    humanRightsPolicyStatus: profile?.humanRightsPolicyStatus || undefined,
+    humanRightsPolicyStatus: profile?.humanRightsPolicyStatus || policyStatusToImplementation(policyMap.human_rights?.status) || undefined,
     humanRightsDueDiligenceStatus: profile?.humanRightsDueDiligenceStatus || undefined,
-    supplierCodeStatus: profile?.supplierCodeStatus || undefined,
+    supplierCodeStatus: profile?.supplierCodeStatus || policyStatusToImplementation(policyMap.supplier_code?.status) || undefined,
     supplierCorrectiveActionProcess: profile?.supplierCorrectiveActionProcess || undefined,
     responsibleSourcingPolicyStatus: profile?.responsibleSourcingPolicyStatus || undefined,
     conflictMineralsStatus: profile?.conflictMineralsStatus || undefined,
@@ -183,7 +199,7 @@ export function buildCompanyData(year) {
     turnoverRate: totals.turnoverRate != null ? Math.round(totals.turnoverRate * 10) / 10 : undefined,
     collectiveBargainingPercent: totals.collectiveBargainingPercent != null ? Math.round(totals.collectiveBargainingPercent) : undefined,
     livingWageCompliant: toTriStateBoolean(profile?.livingWageCompliant),
-    grievanceMechanismExists: toTriStateBoolean(profile?.grievanceMechanismExists),
+    grievanceMechanismExists: toTriStateBoolean(profile?.grievanceMechanismExists) ?? policyStatusToTriState(policyMap.whistleblower?.status),
     grievancesReported: totals.grievancesReported != null ? totals.grievancesReported : undefined,
     newHires: totals.newHires != null ? totals.newHires : undefined,
     suppliersAssessedPercent: totals.suppliersAssessedPercent != null ? Math.round(totals.suppliersAssessedPercent) : undefined,

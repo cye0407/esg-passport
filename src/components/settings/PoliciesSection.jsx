@@ -65,7 +65,7 @@ export default function PoliciesSection() {
 
   const stats = {
     total: policies.length,
-    approved: policies.filter(p => p.status === 'available').length,
+    available: policies.filter(p => p.status === 'available').length,
   };
 
   const getLeftBorderColor = (status) => {
@@ -79,7 +79,7 @@ export default function PoliciesSection() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">{stats.approved}/{stats.total} approved</p>
+        <p className="text-sm text-slate-500">{stats.available}/{stats.total} available</p>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
             <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-1" /> Add Policy</Button>

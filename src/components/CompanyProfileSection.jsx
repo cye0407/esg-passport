@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { getCompanyProfile, saveCompanyProfile } from '@/lib/store';
 import { INDUSTRIES, COUNTRIES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building2, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { Building2, ChevronDown, ChevronUp, Check, ArrowUpRight } from 'lucide-react';
 
 const REVENUE_BANDS = [
   '< €1M',
@@ -82,18 +83,14 @@ const FIELDS = [
   'revenueBand',
   'reportingPeriod',
   'livingWageCompliant',
-  'grievanceMechanismExists',
   'registeredAddress',
   'noSignificantFines',
-  'dataProtectionPolicy',
   'publishesSustainabilityReport',
   'reportingFramework',
   'externalAssurance',
   'assuranceStandard',
   'csrdApplicable',
-  'humanRightsPolicyStatus',
   'humanRightsDueDiligenceStatus',
-  'supplierCodeStatus',
   'supplierCorrectiveActionProcess',
   'responsibleSourcingPolicyStatus',
   'conflictMineralsStatus',
@@ -396,15 +393,18 @@ export default function CompanyProfileSection() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Formal Grievance Mechanism</Label>
-              <Select value={profile.grievanceMechanismExists || ''} onValueChange={(v) => update('grievanceMechanismExists', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes">Yes — formal channel in place</SelectItem>
-                  <SelectItem value="no">No / Informal only</SelectItem>
-                  <SelectItem value="not_applicable">Not applicable to this business</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-xs font-medium text-slate-700">Formal Policies</Label>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Documented policies and formal mechanisms are managed in the Policies tab. Use that page for data privacy,
+                human rights, supplier code, and whistleblower / grievance status.
+              </p>
+              <Link
+                to="/policies"
+                className="inline-flex items-center gap-1 text-xs font-medium text-slate-900 hover:text-slate-700 underline underline-offset-2"
+              >
+                Open Policies
+                <ArrowUpRight className="w-3 h-3" />
+              </Link>
             </div>
           </div>
 
@@ -417,17 +417,6 @@ export default function CompanyProfileSection() {
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
                   <SelectItem value="yes">Yes — details available</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Data Protection / Privacy Policy</Label>
-              <Select value={profile.dataProtectionPolicy || ''} onValueChange={(v) => update('dataProtectionPolicy', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes">Yes — GDPR / data protection policy in place</SelectItem>
-                  <SelectItem value="no">No / In development</SelectItem>
-                  <SelectItem value="not_applicable">Not applicable to this business</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -487,32 +476,21 @@ export default function CompanyProfileSection() {
           </div>
 
           {/* Policy and process status */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Human Rights Policy</Label>
-              <Select value={profile.humanRightsPolicyStatus || ''} onValueChange={(v) => update('humanRightsPolicyStatus', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {IMPLEMENTATION_STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+            Formal policy ownership lives in the Policies tab. This section is only for process-specific statuses and
+            operational notes that do not map cleanly to a single tracked policy document.
+            <div className="mt-2 flex flex-wrap gap-3">
+              <Link to="/policies" className="inline-flex items-center gap-1 font-medium text-slate-900 hover:text-slate-700 underline underline-offset-2">
+                Manage formal policies
+                <ArrowUpRight className="w-3 h-3" />
+              </Link>
+              <span>Examples: Data Privacy, Human Rights Policy, Supplier Code, Whistleblower / Grievance</span>
             </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-slate-700">Human Rights Due Diligence</Label>
               <Select value={profile.humanRightsDueDiligenceStatus || ''} onValueChange={(v) => update('humanRightsDueDiligenceStatus', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  {IMPLEMENTATION_STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Supplier Code of Conduct</Label>
-              <Select value={profile.supplierCodeStatus || ''} onValueChange={(v) => update('supplierCodeStatus', v)}>
                 <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
                   {IMPLEMENTATION_STATUS_OPTIONS.map((option) => (

@@ -57,7 +57,7 @@ export default function Report() {
 
   // Policy summary
   const policyGroups = {
-    approved: policies.filter(p => p.status === 'available'),
+    available: policies.filter(p => p.status === 'available'),
     inProgress: policies.filter(p => p.status === 'in_progress'),
     notAvailable: policies.filter(p => p.status === 'not_available'),
   };
@@ -210,7 +210,7 @@ export default function Report() {
         {/* B2: Policies & Governance */}
         <Section code="B2" title="Policies and Governance">
           <div className="mb-3 text-sm text-slate-600">
-            {policyGroups.approved.length} approved, {policyGroups.inProgress.length} in progress, {policyGroups.notAvailable.length} not yet available
+            {policyGroups.available.length} available, {policyGroups.inProgress.length} in progress, {policyGroups.notAvailable.length} not yet available
           </div>
           <div className="policy-grid grid grid-cols-2 gap-2">
             {policies.map(p => (
@@ -221,7 +221,7 @@ export default function Report() {
                   p.status === 'in_progress' ? 'status-in-progress text-amber-600' :
                   'status-not-available text-slate-400'
                 }`}>
-                  {p.status === 'available' ? 'Approved' : p.status === 'in_progress' ? 'In Progress' : 'N/A'}
+                  {p.status === 'available' ? 'Available' : p.status === 'in_progress' ? 'In Progress' : 'N/A'}
                 </span>
               </div>
             ))}

@@ -290,7 +290,7 @@ export default function Home() {
             <ShieldCheck className="w-5 h-5 text-slate-400" />
           </div>
           <p className="text-2xl font-bold text-slate-900">{stats.approvedPolicies}/{stats.totalPolicies}</p>
-          <p className="text-sm text-slate-500">Policies approved</p>
+          <p className="text-sm text-slate-500">Policies available</p>
         </Link>
 
         <Link to="/requests" className="bg-white border border-slate-200 rounded-none p-4 hover:border-slate-300 transition-colors">
