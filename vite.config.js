@@ -7,6 +7,7 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 const localResponseReadyRoot = path.resolve(__dirname, '../response-ready')
 const localEsgExtractRoot = path.resolve(__dirname, '../esg-extract')
 const bundledResponseReadyRoot = path.resolve(__dirname, './vendor/response-ready/dist')
+const bundledEsgExtractRoot = path.resolve(__dirname, './vendor/esg-extract/src')
 const alias = {
   '@': path.resolve(__dirname, './src'),
 }
@@ -22,6 +23,9 @@ if (existsSync(path.join(localResponseReadyRoot, 'src/index.ts'))) {
 if (existsSync(path.join(localEsgExtractRoot, 'src/index.ts'))) {
   alias['esg-extract'] = path.resolve(localEsgExtractRoot, 'src/index.ts')
   alias['@extract'] = path.resolve(localEsgExtractRoot, 'src')
+} else if (existsSync(path.join(bundledEsgExtractRoot, 'index.ts'))) {
+  alias['esg-extract'] = path.resolve(bundledEsgExtractRoot, 'index.ts')
+  alias['@extract'] = bundledEsgExtractRoot
 }
 
 // https://vitejs.dev/config/
