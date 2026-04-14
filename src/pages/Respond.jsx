@@ -1,11 +1,9 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useLicense } from '@/components/LicenseContext';
-import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getMasterAnswers, getDocuments, getDataRecords } from '@/lib/store';
+import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getDocuments, getDataRecords } from '@/lib/store';
 import { QUESTIONNAIRE_TEMPLATES, templateToParseResult } from '@/data/questionnaire-templates';
-import { buildCompanyData, buildCompanyProfile, getDataQualitySummary, computeYoYTrends } from '@/lib/dataBridge';
-import { computeFrameworkScores } from '@/lib/frameworkScoring';
-import { generateDataChecklist } from '@/lib/dataCollectionGuide';
+import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { LANGUAGES, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
@@ -68,6 +66,12 @@ export default function Respond() {
   const [searchParams] = useSearchParams();
   const requestId = searchParams.get('requestId');
   const linkedRequest = requestId ? getRequestById(requestId) : null;
+  const devExportsEnabled = (
+    searchParams.get('devexports') === '1'
+    || window.localStorage.getItem('esg-passport-dev-exports') === '1'
+    || window.location.hostname === 'localhost'
+    || window.location.hostname === '127.0.0.1'
+  );
 
   // Phase: 'upload' | 'generating' | 'results'
   const [phase, setPhase] = useState('upload');
@@ -141,6 +145,7 @@ export default function Respond() {
   const [exportReviewConfirmed, setExportReviewConfirmed] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState('xlsx');
+  const [batchExporting, setBatchExporting] = useState(false);
 
   const templates = Object.values(QUESTIONNAIRE_TEMPLATES);
 
@@ -158,6 +163,12 @@ export default function Respond() {
       },
     });
   }, [language]);
+
+  useEffect(() => {
+    if (searchParams.get('devexports') === '1') {
+      window.localStorage.setItem('esg-passport-dev-exports', '1');
+    }
+  }, [searchParams]);
 
   // ============ UPLOAD HANDLERS ============
 
@@ -221,7 +232,7 @@ export default function Respond() {
       } else {
         setParseError(result.errors.join('. '));
       }
-    } catch (err) {
+    } catch {
       setParseError(`We couldn't read this file. Try exporting it from Excel as .xlsx and uploading again.`);
     } finally {
       setParsing(false);
@@ -243,28 +254,34 @@ export default function Respond() {
     setSavedResults(data.savedResults);
   };
 
+  const normalizeDraft = (s) => ({
+    ...s,
+    matchResult: s.matchResult || { matchedKeywords: s.matchedKeywords || [] },
+    dataContext: s.dataContext || { company: [], operational: [], calculated: [], metadata: { dataGaps: s.limitations || [], sitesIncluded: [] } },
+    evidence: s.evidence || '',
+    metricKeysUsed: s.metricKeysUsed || [],
+    needsReview: s.needsReview ?? s.answerConfidence !== 'high',
+    verifiedAnswer: s.verifiedAnswer ?? s.answer ?? null,
+    draftAnswer: s.draftAnswer ?? (s.isDrafted ? s.answer : null),
+    supportLevel: s.supportLevel || (s.confidenceSource === 'provided' && !s.isDrafted ? 'supported' : 'draft'),
+    dataCoverage: s.dataCoverage || (s.confidenceSource === 'provided' && !s.isDrafted ? 'complete' : (s.limitations?.length ? 'partial' : 'missing')),
+    contentMode: s.contentMode || (s.isDrafted ? 'mixed' : 'verified_only'),
+    evidenceRefs: s.evidenceRefs || [],
+    missingFields: s.missingFields || [],
+    suggestedFieldsToTrack: s.suggestedFieldsToTrack || [],
+    draftRisk: s.draftRisk || 'safe',
+    draftReason: s.draftReason || [],
+    consistencyFlags: s.consistencyFlags || [],
+    isEstimate: s.isEstimate ?? s.confidenceSource === 'estimated',
+    isDrafted: s.isDrafted ?? s.confidenceSource === 'drafted',
+    hasDataGaps: s.hasDataGaps ?? (s.limitations || []).length > 0,
+  });
+
   const loadSavedResult = (saved) => {
     setQuestionnaireName(saved.name);
     setFramework(saved.framework || null);
     setParseResult(saved.parseResult || null);
-    setAnswerDrafts(saved.answers.map(s => ({
-      ...s,
-      matchResult: { matchedKeywords: s.matchedKeywords || [] },
-      dataContext: { company: [], operational: [], calculated: [], metadata: { dataGaps: s.limitations || [], sitesIncluded: [] } },
-      evidence: '', metricKeysUsed: [], needsReview: s.answerConfidence !== 'high',
-      verifiedAnswer: s.verifiedAnswer ?? s.answer ?? null,
-      draftAnswer: s.draftAnswer ?? (s.isDrafted ? s.answer : null),
-      supportLevel: s.supportLevel || (s.confidenceSource === 'provided' && !s.isDrafted ? 'supported' : 'draft'),
-      dataCoverage: s.dataCoverage || (s.confidenceSource === 'provided' && !s.isDrafted ? 'complete' : (s.limitations?.length ? 'partial' : 'missing')),
-      contentMode: s.contentMode || (s.isDrafted ? 'mixed' : 'verified_only'),
-      evidenceRefs: s.evidenceRefs || [],
-      missingFields: s.missingFields || [],
-      suggestedFieldsToTrack: s.suggestedFieldsToTrack || [],
-      draftRisk: s.draftRisk || 'safe',
-      draftReason: s.draftReason || [],
-      consistencyFlags: s.consistencyFlags || [],
-      isEstimate: s.confidenceSource === 'estimated', isDrafted: s.confidenceSource === 'drafted' || !!s.isDrafted, hasDataGaps: (s.limitations || []).length > 0,
-    })));
+    setAnswerDrafts(saved.answers.map(normalizeDraft));
     setCompanyData(buildCompanyData());
     setPhase('results');
   };
@@ -345,20 +362,21 @@ export default function Respond() {
 
       const profile = buildCompanyProfile();
       const drafts = engine.generateDrafts(questions, matchResults, dataContexts, config, profile, classifications);
+      const normalizedDrafts = drafts.map(normalizeDraft);
 
       // Preserve user-edited answers on regenerate
       setAnswerDrafts(prev => {
-        if (prev.length === 0) return drafts;
+        if (prev.length === 0) return normalizedDrafts;
         const editedMap = new Map(prev.filter(d => d._edited).map(d => [d.questionId, d]));
-        return drafts.map(d => editedMap.has(d.questionId) ? { ...editedMap.get(d.questionId) } : d);
+        return normalizedDrafts.map(d => editedMap.has(d.questionId) ? { ...editedMap.get(d.questionId) } : d);
       });
 
       setGeneratingProgress({ step: 'Saving results...', percent: 95 });
       // Free users get current-session preview only — no history persistence
       if (isPaid) {
-        saveResults(drafts, name, fw, pr);
+        saveResults(normalizedDrafts, name, fw, pr);
       }
-      track('respond_answers_generated', { count: drafts.length, framework: fw || 'none' });
+      track('respond_answers_generated', { count: normalizedDrafts.length, framework: fw || 'none' });
       setPhase('results');
     } catch (err) {
       console.error('Pipeline error:', err);
@@ -400,8 +418,6 @@ export default function Respond() {
     return { total, byConfidence, byType, bySource, withData, needData, answered, readinessPercent, weightedScore, supported, drafted, insufficient };
   }, [answerDrafts]);
 
-  const dataQuality = useMemo(() => getDataQualitySummary(), []);
-  const trends = useMemo(() => computeYoYTrends(), []);
   const allDocuments = useMemo(() => getDocuments(), []);
 
   const filtered = useMemo(() => {
@@ -554,75 +570,110 @@ export default function Respond() {
     setShowExportDialog(true);
   };
 
+  const getExportFormatLabel = (format) => (
+    format === 'xlsx' ? 'Excel'
+      : format === 'pdf' ? 'PDF'
+      : format === 'doc' ? 'Word'
+      : 'HTML'
+  );
+
+  const buildRepreparePayload = () => {
+    if (parseResult?.questions?.length) return parseResult;
+    if (answerDrafts.length === 0) return null;
+    return {
+      metadata: {
+        detectedFramework: framework || null,
+      },
+      questions: answerDrafts.map((draft, index) => ({
+        id: draft.questionId || `Q${index + 1}`,
+        text: draft.questionText,
+        category: draft.category,
+        type: draft.questionType,
+      })),
+    };
+  };
+
   const handleReprepare = () => {
-    if (!parseResult?.questions?.length) {
+    const repreparePayload = buildRepreparePayload();
+    if (!repreparePayload?.questions?.length) {
       showFeedback('Original questionnaire is not available for re-prepare');
       return;
     }
-    runPipeline(parseResult, questionnaireName);
+    setPipelineError(null);
+    runPipeline(repreparePayload, questionnaireName);
+  };
+
+  const buildExportMetadata = (data, exportLanguage, exportFramework, creator = 'ESG Passport') => {
+    const policyNames = (data?.policies || [])
+      .filter(p => p.status === 'available')
+      .map(p => p.name)
+      .join('|');
+
+    return {
+      companyName: data?.companyName || '',
+      framework: exportFramework || undefined,
+      reportingPeriod: data?.reportingPeriod || '',
+      generatedAt: new Date().toISOString(),
+      language: exportLanguage,
+      packName: 'esg',
+      packVersion: '1.0.0',
+      creator,
+      extra: {
+        industry: data?.industry,
+        country: data?.country,
+        employeeCount: data?.employeeCount,
+        numberOfSites: data?.numberOfSites,
+        revenueBand: data?.revenueBand,
+        electricityKwh: data?.electricityKwh,
+        renewablePercent: data?.renewablePercent,
+        naturalGasM3: data?.naturalGasM3,
+        dieselLiters: data?.dieselLiters,
+        scope1Tco2e: data?.scope1Tco2e,
+        scope2Tco2e: data?.scope2Tco2e,
+        scope3Tco2e: data?.scope3Tco2e,
+        waterM3: data?.waterM3,
+        totalWasteKg: data?.totalWasteKg,
+        recyclingPercent: data?.recyclingPercent,
+        hazardousWasteKg: data?.hazardousWasteKg,
+        femalePercent: data?.femalePercent,
+        trainingHoursPerEmployee: data?.trainingHoursPerEmployee,
+        trirRate: data?.trirRate,
+        certifications: data?.certifications,
+        policyNames,
+      },
+    };
+  };
+
+  const exportWorkbook = async ({ drafts, metadata, fileName }) => {
+    const engine = await getEngine();
+    const localizedDrafts = localizeAnswerDrafts(drafts, metadata.language);
+    const buffer = await engine.exportToBuffer({ answerDrafts: localizedDrafts, metadata });
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    saveAs(blob, fileName);
   };
 
   const confirmExport = async () => {
     setExporting(true);
     try {
-      // Build policy names from structured policies
-      const policyNames = (companyData?.policies || [])
-        .filter(p => p.exists || p.status === 'available')
-        .map(p => p.name)
-        .join('|');
-
-      const exportMetadata = {
-        companyName: companyData?.companyName || '',
-        framework: framework || undefined,
-        reportingPeriod: companyData?.reportingPeriod || '',
-        generatedAt: new Date().toISOString(),
-        language,
-        packName: 'esg',
-        packVersion: '1.0.0',
-        creator: 'ESG Passport',
-        extra: {
-          industry: companyData?.industry,
-          country: companyData?.country,
-          employeeCount: companyData?.employeeCount,
-          numberOfSites: companyData?.numberOfSites,
-          revenueBand: companyData?.revenueBand,
-          electricityKwh: companyData?.electricityKwh,
-          renewablePercent: companyData?.renewablePercent,
-          naturalGasM3: companyData?.naturalGasM3,
-          dieselLiters: companyData?.dieselLiters,
-          scope1Tco2e: companyData?.scope1Tco2e,
-          scope2Tco2e: companyData?.scope2Tco2e,
-          scope3Tco2e: companyData?.scope3Tco2e,
-          waterM3: companyData?.waterM3,
-          totalWasteKg: companyData?.totalWasteKg,
-          recyclingPercent: companyData?.recyclingPercent,
-          hazardousWasteKg: companyData?.hazardousWasteKg,
-          femalePercent: companyData?.femalePercent,
-          trainingHoursPerEmployee: companyData?.trainingHoursPerEmployee,
-          trirRate: companyData?.trirRate,
-          certifications: companyData?.certifications,
-          policyNames,
-        },
-      };
-
-      const localizedDrafts = localizeAnswerDrafts(answerDrafts, language);
+      const exportMetadata = buildExportMetadata(companyData, language, framework);
 
       if (exportFormat === 'xlsx') {
-        const engine = await getEngine();
-        const buffer = await engine.exportToBuffer({ answerDrafts: localizedDrafts, metadata: exportMetadata });
-        const blob = new Blob([buffer], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        await exportWorkbook({
+          drafts: answerDrafts,
+          metadata: exportMetadata,
+          fileName: buildExcelFileName(exportMetadata.companyName),
         });
-        saveAs(blob, buildExcelFileName(exportMetadata.companyName));
         showFeedback('Excel downloaded');
       } else if (exportFormat === 'html') {
-        exportAnswersAsHtml(localizedDrafts, exportMetadata);
+        exportAnswersAsHtml(localizeAnswerDrafts(answerDrafts, language), exportMetadata);
         showFeedback('HTML downloaded');
       } else if (exportFormat === 'doc') {
-        exportAnswersAsWord(localizedDrafts, exportMetadata);
+        exportAnswersAsWord(localizeAnswerDrafts(answerDrafts, language), exportMetadata);
         showFeedback('Word document downloaded');
       } else if (exportFormat === 'pdf') {
-        printAnswersAsPdf(localizedDrafts, exportMetadata);
+        printAnswersAsPdf(localizeAnswerDrafts(answerDrafts, language), exportMetadata);
         showFeedback('Print preview opened');
       }
       setShowExportDialog(false);
@@ -631,6 +682,48 @@ export default function Respond() {
       showFeedback('Export failed — check console');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleBatchExportAllTemplates = async () => {
+    setBatchExporting(true);
+    try {
+      const engine = await getEngine();
+      const exportCompanyData = buildCompanyData();
+      const profile = buildCompanyProfile();
+      const templateList = Object.values(QUESTIONNAIRE_TEMPLATES);
+
+      for (const template of templateList) {
+        const parsePayload = templateToParseResult(template.id);
+        if (!parsePayload?.questions?.length) continue;
+
+        const questions = parsePayload.questions;
+        const matchResults = engine.matchQuestions(questions);
+        const classifications = engine.classifyQuestions?.(questions) || [];
+        const dataContexts = matchResults.map(mr => engine.retrieveData(mr, exportCompanyData));
+        const drafts = engine.generateDrafts(questions, matchResults, dataContexts, {
+          useLLM: false,
+          includeMethodology: true,
+          includeAssumptions: true,
+          includeLimitations: true,
+          verbosity: 'standard',
+          aggregateSites: true,
+        }, profile, classifications).map(normalizeDraft);
+
+        await exportWorkbook({
+          drafts,
+          metadata: buildExportMetadata(exportCompanyData, language, template.framework, 'ESG Passport Dev Export'),
+          fileName: buildExcelFileName(`${exportCompanyData?.companyName || 'responses'}-${template.id}`),
+        });
+      }
+
+      track('respond_batch_export_completed', { templates: templateList.length });
+      showFeedback(`Downloaded ${templateList.length} template exports`);
+    } catch (err) {
+      console.error('Batch export error:', err);
+      showFeedback('Batch export failed — check console');
+    } finally {
+      setBatchExporting(false);
     }
   };
 
@@ -810,9 +903,9 @@ export default function Respond() {
                 className="bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-40"
               >
                 {exporting ? (
-                  <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Exporting...</>
+                  <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Exporting {getExportFormatLabel(exportFormat)}...</>
                 ) : (
-                  <><Download className="w-4 h-4 mr-1.5" /> Export {exportFormat === 'xlsx' ? 'Excel' : exportFormat === 'pdf' ? 'PDF' : exportFormat === 'doc' ? 'Word' : 'HTML'}</>
+                  <><Download className="w-4 h-4 mr-1.5" /> Export {getExportFormatLabel(exportFormat)}</>
                 )}
               </Button>
             </DialogFooter>
@@ -1483,9 +1576,9 @@ export default function Respond() {
                 className="bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-40"
               >
                 {exporting ? (
-                  <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Exporting...</>
+                  <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Exporting {getExportFormatLabel(exportFormat)}...</>
                 ) : (
-                  <><Download className="w-4 h-4 mr-1.5" /> Export {exportFormat === 'xlsx' ? 'Excel' : exportFormat === 'pdf' ? 'PDF' : exportFormat === 'doc' ? 'Word' : 'HTML'}</>
+                  <><Download className="w-4 h-4 mr-1.5" /> Export {getExportFormatLabel(exportFormat)}</>
                 )}
               </Button>
             </DialogFooter>
@@ -1671,7 +1764,7 @@ export default function Respond() {
               </Button>
             )}
             {!showMapping && file && !parsing && (
-              <Button variant="outline" onClick={() => { setShowMapping(true); if (mappingColumns) {} else parseFile(); }} className="text-slate-600 border-slate-300">Manual Mapping</Button>
+              <Button variant="outline" onClick={() => { setShowMapping(true); if (!mappingColumns) parseFile(); }} className="text-slate-600 border-slate-300">Manual Mapping</Button>
             )}
           </div>
         </>
@@ -1680,6 +1773,27 @@ export default function Respond() {
       {/* Template Tab */}
       {uploadTab === 'template' && (
         <div className="space-y-3">
+          {devExportsEnabled && (
+            <div className="bg-amber-50 border border-amber-200 rounded-none p-4 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-900">Developer export tools</p>
+                <p className="text-xs text-slate-600 mt-1">Downloads every built-in template as an Excel workbook using your current passport data.</p>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleBatchExportAllTemplates}
+                disabled={batchExporting}
+                className="bg-slate-900 hover:bg-slate-800 text-white whitespace-nowrap"
+              >
+                {batchExporting ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Exporting all...</>
+                ) : (
+                  <><Download className="w-4 h-4 mr-2" /> Export all templates</>
+                )}
+              </Button>
+            </div>
+          )}
+
           {templates.map(t => (
             <button
               key={t.id}
@@ -1860,9 +1974,9 @@ export default function Respond() {
               className="bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-40"
             >
               {exporting ? (
-                <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Exporting...</>
+                <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Exporting {getExportFormatLabel(exportFormat)}...</>
               ) : (
-                <><Download className="w-4 h-4 mr-1.5" /> Export {exportFormat === 'xlsx' ? 'Excel' : exportFormat === 'pdf' ? 'PDF' : exportFormat === 'doc' ? 'Word' : 'HTML'}</>
+                <><Download className="w-4 h-4 mr-1.5" /> Export {getExportFormatLabel(exportFormat)}</>
               )}
             </Button>
           </DialogFooter>

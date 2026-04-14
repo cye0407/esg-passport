@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildCompanyData, buildCompanyProfile, computeYoYTrends } from '../dataBridge';
-import { saveData, resetData, saveCompanyProfile, saveDataRecord } from '../store';
+import { resetData, saveCompanyProfile, saveDataRecord, loadData, saveData } from '../store';
 
 // ============================================
 // Setup: clear localStorage between tests
@@ -201,6 +201,44 @@ describe('buildCompanyData', () => {
     seedProfile({ baselineYear: '2024' });
     const data = buildCompanyData();
     expect(data.reportingPeriod).toBe('2024');
+  });
+
+  it('normalizes legacy policy ids, categories, and statuses for export mapping', () => {
+    seedProfile();
+    const data = loadData();
+    data.policies = [
+      { id: 'codeOfConduct', name: 'Code of Conduct / Business Ethics', category: 'social', status: 'approved' },
+      { id: 'antiCorruptionPolicy', name: 'Anti-Corruption / Anti-Bribery Policy', category: '', status: 'published' },
+      { id: 'supplierCodeOfConduct', name: 'Supplier Code of Conduct', category: 'social', status: 'complete' },
+    ];
+    saveData(data);
+
+    const companyData = buildCompanyData('2025');
+    const policiesById = Object.fromEntries(companyData.policies.map((policy) => [policy.id, policy]));
+
+    expect(companyData.supplierCodeStatus).toBe('implemented');
+    expect(policiesById.code_of_conduct.category).toBe('governance');
+    expect(policiesById.code_of_conduct.status).toBe('available');
+    expect(policiesById.anti_corruption.category).toBe('governance');
+    expect(policiesById.anti_corruption.status).toBe('available');
+    expect(policiesById.supplier_code.category).toBe('governance');
+    expect(policiesById.supplier_code.status).toBe('available');
+  });
+
+  it('exposes governance policy implementation statuses for in-progress policies', () => {
+    seedProfile();
+    const data = loadData();
+    data.policies = [
+      { id: 'code_of_conduct', name: 'Code of Conduct / Business Ethics', category: 'governance', status: 'in_progress' },
+      { id: 'anti_corruption', name: 'Anti-Corruption / Anti-Bribery Policy', category: 'governance', status: 'in_progress' },
+      { id: 'supplier_code', name: 'Supplier Code of Conduct', category: 'governance', status: 'in_progress' },
+    ];
+    saveData(data);
+
+    const companyData = buildCompanyData('2025');
+    expect(companyData.codeOfConductStatus).toBe('in_progress');
+    expect(companyData.antiCorruptionStatus).toBe('in_progress');
+    expect(companyData.supplierCodeStatus).toBe('in_progress');
   });
 });
 

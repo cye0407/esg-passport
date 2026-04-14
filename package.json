@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "generate:exports": "node scripts/generate-export-fixtures.mjs",
+    "audit:exports": "node scripts/audit-exports.mjs",
+    "test:exports": "node scripts/generate-export-fixtures.mjs && node scripts/audit-exports.mjs phase0testing/harness/latest",
     "build:download": "vite build && node scripts/package-zip.js"
   },
   "dependencies": {

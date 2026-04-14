@@ -4,14 +4,70 @@
 // Translates the ESG Passport's localStorage data model
 // into the flat CompanyData type the answer engine expects.
 
-import { loadData, getDataRecords, getAnnualTotals, getCompanyProfile, getPolicies, getDocuments, getConfidenceRecords, getSettings } from './store';
-import { COUNTRIES } from './constants';
+import { getDataRecords, getAnnualTotals, getCompanyProfile, getPolicies, getDocuments, getConfidenceRecords, getSettings } from './store';
+import { COUNTRIES, DEFAULT_POLICIES } from './constants';
 
 const toTriStateBoolean = (value) => {
   if (value === 'yes') return true;
   if (value === 'no') return false;
   if (value === 'not_applicable') return 'not_applicable';
   return undefined;
+};
+
+const CERTIFICATION_NAME_PATTERN = /\b(iso\s?\d{4,5}|sa8000|ecovadis|fsc|pefc|iatf\s?16949|haccp|fssc\s?22000|b\s?corp)\b/i;
+const POLICY_STATUS_ALIASES = {
+  approved: 'available',
+  published: 'available',
+  complete: 'available',
+  yes: 'available',
+  true: 'available',
+  drafting: 'in_progress',
+  under_review: 'in_progress',
+  no: 'not_available',
+  false: 'not_available',
+};
+const POLICY_ID_ALIASES = {
+  codeOfConduct: 'code_of_conduct',
+  antiCorruptionPolicy: 'anti_corruption',
+  supplierCodeOfConduct: 'supplier_code',
+  healthSafetyPolicy: 'health_safety_policy',
+  health_safety: 'health_safety_policy',
+  diversity_inclusion_policy: 'diversity_inclusion',
+  dei_policy: 'diversity_inclusion',
+  iso9001: 'iso_9001',
+  iso14001: 'iso_14001',
+  climate_policy: 'climate_ghg',
+};
+const DEFAULT_POLICY_BY_ID = Object.fromEntries(DEFAULT_POLICIES.map((policy) => [policy.id, policy]));
+const DEFAULT_POLICY_BY_NAME = Object.fromEntries(DEFAULT_POLICIES.map((policy) => [String(policy.name || '').toLowerCase(), policy]));
+
+const inferPolicyCategory = (name = '') => {
+  const normalized = String(name).toLowerCase();
+  if (/environment|energy|waste|water|climate|biodiversity|iso 14001|emas/.test(normalized)) return 'environmental';
+  if (/health|safety|human rights|anti-discrimination|diversity|inclusion/.test(normalized)) return 'social';
+  return 'governance';
+};
+
+const normalizePolicy = (policy = {}) => {
+  const aliasedId = POLICY_ID_ALIASES[policy.id] || policy.id;
+  const byId = DEFAULT_POLICY_BY_ID[aliasedId];
+  const byName = DEFAULT_POLICY_BY_NAME[String(policy.name || '').toLowerCase()];
+  const canonical = byId || byName;
+  const rawStatus = String(policy.status || '').toLowerCase();
+  const normalizedStatus = POLICY_STATUS_ALIASES[rawStatus] || rawStatus || 'not_available';
+  const canonicalId = canonical?.id || aliasedId || policy.id;
+  const canonicalName = policy.name || canonical?.name || canonicalId;
+  const canonicalCategory = canonical?.category || policy.category || inferPolicyCategory(canonicalName);
+
+  return {
+    ...policy,
+    id: canonicalId,
+    name: canonicalName,
+    category: canonicalCategory,
+    status: normalizedStatus,
+    exists: normalizedStatus === 'available' || normalizedStatus === 'in_progress',
+    isCertification: policy.isCertification ?? canonical?.isCertification ?? CERTIFICATION_NAME_PATTERN.test(canonicalName),
+  };
 };
 
 const policyStatusToImplementation = (status) => {
@@ -67,7 +123,7 @@ export function buildCompanyData(year) {
   }
 
   const totals = getAnnualTotals(reportingYear);
-  const policies = getPolicies();
+  const policies = getPolicies().map(normalizePolicy);
   const settings = getSettings();
   const notApplicableFields = settings?.notApplicableFields || {};
 
@@ -77,7 +133,7 @@ export function buildCompanyData(year) {
 
   // Collect certifications from approved/published policies that are certifications
   const policyCerts = policies
-    .filter(p => p.isCertification && p.status === 'available')
+    .filter(p => p.status === 'available' && (p.isCertification || CERTIFICATION_NAME_PATTERN.test(p.name || '')))
     .map(p => p.name);
   const policyMap = Object.fromEntries(policies.map((p) => [p.id, p]));
   // Merge in chip-form certifications from the Company Profile section
@@ -155,15 +211,17 @@ export function buildCompanyData(year) {
 
     // Governance flags
     noSignificantFines: profile?.noSignificantFines || undefined,
-    dataProtectionPolicy: toTriStateBoolean(profile?.dataProtectionPolicy) ?? policyStatusToTriState(policyMap.data_privacy?.status),
+    dataProtectionPolicy: policyStatusToTriState(policyMap.data_privacy?.status) ?? toTriStateBoolean(profile?.dataProtectionPolicy),
     publishesSustainabilityReport: toTriStateBoolean(profile?.publishesSustainabilityReport),
     reportingFramework: profile?.reportingFramework || undefined,
     externalAssurance: toTriStateBoolean(profile?.externalAssurance),
     assuranceStandard: profile?.assuranceStandard || undefined,
     csrdApplicable: profile?.csrdApplicable || undefined,
-    humanRightsPolicyStatus: profile?.humanRightsPolicyStatus || policyStatusToImplementation(policyMap.human_rights?.status) || undefined,
+    codeOfConductStatus: policyStatusToImplementation(policyMap.code_of_conduct?.status) || undefined,
+    antiCorruptionStatus: policyStatusToImplementation(policyMap.anti_corruption?.status) || undefined,
+    humanRightsPolicyStatus: policyStatusToImplementation(policyMap.human_rights?.status) || profile?.humanRightsPolicyStatus || undefined,
     humanRightsDueDiligenceStatus: profile?.humanRightsDueDiligenceStatus || undefined,
-    supplierCodeStatus: profile?.supplierCodeStatus || policyStatusToImplementation(policyMap.supplier_code?.status) || undefined,
+    supplierCodeStatus: policyStatusToImplementation(policyMap.supplier_code?.status) || profile?.supplierCodeStatus || undefined,
     supplierCorrectiveActionProcess: profile?.supplierCorrectiveActionProcess || undefined,
     responsibleSourcingPolicyStatus: profile?.responsibleSourcingPolicyStatus || undefined,
     conflictMineralsStatus: profile?.conflictMineralsStatus || undefined,
@@ -199,7 +257,7 @@ export function buildCompanyData(year) {
     turnoverRate: totals.turnoverRate != null ? Math.round(totals.turnoverRate * 10) / 10 : undefined,
     collectiveBargainingPercent: totals.collectiveBargainingPercent != null ? Math.round(totals.collectiveBargainingPercent) : undefined,
     livingWageCompliant: toTriStateBoolean(profile?.livingWageCompliant),
-    grievanceMechanismExists: toTriStateBoolean(profile?.grievanceMechanismExists) ?? policyStatusToTriState(policyMap.whistleblower?.status),
+    grievanceMechanismExists: policyStatusToTriState(policyMap.whistleblower?.status) ?? toTriStateBoolean(profile?.grievanceMechanismExists),
     grievancesReported: totals.grievancesReported != null ? totals.grievancesReported : undefined,
     newHires: totals.newHires != null ? totals.newHires : undefined,
     suppliersAssessedPercent: totals.suppliersAssessedPercent != null ? Math.round(totals.suppliersAssessedPercent) : undefined,
