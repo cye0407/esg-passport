@@ -1,0 +1,1 @@
+{"version":3,"file":"matrixGenerator.d.ts","sourceRoot":"","sources":["../../../domain-packs/esg/matrixGenerator.ts"],"names":[],"mappings":"AAMA,OAAO,KAAK,EAAE,gBAAgB,EAAE,eAAe,EAAE,MAAM,6BAA6B,CAAC;AAIrF,OAAO,KAAK,EAAE,iBAAiB,EAAE,MAAM,SAAS,CAAC;AAMjD,eAAO,MAAM,mBAAmB,EAAE,gBAAgB,CAAC,iBAAiB,CAsBnE,CAAC;AAMF,eAAO,MAAM,kBAAkB,EAAE,eAAe,CAAC,iBAAiB,CA8GjE,CAAC"}

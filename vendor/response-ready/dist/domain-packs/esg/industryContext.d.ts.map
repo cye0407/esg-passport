@@ -1,0 +1,1 @@
+{"version":3,"file":"industryContext.d.ts","sourceRoot":"","sources":["../../../domain-packs/esg/industryContext.ts"],"names":[],"mappings":"AAMA,OAAO,KAAK,EAAmB,uBAAuB,EAAE,MAAM,6BAA6B,CAAC;AA0N5F,eAAO,MAAM,0BAA0B,EAAE,uBAyCxC,CAAC;AAMF,wBAAgB,aAAa,CAAC,MAAM,EAAE,MAAM,GAAG,MAAM,GAAG,IAAI,CAS3D;AAED,wBAAgB,mBAAmB,CAAC,MAAM,EAAE,MAAM,GAAG,MAAM,GAAG,IAAI,CAQjE"}
