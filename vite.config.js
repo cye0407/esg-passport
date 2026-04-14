@@ -1,9 +1,24 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
+const localResponseReadyRoot = path.resolve(__dirname, '../response-ready')
+const localEsgExtractRoot = path.resolve(__dirname, '../esg-extract')
+const alias = {
+  '@': path.resolve(__dirname, './src'),
+}
+
+if (existsSync(path.join(localResponseReadyRoot, 'src/index.ts'))) {
+  alias['response-ready/domain-packs/esg'] = path.resolve(localResponseReadyRoot, 'domain-packs/esg/index.ts')
+  alias['response-ready'] = path.resolve(localResponseReadyRoot, 'src/index.ts')
+}
+
+if (existsSync(path.join(localEsgExtractRoot, 'src/index.ts'))) {
+  alias['esg-extract'] = path.resolve(localEsgExtractRoot, 'src/index.ts')
+  alias['@extract'] = path.resolve(localEsgExtractRoot, 'src')
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -15,12 +30,6 @@ export default defineConfig({
     react(),
   ],
   resolve: {
-    alias: {
-      'response-ready/domain-packs/esg': path.resolve(__dirname, '../response-ready/domain-packs/esg/index.ts'),
-      'response-ready': path.resolve(__dirname, '../response-ready/src/index.ts'),
-      'esg-extract': path.resolve(__dirname, '../esg-extract/src/index.ts'),
-      '@extract': path.resolve(__dirname, '../esg-extract/src'),
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias,
   },
 })
