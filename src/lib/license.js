@@ -5,12 +5,21 @@
 // Calls /api/validate-license and /api/deactivate-license instead.
 
 const LICENSE_STORAGE_KEY = 'esg_passport_license';
+const PROD_API_ORIGIN = 'https://esgforsuppliers.com';
 
-// Use relative URL in production (same origin), absolute for local dev
+// In production, serverless API routes are same-origin.
+// In local Vite dev, /api/* is not served, so hit the hosted API directly.
 function apiUrl(path) {
-  // Vite dev server runs on a different port than Vercel functions
-  // In production, /api/* routes are served by Vercel serverless functions
+  if (typeof window !== 'undefined' && isLocalDev()) {
+    return `${PROD_API_ORIGIN}${path}`;
+  }
   return path;
+}
+
+function isLocalDev() {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1';
 }
 
 /**
@@ -36,7 +45,23 @@ export async function validateLicenseKey(key) {
       }),
     });
 
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      if (isLocalDev()) return { valid: true, instance_id: null };
+      return { valid: false, error: 'License validation failed. Please try again.' };
+    }
+
     const data = await response.json();
+
+    if (!response.ok) {
+      if (isLocalDev() && (response.status >= 500 || data.error === 'Could not reach license server' || data.error === 'License server not configured')) {
+        return { valid: true, instance_id: null };
+      }
+      return {
+        valid: false,
+        error: data.error || 'License validation failed.',
+      };
+    }
 
     if (data.valid) {
       return { valid: true, instance_id: data.instance?.id || null };

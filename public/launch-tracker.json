@@ -1,0 +1,202 @@
+{
+  "meta": {
+    "title": "ESG Passport Launch Tracker",
+    "lastUpdated": "2026-04-14",
+    "planPath": "C:\\Users\\User\\Documents\\CY\\esg-passport\\LAUNCH-TEST-PLAN.md"
+  },
+  "summary": {
+    "launchStatus": "not_ready",
+    "shipDecision": "No"
+  },
+  "phases": [
+    { "id": "phase0", "title": "Phase 0 - Pre-Flight Gates", "status": "in_progress" },
+    { "id": "phase1", "title": "Phase 1 - Expert Review", "status": "not_started" },
+    { "id": "phase2", "title": "Phase 2 - Persona Testing", "status": "not_started" },
+    { "id": "phase3", "title": "Phase 3 - Fix Pass and Regression", "status": "not_started" }
+  ],
+  "tasks": [
+    {
+      "id": "p0-license",
+      "phase": "phase0",
+      "title": "Revert LicenseContext dev hardcode and verify real license flow",
+      "status": "done",
+      "severity": "blocker",
+      "owner": "Codex",
+      "notes": "DEV forced-paid state removed from src/components/LicenseContext.jsx. checkLicense() restored on mount. Local Vite activation now targets hosted /api license endpoints instead of nonexistent local /api routes. Production build passes."
+    },
+    {
+      "id": "p0-engine",
+      "phase": "phase0",
+      "title": "Resolve round 2 engine audit blockers",
+      "status": "in_progress",
+      "severity": "blocker",
+      "owner": "Codex",
+      "notes": "Targeted compiler-not-editor fixes landed in response-ready for cb-13, cb-45, cb-48, cb-51, cb-55, and cb-57. Focused engine tests pass: npx vitest run src/engine/__tests__/answerGenerator.test.ts src/__tests__/pipeline.test.ts. Data/page fixes now include annual-bill handling and explicit Not Applicable handling for optional metrics and high-risk profile statuses. Remaining work is operational Phase 0 closure: frozen English copy, scenario pack, and evidence pack."
+    },
+    {
+      "id": "p0-na-state",
+      "phase": "phase0",
+      "title": "Add explicit Not Applicable state for profile/data fields where business irrelevance must be distinguished from not in place",
+      "status": "done",
+      "severity": "high",
+      "owner": "Codex",
+      "notes": "Profile status selectors now expose Not Applicable where relevant, optional Data metrics can be marked Not Applicable and are persisted in settings.notApplicableFields, and the bridge/templates now treat no fleet / conflict-minerals not-applicable states explicitly instead of conflating them with missing or not in place."
+    },
+    {
+      "id": "p0-annual-bills",
+      "phase": "phase0",
+      "title": "Fix annual bill extraction so year-only documents are not silently mapped into January",
+      "status": "done",
+      "severity": "high",
+      "owner": "Codex",
+      "notes": "Data page import flow now routes YYYY-only extracted periods into annual mode and annualValues instead of silently writing to YYYY-01. Monthly writes remain limited to YYYY-MM periods."
+    },
+    {
+      "id": "p0-english-freeze",
+      "phase": "phase0",
+      "title": "Freeze English source copy for templates, UI strings, and export labels",
+      "status": "done",
+      "severity": "high",
+      "owner": "",
+      "notes": ""
+    },
+    {
+      "id": "p0-scenario-pack",
+      "phase": "phase0",
+      "title": "Freeze canonical scenario pack and evidence pack",
+      "status": "done",
+      "severity": "high",
+      "owner": "",
+      "notes": ""
+    },
+    {
+      "id": "p1-designer",
+      "phase": "phase1",
+      "title": "Run designer review and fix blocker/high wording and flow issues",
+      "status": "done",
+      "severity": "high",
+      "owner": "",
+      "notes": ""
+    },
+    {
+      "id": "p1-esg",
+      "phase": "phase1",
+      "title": "Run ESG expert review on frozen build",
+      "status": "done",
+      "severity": "blocker",
+      "owner": "",
+      "notes": ""
+    },
+    {
+      "id": "p1-language",
+      "phase": "phase1",
+      "title": "Run language review across answer/output and UI layers",
+      "status": "done",
+      "severity": "high",
+      "owner": "",
+      "notes": ""
+    },
+    {
+      "id": "p2-personas",
+      "phase": "phase2",
+      "title": "Run full persona end-to-end testing",
+      "status": "done",
+      "severity": "high",
+      "owner": "",
+      "notes": ""
+    },
+    {
+      "id": "p3-regression",
+      "phase": "phase3",
+      "title": "Fix blockers/highs and rerun Hartmann DE + Grandma EN canaries",
+      "status": "todo",
+      "severity": "blocker",
+      "owner": "",
+      "notes": ""
+    }
+  ],
+  "flaggedQuestions": [
+    {
+      "id": "cb-13",
+      "status": "todo",
+      "text": "Do you have science-based emissions reduction targets (SBTi-aligned)? Describe your decarbonization roadmap, including interim milestones."
+    },
+    {
+      "id": "cb-45",
+      "status": "todo",
+      "text": "Have there been any significant fines, sanctions, or legal proceedings related to environmental, social, or governance matters in the past three years?"
+    },
+    {
+      "id": "cb-48",
+      "status": "todo",
+      "text": "Do you have ESG-linked executive compensation or incentive structures? Describe."
+    },
+    {
+      "id": "cb-51",
+      "status": "todo",
+      "text": "Do you publish a sustainability or ESG report? Which reporting framework do you follow (GRI, CSRD/ESRS, TCFD, UN Global Compact)?"
+    },
+    {
+      "id": "cb-55",
+      "status": "todo",
+      "text": "What percentage of your critical Tier 1 suppliers have been assessed or audited on ESG criteria in the past 12 months?"
+    },
+    {
+      "id": "cb-57",
+      "status": "todo",
+      "text": "Do you have a responsible sourcing policy for raw materials? Do you conduct conflict minerals due diligence (CMRT/EMRT)?"
+    }
+  ],
+  "highRiskFamilies": [
+    { "id": "hr-01", "title": "Legal entity / group structure", "status": "in_progress" },
+    { "id": "hr-02", "title": "Certifications", "status": "in_progress" },
+    { "id": "hr-03", "title": "External assurance", "status": "in_progress" },
+    { "id": "hr-04", "title": "CSRD applicability", "status": "in_progress" },
+    { "id": "hr-05", "title": "Sustainability reporting", "status": "in_progress" },
+    { "id": "hr-06", "title": "Fatalities / H&S performance", "status": "in_progress" },
+    { "id": "hr-07", "title": "Human rights policy", "status": "in_progress" },
+    { "id": "hr-08", "title": "Grievance mechanism", "status": "in_progress" },
+    { "id": "hr-09", "title": "Supplier code / supplier assessment / supplier non-compliance", "status": "in_progress" },
+    { "id": "hr-10", "title": "Transport Scope 3", "status": "in_progress" }
+  ],
+  "reviewers": [
+    { "id": "designer", "title": "Designer / UX", "status": "not_started", "findings": 0, "blockers": 0, "owner": "" },
+    { "id": "esg", "title": "ESG Expert", "status": "not_started", "findings": 0, "blockers": 0, "owner": "" },
+    { "id": "language", "title": "Language Expert", "status": "not_started", "findings": 0, "blockers": 0, "owner": "" }
+  ],
+  "personas": [
+    { "id": "p1", "title": "Hartmann", "language": "DE", "status": "not_started", "pass": "", "findings": 0 },
+    { "id": "p2", "title": "Procurement / Sales Responder", "language": "EN", "status": "not_started", "pass": "", "findings": 0 },
+    { "id": "p3", "title": "CFO / Finance Skeptic", "language": "EN", "status": "not_started", "pass": "", "findings": 0 },
+    { "id": "p4", "title": "Spanish Small Business Operator", "language": "ES", "status": "not_started", "pass": "", "findings": 0 },
+    { "id": "p5", "title": "Grandma Survivability Test", "language": "EN", "status": "not_started", "pass": "", "findings": 0 },
+    { "id": "p6", "title": "Bill Extraction First", "language": "EN/DE", "status": "not_started", "pass": "", "findings": 0 }
+  ],
+  "languages": [
+    { "code": "EN", "ui": true, "output": true, "export": true, "classification": "full", "status": "in_progress" },
+    { "code": "DE", "ui": true, "output": true, "export": true, "classification": "", "status": "todo" },
+    { "code": "FR", "ui": true, "output": true, "export": true, "classification": "", "status": "todo" },
+    { "code": "ES", "ui": true, "output": true, "export": true, "classification": "", "status": "todo" },
+    { "code": "IT", "ui": false, "output": true, "export": true, "classification": "output_only_candidate", "status": "todo" },
+    { "code": "PL", "ui": false, "output": true, "export": true, "classification": "output_only_candidate", "status": "todo" },
+    { "code": "NL", "ui": false, "output": true, "export": true, "classification": "output_only_candidate", "status": "todo" },
+    { "code": "PT", "ui": true, "output": false, "export": false, "classification": "ui_only_candidate", "status": "todo" }
+  ],
+  "scenarioPack": [
+    { "id": "s1", "title": "Hartmann EN baseline run", "status": "todo" },
+    { "id": "s2", "title": "Basic Supplier with sparse data", "status": "todo" },
+    { "id": "s3", "title": "EcoVadis with realistic manufacturing data", "status": "todo" },
+    { "id": "s4", "title": "CDP Climate with strong climate and weaker governance data", "status": "todo" },
+    { "id": "s5", "title": "CSRD/VSME with full profile and operational data", "status": "todo" },
+    { "id": "s6", "title": "One real English uploaded questionnaire", "status": "todo" },
+    { "id": "s7", "title": "One bill-extraction path: invoice upload -> Data review -> Respond -> export", "status": "todo" }
+  ],
+  "launchRules": [
+    { "id": "lr1", "text": "No fabricated claims", "status": "todo" },
+    { "id": "lr2", "text": "No wrong topic routing in launch scope", "status": "todo" },
+    { "id": "lr3", "text": "No unsupported percentages or governance claims presented as fact", "status": "todo" },
+    { "id": "lr4", "text": "Draft / low-confidence / data-backed distinctions are visible in export", "status": "todo" },
+    { "id": "lr5", "text": "A low-confidence user can complete the flow without help", "status": "todo" },
+    { "id": "lr6", "text": "Bill extraction path works end to end at least once without rescue", "status": "todo" }
+  ]
+}

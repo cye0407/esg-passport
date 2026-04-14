@@ -10,6 +10,7 @@ import { LANGUAGES, localizeAnswerDrafts, translateAnswer } from '@/lib/translat
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { track } from '@/lib/track';
+import { saveAs } from 'file-saver';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -40,6 +41,15 @@ async function getEngine() {
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
 const FREE_PREVIEW_LIMIT = 5;
 const CHECKOUT_URL = 'https://catyeldi.lemonsqueezy.com/checkout/buy/a8b7a3e5-2b8c-4f6f-922c-f5e04a08fe73';
+
+function buildExcelFileName(companyName) {
+  const safeCompany = String(companyName || 'responses')
+    .replace(/[^a-zA-Z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  const date = new Date().toISOString().slice(0, 10);
+  return `ESG-Responses-${safeCompany || 'responses'}-${date}.xlsx`;
+}
 
 const CONFIDENCE_CONFIG = {
   high: { color: 'text-green-700', bg: 'bg-green-50', dot: 'bg-green-500', label: 'High' },
@@ -235,6 +245,8 @@ export default function Respond() {
 
   const loadSavedResult = (saved) => {
     setQuestionnaireName(saved.name);
+    setFramework(saved.framework || null);
+    setParseResult(saved.parseResult || null);
     setAnswerDrafts(saved.answers.map(s => ({
       ...s,
       matchResult: { matchedKeywords: s.matchedKeywords || [] },
@@ -542,10 +554,17 @@ export default function Respond() {
     setShowExportDialog(true);
   };
 
+  const handleReprepare = () => {
+    if (!parseResult?.questions?.length) {
+      showFeedback('Original questionnaire is not available for re-prepare');
+      return;
+    }
+    runPipeline(parseResult, questionnaireName);
+  };
+
   const confirmExport = async () => {
     setExporting(true);
     try {
-      const engine = await getEngine();
       // Build policy names from structured policies
       const policyNames = (companyData?.policies || [])
         .filter(p => p.exists || p.status === 'available')
@@ -589,7 +608,12 @@ export default function Respond() {
       const localizedDrafts = localizeAnswerDrafts(answerDrafts, language);
 
       if (exportFormat === 'xlsx') {
-        await engine.exportToExcel({ answerDrafts: localizedDrafts, metadata: exportMetadata });
+        const engine = await getEngine();
+        const buffer = await engine.exportToBuffer({ answerDrafts: localizedDrafts, metadata: exportMetadata });
+        const blob = new Blob([buffer], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        saveAs(blob, buildExcelFileName(exportMetadata.companyName));
         showFeedback('Excel downloaded');
       } else if (exportFormat === 'html') {
         exportAnswersAsHtml(localizedDrafts, exportMetadata);
@@ -658,6 +682,142 @@ export default function Respond() {
           </div>
           <p className="text-xs text-slate-400 text-center mt-2">{generatingProgress.percent}%</p>
         </div>
+        <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+          <DialogContent className="max-w-3xl max-h-[88vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {exportWarnings.allGood ? (
+                  <><CheckCircle2 className="w-5 h-5 text-green-600" /> Ready to export</>
+                ) : (
+                  <><AlertTriangle className="w-5 h-5 text-amber-500" /> Review before exporting</>
+                )}
+              </DialogTitle>
+              <DialogDescription>
+                {exportWarnings.allGood
+                  ? 'All questions have data-backed answers. Your export is ready.'
+                  : `${exportWarnings.unknown.length + exportWarnings.estimated.length} of ${answerDrafts.length} answers need attention.`}
+              </DialogDescription>
+            </DialogHeader>
+
+            {!exportWarnings.allGood && (
+              <div className="overflow-y-auto flex-1 space-y-4 pr-1">
+                {exportWarnings.unknown.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4" />
+                      Missing data ({exportWarnings.unknown.length})
+                    </p>
+                    <div className="space-y-1.5">
+                      {exportWarnings.unknown.map(q => (
+                        <div key={q.id} className="text-sm border-l-2 border-red-300 pl-3 py-1">
+                          <p className="text-slate-800 font-medium">{q.id}: {q.text.length > 80 ? q.text.slice(0, 80) + '...' : q.text}</p>
+                          <p className="text-slate-500 text-xs">{q.action}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {exportWarnings.drafted.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-violet-700 mb-2 flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4" />
+                      Draft answers â€” not backed by tracked data ({exportWarnings.drafted.length})
+                    </p>
+                    <div className="space-y-1.5">
+                      {exportWarnings.drafted.map(q => (
+                        <div key={q.id} className="text-sm border-l-2 border-violet-300 pl-3 py-1">
+                          <p className="text-slate-800">{q.id}: {q.text.length > 80 ? q.text.slice(0, 80) + '...' : q.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {exportWarnings.estimated.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4" />
+                      Estimated answers ({exportWarnings.estimated.length})
+                    </p>
+                    <div className="space-y-1.5">
+                      {exportWarnings.estimated.map(q => (
+                        <div key={q.id} className="text-sm border-l-2 border-amber-300 pl-3 py-1">
+                          <p className="text-slate-800">{q.id}: {q.text.length > 80 ? q.text.slice(0, 80) + '...' : q.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-sm font-semibold text-slate-900 mb-2">Export format</p>
+              <RadioGroup value={exportFormat} onValueChange={setExportFormat} className="grid grid-cols-2 gap-3">
+                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                  <RadioGroupItem value="xlsx" className="mt-0.5" />
+                  <span className="text-sm text-slate-700">
+                    <span className="block font-medium text-slate-900">Excel</span>
+                    <span className="block text-xs text-slate-500">Best for buyer questionnaires</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                  <RadioGroupItem value="pdf" className="mt-0.5" />
+                  <span className="text-sm text-slate-700">
+                    <span className="block font-medium text-slate-900">PDF</span>
+                    <span className="block text-xs text-slate-500">Opens print preview for PDF save</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                  <RadioGroupItem value="doc" className="mt-0.5" />
+                  <span className="text-sm text-slate-700">
+                    <span className="block font-medium text-slate-900">Word</span>
+                    <span className="block text-xs text-slate-500">Editable .doc export</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                  <RadioGroupItem value="html" className="mt-0.5" />
+                  <span className="text-sm text-slate-700">
+                    <span className="block font-medium text-slate-900">HTML</span>
+                    <span className="block text-xs text-slate-500">Browser preview file</span>
+                  </span>
+                </label>
+              </RadioGroup>
+            </div>
+
+            {!exportWarnings.allGood && (
+              <label className="flex items-start gap-3 px-1 py-3 border-t border-slate-100 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={exportReviewConfirmed}
+                  onChange={(e) => setExportReviewConfirmed(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-300"
+                />
+                <span className="text-sm text-slate-700">
+                  I have reviewed all Draft and Insufficient answers. I understand these are not data-backed and require manual review before sending to a buyer.
+                </span>
+              </label>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setShowExportDialog(false)}>
+                Go back and review
+              </Button>
+              <Button
+                onClick={confirmExport}
+                disabled={exporting || (!exportWarnings.allGood && !exportReviewConfirmed)}
+                className="bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-40"
+              >
+                {exporting ? (
+                  <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Exporting...</>
+                ) : (
+                  <><Download className="w-4 h-4 mr-1.5" /> Export {exportFormat === 'xlsx' ? 'Excel' : exportFormat === 'pdf' ? 'PDF' : exportFormat === 'doc' ? 'Word' : 'HTML'}</>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -713,7 +873,7 @@ export default function Respond() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => runPipeline(parseResult, questionnaireName)}>
+              <Button variant="outline" size="sm" onClick={handleReprepare}>
                 <RefreshCw className="w-4 h-4 mr-1.5" /> Re-prepare
               </Button>
               <Button variant="outline" size="sm" onClick={resetToUpload}>
@@ -723,10 +883,10 @@ export default function Respond() {
                 size="sm"
                 onClick={isPaid ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
                 className="bg-slate-900 hover:bg-slate-800 text-white"
-                title={isPaid ? 'Export to Excel' : 'Pro feature — unlock for €199'}
+                title={isPaid ? 'Export responses' : 'Pro feature — unlock for €199'}
               >
                 {isPaid ? <Download className="w-4 h-4 mr-1.5" /> : <Shield className="w-4 h-4 mr-1.5" />}
-                {isPaid ? 'Export Excel' : 'Export — Pro'}
+                {isPaid ? 'Export' : 'Export — Pro'}
               </Button>
             </div>
           </div>
@@ -1191,10 +1351,146 @@ export default function Respond() {
               title={isPaid ? '' : 'Pro feature — unlock for €199'}
             >
               {isPaid ? <Download className="w-4 h-4 mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
-              {isPaid ? 'Export to Excel' : 'Unlock Export — €199'}
+              {isPaid ? 'Export' : 'Unlock Export — €199'}
             </Button>
           </div>
         )}
+        <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+          <DialogContent className="max-w-3xl max-h-[88vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {exportWarnings.allGood ? (
+                  <><CheckCircle2 className="w-5 h-5 text-green-600" /> Ready to export</>
+                ) : (
+                  <><AlertTriangle className="w-5 h-5 text-amber-500" /> Review before exporting</>
+                )}
+              </DialogTitle>
+              <DialogDescription>
+                {exportWarnings.allGood
+                  ? 'All questions have data-backed answers. Your export is ready.'
+                  : `${exportWarnings.unknown.length + exportWarnings.estimated.length} of ${answerDrafts.length} answers need attention.`}
+              </DialogDescription>
+            </DialogHeader>
+
+            {!exportWarnings.allGood && (
+              <div className="overflow-y-auto flex-1 space-y-4 pr-1">
+                {exportWarnings.unknown.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4" />
+                      Missing data ({exportWarnings.unknown.length})
+                    </p>
+                    <div className="space-y-1.5">
+                      {exportWarnings.unknown.map(q => (
+                        <div key={q.id} className="text-sm border-l-2 border-red-300 pl-3 py-1">
+                          <p className="text-slate-800 font-medium">{q.id}: {q.text.length > 80 ? q.text.slice(0, 80) + '...' : q.text}</p>
+                          <p className="text-slate-500 text-xs">{q.action}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {exportWarnings.drafted.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-violet-700 mb-2 flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4" />
+                      Draft answers - not backed by tracked data ({exportWarnings.drafted.length})
+                    </p>
+                    <div className="space-y-1.5">
+                      {exportWarnings.drafted.map(q => (
+                        <div key={q.id} className="text-sm border-l-2 border-violet-300 pl-3 py-1">
+                          <p className="text-slate-800">{q.id}: {q.text.length > 80 ? q.text.slice(0, 80) + '...' : q.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {exportWarnings.estimated.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4" />
+                      Estimated answers ({exportWarnings.estimated.length})
+                    </p>
+                    <div className="space-y-1.5">
+                      {exportWarnings.estimated.map(q => (
+                        <div key={q.id} className="text-sm border-l-2 border-amber-300 pl-3 py-1">
+                          <p className="text-slate-800">{q.id}: {q.text.length > 80 ? q.text.slice(0, 80) + '...' : q.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-sm font-semibold text-slate-900 mb-2">Export format</p>
+              <RadioGroup value={exportFormat} onValueChange={setExportFormat} className="grid grid-cols-2 gap-3">
+                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                  <RadioGroupItem value="xlsx" className="mt-0.5" />
+                  <span className="text-sm text-slate-700">
+                    <span className="block font-medium text-slate-900">Excel</span>
+                    <span className="block text-xs text-slate-500">Best for buyer questionnaires</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                  <RadioGroupItem value="pdf" className="mt-0.5" />
+                  <span className="text-sm text-slate-700">
+                    <span className="block font-medium text-slate-900">PDF</span>
+                    <span className="block text-xs text-slate-500">Opens print preview for PDF save</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                  <RadioGroupItem value="doc" className="mt-0.5" />
+                  <span className="text-sm text-slate-700">
+                    <span className="block font-medium text-slate-900">Word</span>
+                    <span className="block text-xs text-slate-500">Editable .doc export</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
+                  <RadioGroupItem value="html" className="mt-0.5" />
+                  <span className="text-sm text-slate-700">
+                    <span className="block font-medium text-slate-900">HTML</span>
+                    <span className="block text-xs text-slate-500">Browser preview file</span>
+                  </span>
+                </label>
+              </RadioGroup>
+            </div>
+
+            {!exportWarnings.allGood && (
+              <label className="flex items-start gap-3 px-1 py-3 border-t border-slate-100 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={exportReviewConfirmed}
+                  onChange={(e) => setExportReviewConfirmed(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-300"
+                />
+                <span className="text-sm text-slate-700">
+                  I have reviewed all Draft and Insufficient answers. I understand these are not data-backed and require manual review before sending to a buyer.
+                </span>
+              </label>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setShowExportDialog(false)}>
+                Go back and review
+              </Button>
+              <Button
+                onClick={confirmExport}
+                disabled={exporting || (!exportWarnings.allGood && !exportReviewConfirmed)}
+                className="bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-40"
+              >
+                {exporting ? (
+                  <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Exporting...</>
+                ) : (
+                  <><Download className="w-4 h-4 mr-1.5" /> Export {exportFormat === 'xlsx' ? 'Excel' : exportFormat === 'pdf' ? 'PDF' : exportFormat === 'doc' ? 'Word' : 'HTML'}</>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -1437,7 +1733,7 @@ export default function Respond() {
       )}
       {/* Export validation dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[88vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {exportWarnings.allGood ? (

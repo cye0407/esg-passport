@@ -8,10 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Settings as SettingsIcon, Building2, Zap, Trash2, Download, Upload,
-  Sparkles, Eye, EyeOff, ChevronDown, ChevronRight, KeyRound, Mail,
+  Sparkles, Eye, EyeOff, ChevronDown, ChevronRight, KeyRound, Mail, Loader2,
 } from 'lucide-react';
 import { deactivateLicense, getStoredLicense } from '@/lib/license';
 import { cn } from '@/lib/utils';
+import { useLicense } from '@/components/LicenseContext';
 
 function CollapsibleSection({ icon: Icon, title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -33,10 +34,14 @@ function CollapsibleSection({ icon: Icon, title, children, defaultOpen = false }
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { activate, isPaid } = useLicense();
   const [company, setCompany] = useState(null);
   const [settings, setSettings] = useState(null);
   const [saved, setSaved] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [licenseKey, setLicenseKey] = useState('');
+  const [licenseLoading, setLicenseLoading] = useState(false);
+  const [licenseError, setLicenseError] = useState('');
 
   useEffect(() => {
     setCompany(getCompanyProfile());
@@ -94,6 +99,27 @@ export default function Settings() {
     if (!confirm('Really delete everything?')) return;
     resetData();
     navigate('/onboarding');
+  };
+
+  const handleLicenseActivate = async (e) => {
+    e.preventDefault();
+    const key = licenseKey.trim();
+    if (!key) {
+      setLicenseError('Please enter a license key.');
+      return;
+    }
+
+    setLicenseLoading(true);
+    setLicenseError('');
+
+    const result = await activate(key);
+    if (!result.valid) {
+      setLicenseError(result.error || 'License activation failed.');
+    } else {
+      setLicenseKey('');
+    }
+
+    setLicenseLoading(false);
   };
 
   if (!company || !settings) {
@@ -267,10 +293,37 @@ export default function Settings() {
           {getStoredLicense()
             ? `License active since ${new Date(getStoredLicense().activated_at).toLocaleDateString()}.`
             : 'No license activated.'}
-          {' '}Deactivate to transfer to another device.
+          {' '}Activate here or deactivate to transfer to another device.
         </p>
+        {!isPaid && (
+          <form onSubmit={handleLicenseActivate} className="space-y-3 mb-4">
+            <div className="space-y-2">
+              <Label htmlFor="license-key">License Key</Label>
+              <Input
+                id="license-key"
+                value={licenseKey}
+                onChange={(e) => setLicenseKey(e.target.value)}
+                placeholder="Enter your license key"
+                className="font-mono text-sm"
+                disabled={licenseLoading}
+              />
+            </div>
+            {licenseError && <p className="text-sm text-red-600">{licenseError}</p>}
+            <Button type="submit" variant="outline" disabled={licenseLoading}>
+              {licenseLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Activating...
+                </>
+              ) : (
+                'Activate License'
+              )}
+            </Button>
+          </form>
+        )}
         <Button
           variant="outline"
+          disabled={!getStoredLicense()}
           onClick={async () => {
             if (!confirm('Deactivate your license on this device? You can reactivate on another device.')) return;
             await deactivateLicense();

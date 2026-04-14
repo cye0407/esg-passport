@@ -55,6 +55,13 @@ const REPORTING_PERIODS = [
   'Fiscal year (Oct – Sep)',
 ];
 
+const IMPLEMENTATION_STATUS_OPTIONS = [
+  { value: 'implemented', label: 'Implemented' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'not_in_place', label: 'Not in place' },
+  { value: 'not_applicable', label: 'Not applicable to this business' },
+];
+
 const FIELDS = [
   'legalName',
   'tradingName',
@@ -384,6 +391,7 @@ export default function CompanyProfileSection() {
                 <SelectContent>
                   <SelectItem value="yes">Yes — all employees paid at or above living wage</SelectItem>
                   <SelectItem value="no">No / Not yet assessed</SelectItem>
+                  <SelectItem value="not_applicable">Not applicable to this business</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -394,6 +402,7 @@ export default function CompanyProfileSection() {
                 <SelectContent>
                   <SelectItem value="yes">Yes — formal channel in place</SelectItem>
                   <SelectItem value="no">No / Informal only</SelectItem>
+                  <SelectItem value="not_applicable">Not applicable to this business</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -418,6 +427,7 @@ export default function CompanyProfileSection() {
                 <SelectContent>
                   <SelectItem value="yes">Yes — GDPR / data protection policy in place</SelectItem>
                   <SelectItem value="no">No / In development</SelectItem>
+                  <SelectItem value="not_applicable">Not applicable to this business</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -439,6 +449,7 @@ export default function CompanyProfileSection() {
                 <SelectContent>
                   <SelectItem value="yes">Yes — externally assured</SelectItem>
                   <SelectItem value="no">No — not yet assured</SelectItem>
+                  <SelectItem value="not_applicable">Not applicable to this business</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -459,6 +470,7 @@ export default function CompanyProfileSection() {
                 <SelectContent>
                   <SelectItem value="yes">Yes — published</SelectItem>
                   <SelectItem value="no">No — not yet</SelectItem>
+                  <SelectItem value="not_applicable">Not applicable to this business</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -481,9 +493,9 @@ export default function CompanyProfileSection() {
               <Select value={profile.humanRightsPolicyStatus || ''} onValueChange={(v) => update('humanRightsPolicyStatus', v)}>
                 <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="implemented">Implemented</SelectItem>
-                  <SelectItem value="in_progress">In progress</SelectItem>
-                  <SelectItem value="not_in_place">Not in place</SelectItem>
+                  {IMPLEMENTATION_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -492,9 +504,9 @@ export default function CompanyProfileSection() {
               <Select value={profile.humanRightsDueDiligenceStatus || ''} onValueChange={(v) => update('humanRightsDueDiligenceStatus', v)}>
                 <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="implemented">Implemented</SelectItem>
-                  <SelectItem value="in_progress">In progress</SelectItem>
-                  <SelectItem value="not_in_place">Not in place</SelectItem>
+                  {IMPLEMENTATION_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -503,9 +515,9 @@ export default function CompanyProfileSection() {
               <Select value={profile.supplierCodeStatus || ''} onValueChange={(v) => update('supplierCodeStatus', v)}>
                 <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="implemented">Implemented</SelectItem>
-                  <SelectItem value="in_progress">In progress</SelectItem>
-                  <SelectItem value="not_in_place">Not in place</SelectItem>
+                  {IMPLEMENTATION_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -514,9 +526,9 @@ export default function CompanyProfileSection() {
               <Select value={profile.responsibleSourcingPolicyStatus || ''} onValueChange={(v) => update('responsibleSourcingPolicyStatus', v)}>
                 <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="implemented">Implemented</SelectItem>
-                  <SelectItem value="in_progress">In progress</SelectItem>
-                  <SelectItem value="not_in_place">Not in place</SelectItem>
+                  {IMPLEMENTATION_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -525,9 +537,9 @@ export default function CompanyProfileSection() {
               <Select value={profile.conflictMineralsStatus || ''} onValueChange={(v) => update('conflictMineralsStatus', v)}>
                 <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="implemented">Implemented</SelectItem>
-                  <SelectItem value="in_progress">In progress</SelectItem>
-                  <SelectItem value="not_in_place">Not in place</SelectItem>
+                  {IMPLEMENTATION_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -540,6 +552,7 @@ export default function CompanyProfileSection() {
                     <SelectItem value="implemented">CMRT live</SelectItem>
                     <SelectItem value="in_progress">CMRT in progress</SelectItem>
                     <SelectItem value="not_in_place">No CMRT</SelectItem>
+                    <SelectItem value="not_applicable">CMRT not applicable</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={profile.emrtStatus || ''} onValueChange={(v) => update('emrtStatus', v)}>
@@ -548,6 +561,7 @@ export default function CompanyProfileSection() {
                     <SelectItem value="implemented">EMRT live</SelectItem>
                     <SelectItem value="in_progress">EMRT in progress</SelectItem>
                     <SelectItem value="not_in_place">No EMRT</SelectItem>
+                    <SelectItem value="not_applicable">EMRT not applicable</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

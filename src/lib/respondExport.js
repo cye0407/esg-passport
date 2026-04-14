@@ -1,4 +1,5 @@
 import { getExportStrings, localizeAnswerDrafts } from '@/lib/translations';
+import { saveAs } from 'file-saver';
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -31,7 +32,6 @@ function formatCoverage(draft, copy) {
 function buildRows(answerDrafts, copy) {
   return answerDrafts.map((draft, index) => {
     const mainText = draft.verifiedAnswer || draft.answer || '';
-    const suggested = draft.draftAnswer && draft.draftAnswer !== draft.verifiedAnswer ? draft.draftAnswer : '';
     return `
       <tr>
         <td>${index + 1}</td>
@@ -39,7 +39,6 @@ function buildRows(answerDrafts, copy) {
         <td>${escapeHtml(formatStatus(draft, copy))}</td>
         <td>${escapeHtml(formatCoverage(draft, copy))}</td>
         <td>${escapeHtml(mainText)}</td>
-        <td>${suggested ? escapeHtml(suggested) : ''}</td>
       </tr>
     `;
   }).join('');
@@ -93,7 +92,6 @@ function buildHtmlDocument(answerDrafts, metadata, titleSuffix = 'Questionnaire 
         <th>${escapeHtml(copy.status)}</th>
         <th>${escapeHtml(copy.coverage)}</th>
         <th>${escapeHtml(copy.answer)}</th>
-        <th>${escapeHtml(copy.suggestedDraft)}</th>
       </tr>
     </thead>
     <tbody>
@@ -107,14 +105,7 @@ function buildHtmlDocument(answerDrafts, metadata, titleSuffix = 'Questionnaire 
 
 function triggerDownload(content, type, filename) {
   const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  saveAs(blob, filename);
 }
 
 export function exportAnswersAsHtml(answerDrafts, metadata) {
@@ -131,13 +122,20 @@ export function exportAnswersAsWord(answerDrafts, metadata) {
 
 export function printAnswersAsPdf(answerDrafts, metadata) {
   const html = buildHtmlDocument(answerDrafts, metadata, 'Questionnaire Responses (Print/PDF)');
-  const win = window.open('', '_blank', 'noopener,noreferrer');
+  const printHtml = html.replace(
+    '</body>',
+    `<script>
+      window.addEventListener('load', () => {
+        setTimeout(() => window.print(), 250);
+      }, { once: true });
+    </script></body>`
+  );
+  const blob = new Blob([printHtml], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
   if (!win) {
+    URL.revokeObjectURL(url);
     throw new Error('Popup blocked. Allow popups to open print preview.');
   }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  win.print();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }

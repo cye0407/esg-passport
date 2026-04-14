@@ -4,8 +4,15 @@
 // Translates the ESG Passport's localStorage data model
 // into the flat CompanyData type the answer engine expects.
 
-import { loadData, getDataRecords, getAnnualTotals, getCompanyProfile, getPolicies, getDocuments, getConfidenceRecords } from './store';
+import { loadData, getDataRecords, getAnnualTotals, getCompanyProfile, getPolicies, getDocuments, getConfidenceRecords, getSettings } from './store';
 import { COUNTRIES } from './constants';
+
+const toTriStateBoolean = (value) => {
+  if (value === 'yes') return true;
+  if (value === 'no') return false;
+  if (value === 'not_applicable') return 'not_applicable';
+  return undefined;
+};
 const GAS_M3_TO_KWH = 10.55; // kWh per m³ natural gas
 
 /**
@@ -46,6 +53,8 @@ export function buildCompanyData(year) {
 
   const totals = getAnnualTotals(reportingYear);
   const policies = getPolicies();
+  const settings = getSettings();
+  const notApplicableFields = settings?.notApplicableFields || {};
 
   const countryName = profile?.countryOfIncorporation
     ? (CODE_TO_NAME[profile.countryOfIncorporation] || profile.countryOfIncorporation)
@@ -130,10 +139,10 @@ export function buildCompanyData(year) {
 
     // Governance flags
     noSignificantFines: profile?.noSignificantFines || undefined,
-    dataProtectionPolicy: profile?.dataProtectionPolicy === 'yes' ? true : profile?.dataProtectionPolicy === 'no' ? false : undefined,
-    publishesSustainabilityReport: profile?.publishesSustainabilityReport === 'yes' ? true : profile?.publishesSustainabilityReport === 'no' ? false : undefined,
+    dataProtectionPolicy: toTriStateBoolean(profile?.dataProtectionPolicy),
+    publishesSustainabilityReport: toTriStateBoolean(profile?.publishesSustainabilityReport),
     reportingFramework: profile?.reportingFramework || undefined,
-    externalAssurance: profile?.externalAssurance === 'yes' ? true : profile?.externalAssurance === 'no' ? false : undefined,
+    externalAssurance: toTriStateBoolean(profile?.externalAssurance),
     assuranceStandard: profile?.assuranceStandard || undefined,
     csrdApplicable: profile?.csrdApplicable || undefined,
     humanRightsPolicyStatus: profile?.humanRightsPolicyStatus || undefined,
@@ -146,7 +155,7 @@ export function buildCompanyData(year) {
     emrtStatus: profile?.emrtStatus || undefined,
     wastewaterTreatmentDetails: profile?.wastewaterTreatmentDetails || undefined,
     transportReductionMeasures: profile?.transportReductionMeasures || undefined,
-    fleetComposition: profile?.fleetComposition || undefined,
+    fleetComposition: profile?.fleetComposition || (notApplicableFields['energy.vehicleFuelLiters'] ? 'not_applicable' : undefined),
     packagingRecycledContentPercent: profile?.packagingRecycledContentPercent ? parseFloat(profile.packagingRecycledContentPercent) : undefined,
 
     // Energy — use != null to preserve zero values
@@ -154,7 +163,7 @@ export function buildCompanyData(year) {
     energySavingsKwh: totals.energySavingsKwh != null ? totals.energySavingsKwh : undefined,
     renewablePercent: totals.renewablePercent != null ? Math.round(totals.renewablePercent) : undefined,
     naturalGasM3,
-    dieselLiters: totals.vehicleFuelLiters != null ? totals.vehicleFuelLiters : undefined,
+    dieselLiters: notApplicableFields['energy.vehicleFuelLiters'] ? undefined : (totals.vehicleFuelLiters != null ? totals.vehicleFuelLiters : undefined),
     waterM3: totals.waterM3 != null ? totals.waterM3 : undefined,
     waterSourceMunicipalPercent: totals.waterSourceMunicipalPercent != null ? Math.round(totals.waterSourceMunicipalPercent) : undefined,
 
@@ -173,8 +182,8 @@ export function buildCompanyData(year) {
     womenInLeadershipPercent: totals.womenInLeadershipPercent != null ? Math.round(totals.womenInLeadershipPercent) : undefined,
     turnoverRate: totals.turnoverRate != null ? Math.round(totals.turnoverRate * 10) / 10 : undefined,
     collectiveBargainingPercent: totals.collectiveBargainingPercent != null ? Math.round(totals.collectiveBargainingPercent) : undefined,
-    livingWageCompliant: profile?.livingWageCompliant === 'yes' ? true : profile?.livingWageCompliant === 'no' ? false : undefined,
-    grievanceMechanismExists: profile?.grievanceMechanismExists === 'yes' ? true : profile?.grievanceMechanismExists === 'no' ? false : undefined,
+    livingWageCompliant: toTriStateBoolean(profile?.livingWageCompliant),
+    grievanceMechanismExists: toTriStateBoolean(profile?.grievanceMechanismExists),
     grievancesReported: totals.grievancesReported != null ? totals.grievancesReported : undefined,
     newHires: totals.newHires != null ? totals.newHires : undefined,
     suppliersAssessedPercent: totals.suppliersAssessedPercent != null ? Math.round(totals.suppliersAssessedPercent) : undefined,

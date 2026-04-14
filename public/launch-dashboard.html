@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ESG Passport Launch Control</title>
+    <style>
+      :root {
+        --bg: #f4f1e8;
+        --panel: #fffdf8;
+        --line: #d8d1c3;
+        --ink: #1f2937;
+        --muted: #6b7280;
+        --good: #1f7a4d;
+        --warn: #b7791f;
+        --bad: #b42318;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        color: var(--ink);
+        background: linear-gradient(180deg, #f8f5ee 0%, var(--bg) 100%);
+      }
+      .page { max-width: 1400px; margin: 0 auto; padding: 24px; }
+      .hero, .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        box-shadow: 0 10px 30px rgba(31,41,55,0.08);
+      }
+      .hero { padding: 24px; display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+      .hero h1 { margin: 0 0 8px; font-size: 34px; }
+      .muted { color: var(--muted); }
+      .summary, .layout { display: grid; gap: 16px; margin-top: 16px; }
+      .summary { grid-template-columns: repeat(4, 1fr); }
+      .layout { grid-template-columns: 1.2fr 1fr; }
+      .panel { padding: 18px; }
+      .metric { font-size: 34px; line-height: 1; margin: 6px 0; }
+      .list { display: grid; gap: 10px; }
+      .item { border: 1px solid var(--line); background: #fffcf5; padding: 12px; }
+      .top { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+      .title { font-weight: 700; font-size: 15px; }
+      .small { font-size: 13px; line-height: 1.4; }
+      .status {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+        border: 1px solid currentColor; padding: 4px 8px; white-space: nowrap;
+      }
+      .todo, .not_started { color: #475467; }
+      .in_progress { color: var(--warn); }
+      .done, .complete, .passed, .ready, .full { color: var(--good); }
+      .blocked, .fail, .failed, .not_ready { color: var(--bad); }
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+      .chip { border: 1px solid var(--line); background: #efe7d9; padding: 4px 8px; font-size: 12px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { border: 1px solid var(--line); padding: 8px; text-align: left; vertical-align: top; }
+      th { background: #f0eadf; }
+      .progress { width: 100%; height: 10px; background: #ece5d7; border: 1px solid var(--line); margin-top: 8px; }
+      .bar { height: 100%; background: linear-gradient(90deg, #b7791f 0%, #1f7a4d 100%); }
+      code { background: #efe7d9; padding: 1px 4px; }
+      @media (max-width: 1100px) { .hero, .summary, .layout { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <section class="hero">
+        <div>
+        <h1 id="title">Loading launch tracker…</h1>
+          <div class="muted small" id="subtitle">Waiting for tracker data.</div>
+        </div>
+        <div class="small">
+          <div><strong>Plan:</strong> <span id="plan"></span></div>
+          <div style="margin-top: 8px;"><strong>Last updated:</strong> <span id="updated"></span></div>
+          <div style="margin-top: 8px;"><strong>Ship decision:</strong> <span id="ship"></span></div>
+          <div style="margin-top: 8px;"><strong>Launch status:</strong> <span id="launch"></span></div>
+          <div style="margin-top: 8px;"><strong>Mode:</strong> Local browser state</div>
+        </div>
+      </section>
+
+      <section class="summary" id="summary"></section>
+
+      <section class="layout">
+        <div class="panel">
+          <h2>Phases</h2>
+          <div class="list" id="phases"></div>
+        </div>
+        <div class="panel">
+          <h2>Immediate Punch List</h2>
+          <div class="list" id="tasks"></div>
+        </div>
+        <div class="panel">
+          <h2>Next Actions</h2>
+          <div class="list" id="next-actions"></div>
+        </div>
+        <div class="panel">
+          <h2>Status Summary</h2>
+          <div class="list" id="summary-notes"></div>
+        </div>
+        <div class="panel">
+          <h2>Reviewers</h2>
+          <div class="list" id="reviewers"></div>
+        </div>
+        <div class="panel">
+          <h2>Personas</h2>
+          <div class="list" id="personas"></div>
+        </div>
+        <div class="panel">
+          <h2>Flagged Questions</h2>
+          <div class="list" id="flagged"></div>
+        </div>
+        <div class="panel">
+          <h2>High-Risk Topic Families</h2>
+          <div class="list" id="risks"></div>
+        </div>
+        <div class="panel">
+          <h2>Scenario Pack</h2>
+          <div class="list" id="scenarios"></div>
+        </div>
+        <div class="panel">
+          <h2>Launch Rules</h2>
+          <div class="list" id="rules"></div>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top: 16px;">
+        <h2>Language Matrix</h2>
+        <div id="languages"></div>
+        <p class="small muted">Changes made here are saved in browser local storage only. Use Export Snapshot to copy a JSON version back into <code>public/launch-tracker.json</code>.</p>
+      </section>
+
+      <section class="panel" style="margin-top: 16px;">
+        <h2>Activity Feed</h2>
+        <div class="list" id="activity"></div>
+      </section>
+
+      <section class="panel" style="margin-top: 16px;">
+        <h2>Control Bar</h2>
+        <div class="chips">
+          <button id="refresh-btn" class="chip" type="button">Reload from File</button>
+          <button id="export-btn" class="chip" type="button">Export Snapshot</button>
+          <button id="reset-btn" class="chip" type="button">Reset Local Changes</button>
+        </div>
+        <p class="small muted" style="margin-top: 10px;">This control app auto-summarizes progress, blockers, and next actions. Browser edits are local until you export them.</p>
+      </section>
+    </div>
+
+    <script>
+      const doneSet = new Set(["done", "complete", "passed", "ready", "full"]);
+      const blockedSet = new Set(["blocked", "fail", "failed", "not_ready"]);
+      const STORAGE_KEY = "esg_passport_launch_tracker_local";
+      const statusClass = (value) => String(value || "todo").toLowerCase().replace(/\s+/g, "_");
+
+      let state = null;
+
+      function make(tag, cls, text) {
+        const node = document.createElement(tag);
+        if (cls) node.className = cls;
+        if (text !== undefined) node.textContent = text;
+        return node;
+      }
+
+      function badge(status) {
+        return make("span", `status ${statusClass(status)}`, String(status || "todo").replace(/_/g, " "));
+      }
+
+      function countDone(items) {
+        return items.filter((item) => doneSet.has(String(item.status || "").toLowerCase())).length;
+      }
+
+      function pct(done, total) {
+        return total ? Math.round((done / total) * 100) : 0;
+      }
+
+      function renderList(rootId, items, formatter) {
+        const root = document.getElementById(rootId);
+        root.innerHTML = "";
+        items.forEach((item) => root.appendChild(formatter(item)));
+      }
+
+      function statusSelect(current, onChange) {
+        const select = document.createElement("select");
+        ["todo", "in_progress", "blocked", "done"].forEach((value) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = value.replace(/_/g, " ");
+          if (String(current) === value) option.selected = true;
+          select.appendChild(option);
+        });
+        select.addEventListener("change", (event) => onChange(event.target.value));
+        return select;
+      }
+
+      function editableText(value, placeholder, onChange) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = value || "";
+        input.placeholder = placeholder || "";
+        input.style.width = "100%";
+        input.style.marginTop = "8px";
+        input.style.padding = "6px 8px";
+        input.style.border = "1px solid var(--line)";
+        input.style.background = "#fff";
+        input.addEventListener("change", (event) => onChange(event.target.value));
+        return input;
+      }
+
+      function itemCard(title, status, detail, chips = []) {
+        const card = make("div", "item");
+        const top = make("div", "top");
+        const left = make("div");
+        left.appendChild(make("div", "title", title));
+        if (detail) left.appendChild(make("div", "small muted", detail));
+        top.appendChild(left);
+        top.appendChild(badge(status));
+        card.appendChild(top);
+        if (chips.length) {
+          const chipRow = make("div", "chips");
+          chips.forEach((chip) => chipRow.appendChild(make("span", "chip", chip)));
+          card.appendChild(chipRow);
+        }
+        return card;
+      }
+
+      function addActivity(text) {
+        state.activity = state.activity || [];
+        state.activity.unshift({
+          date: new Date().toISOString(),
+          text
+        });
+        state.activity = state.activity.slice(0, 20);
+      }
+
+      function saveLocal() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+
+      function recomputeSummary() {
+        const all = [...state.tasks, ...state.reviewers, ...state.personas, ...state.scenarioPack, ...state.launchRules];
+        const blockers = state.tasks.filter((x) => x.severity === "blocker" && !doneSet.has(String(x.status))).length;
+        const highs = state.tasks.filter((x) => x.severity === "high" && !doneSet.has(String(x.status))).length;
+        const overall = pct(countDone(all), all.length);
+        state.summary = state.summary || {};
+        state.summary.openBlockers = blockers;
+        state.summary.openHighs = highs;
+        state.summary.overallProgress = overall;
+        state.summary.shipDecision = blockers === 0 ? "Not yet" : "No";
+        state.summary.launchStatus = blockers === 0 && highs === 0 ? "close" : "not_ready";
+      }
+
+      function getNextActions() {
+        return state.tasks
+          .filter((task) => !doneSet.has(String(task.status)))
+          .sort((a, b) => {
+            const sevOrder = { blocker: 0, high: 1, medium: 2, low: 3 };
+            return (sevOrder[a.severity] ?? 9) - (sevOrder[b.severity] ?? 9);
+          })
+          .slice(0, 5);
+      }
+
+      function getSummaryNotes() {
+        const notes = [];
+        const blockers = state.summary.openBlockers || 0;
+        const highs = state.summary.openHighs || 0;
+        if (blockers > 0) notes.push(`${blockers} blocker task(s) still open.`);
+        else notes.push("No blocker tasks currently open.");
+        if (highs > 0) notes.push(`${highs} high-priority task(s) still open.`);
+        const phase0 = state.tasks.filter((t) => t.phase === "phase0");
+        notes.push(`Phase 0 progress: ${countDone(phase0)}/${phase0.length} complete.`);
+        const personasDone = countDone(state.personas);
+        notes.push(`Persona runs complete: ${personasDone}/${state.personas.length}.`);
+        return notes;
+      }
+
+      function render() {
+        recomputeSummary();
+
+        document.getElementById("title").textContent = state.meta.title;
+        document.getElementById("subtitle").textContent = "Single-screen launch control app with local editing, auto summaries, and activity tracking.";
+        document.getElementById("plan").textContent = state.meta.planPath;
+        document.getElementById("updated").textContent = state.meta.lastUpdated;
+        document.getElementById("ship").textContent = state.summary.shipDecision;
+        document.getElementById("launch").textContent = state.summary.launchStatus;
+
+        const summaryRoot = document.getElementById("summary");
+        summaryRoot.innerHTML = "";
+        const all = [...state.tasks, ...state.reviewers, ...state.personas, ...state.scenarioPack, ...state.launchRules];
+        const blockers = state.summary.openBlockers || 0;
+        const highs = state.summary.openHighs || 0;
+        [
+          ["Overall Progress", `${state.summary.overallProgress || 0}%`, `${countDone(all)} of ${all.length} tracked items complete`],
+          ["Open Blockers", String(blockers), "Launch-critical work still open"],
+          ["Open Highs", String(highs), "Important but non-terminal work still open"],
+          ["Personas Complete", `${countDone(state.personas)}/${state.personas.length}`, "Buyer-archetype runs completed"]
+        ].forEach(([label, value, note]) => {
+          const card = make("div", "panel");
+          card.appendChild(make("h2", "", label));
+          card.appendChild(make("div", "metric", value));
+          card.appendChild(make("div", "small muted", note));
+          summaryRoot.appendChild(card);
+        });
+
+        renderList("phases", state.phases, (phase) => {
+          const phaseTasks = state.tasks.filter((t) => t.phase === phase.id);
+          const done = countDone(phaseTasks);
+          const card = itemCard(phase.title, phase.status, `${done}/${phaseTasks.length} tasks complete`);
+          const progress = make("div", "progress");
+          const bar = make("div", "bar");
+          bar.style.width = `${pct(done, phaseTasks.length)}%`;
+          progress.appendChild(bar);
+          card.appendChild(progress);
+          return card;
+        });
+
+        renderList("tasks", state.tasks, (task) => {
+          const card = itemCard(task.title, task.status, task.notes || "", [`Phase: ${task.phase}`, `Severity: ${task.severity}`]);
+          card.appendChild(statusSelect(task.status, (value) => {
+            task.status = value;
+            state.meta.lastUpdated = new Date().toISOString().slice(0, 10);
+            addActivity(`Task updated: ${task.title} -> ${value}`);
+            saveLocal();
+            render();
+          }));
+          card.appendChild(editableText(task.owner, "Owner", (value) => {
+            task.owner = value;
+            saveLocal();
+          }));
+          return card;
+        });
+
+        renderList("next-actions", getNextActions(), (task) =>
+          itemCard(task.title, task.status, task.notes || "", [`Severity: ${task.severity}`, `Phase: ${task.phase}`])
+        );
+
+        renderList("summary-notes", getSummaryNotes(), (note) => itemCard(note, "info", ""));
+
+        renderList("reviewers", state.reviewers, (reviewer) => {
+          const card = itemCard(reviewer.title, reviewer.status, "", [`Findings: ${reviewer.findings}`, `Blockers: ${reviewer.blockers}`]);
+          card.appendChild(statusSelect(reviewer.status, (value) => {
+            reviewer.status = value;
+            state.meta.lastUpdated = new Date().toISOString().slice(0, 10);
+            addActivity(`Reviewer updated: ${reviewer.title} -> ${value}`);
+            saveLocal();
+            render();
+          }));
+          card.appendChild(editableText(reviewer.owner, "Owner", (value) => {
+            reviewer.owner = value;
+            saveLocal();
+          }));
+          return card;
+        });
+
+        renderList("personas", state.personas, (persona) => {
+          const card = itemCard(`${persona.title} (${persona.language})`, persona.pass || persona.status, "", [`Findings: ${persona.findings}`]);
+          card.appendChild(statusSelect(persona.status, (value) => {
+            persona.status = value;
+            if (value === "done") persona.pass = "passed";
+            state.meta.lastUpdated = new Date().toISOString().slice(0, 10);
+            addActivity(`Persona updated: ${persona.title} -> ${value}`);
+            saveLocal();
+            render();
+          }));
+          return card;
+        });
+
+        renderList("flagged", state.flaggedQuestions, (q) => {
+          const card = itemCard(q.id, q.status, q.text);
+          card.appendChild(statusSelect(q.status, (value) => {
+            q.status = value;
+            state.meta.lastUpdated = new Date().toISOString().slice(0, 10);
+            addActivity(`Flagged question updated: ${q.id} -> ${value}`);
+            saveLocal();
+            render();
+          }));
+          return card;
+        });
+
+        renderList("risks", state.highRiskFamilies, (r) => {
+          const card = itemCard(r.id, r.status, r.title);
+          card.appendChild(editableText(r.title, "Topic family", (value) => {
+            r.title = value;
+            saveLocal();
+          }));
+          return card;
+        });
+
+        renderList("scenarios", state.scenarioPack, (s) => {
+          const card = itemCard(s.title, s.status, "");
+          card.appendChild(statusSelect(s.status, (value) => {
+            s.status = value;
+            state.meta.lastUpdated = new Date().toISOString().slice(0, 10);
+            addActivity(`Scenario updated: ${s.title} -> ${value}`);
+            saveLocal();
+            render();
+          }));
+          return card;
+        });
+
+        renderList("rules", state.launchRules, (r) => {
+          const card = itemCard(r.text, r.status, "");
+          card.appendChild(statusSelect(r.status, (value) => {
+            r.status = value;
+            state.meta.lastUpdated = new Date().toISOString().slice(0, 10);
+            addActivity(`Launch rule updated: ${r.text} -> ${value}`);
+            saveLocal();
+            render();
+          }));
+          return card;
+        });
+
+        const langRoot = document.getElementById("languages");
+        langRoot.innerHTML = "";
+        const table = make("table");
+        table.innerHTML = "<thead><tr><th>Language</th><th>UI</th><th>Output</th><th>Export</th><th>Classification</th><th>Status</th></tr></thead>";
+        const body = make("tbody");
+        state.languages.forEach((lang) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `<td><strong>${lang.code}</strong></td><td>${lang.ui ? "Yes" : "No"}</td><td>${lang.output ? "Yes" : "No"}</td><td>${lang.export ? "Yes" : "No"}</td><td>${lang.classification || "—"}</td><td></td>`;
+          const cell = row.children[5];
+          const select = statusSelect(lang.status, (value) => {
+            lang.status = value;
+            state.meta.lastUpdated = new Date().toISOString().slice(0, 10);
+            addActivity(`Language updated: ${lang.code} -> ${value}`);
+            saveLocal();
+            render();
+          });
+          cell.appendChild(select);
+          body.appendChild(row);
+        });
+        table.appendChild(body);
+        langRoot.appendChild(table);
+
+        renderList("activity", state.activity || [], (entry) => {
+          const when = entry.date ? new Date(entry.date).toLocaleString() : "";
+          return itemCard(entry.text, "info", when);
+        });
+      }
+
+      async function loadFromFile() {
+        const res = await fetch("./launch-tracker.json", { cache: "no-store" });
+        return res.json();
+      }
+
+      async function boot() {
+        const local = localStorage.getItem(STORAGE_KEY);
+        if (local) {
+          state = JSON.parse(local);
+        } else {
+          state = await loadFromFile();
+          state.activity = state.activity || [];
+          saveLocal();
+        }
+
+        document.getElementById("refresh-btn").addEventListener("click", async () => {
+          state = await loadFromFile();
+          state.activity = state.activity || [];
+          addActivity("Reloaded tracker from file.");
+          saveLocal();
+          render();
+        });
+
+        document.getElementById("reset-btn").addEventListener("click", async () => {
+          localStorage.removeItem(STORAGE_KEY);
+          state = await loadFromFile();
+          state.activity = state.activity || [];
+          saveLocal();
+          render();
+        });
+
+        document.getElementById("export-btn").addEventListener("click", () => {
+          const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "launch-tracker.snapshot.json";
+          a.click();
+          URL.revokeObjectURL(url);
+        });
+
+        render();
+      }
+
+      boot().catch((error) => {
+        document.getElementById("title").textContent = "Launch control failed to load";
+        document.getElementById("subtitle").textContent = "Open this through the Vite dev server or ensure public/launch-tracker.json exists.";
+        console.error(error);
+      });
+    </script>
+  </body>
+</html>

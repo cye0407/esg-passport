@@ -118,6 +118,7 @@ export const DATA_STATUSES = [
 export const POLICY_STATUSES = [
   { value: 'available', label: 'Available', color: 'bg-green-100 text-green-800' },
   { value: 'in_progress', label: 'In Progress', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'not_applicable', label: 'Not Applicable', color: 'bg-slate-100 text-slate-700' },
   { value: 'not_available', label: 'Not Available', color: 'bg-gray-100 text-gray-600' },
   { value: 'not_planned', label: 'Not Planned', color: 'bg-gray-100 text-gray-400' },
 ];

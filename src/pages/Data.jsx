@@ -75,6 +75,7 @@ export default function Data() {
   // Per-metric source notes — "where I find this number each month"
   // Keyed by `${section}.${field}`. One source per metric, edited inline.
   const [dataSources, setDataSources] = useState({});
+  const [notApplicableFields, setNotApplicableFields] = useState({});
   const [editingSource, setEditingSource] = useState(null); // key being edited
   const [editingSourceValue, setEditingSourceValue] = useState('');
   const [showSourceExplainer, setShowSourceExplainer] = useState(false);
@@ -83,9 +84,17 @@ export default function Data() {
     track('data_page_viewed');
     const settings = getSettings();
     setDataSources(settings.dataSources || {});
+    setNotApplicableFields(settings.notApplicableFields || {});
   }, []);
 
   const sourceKey = (row) => `${row.section}.${row.field}`;
+  const metricKey = (section, field) => `${section}.${field}`;
+  const isFieldNotApplicable = (section, field) => !!notApplicableFields[metricKey(section, field)];
+
+  const persistNotApplicableFields = (next) => {
+    setNotApplicableFields(next);
+    saveSettings({ notApplicableFields: next });
+  };
 
   const startEditSource = (row) => {
     const key = sourceKey(row);
@@ -198,6 +207,12 @@ export default function Data() {
   });
 
   const updateField = (period, section, field, value) => {
+    const key = metricKey(section, field);
+    if (notApplicableFields[key]) {
+      const next = { ...notApplicableFields };
+      delete next[key];
+      persistNotApplicableFields(next);
+    }
     setRecords(prev => {
       const existing = prev[period] || createEmptyRecord(period);
       return {
@@ -238,13 +253,38 @@ export default function Data() {
   };
 
   const handleBillExtracted = useCallback((fields, extractedPeriod) => {
-    // Determine which month to write to
-    // If extracted period is YYYY-MM, use that. If YYYY, use January. If missing, use current month.
+    // Determine where extracted values belong.
+    // YYYY-MM documents map to a monthly record.
+    // YYYY-only documents map to annual mode for that year instead of silently
+    // being written into January, which is misleading for annual bills.
+    if (extractedPeriod && /^\d{4}$/.test(extractedPeriod)) {
+      setSelectedYear(parseInt(extractedPeriod, 10));
+      setEntryMode('annual');
+      setAnnualValues(prev => {
+        const next = { ...prev };
+        for (const f of fields) {
+          const mapping = EXTRACT_FIELD_MAP[f.field];
+          if (!mapping) continue;
+          const val = typeof f.value === 'number' ? f.value : parseFloat(f.value);
+          if (isNaN(val)) continue;
+          next[`${mapping.section}.${mapping.field}`] = String(val);
+        }
+        return next;
+      });
+      setHasChanges(true);
+      setSaved(false);
+      track('bill_extracted', {
+        fields: fields.length,
+        periodType: 'annual',
+        extractedPeriod,
+        documentType: fields[0]?.source?.rawText?.slice(0, 30) || 'unknown',
+      });
+      return;
+    }
+
     let targetPeriod;
     if (extractedPeriod && /^\d{4}-\d{2}$/.test(extractedPeriod)) {
       targetPeriod = extractedPeriod;
-    } else if (extractedPeriod && /^\d{4}$/.test(extractedPeriod)) {
-      targetPeriod = `${extractedPeriod}-01`;
     } else {
       targetPeriod = `${selectedYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
     }
@@ -259,6 +299,8 @@ export default function Data() {
 
     track('bill_extracted', {
       fields: fields.length,
+      periodType: 'monthly',
+      extractedPeriod: extractedPeriod || 'fallback_current_month',
       documentType: fields[0]?.source?.rawText?.slice(0, 30) || 'unknown',
     });
   }, [selectedYear, updateField]);
@@ -266,6 +308,24 @@ export default function Data() {
   const getValue = (period, section, field) => {
     const record = records[period];
     return record?.[section]?.[field] ?? '';
+  };
+
+  const clearMetricValues = (section, field) => {
+    setRecords(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(period => {
+        const existing = next[period] || createEmptyRecord(period);
+        next[period] = {
+          ...existing,
+          [section]: {
+            ...existing[section],
+            [field]: '',
+          },
+        };
+      });
+      return next;
+    });
+    setAnnualValues(prev => ({ ...prev, [metricKey(section, field)]: '' }));
   };
 
   // Validation logic
@@ -339,6 +399,7 @@ export default function Data() {
         const updated = { ...existing, period: month.period };
 
         dataRows.forEach(row => {
+          if (isFieldNotApplicable(row.section, row.field)) return;
           const val = getAnnualInputValue(row.section, row.field);
           if (val !== '') {
             const numVal = parseFloat(val) || 0;
@@ -380,7 +441,7 @@ export default function Data() {
           energy: {
             electricityKwh: parseFloat(record.energy?.electricityKwh) || null,
             naturalGasKwh: parseFloat(record.energy?.naturalGasKwh) || null,
-            vehicleFuelLiters: parseFloat(record.energy?.vehicleFuelLiters) || null,
+            vehicleFuelLiters: isFieldNotApplicable('energy', 'vehicleFuelLiters') ? null : (parseFloat(record.energy?.vehicleFuelLiters) || null),
             renewablePercent: parseFloat(record.energy?.renewablePercent) || null,
             energySavingsKwh: parseFloat(record.energy?.energySavingsKwh) || null,
             ...emissions,
@@ -392,7 +453,7 @@ export default function Data() {
           waste: {
             totalKg: parseFloat(record.waste?.totalKg) || null,
             recycledKg: parseFloat(record.waste?.recycledKg) || null,
-            hazardousKg: parseFloat(record.waste?.hazardousKg) || null,
+            hazardousKg: isFieldNotApplicable('waste', 'hazardousKg') ? null : (parseFloat(record.waste?.hazardousKg) || null),
             recyclingRate,
           },
           workforce: {
@@ -493,8 +554,25 @@ export default function Data() {
   const coreRows = dataRows.filter(r => !optionalFields.includes(r.field));
   const optionalRows = dataRows.filter(r => optionalFields.includes(r.field));
   const visibleRows = showAllMetrics || optionalFields.length === 0 ? dataRows : coreRows;
+  const isOptionalRow = (row) => optionalFields.includes(row.field);
+
+  const toggleNotApplicable = (row) => {
+    if (!isOptionalRow(row)) return;
+    const key = metricKey(row.section, row.field);
+    const next = { ...notApplicableFields };
+    if (next[key]) {
+      delete next[key];
+    } else {
+      next[key] = true;
+      clearMetricValues(row.section, row.field);
+    }
+    persistNotApplicableFields(next);
+    setHasChanges(true);
+    setSaved(false);
+  };
 
   const calculateYearTotal = (section, field) => {
+    if (isFieldNotApplicable(section, field)) return null;
     let total = 0;
     monthsToShow.forEach(month => {
       const val = parseFloat(getValue(month.period, section, field)) || 0;
@@ -542,6 +620,12 @@ export default function Data() {
   const getAnnualInputValue = (section, field) => annualValues[`${section}.${field}`] ?? '';
 
   const updateAnnualValue = (section, field, value) => {
+    const key = metricKey(section, field);
+    if (notApplicableFields[key]) {
+      const next = { ...notApplicableFields };
+      delete next[key];
+      persistNotApplicableFields(next);
+    }
     setAnnualValues(prev => ({ ...prev, [`${section}.${field}`]: value }));
     setHasChanges(true);
     setSaved(false);
@@ -899,6 +983,20 @@ export default function Data() {
                     {row.label}
                     {row.noSum && entryMode === 'annual' && <span className="text-[10px] text-slate-400 ml-1">(snapshot)</span>}
                   </span>
+                  {isOptionalRow(row) && (
+                    <button
+                      type="button"
+                      onClick={() => toggleNotApplicable(row)}
+                      className={cn(
+                        "mt-1 block text-[11px] text-left",
+                        isFieldNotApplicable(row.section, row.field)
+                          ? "text-slate-700"
+                          : "text-slate-400 hover:text-slate-700"
+                      )}
+                    >
+                      {isFieldNotApplicable(row.section, row.field) ? 'Marked not applicable' : 'Mark as not applicable'}
+                    </button>
+                  )}
                   {editingSource === sourceKey(row) ? (
                     <div className="mt-1 flex items-center gap-1">
                       <input
@@ -940,22 +1038,23 @@ export default function Data() {
                   <>
                     {monthsToShow.map(month => {
                       const error = getError(month.period, row.section, row.field);
+                      const notApplicable = isFieldNotApplicable(row.section, row.field);
                       return (
                         <td key={month.period} className="py-1 px-0.5">
                           <input
                             type="text"
                             inputMode="numeric"
                             pattern="[0-9]*"
-                            value={getValue(month.period, row.section, row.field)}
+                            value={notApplicable ? 'N/A' : getValue(month.period, row.section, row.field)}
                             onChange={(e) => {
                               const val = e.target.value.replace(/[^0-9.]/g, '');
                               updateField(month.period, row.section, row.field, val);
                             }}
-                            disabled={month.isFuture}
+                            disabled={month.isFuture || notApplicable}
                             title={error || ''}
                             className={cn(
                               "w-full h-7 text-center text-sm px-1 border rounded-md focus:outline-none",
-                              month.isFuture
+                              month.isFuture || notApplicable
                                 ? "bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed"
                                 : error
                                   ? "bg-red-50 border-red-400 text-red-900 focus:border-red-500 focus:ring-1 focus:ring-red-200"
@@ -966,7 +1065,7 @@ export default function Data() {
                       );
                     })}
                     <td className="py-1.5 pl-2 text-right font-medium text-slate-900">
-                      {row.noSum ? '' : (calculateYearTotal(row.section, row.field) || '')}
+                      {isFieldNotApplicable(row.section, row.field) ? 'N/A' : (row.noSum ? '' : (calculateYearTotal(row.section, row.field) || ''))}
                     </td>
                   </>
                 ) : (
@@ -975,13 +1074,19 @@ export default function Data() {
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
-                      value={getAnnualInputValue(row.section, row.field)}
+                      value={isFieldNotApplicable(row.section, row.field) ? 'N/A' : getAnnualInputValue(row.section, row.field)}
                       onChange={(e) => {
                         const val = e.target.value.replace(/[^0-9.]/g, '');
                         updateAnnualValue(row.section, row.field, val);
                       }}
                       placeholder={row.noSum ? 'Current value' : 'Annual total'}
-                      className="w-full max-w-[200px] mx-auto h-8 text-center text-sm px-2 border rounded-md focus:outline-none bg-white border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20 block"
+                      disabled={isFieldNotApplicable(row.section, row.field)}
+                      className={cn(
+                        "w-full max-w-[200px] mx-auto h-8 text-center text-sm px-2 border rounded-md focus:outline-none block",
+                        isFieldNotApplicable(row.section, row.field)
+                          ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed"
+                          : "bg-white border-slate-200 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20"
+                      )}
                     />
                   </td>
                 )}
