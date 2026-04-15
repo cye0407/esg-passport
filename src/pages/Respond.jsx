@@ -976,7 +976,7 @@ export default function Respond() {
                 size="sm"
                 onClick={isPaid ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
                 className="bg-slate-900 hover:bg-slate-800 text-white"
-                title={isPaid ? 'Export responses' : 'Pro feature — unlock for €199'}
+                title={isPaid ? 'Export responses' : 'Pro feature — unlock for €299'}
               >
                 {isPaid ? <Download className="w-4 h-4 mr-1.5" /> : <Shield className="w-4 h-4 mr-1.5" />}
                 {isPaid ? 'Export' : 'Export — Pro'}
@@ -1041,7 +1041,7 @@ export default function Respond() {
                   variant="outline"
                   size="sm"
                   className="text-xs"
-                  title={isPaid ? '' : 'Pro feature — unlock for €199'}
+                  title={isPaid ? '' : 'Pro feature — unlock for €299'}
                 >
                   {enhancingAll ? (
                     <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {enhanceProgress.done}/{enhanceProgress.total}</>
@@ -1397,7 +1397,7 @@ export default function Respond() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none transition-colors"
                   >
-                    Unlock all {filtered.length} answers — €199
+                    Unlock all {filtered.length} answers — €299
                   </a>
                   <p className="text-xs text-slate-400">
                     Already purchased? <Link to="/settings" className="underline">Activate your license key</Link>
@@ -1441,10 +1441,10 @@ export default function Respond() {
             <Button
               onClick={isPaid ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
               className="bg-slate-900 hover:bg-slate-800 text-white"
-              title={isPaid ? '' : 'Pro feature — unlock for €199'}
+              title={isPaid ? '' : 'Pro feature — unlock for €299'}
             >
               {isPaid ? <Download className="w-4 h-4 mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
-              {isPaid ? 'Export' : 'Unlock Export — €199'}
+              {isPaid ? 'Export' : 'Unlock Export — €299'}
             </Button>
           </div>
         )}
