@@ -6,15 +6,17 @@
 
 const LICENSE_STORAGE_KEY = 'esg_passport_license';
 const LICENSE_INSTANCE_NAME_KEY = 'esg_passport_license_instance_name';
-const PROD_API_ORIGIN = 'https://esgforsuppliers.com';
+// The API routes only exist on the Passport's own Vercel deployment.
+// esgforsuppliers.com proxies /app/* to here but NOT /api/*, so when the
+// app is loaded via the marketing-site proxy we have to call the Passport
+// deployment's API directly (cross-origin, with CORS allowed by the route).
+const PASSPORT_API_ORIGIN = 'https://esg-passport-seven.vercel.app';
 
-// In production, serverless API routes are same-origin.
-// In local Vite dev, /api/* is not served, so hit the hosted API directly.
 function apiUrl(path) {
-  if (typeof window !== 'undefined' && isLocalDev()) {
-    return `${PROD_API_ORIGIN}${path}`;
-  }
-  return path;
+  if (typeof window === 'undefined') return `${PASSPORT_API_ORIGIN}${path}`;
+  const host = window.location.hostname;
+  if (host === 'esg-passport-seven.vercel.app') return path; // same-origin
+  return `${PASSPORT_API_ORIGIN}${path}`;
 }
 
 function isLocalDev() {
