@@ -42,6 +42,7 @@ export default function Settings() {
   const [licenseKey, setLicenseKey] = useState('');
   const [licenseLoading, setLicenseLoading] = useState(false);
   const [licenseError, setLicenseError] = useState('');
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
 
   useEffect(() => {
     setCompany(getCompanyProfile());
@@ -323,14 +324,28 @@ export default function Settings() {
         )}
         <Button
           variant="outline"
-          disabled={!getStoredLicense()}
+          disabled={!getStoredLicense() || deactivateLoading}
           onClick={async () => {
             if (!confirm('Deactivate your license on this device? You can reactivate on another device.')) return;
-            await deactivateLicense();
+            setDeactivateLoading(true);
+            setLicenseError('');
+            const result = await deactivateLicense();
+            setDeactivateLoading(false);
+            if (!result.ok) {
+              setLicenseError(result.error || 'License deactivation failed.');
+              return;
+            }
             window.location.reload();
           }}
         >
-          Deactivate License
+          {deactivateLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Deactivating...
+            </>
+          ) : (
+            'Deactivate License'
+          )}
         </Button>
       </div>
 

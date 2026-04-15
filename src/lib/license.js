@@ -5,6 +5,7 @@
 // Calls /api/validate-license and /api/deactivate-license instead.
 
 const LICENSE_STORAGE_KEY = 'esg_passport_license';
+const LICENSE_INSTANCE_NAME_KEY = 'esg_passport_license_instance_name';
 const PROD_API_ORIGIN = 'https://esgforsuppliers.com';
 
 // In production, serverless API routes are same-origin.
@@ -22,6 +23,70 @@ function isLocalDev() {
   return host === 'localhost' || host === '127.0.0.1';
 }
 
+function generateInstanceName() {
+  if (typeof window === 'undefined') return 'web-server';
+  const id = window.crypto?.randomUUID?.()
+    || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `web-${id}`;
+}
+
+function getInstanceName() {
+  if (typeof window === 'undefined') return 'web-server';
+  const existing = localStorage.getItem(LICENSE_INSTANCE_NAME_KEY);
+  if (existing) return existing;
+  const generated = generateInstanceName();
+  localStorage.setItem(LICENSE_INSTANCE_NAME_KEY, generated);
+  return generated;
+}
+
+async function requestLicenseValidation(key, {
+  allowLocalDevFallback = true,
+  instanceName = getInstanceName(),
+} = {}) {
+  const response = await fetch(apiUrl('/api/validate-license'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      license_key: key,
+      instance_name: instanceName,
+    }),
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    if (allowLocalDevFallback && isLocalDev()) return { valid: true, instance_id: null, fallback: true };
+    return { valid: false, error: 'License validation failed. Please try again.' };
+  }
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    if (allowLocalDevFallback && isLocalDev() && (response.status >= 500 || data.error === 'Could not reach license server' || data.error === 'License server not configured')) {
+      return { valid: true, instance_id: null, fallback: true };
+    }
+    return {
+      valid: false,
+      error: data.error || 'License validation failed.',
+    };
+  }
+
+  if (data.valid) {
+    return { valid: true, instance_id: data.instance?.id || null };
+  }
+
+  const errorMessages = {
+    'not_found': 'License key not found. Please check and try again.',
+    'expired': 'This license has expired. Please renew at esgforsuppliers.com.',
+    'disabled': 'This license has been deactivated. Please contact support.',
+    'limit_reached': 'This license is already active on another device. Please deactivate it there first, or contact support.',
+  };
+
+  return {
+    valid: false,
+    error: errorMessages[data.error] || data.error || 'Invalid license key.',
+  };
+}
+
 /**
  * Validate a license key.
  * Tries server validation first (works on hosted version at esgforsuppliers.com).
@@ -34,52 +99,9 @@ export async function validateLicenseKey(key) {
     return { valid: false, error: 'That doesn\u2019t look like a valid license key. Please check and try again.' };
   }
 
-  // Try server validation (works on hosted version)
   try {
-    const response = await fetch(apiUrl('/api/validate-license'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        license_key: key,
-        instance_name: getInstanceName(),
-      }),
-    });
-
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      if (isLocalDev()) return { valid: true, instance_id: null };
-      return { valid: false, error: 'License validation failed. Please try again.' };
-    }
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      if (isLocalDev() && (response.status >= 500 || data.error === 'Could not reach license server' || data.error === 'License server not configured')) {
-        return { valid: true, instance_id: null };
-      }
-      return {
-        valid: false,
-        error: data.error || 'License validation failed.',
-      };
-    }
-
-    if (data.valid) {
-      return { valid: true, instance_id: data.instance?.id || null };
-    }
-
-    // Map common error codes to user-friendly messages
-    const errorMessages = {
-      'not_found': 'License key not found. Please check and try again.',
-      'expired': 'This license has expired. Please renew at esgforsuppliers.com.',
-      'disabled': 'This license has been deactivated. Please contact support.',
-      'limit_reached': 'This license is already active on another device. Please deactivate it there first, or contact support.',
-    };
-
-    return {
-      valid: false,
-      error: errorMessages[data.error] || data.error || 'Invalid license key.',
-    };
-  } catch (err) {
+    return await requestLicenseValidation(key);
+  } catch {
     // Server unreachable — likely running from downloaded zip.
     // Accept the key based on format check alone.
     return { valid: true, instance_id: null };
@@ -91,33 +113,69 @@ export async function validateLicenseKey(key) {
  */
 export async function deactivateLicense() {
   const stored = getStoredLicense();
-  if (!stored?.key || !stored?.instance_id) return;
+  if (!stored?.key) {
+    return { ok: false, error: 'No active license found on this device.' };
+  }
+
+  let instanceId = stored.instance_id;
+
+  if (!instanceId) {
+    try {
+      const refreshed = await requestLicenseValidation(stored.key, {
+        allowLocalDevFallback: false,
+        instanceName: stored.instance_name || getInstanceName(),
+      });
+      if (refreshed.valid && refreshed.instance_id) {
+        instanceId = refreshed.instance_id;
+        storeLicense(stored.key, instanceId, {
+          activated_at: stored.activated_at,
+          instance_name: stored.instance_name,
+        });
+      }
+    } catch {
+      return { ok: false, error: 'Could not reach the license server. Your license was not deactivated.' };
+    }
+  }
+
+  if (!instanceId) {
+    return { ok: false, error: 'Could not identify the active license instance for this device.' };
+  }
 
   try {
-    await fetch(apiUrl('/api/deactivate-license'), {
+    const response = await fetch(apiUrl('/api/deactivate-license'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         license_key: stored.key,
-        instance_id: stored.instance_id,
+        instance_id: instanceId,
       }),
     });
+
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await response.json() : null;
+
+    if (!response.ok) {
+      return { ok: false, error: data?.error || 'License deactivation failed. Please try again.' };
+    }
   } catch {
-    // Silently fail — user can still clear local storage
+    return { ok: false, error: 'Could not reach the license server. Your license was not deactivated.' };
   }
 
   localStorage.removeItem(LICENSE_STORAGE_KEY);
+  return { ok: true };
 }
 
 /**
  * Store a validated license in localStorage.
  */
-export function storeLicense(key, instance_id) {
+export function storeLicense(key, instance_id, metadata = {}) {
+  const now = new Date().toISOString();
   localStorage.setItem(LICENSE_STORAGE_KEY, JSON.stringify({
     key,
-    instance_id,
-    activated_at: new Date().toISOString(),
-    last_validated: new Date().toISOString(),
+    instance_id: instance_id ?? null,
+    instance_name: metadata.instance_name || getInstanceName(),
+    activated_at: metadata.activated_at || now,
+    last_validated: metadata.last_validated || now,
   }));
 }
 
@@ -167,7 +225,10 @@ export async function revalidateStoredLicense() {
   try {
     const result = await validateLicenseKey(stored.key);
     if (result.valid) {
-      storeLicense(stored.key, result.instance_id || stored.instance_id);
+      storeLicense(stored.key, result.instance_id || stored.instance_id, {
+        activated_at: stored.activated_at,
+        instance_name: stored.instance_name,
+      });
       return true;
     }
 
@@ -183,11 +244,3 @@ export async function revalidateStoredLicense() {
   return true;
 }
 
-/**
- * Generate a stable instance name for this browser/device.
- */
-function getInstanceName() {
-  const ua = navigator.userAgent || 'unknown';
-  const lang = navigator.language || 'en';
-  return `web-${lang}-${ua.slice(0, 40)}`;
-}
