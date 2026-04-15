@@ -6,6 +6,24 @@ import { Key, Loader2, CheckCircle2, X, Mail } from 'lucide-react';
 
 const DISMISS_KEY = 'esg_passport_activation_card_dismissed';
 
+// Maps ?welcome=<value> to a tier-specific greeting. Any truthy value falls
+// back to Pro, which matches the default product and keeps the legacy
+// ?welcome=1 redirect working unchanged.
+function normalizeWelcomeTier(raw) {
+  if (!raw) return null;
+  const v = raw.toLowerCase();
+  if (v === 'pro-plus' || v === 'proplus' || v === 'pro+') {
+    return {
+      label: 'Pro+',
+      subheadline: 'Paste the license key from your purchase email to unlock the full response workflow plus document extraction for bills, invoices, manifests, and HR reports.',
+    };
+  }
+  return {
+    label: 'Pro',
+    subheadline: 'Paste the license key from your purchase email to unlock the full questionnaire response workflow on this device.',
+  };
+}
+
 export default function ActivationCard() {
   const { isPaid, activate, isChecking } = useLicense();
   const [dismissed, setDismissed] = useState(() => !!localStorage.getItem(DISMISS_KEY));
@@ -13,8 +31,10 @@ export default function ActivationCard() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const justPurchased = typeof window !== 'undefined'
-    && new URLSearchParams(window.location.search).get('welcome') === '1';
+  const welcomeTier = typeof window !== 'undefined'
+    ? normalizeWelcomeTier(new URLSearchParams(window.location.search).get('welcome'))
+    : null;
+  const justPurchased = welcomeTier !== null;
 
   // Don't pop up while the license context is still deciding — otherwise
   // buyers with the ?activate= auto-flow would briefly see the modal before
@@ -47,10 +67,10 @@ export default function ActivationCard() {
   }
 
   const headline = justPurchased
-    ? 'Welcome — activate your ESG Passport Pro'
+    ? `Welcome — activate your ESG Passport ${welcomeTier.label}`
     : 'Have a license key?';
   const subheadline = justPurchased
-    ? 'Paste the license key from your purchase email to unlock every Pro feature on this device.'
+    ? welcomeTier.subheadline
     : 'Paste your license key to unlock Pro features on this device. You can always activate later from Settings.';
 
   return (
