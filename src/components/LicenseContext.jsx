@@ -6,6 +6,7 @@ import {
   revalidateStoredLicense,
 } from '@/lib/license';
 import { track } from '@/lib/track';
+import ActivationCard from '@/components/ActivationCard';
 
 const LicenseContext = createContext({
   isPaid: false,
@@ -71,6 +72,7 @@ export function LicenseProvider({ children }) {
           onDismiss={() => setAutoActivation(null)}
         />
       )}
+      <ActivationCard />
       {children}
     </LicenseContext.Provider>
   );
