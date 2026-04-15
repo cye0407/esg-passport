@@ -38,6 +38,7 @@ import {
   ChevronDown,
   ChevronUp,
   Zap,
+  Trash2,
 } from 'lucide-react';
 
 export default function Data() {
@@ -71,6 +72,7 @@ export default function Data() {
 
   // CSV import preview (null when no import is pending confirmation)
   const [csvPreview, setCsvPreview] = useState(null);
+  const [showClearYearDialog, setShowClearYearDialog] = useState(false);
 
   // Per-metric source notes — "where I find this number each month"
   // Keyed by `${section}.${field}`. One source per metric, edited inline.
@@ -194,6 +196,18 @@ export default function Data() {
   const getRecord = (period) => {
     return records[period] || createEmptyRecord(period);
   };
+
+  const getYearPeriods = (year) =>
+    Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, '0')}`);
+
+  const getYearRecordCount = (year) =>
+    getYearPeriods(year).filter((period) => {
+      const record = records[period];
+      if (!record) return false;
+      return ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training', 'supplyChain'].some((section) =>
+        Object.values(record[section] || {}).some((value) => value !== '' && value !== null && value !== undefined)
+      );
+    }).length;
 
   const createEmptyRecord = (period) => ({
     period,
@@ -695,7 +709,40 @@ export default function Data() {
               return;
             }
 
-            setCsvPreview({ file: file.name, headers, colMap, numberFormat, parsedRows, skipped, error: null });
+            let overlapRows = 0;
+            let overwriteCells = 0;
+            let newCells = 0;
+            parsedRows.forEach((parsedRow) => {
+              const existing = records[parsedRow.period];
+              let rowHasOverlap = false;
+              Object.entries(parsedRow.values).forEach(([field, { section, raw }]) => {
+                const num = parseNumber(raw, numberFormat);
+                const value = num === null ? String(raw).trim() : String(num);
+                if (value === '') return;
+                const currentValue = existing?.[section]?.[field];
+                const hasExistingValue = currentValue !== '' && currentValue !== null && currentValue !== undefined;
+                if (hasExistingValue) {
+                  overwriteCells += 1;
+                  rowHasOverlap = true;
+                } else {
+                  newCells += 1;
+                }
+              });
+              if (rowHasOverlap) overlapRows += 1;
+            });
+
+            setCsvPreview({
+              file: file.name,
+              headers,
+              colMap,
+              numberFormat,
+              parsedRows,
+              skipped,
+              overlapRows,
+              overwriteCells,
+              newCells,
+              error: null,
+            });
           } catch (err) {
             console.error('CSV preview error:', err);
             track('csv_import_failed', { error: err?.name || 'parse' });
@@ -742,6 +789,22 @@ export default function Data() {
     setCsvPreview(null);
   };
 
+  const clearYearData = () => {
+    const yearPrefix = `${selectedYear}-`;
+    setRecords((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((period) => {
+        if (period.startsWith(yearPrefix)) delete next[period];
+      });
+      return next;
+    });
+    setAnnualValues({});
+    setHasChanges(true);
+    setSaved(false);
+    setShowClearYearDialog(false);
+    track('year_data_cleared', { year: selectedYear });
+  };
+
   const downloadCsvTemplate = () => {
     const headers = ['Period', ...dataRows.map(r => r.label)];
     const rows = monthsToShow
@@ -755,6 +818,13 @@ export default function Data() {
     a.download = `esg-data-template-${selectedYear}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const downloadSampleCsv = () => {
+    const a = document.createElement('a');
+    a.href = '/sample-data-2026.csv';
+    a.download = 'sample-data-2026.csv';
+    a.click();
   };
 
   // ---- Year-over-year comparison ----
@@ -871,6 +941,25 @@ export default function Data() {
         >
           <Download className="w-4 h-4 mr-1" />
           {t('btn.template', lang)}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={downloadSampleCsv}
+          className="text-slate-900 border-slate-200"
+        >
+          <Download className="w-4 h-4 mr-1" />
+          Sample 2026 CSV
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowClearYearDialog(true)}
+          className="text-red-700 border-red-200 hover:bg-red-50 hover:text-red-800"
+          disabled={getYearRecordCount(selectedYear) === 0}
+        >
+          <Trash2 className="w-4 h-4 mr-1" />
+          Clear {selectedYear} Data
         </Button>
         <button
           onClick={() => setShowComparison(!showComparison)}
@@ -1360,6 +1449,26 @@ export default function Data() {
                 <span className="font-medium text-slate-900">File:</span> {csvPreview.file}
               </div>
 
+              {(csvPreview.overwriteCells > 0 || csvPreview.newCells > 0) && (
+                <div className={cn(
+                  'p-3 rounded border text-sm',
+                  csvPreview.overwriteCells > 0
+                    ? 'bg-amber-50 border-amber-200 text-amber-800'
+                    : 'bg-green-50 border-green-200 text-green-800'
+                )}>
+                  <div className="font-medium">
+                    {csvPreview.overwriteCells > 0
+                      ? 'This import will overwrite existing data.'
+                      : 'This import adds new data only.'}
+                  </div>
+                  <div className="mt-1 text-xs">
+                    {csvPreview.overlapRows > 0 ? `${csvPreview.overlapRows} row(s) overlap the current year data. ` : ''}
+                    {csvPreview.overwriteCells > 0 ? `${csvPreview.overwriteCells} existing value(s) will be replaced. ` : ''}
+                    {csvPreview.newCells > 0 ? `${csvPreview.newCells} new value(s) will be added.` : ''}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-slate-900">Number format:</span>
                 <div className="flex border border-slate-200 rounded-none overflow-hidden">
@@ -1460,7 +1569,29 @@ export default function Data() {
               disabled={!csvPreview || !!csvPreview.error || csvPreview.parsedRows.length === 0}
               className="bg-slate-900 hover:bg-slate-800 text-white"
             >
-              Import {csvPreview?.parsedRows.length || 0} row{csvPreview?.parsedRows.length === 1 ? '' : 's'}
+              {csvPreview?.overwriteCells > 0
+                ? `Replace ${csvPreview.overwriteCells} value${csvPreview.overwriteCells === 1 ? '' : 's'} and import ${csvPreview?.parsedRows.length || 0} row${csvPreview?.parsedRows.length === 1 ? '' : 's'}`
+                : `Import ${csvPreview?.parsedRows.length || 0} row${csvPreview?.parsedRows.length === 1 ? '' : 's'}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showClearYearDialog} onOpenChange={setShowClearYearDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Clear {selectedYear} data?</DialogTitle>
+            <DialogDescription>
+              This removes all saved monthly records for {selectedYear}. The change is staged locally until you save the page.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            {getYearRecordCount(selectedYear)} month{getYearRecordCount(selectedYear) === 1 ? '' : 's'} currently contain data for {selectedYear}. This action cannot be undone from the page once saved.
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowClearYearDialog(false)}>Cancel</Button>
+            <Button onClick={clearYearData} className="bg-red-700 hover:bg-red-800 text-white">
+              Clear {selectedYear} Data
             </Button>
           </DialogFooter>
         </DialogContent>
