@@ -5,6 +5,7 @@ import {
   storeLicense,
   revalidateStoredLicense,
 } from '@/lib/license';
+import { track } from '@/lib/track';
 
 const LicenseContext = createContext({
   isPaid: false,
@@ -47,6 +48,7 @@ export function LicenseProvider({ children }) {
     if (result.valid) {
       storeLicense(key, result.instance_id);
       setIsPaid(true);
+      track('license_activated', { fallback: result.fallback ? 'true' : 'false' });
     }
     return result;
   }, []);

@@ -3,7 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LicenseProvider, useLicense } from '@/components/LicenseContext';
 import UpgradeGate from '@/components/UpgradeGate';
 import { handleDemoQueryParam } from '@/lib/demoData';
-import { track } from '@/lib/track';
+import { track, trackFirstVisit } from '@/lib/track';
 
 // Run before any routing — if ?demo=load or ?demo=reset is in the URL,
 // seed/wipe localStorage and reload. This is for screen recording prep,
@@ -78,6 +78,10 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
+  useEffect(() => {
+    trackFirstVisit();
+  }, []);
+
   return (
     <ErrorBoundary>
     <LicenseProvider>

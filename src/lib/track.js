@@ -35,3 +35,39 @@ export function trackOnce(event, props) {
   }
   track(event, props);
 }
+
+/**
+ * Fire a `first_visit` event once per browser, capturing where the
+ * visitor came from. Referrer host is normalized to a small set of
+ * known sources to keep the Vercel breakdown readable.
+ */
+export function trackFirstVisit() {
+  if (typeof window === 'undefined') return;
+  const params = new URLSearchParams(window.location.search);
+  const referrerHost = (() => {
+    try {
+      return document.referrer ? new URL(document.referrer).hostname : '';
+    } catch {
+      return '';
+    }
+  })();
+  const source = classifyReferrer(referrerHost, params.get('utm_source'));
+  trackOnce('first_visit', {
+    source,
+    referrer_host: referrerHost || 'direct',
+    utm_source: params.get('utm_source') || '',
+    utm_medium: params.get('utm_medium') || '',
+    utm_campaign: params.get('utm_campaign') || '',
+  });
+}
+
+function classifyReferrer(host, utmSource) {
+  if (utmSource) return utmSource.toLowerCase();
+  if (!host) return 'direct';
+  if (host.includes('linkedin')) return 'linkedin';
+  if (host.includes('google')) return 'google';
+  if (host.includes('twitter') || host.includes('t.co') || host.includes('x.com')) return 'twitter';
+  if (host.includes('esgforsuppliers')) return 'esgforsuppliers';
+  if (host.includes('catyeldi')) return 'catyeldi';
+  return 'other';
+}
