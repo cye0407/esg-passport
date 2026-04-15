@@ -74,7 +74,8 @@ async function requestLicenseValidation(key, {
     };
   }
 
-  if (data.valid) {
+  // /activate returns { activated: true, ... }, /validate returns { valid: true, ... }
+  if (data.activated || data.valid) {
     return { valid: true, instance_id: data.instance?.id || null };
   }
 
