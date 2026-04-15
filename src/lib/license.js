@@ -42,14 +42,18 @@ function getInstanceName() {
 async function requestLicenseValidation(key, {
   allowLocalDevFallback = true,
   instanceName = getInstanceName(),
+  instanceId = null,
 } = {}) {
+  // If we already have an instance_id, ask the server to validate it
+  // (cheap, idempotent). Otherwise we're activating for the first time.
+  const body = instanceId
+    ? { license_key: key, instance_id: instanceId }
+    : { license_key: key, instance_name: instanceName };
+
   const response = await fetch(apiUrl('/api/validate-license'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      license_key: key,
-      instance_name: instanceName,
-    }),
+    body: JSON.stringify(body),
   });
 
   const contentType = response.headers.get('content-type') || '';
@@ -93,14 +97,14 @@ async function requestLicenseValidation(key, {
  * Falls back to format check if server is unreachable (works for downloaded zip).
  * Returns { valid, error, instance_id } on success.
  */
-export async function validateLicenseKey(key) {
+export async function validateLicenseKey(key, { instanceId = null } = {}) {
   // First, basic format check
   if (!key || typeof key !== 'string' || key.trim().length < 8) {
     return { valid: false, error: 'That doesn\u2019t look like a valid license key. Please check and try again.' };
   }
 
   try {
-    return await requestLicenseValidation(key);
+    return await requestLicenseValidation(key, { instanceId });
   } catch {
     // Server unreachable — likely running from downloaded zip.
     // Accept the key based on format check alone.
@@ -223,7 +227,7 @@ export async function revalidateStoredLicense() {
   if (daysSinceValidation < 7) return true;
 
   try {
-    const result = await validateLicenseKey(stored.key);
+    const result = await validateLicenseKey(stored.key, { instanceId: stored.instance_id });
     if (result.valid) {
       storeLicense(stored.key, result.instance_id || stored.instance_id, {
         activated_at: stored.activated_at,

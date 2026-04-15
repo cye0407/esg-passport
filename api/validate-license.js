@@ -1,28 +1,38 @@
+// LemonSqueezy license endpoints are public (license_key authenticates),
+// require form-encoded bodies, and split activation from validation:
+//   /v1/licenses/activate  — first use, creates an instance from instance_name
+//   /v1/licenses/validate  — subsequent checks, takes the existing instance_id
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { license_key, instance_name } = req.body || {};
-  const apiKey = process.env.LEMONSQUEEZY_API_KEY || process.env.LEMON_SQUEEZY_API_KEY || process.env.LS_API_KEY;
+  const { license_key, instance_name, instance_id } = req.body || {};
 
   if (!license_key) {
     return res.status(400).json({ valid: false, error: 'Missing license_key' });
   }
-
-  if (!apiKey) {
-    return res.status(500).json({ valid: false, error: 'License server not configured' });
+  if (!instance_id && !instance_name) {
+    return res.status(400).json({ valid: false, error: 'Missing instance_id or instance_name' });
   }
 
+  const isActivation = !instance_id;
+  const endpoint = isActivation
+    ? 'https://api.lemonsqueezy.com/v1/licenses/activate'
+    : 'https://api.lemonsqueezy.com/v1/licenses/validate';
+
+  const params = new URLSearchParams({ license_key });
+  if (isActivation) params.set('instance_name', instance_name);
+  else params.set('instance_id', instance_id);
+
   try {
-    const response = await fetch('https://api.lemonsqueezy.com/v1/licenses/validate', {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({ license_key, instance_name }),
+      body: params.toString(),
     });
 
     const data = await response.json();
