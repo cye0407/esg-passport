@@ -17,6 +17,8 @@ import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import CompanyProfileSection from '@/components/CompanyProfileSection';
 import BillDrop from '@/components/BillDrop';
+import ExtractorUpgradeCard from '@/components/ExtractorUpgradeCard';
+import { useLicense } from '@/components/LicenseContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import {
@@ -42,6 +44,7 @@ import {
 } from 'lucide-react';
 
 export default function Data() {
+  const { tier } = useLicense();
   // Honor ?period=YYYY-MM query param from deep links on Respond answer cards
   const initialYear = (() => {
     if (typeof window === 'undefined') return new Date().getFullYear();
@@ -912,8 +915,12 @@ export default function Data() {
       {/* Company Profile (collapsible) */}
       <CompanyProfileSection />
 
-      {/* Bill extraction drop zone */}
-      <BillDrop onDataExtracted={handleBillExtracted} year={selectedYear} />
+      {/* Document extraction — Pro+ only, upgrade card for Free/Pro */}
+      {tier === 'pro-plus' ? (
+        <BillDrop onDataExtracted={handleBillExtracted} year={selectedYear} />
+      ) : (
+        <ExtractorUpgradeCard tier={tier} />
+      )}
 
       {/* CSV Import / Template Toolbar */}
       <div className="flex flex-wrap items-center gap-2">

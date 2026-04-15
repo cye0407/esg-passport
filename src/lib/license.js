@@ -6,6 +6,19 @@
 
 const LICENSE_STORAGE_KEY = 'esg_passport_license';
 const LICENSE_INSTANCE_NAME_KEY = 'esg_passport_license_instance_name';
+
+// LemonSqueezy product names, mapped to internal tiers. We match loosely so a
+// product rename (e.g. "ESG Passport Pro Plus") still resolves correctly.
+// Missing/unknown names default to 'pro' — existing paid customers don't
+// accidentally lose access if a product gets renamed.
+function tierFromResponse(data) {
+  const name = (data?.meta?.product_name || data?.license_key?.product_name || '').toLowerCase();
+  if (name.includes('pro+') || name.includes('pro plus') || name.includes('pro-plus') || name.includes('plus')) {
+    return 'pro-plus';
+  }
+  if (name) return 'pro';
+  return null;
+}
 // The API routes only exist on the Passport's own Vercel deployment.
 // esgforsuppliers.com proxies /app/* to here but NOT /api/*, so when the
 // app is loaded via the marketing-site proxy we have to call the Passport
@@ -78,7 +91,11 @@ async function requestLicenseValidation(key, {
 
   // /activate returns { activated: true, ... }, /validate returns { valid: true, ... }
   if (data.activated || data.valid) {
-    return { valid: true, instance_id: data.instance?.id || null };
+    return {
+      valid: true,
+      instance_id: data.instance?.id || null,
+      tier: tierFromResponse(data),
+    };
   }
 
   const errorMessages = {
@@ -177,12 +194,17 @@ export async function deactivateLicense() {
  */
 export function storeLicense(key, instance_id, metadata = {}) {
   const now = new Date().toISOString();
+  const existing = getStoredLicense();
   localStorage.setItem(LICENSE_STORAGE_KEY, JSON.stringify({
     key,
     instance_id: instance_id ?? null,
     instance_name: metadata.instance_name || getInstanceName(),
     activated_at: metadata.activated_at || now,
     last_validated: metadata.last_validated || now,
+    // tier: 'pro' | 'pro-plus' — prefer freshly-returned tier, fall back to
+    // whatever we had stored so a renamed product doesn't wipe an existing
+    // paying customer's tier on revalidation.
+    tier: metadata.tier || existing?.tier || null,
   }));
 }
 
@@ -216,6 +238,17 @@ export function isPaidUser() {
 }
 
 /**
+ * Returns 'free' | 'pro' | 'pro-plus'. Existing paid licenses that predate
+ * tier tracking fall back to 'pro' (safe default — they already paid).
+ */
+export function getLicenseTier() {
+  const stored = getStoredLicense();
+  if (!stored?.key) return 'free';
+  if (stored.tier === 'pro-plus') return 'pro-plus';
+  return 'pro';
+}
+
+/**
  * Re-validate a stored license key (e.g., on app launch, once per week).
  * Returns true if still valid, false if expired/revoked.
  * On network error, assumes still valid (offline-friendly).
@@ -224,10 +257,12 @@ export async function revalidateStoredLicense() {
   const stored = getStoredLicense();
   if (!stored?.key) return false;
 
-  // Only re-validate once per 7 days
+  // Only re-validate once per 7 days — unless the stored license predates
+  // tier tracking, in which case we force a fresh check so the user gets
+  // the right tier-aware UX on this launch.
   const lastValidated = stored.last_validated ? new Date(stored.last_validated) : new Date(0);
   const daysSinceValidation = (Date.now() - lastValidated.getTime()) / (1000 * 60 * 60 * 24);
-  if (daysSinceValidation < 7) return true;
+  if (daysSinceValidation < 7 && stored.tier) return true;
 
   try {
     const result = await validateLicenseKey(stored.key, { instanceId: stored.instance_id });
@@ -235,6 +270,7 @@ export async function revalidateStoredLicense() {
       storeLicense(stored.key, result.instance_id || stored.instance_id, {
         activated_at: stored.activated_at,
         instance_name: stored.instance_name,
+        tier: result.tier,
       });
       return true;
     }

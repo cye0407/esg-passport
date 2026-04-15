@@ -4,12 +4,14 @@ import {
   validateLicenseKey,
   storeLicense,
   revalidateStoredLicense,
+  getLicenseTier,
 } from '@/lib/license';
 import { track } from '@/lib/track';
 import ActivationCard from '@/components/ActivationCard';
 
 const LicenseContext = createContext({
   isPaid: false,
+  tier: 'free',
   isChecking: true,
   activate: async () => ({ valid: false, error: '' }),
 });
@@ -25,15 +27,17 @@ export function useLicense() {
  */
 export function LicenseProvider({ children }) {
   const [isPaid, setIsPaid] = useState(false);
+  const [tier, setTier] = useState('free');
   const [isChecking, setIsChecking] = useState(true);
   const [autoActivation, setAutoActivation] = useState(null);
 
   const activate = useCallback(async (key, { source = 'manual' } = {}) => {
     const result = await validateLicenseKey(key);
     if (result.valid) {
-      storeLicense(key, result.instance_id);
+      storeLicense(key, result.instance_id, { tier: result.tier });
       setIsPaid(true);
-      track('license_activated', { fallback: result.fallback ? 'true' : 'false', source });
+      setTier(getLicenseTier());
+      track('license_activated', { fallback: result.fallback ? 'true' : 'false', source, tier: result.tier || 'pro' });
     }
     return result;
   }, []);
@@ -54,18 +58,20 @@ export function LicenseProvider({ children }) {
 
       if (!hasActiveLicense()) {
         setIsPaid(false);
+        setTier('free');
         setIsChecking(false);
         return;
       }
       const valid = await revalidateStoredLicense();
       setIsPaid(valid);
+      setTier(valid ? getLicenseTier() : 'free');
       setIsChecking(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <LicenseContext.Provider value={{ isPaid, isChecking, activate, autoActivation }}>
+    <LicenseContext.Provider value={{ isPaid, tier, isChecking, activate, autoActivation }}>
       {autoActivation && (
         <AutoActivationBanner
           result={autoActivation}
