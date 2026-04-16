@@ -64,8 +64,7 @@ Validation completed:
 
 ### Urgent
 
-- Fix activation-key/license transfer flow so an existing key can be deactivated and re-activated on the live production site.
-- Check whether the failure is caused by environment mismatch, stale activation state, or the production deactivate/validate API path.
+- None identified for build/runtime stability. License deactivate/reactivate flow has now been verified working on the live production site.
 
 ## Known Limitation
 

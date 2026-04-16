@@ -22,7 +22,7 @@
       "status": "done",
       "severity": "blocker",
       "owner": "Codex",
-      "notes": "DEV forced-paid state removed from src/components/LicenseContext.jsx. checkLicense() restored on mount. Local Vite activation now targets hosted /api license endpoints instead of nonexistent local /api routes. Production build passes."
+      "notes": "DEV forced-paid state removed from src/components/LicenseContext.jsx. checkLicense() restored on mount. Local Vite activation now targets hosted /api license endpoints instead of nonexistent local /api routes. Production build passes, and deactivate/reactivate license transfer has now been verified working on the live production site."
     },
     {
       "id": "p0-engine",
