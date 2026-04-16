@@ -1,8 +1,8 @@
 {
   "meta": {
     "title": "ESG Passport Launch Tracker",
-    "lastUpdated": "2026-04-14",
-    "planPath": "C:\\Users\\User\\Documents\\CY\\esg-passport\\LAUNCH-TEST-PLAN.md"
+    "lastUpdated": "2026-04-15",
+    "planPath": "LAUNCH-TEST-PLAN.md"
   },
   "summary": {
     "launchStatus": "not_ready",
@@ -55,7 +55,7 @@
       "id": "p0-english-freeze",
       "phase": "phase0",
       "title": "Freeze English source copy for templates, UI strings, and export labels",
-      "status": "done",
+      "status": "todo",
       "severity": "high",
       "owner": "",
       "notes": ""
@@ -64,16 +64,34 @@
       "id": "p0-scenario-pack",
       "phase": "phase0",
       "title": "Freeze canonical scenario pack and evidence pack",
-      "status": "done",
+      "status": "todo",
       "severity": "high",
       "owner": "",
       "notes": ""
     },
     {
+      "id": "p0-template-review",
+      "phase": "phase0",
+      "title": "Run template export review across all shipped templates and compare on-screen answers vs exports",
+      "status": "in_progress",
+      "severity": "blocker",
+      "owner": "Codex",
+      "notes": "Frozen 5-template review pack now exists at testing/template-review-2026-04-15/ with fresh Excel workbooks and a strict green audit (`export-audit-report.md`, 0 findings). Remaining gap for full sign-off: manual on-screen vs export visual comparison plus Word/PDF evidence capture."
+    },
+    {
+      "id": "p0-routing-regressions",
+      "phase": "phase0",
+      "title": "Fix repeated routing/content regressions discovered during template export review",
+      "status": "in_progress",
+      "severity": "blocker",
+      "owner": "Codex",
+      "notes": "No systematic regressions are currently showing in the latest automated export audit, but this stays open until the manual review pass is frozen. Use this as the batch-fix bucket if manual template review surfaces repeated routing or trust failures."
+    },
+    {
       "id": "p1-designer",
       "phase": "phase1",
       "title": "Run designer review and fix blocker/high wording and flow issues",
-      "status": "done",
+      "status": "todo",
       "severity": "high",
       "owner": "",
       "notes": ""
@@ -82,7 +100,7 @@
       "id": "p1-esg",
       "phase": "phase1",
       "title": "Run ESG expert review on frozen build",
-      "status": "done",
+      "status": "todo",
       "severity": "blocker",
       "owner": "",
       "notes": ""
@@ -91,7 +109,7 @@
       "id": "p1-language",
       "phase": "phase1",
       "title": "Run language review across answer/output and UI layers",
-      "status": "done",
+      "status": "todo",
       "severity": "high",
       "owner": "",
       "notes": ""
@@ -100,7 +118,7 @@
       "id": "p2-personas",
       "phase": "phase2",
       "title": "Run full persona end-to-end testing",
-      "status": "done",
+      "status": "todo",
       "severity": "high",
       "owner": "",
       "notes": ""
@@ -118,32 +136,32 @@
   "flaggedQuestions": [
     {
       "id": "cb-13",
-      "status": "todo",
+      "status": "in_progress",
       "text": "Do you have science-based emissions reduction targets (SBTi-aligned)? Describe your decarbonization roadmap, including interim milestones."
     },
     {
       "id": "cb-45",
-      "status": "todo",
+      "status": "in_progress",
       "text": "Have there been any significant fines, sanctions, or legal proceedings related to environmental, social, or governance matters in the past three years?"
     },
     {
       "id": "cb-48",
-      "status": "todo",
+      "status": "in_progress",
       "text": "Do you have ESG-linked executive compensation or incentive structures? Describe."
     },
     {
       "id": "cb-51",
-      "status": "todo",
+      "status": "in_progress",
       "text": "Do you publish a sustainability or ESG report? Which reporting framework do you follow (GRI, CSRD/ESRS, TCFD, UN Global Compact)?"
     },
     {
       "id": "cb-55",
-      "status": "todo",
+      "status": "in_progress",
       "text": "What percentage of your critical Tier 1 suppliers have been assessed or audited on ESG criteria in the past 12 months?"
     },
     {
       "id": "cb-57",
-      "status": "todo",
+      "status": "in_progress",
       "text": "Do you have a responsible sourcing policy for raw materials? Do you conduct conflict minerals due diligence (CMRT/EMRT)?"
     }
   ],
@@ -183,20 +201,28 @@
     { "code": "PT", "ui": true, "output": false, "export": false, "classification": "ui_only_candidate", "status": "todo" }
   ],
   "scenarioPack": [
-    { "id": "s1", "title": "Hartmann EN baseline run", "status": "todo" },
+    { "id": "s1", "title": "Hartmann EN baseline run", "status": "in_progress" },
     { "id": "s2", "title": "Basic Supplier with sparse data", "status": "todo" },
-    { "id": "s3", "title": "EcoVadis with realistic manufacturing data", "status": "todo" },
-    { "id": "s4", "title": "CDP Climate with strong climate and weaker governance data", "status": "todo" },
-    { "id": "s5", "title": "CSRD/VSME with full profile and operational data", "status": "todo" },
+    { "id": "s3", "title": "EcoVadis with realistic manufacturing data", "status": "in_progress" },
+    { "id": "s4", "title": "CDP Climate with strong climate and weaker governance data", "status": "in_progress" },
+    { "id": "s5", "title": "CSRD/VSME with full profile and operational data", "status": "in_progress" },
     { "id": "s6", "title": "One real English uploaded questionnaire", "status": "todo" },
     { "id": "s7", "title": "One bill-extraction path: invoice upload -> Data review -> Respond -> export", "status": "todo" }
   ],
+  "templateReview": [
+    { "id": "tr1", "title": "Basic Supplier", "exports": ["excel", "word", "pdf"], "status": "done", "findings": 0 },
+    { "id": "tr2", "title": "EcoVadis", "exports": ["excel", "word", "pdf"], "status": "done", "findings": 0 },
+    { "id": "tr3", "title": "CDP", "exports": ["excel", "word", "pdf"], "status": "done", "findings": 0 },
+    { "id": "tr4", "title": "CSRD / VSME", "exports": ["excel", "word", "pdf"], "status": "done", "findings": 0 },
+    { "id": "tr5", "title": "Comprehensive Buyer", "exports": ["excel", "word", "pdf"], "status": "done", "findings": 0 }
+  ],
   "launchRules": [
-    { "id": "lr1", "text": "No fabricated claims", "status": "todo" },
-    { "id": "lr2", "text": "No wrong topic routing in launch scope", "status": "todo" },
+    { "id": "lr1", "text": "No fabricated claims", "status": "in_progress" },
+    { "id": "lr2", "text": "No wrong topic routing in launch scope", "status": "in_progress" },
     { "id": "lr3", "text": "No unsupported percentages or governance claims presented as fact", "status": "todo" },
-    { "id": "lr4", "text": "Draft / low-confidence / data-backed distinctions are visible in export", "status": "todo" },
+    { "id": "lr4", "text": "Draft / low-confidence / data-backed distinctions are visible in export", "status": "in_progress" },
     { "id": "lr5", "text": "A low-confidence user can complete the flow without help", "status": "todo" },
-    { "id": "lr6", "text": "Bill extraction path works end to end at least once without rescue", "status": "todo" }
+    { "id": "lr6", "text": "Bill extraction path works end to end at least once without rescue", "status": "todo" },
+    { "id": "lr7", "text": "All shipped templates have been exported and checked against on-screen outputs", "status": "in_progress" }
   ]
 }

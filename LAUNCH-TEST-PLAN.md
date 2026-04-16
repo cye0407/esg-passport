@@ -160,6 +160,50 @@ Optional if actively marketed at launch:
 - [ ] Save answer/draft set
 - [ ] Save known accepted limitations
 
+### 0.6 Template export review matrix
+
+Now that exports are working, do a full template-by-template output review before expert/persona rounds. The goal is to compare:
+
+- on-screen prepared answers
+- exported Excel/Word/PDF outputs
+- source questionnaire structure
+
+This is a routing and trust-control pass, not a UX/style pass.
+
+- [ ] Run `Basic Supplier` and export all supported formats
+- [ ] Run `EcoVadis` and export all supported formats
+- [ ] Run `CDP` and export all supported formats
+- [ ] Run `CSRD / VSME` and export all supported formats
+- [ ] Run `Comprehensive Buyer` and export all supported formats
+- [ ] For each template, compare exported rows/cells against on-screen answers
+- [ ] For each template, review high-risk clusters:
+  - certifications / assurance / reporting
+  - supplier code / supplier assessment / conflict minerals
+  - transport / fleet / Scope 3
+  - fines / governance / executive compensation
+- [ ] Log each issue as one of:
+  - routing mismatch
+  - fabricated claim
+  - missing caveat
+  - bad wording
+  - export formatting issue
+  - translation issue
+
+Suggested evidence save path:
+
+- `esg-passport/testing/template-review-2026-04-14/<template-id>/`
+
+Save for each template:
+
+- screenshot of answer cards
+- exported Excel
+- exported Word
+- exported PDF/print capture
+- short issue log
+
+Why this is a gate:
+This is the fastest way to catch repeated engine/export mismatches across all shipped templates before persona noise obscures them.
+
 ## Phase 0 Exit Criteria
 
 - [ ] No fabricated claims in baseline run
@@ -167,6 +211,7 @@ Optional if actively marketed at launch:
 - [ ] Real license gate active
 - [ ] Frozen EN baseline artifacts ready
 - [ ] Hartmann EN run passes end to end
+- [ ] Template export review completed across all shipped templates
 
 ## Phase 1 - Expert Review
 
