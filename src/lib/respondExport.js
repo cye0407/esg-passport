@@ -1,6 +1,16 @@
 import { getExportStrings, localizeAnswerDrafts } from '@/lib/translations';
 import { saveAs } from 'file-saver';
 
+const DATE_LOCALES = {
+  de: 'de-DE',
+  en: 'en-GB',
+  es: 'es-ES',
+  fr: 'fr-FR',
+  it: 'it-IT',
+  nl: 'nl-NL',
+  pl: 'pl-PL',
+};
+
 function escapeHtml(str) {
   return String(str ?? '')
     .replace(/&/g, '&amp;')
@@ -44,13 +54,20 @@ function buildRows(answerDrafts, copy) {
   }).join('');
 }
 
-function buildHtmlDocument(answerDrafts, metadata, titleSuffix = 'Questionnaire Responses') {
-  const copy = getExportStrings(metadata?.language);
+function formatGeneratedAt(value, lang) {
+  const date = value ? new Date(value) : new Date();
+  const locale = DATE_LOCALES[lang] || DATE_LOCALES.en;
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function buildHtmlDocumentWithCopy(answerDrafts, metadata, copy, titleSuffix) {
   const drafts = localizeAnswerDrafts(answerDrafts, copy.lang);
   const company = metadata?.companyName || 'Company';
-  const generatedAt = metadata?.generatedAt
-    ? new Date(metadata.generatedAt).toLocaleString('en-GB')
-    : new Date().toLocaleString('en-GB');
+  const documentTitle = titleSuffix || copy.htmlTitle;
+  const generatedAt = formatGeneratedAt(metadata?.generatedAt, copy.lang);
   const framework = metadata?.framework ? `<p><strong>${escapeHtml(copy.framework)}:</strong> ${escapeHtml(metadata.framework)}</p>` : '';
   const period = metadata?.reportingPeriod ? `<p><strong>${escapeHtml(copy.reportingPeriod)}:</strong> ${escapeHtml(metadata.reportingPeriod)}</p>` : '';
 
@@ -59,7 +76,7 @@ function buildHtmlDocument(answerDrafts, metadata, titleSuffix = 'Questionnaire 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(company)} - ${escapeHtml(titleSuffix)}</title>
+  <title>${escapeHtml(company)} - ${escapeHtml(documentTitle)}</title>
   <style>
     body { font-family: Arial, sans-serif; color: #1f2937; margin: 32px; line-height: 1.5; }
     h1 { font-size: 28px; margin: 0 0 8px; }
@@ -79,7 +96,7 @@ function buildHtmlDocument(answerDrafts, metadata, titleSuffix = 'Questionnaire 
 <body>
   <h1>${escapeHtml(company)}</h1>
   <div class="meta">
-    <p><strong>${escapeHtml(titleSuffix)}</strong></p>
+    <p><strong>${escapeHtml(documentTitle)}</strong></p>
     ${framework}
     ${period}
     <p><strong>${escapeHtml(copy.generated)}:</strong> ${escapeHtml(generatedAt)}</p>
@@ -103,6 +120,11 @@ function buildHtmlDocument(answerDrafts, metadata, titleSuffix = 'Questionnaire 
 </html>`;
 }
 
+export function buildHtmlDocument(answerDrafts, metadata, titleSuffix) {
+  const copy = getExportStrings(metadata?.language);
+  return buildHtmlDocumentWithCopy(answerDrafts, metadata, copy, titleSuffix);
+}
+
 function triggerDownload(content, type, filename) {
   const blob = new Blob([content], { type });
   saveAs(blob, filename);
@@ -116,12 +138,14 @@ export function exportAnswersAsHtml(answerDrafts, metadata) {
 
 export function exportAnswersAsWord(answerDrafts, metadata) {
   const company = metadata?.companyName || 'company';
-  const html = buildHtmlDocument(answerDrafts, metadata, 'Questionnaire Responses (Word)');
+  const copy = getExportStrings(metadata?.language);
+  const html = buildHtmlDocumentWithCopy(answerDrafts, metadata, copy, copy.wordTitle);
   triggerDownload(html, 'application/msword;charset=utf-8', `${slugify(company)}-esg-responses.doc`);
 }
 
 export function printAnswersAsPdf(answerDrafts, metadata) {
-  const html = buildHtmlDocument(answerDrafts, metadata, 'Questionnaire Responses (Print/PDF)');
+  const copy = getExportStrings(metadata?.language);
+  const html = buildHtmlDocumentWithCopy(answerDrafts, metadata, copy, copy.pdfTitle);
   const printHtml = html.replace(
     '</body>',
     `<script>

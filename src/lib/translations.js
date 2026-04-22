@@ -54,6 +54,17 @@ const RULES = [
     }),
   },
   {
+    regex: /Of this, ([\d.,\s]+)% \(approximately ([\d.,\s]+) kWh\) was sourced from renewable energy\./g,
+    replace: (lang, pct, kwh) => pick(lang, {
+      de: `Davon stammten ${pct}% (rund ${kwh} kWh) aus erneuerbaren Energiequellen.`,
+      pl: `Z tego ${pct}% (oko\u0142o ${kwh} kWh) pochodzi\u0142o z energii odnawialnej.`,
+      fr: `Sur ce total, ${pct}% (environ ${kwh} kWh) provenaient d'\u00e9nergie renouvelable.`,
+      es: `De ese total, el ${pct}% (aproximadamente ${kwh} kWh) proced\u00eda de energ\u00eda renovable.`,
+      it: `Di questo totale, il ${pct}% (circa ${kwh} kWh) proveniva da energia rinnovabile.`,
+      nl: `Daarvan was ${pct}% (ongeveer ${kwh} kWh) afkomstig uit hernieuwbare energie.`,
+    }),
+  },
+  {
     regex: /Renewable electricity accounted for ([\d.,\s]+)% of consumption\./g,
     replace: (lang, pct) => pick(lang, {
       de: `Erneuerbarer Strom machte ${pct}% des Verbrauchs aus.`,
@@ -186,6 +197,39 @@ const RULES = [
     }),
   },
   {
+    regex: /We continue to prioritize the transition to renewable electricity across our operations\./g,
+    replace: (lang) => pick(lang, {
+      de: `Wir priorisieren weiterhin den Umstieg auf erneuerbaren Strom in unserem gesamten Betrieb.`,
+      pl: `Nadal priorytetowo traktujemy przej\u015bcie na energi\u0119 elektryczn\u0105 ze \u017ar\u00f3de\u0142 odnawialnych w ca\u0142ej naszej dzia\u0142alno\u015bci.`,
+      fr: `Nous continuons de donner la priorit\u00e9 \u00e0 la transition vers une \u00e9lectricit\u00e9 renouvelable dans l'ensemble de nos activit\u00e9s.`,
+      es: `Seguimos priorizando la transici\u00f3n hacia electricidad renovable en todas nuestras operaciones.`,
+      it: `Continuiamo a dare priorit\u00e0 alla transizione verso elettricit\u00e0 rinnovabile in tutte le nostre attivit\u00e0.`,
+      nl: `Wij blijven de overgang naar hernieuwbare elektriciteit in al onze activiteiten prioriteren.`,
+    }),
+  },
+  {
+    regex: /Out of ([\d.,\s]+) kWh total consumption, approximately ([\d.,\s]+) kWh was renewable\./g,
+    replace: (lang, total, renewable) => pick(lang, {
+      de: `Von insgesamt ${total} kWh Verbrauch waren rund ${renewable} kWh erneuerbar.`,
+      pl: `Z \u0142\u0105cznego zu\u017cycia ${total} kWh oko\u0142o ${renewable} kWh pochodzi\u0142o ze \u017ar\u00f3de\u0142 odnawialnych.`,
+      fr: `Sur une consommation totale de ${total} kWh, environ ${renewable} kWh provenaient de sources renouvelables.`,
+      es: `De un consumo total de ${total} kWh, aproximadamente ${renewable} kWh fueron renovables.`,
+      it: `Su un consumo totale di ${total} kWh, circa ${renewable} kWh provenivano da fonti rinnovabili.`,
+      nl: `Van het totale verbruik van ${total} kWh was ongeveer ${renewable} kWh hernieuwbaar.`,
+    }),
+  },
+  {
+    regex: /We are on track to further increase renewable procurement across our operations\./g,
+    replace: (lang) => pick(lang, {
+      de: `Wir sind auf Kurs, die Beschaffung erneuerbarer Energie in unserem gesamten Betrieb weiter zu erh\u00f6hen.`,
+      pl: `Jeste\u015bmy na dobrej drodze, aby dalej zwi\u0119ksza\u0107 zakupy energii odnawialnej w ca\u0142ej naszej dzia\u0142alno\u015bci.`,
+      fr: `Nous sommes en bonne voie pour accro\u00eetre encore nos achats d'\u00e9nergie renouvelable dans l'ensemble de nos activit\u00e9s.`,
+      es: `Vamos por buen camino para seguir aumentando la compra de energ\u00eda renovable en todas nuestras operaciones.`,
+      it: `Siamo sulla buona strada per aumentare ulteriormente l'approvvigionamento di energia rinnovabile in tutte le nostre attivit\u00e0.`,
+      nl: `Wij liggen op koers om de inkoop van hernieuwbare energie in al onze activiteiten verder te vergroten.`,
+    }),
+  },
+  {
     regex: /Total Scope 1 \+ Scope 2 \(location-based\): ([\d.,\s]+) tCO2e\./g,
     replace: (lang, value) => pick(lang, {
       de: `Scope 1 + Scope 2 insgesamt (standortbasiert): ${value} tCO2e.`,
@@ -194,6 +238,28 @@ const RULES = [
       es: `Total alcance 1 + alcance 2 (basado en ubicaci\u00f3n): ${value} tCO2e.`,
       it: `Totale Scope 1 + Scope 2 (location-based): ${value} tCO2e.`,
       nl: `Totaal scope 1 + scope 2 (locatiegebaseerd): ${value} tCO2e.`,
+    }),
+  },
+  {
+    regex: /Fuel consumption is a key input for our Scope 1 emissions calculation\./g,
+    replace: (lang) => pick(lang, {
+      de: `Der Kraftstoffverbrauch ist eine wesentliche Grundlage f\u00fcr die Berechnung unserer Scope-1-Emissionen.`,
+      pl: `Zu\u017cycie paliwa stanowi kluczow\u0105 podstaw\u0119 do obliczania naszych emisji Scope 1.`,
+      fr: `La consommation de carburant constitue une donn\u00e9e cl\u00e9 pour le calcul de nos \u00e9missions de scope 1.`,
+      es: `El consumo de combustible es un dato clave para el c\u00e1lculo de nuestras emisiones de alcance 1.`,
+      it: `Il consumo di carburante \u00e8 un input chiave per il calcolo delle nostre emissioni Scope 1.`,
+      nl: `Brandstofverbruik is een belangrijke input voor de berekening van onze scope 1-emissies.`,
+    }),
+  },
+  {
+    regex: /We are evaluating opportunities to reduce fossil fuel dependency through electrification and energy efficiency measures\./g,
+    replace: (lang) => pick(lang, {
+      de: `Wir pr\u00fcfen M\u00f6glichkeiten, die Abh\u00e4ngigkeit von fossilen Brennstoffen durch Elektrifizierung und Energieeffizienzma\u00dfnahmen zu verringern.`,
+      pl: `Analizujemy mo\u017cliwo\u015bci ograniczenia zale\u017cno\u015bci od paliw kopalnych poprzez elektryfikacj\u0119 i dzia\u0142ania na rzecz efektywno\u015bci energetycznej.`,
+      fr: `Nous \u00e9valuons des possibilit\u00e9s de r\u00e9duire notre d\u00e9pendance aux combustibles fossiles gr\u00e2ce \u00e0 l'\u00e9lectrification et \u00e0 des mesures d'efficacit\u00e9 \u00e9nerg\u00e9tique.`,
+      es: `Estamos evaluando oportunidades para reducir la dependencia de los combustibles f\u00f3siles mediante electrificaci\u00f3n y medidas de eficiencia energ\u00e9tica.`,
+      it: `Stiamo valutando opportunit\u00e0 per ridurre la dipendenza dai combustibili fossili attraverso elettrificazione e misure di efficienza energetica.`,
+      nl: `Wij beoordelen mogelijkheden om de afhankelijkheid van fossiele brandstoffen te verminderen via elektrificatie en energie-effici\u00ebntiemaatregelen.`,
     }),
   },
   {
@@ -301,6 +367,61 @@ const RULES = [
     },
   },
   {
+    regex: /This covers approximately ([\d.,\s]+) of our ([\d.,\s]+) employees\./g,
+    replace: (lang, covered, total) => pick(lang, {
+      de: `Dies entspricht rund ${covered} von ${total} Besch\u00e4ftigten.`,
+      pl: `Odpowiada to oko\u0142o ${covered} z naszych ${total} pracownik\u00f3w.`,
+      fr: `Cela couvre environ ${covered} de nos ${total} salari\u00e9s.`,
+      es: `Esto cubre aproximadamente a ${covered} de nuestros ${total} empleados.`,
+      it: `Ci\u00f2 corrisponde a circa ${covered} dei nostri ${total} dipendenti.`,
+      nl: `Dit komt neer op ongeveer ${covered} van onze ${total} medewerkers.`,
+    }),
+  },
+  {
+    regex: /We respect freedom of association and the right to collective bargaining in all our operations\./g,
+    replace: (lang) => pick(lang, {
+      de: `Wir achten in all unseren Betrieben die Vereinigungsfreiheit und das Recht auf Kollektivverhandlungen.`,
+      pl: `We wszystkich naszych dzia\u0142aniach szanujemy wolno\u015b\u0107 zrzeszania si\u0119 oraz prawo do rokowa\u0144 zbiorowych.`,
+      fr: `Nous respectons, dans l'ensemble de nos activit\u00e9s, la libert\u00e9 d'association et le droit \u00e0 la n\u00e9gociation collective.`,
+      es: `Respetamos la libertad de asociaci\u00f3n y el derecho a la negociaci\u00f3n colectiva en todas nuestras operaciones.`,
+      it: `Rispettiamo la libert\u00e0 di associazione e il diritto alla contrattazione collettiva in tutte le nostre attivit\u00e0.`,
+      nl: `Wij respecteren in al onze activiteiten de vrijheid van vereniging en het recht op collectieve onderhandelingen.`,
+    }),
+  },
+  {
+    regex: /Yes, we respect employees' right to freedom of association and collective bargaining in all our operations\./g,
+    replace: (lang) => pick(lang, {
+      de: `Ja, wir achten in all unseren Betrieben das Recht der Besch\u00e4ftigten auf Vereinigungsfreiheit und Kollektivverhandlungen.`,
+      pl: `Tak, we wszystkich naszych dzia\u0142aniach szanujemy prawo pracownik\u00f3w do wolno\u015bci zrzeszania si\u0119 i rokowa\u0144 zbiorowych.`,
+      fr: `Oui, nous respectons dans l'ensemble de nos activit\u00e9s le droit des salari\u00e9s \u00e0 la libert\u00e9 d'association et \u00e0 la n\u00e9gociation collective.`,
+      es: `S\u00ed, respetamos en todas nuestras operaciones el derecho de los empleados a la libertad de asociaci\u00f3n y a la negociaci\u00f3n colectiva.`,
+      it: `S\u00ec, rispettiamo in tutte le nostre attivit\u00e0 il diritto dei dipendenti alla libert\u00e0 di associazione e alla contrattazione collettiva.`,
+      nl: `Ja, wij respecteren in al onze activiteiten het recht van medewerkers op vrijheid van vereniging en collectieve onderhandelingen.`,
+    }),
+  },
+  {
+    regex: /Employees are free to join, form, or refrain from joining trade unions or works councils without fear of intimidation, retaliation, or discrimination\./g,
+    replace: (lang) => pick(lang, {
+      de: `Besch\u00e4ftigte k\u00f6nnen Gewerkschaften oder Betriebsr\u00e4ten frei beitreten, diese gr\u00fcnden oder darauf verzichten, ohne Einsch\u00fcchterung, Vergeltung oder Diskriminierung bef\u00fcrchten zu m\u00fcssen.`,
+      pl: `Pracownicy mog\u0105 swobodnie przyst\u0119powa\u0107 do zwi\u0105zk\u00f3w zawodowych lub rad pracowniczych, tworzy\u0107 je albo powstrzyma\u0107 si\u0119 od przyst\u0105pienia, bez obawy przed zastraszaniem, odwetem lub dyskryminacj\u0105.`,
+      fr: `Les salari\u00e9s sont libres d'adh\u00e9rer \u00e0 des syndicats ou \u00e0 des comit\u00e9s d'entreprise, d'en cr\u00e9er, ou de choisir de ne pas y adh\u00e9rer, sans crainte d'intimidation, de repr\u00e9sailles ou de discrimination.`,
+      es: `Los empleados pueden afiliarse, crear o decidir no afiliarse a sindicatos o comit\u00e9s de empresa sin temor a intimidaci\u00f3n, represalias o discriminaci\u00f3n.`,
+      it: `I dipendenti sono liberi di aderire a sindacati o consigli di fabbrica, di costituirli o di scegliere di non aderire, senza timore di intimidazioni, ritorsioni o discriminazioni.`,
+      nl: `Medewerkers zijn vrij om lid te worden van vakbonden of ondernemingsraden, deze op te richten of ervoor te kiezen niet deel te nemen, zonder angst voor intimidatie, represailles of discriminatie.`,
+    }),
+  },
+  {
+    regex: /These rights are addressed within the framework of applicable labor law in (.+?)\./g,
+    replace: (lang, country) => pick(lang, {
+      de: `Diese Rechte werden im Rahmen des geltenden Arbeitsrechts in ${country} verankert.`,
+      pl: `Prawa te s\u0105 ujmowane w ramach obowi\u0105zuj\u0105cego prawa pracy w ${country}.`,
+      fr: `Ces droits sont trait\u00e9s dans le cadre du droit du travail applicable en ${country}.`,
+      es: `Estos derechos se abordan dentro del marco de la legislaci\u00f3n laboral aplicable en ${country}.`,
+      it: `Questi diritti sono trattati nell'ambito della normativa del lavoro applicabile in ${country}.`,
+      nl: `Deze rechten worden geborgd binnen het kader van het toepasselijke arbeidsrecht in ${country}.`,
+    }),
+  },
+  {
     regex: /Yes, all employees(?: in (.+?))? are compensated at or above the applicable living wage(?: [\u2014-] not merely the legal minimum wage)?\./g,
     replace: (lang, country) => pick(lang, {
       de: `Ja, alle Besch\u00e4ftigten${country ? ` in ${country}` : ''} werden mindestens in H\u00f6he des jeweils geltenden Living Wage verg\u00fctet, nicht lediglich in H\u00f6he des gesetzlichen Mindestlohns.`,
@@ -342,6 +463,28 @@ const RULES = [
       es: `${hires} nuevos empleados se incorporaron y aproximadamente ${departures} empleados salieron ${period ? `durante ${period}` : 'durante el per\u00edodo de reporte'}.`,
       it: `${hires} nuovi dipendenti sono entrati e circa ${departures} dipendenti hanno lasciato l'azienda ${period ? `durante ${period}` : 'nel periodo di rendicontazione'}.`,
       nl: `${hires} nieuwe medewerkers zijn ${period ? `gedurende ${period}` : 'in de verslagperiode'} gestart en ongeveer ${departures} medewerkers zijn vertrokken.`,
+    }),
+  },
+  {
+    regex: /As of the end of the reporting period, our workforce comprises ([\d.,\s]+) FTE employees\./g,
+    replace: (lang, fte) => pick(lang, {
+      de: `Zum Ende des Berichtszeitraums umfasste unsere Belegschaft ${fte} FTE.`,
+      pl: `Na koniec okresu sprawozdawczego nasza kadra liczy\u0142a ${fte} pracownik\u00f3w FTE.`,
+      fr: `\u00c0 la fin de la p\u00e9riode de reporting, notre effectif comptait ${fte} salari\u00e9s en \u00e9quivalent temps plein (FTE).`,
+      es: `Al final del per\u00edodo de reporte, nuestra plantilla estaba compuesta por ${fte} empleados equivalentes a tiempo completo (FTE).`,
+      it: `Alla fine del periodo di rendicontazione, la nostra forza lavoro comprendeva ${fte} dipendenti equivalenti a tempo pieno (FTE).`,
+      nl: `Aan het einde van de verslagperiode bestond ons personeelsbestand uit ${fte} FTE.`,
+    }),
+  },
+  {
+    regex: /\(turnover rate: ([\d.,\s]+)%\)\./g,
+    replace: (lang, rate) => pick(lang, {
+      de: `(Fluktuationsquote: ${rate}%).`,
+      pl: `(wska\u017anik rotacji: ${rate}%).`,
+      fr: `(taux de rotation : ${rate} %).`,
+      es: `(tasa de rotaci\u00f3n: ${rate}%).`,
+      it: `(tasso di turnover: ${rate}%).`,
+      nl: `(personeelsverloop: ${rate}%).`,
     }),
   },
   {
@@ -762,14 +905,36 @@ const RULES = [
     }),
   },
   {
-    regex: /\n\nData gaps: (.+?)\./g,
-    replace: (lang, gaps) => pick(lang, {
+    regex: /\n\nData gaps:(?!)/g,
+    replace: (lang) => pick(lang, {
       de: `\n\nDatenlücken: ${gaps}.`,
-      pl: `\n\nLuki w danych: ${gaps}.`,
+      pl: `\n\nLuki w danych:`,
       fr: `\n\nLacunes dans les données : ${gaps}.`,
       es: `\n\nVacíos de datos: ${gaps}.`,
-      it: `\n\nLacune nei dati: ${gaps}.`,
-      nl: `\n\nDatagaten: ${gaps}.`,
+      it: `\n\nLacune nei dati:`,
+      nl: `\n\nDatagaten:`,
+    }),
+  },
+  {
+    regex: /^Data gaps:/g,
+    replace: (lang) => pick(lang, {
+      de: `Datenl\u00fccken:`,
+      pl: `Luki w danych:`,
+      fr: `Lacunes dans les donn\u00e9es :`,
+      es: `Vac\u00edos de datos:`,
+      it: `Lacune nei dati:`,
+      nl: `Datagaten:`,
+    }),
+  },
+  {
+    regex: /\n\nData gaps:/g,
+    replace: (lang) => pick(lang, {
+      de: `\n\nDatenl\u00fccken:`,
+      pl: `\n\nLuki w danych:`,
+      fr: `\n\nLacunes dans les donn\u00e9es :`,
+      es: `\n\nVac\u00edos de datos:`,
+      it: `\n\nLacune nei dati:`,
+      nl: `\n\nDatagaten:`,
     }),
   },
   {
@@ -785,25 +950,6 @@ const RULES = [
   },
 ];
 
-const TERM_MAP = {
-  de: { 'renewable energy': 'erneuerbare Energie', 'human rights': 'Menschenrechte', 'supply chain': 'Lieferkette' },
-  pl: { 'renewable energy': 'energia odnawialna', 'human rights': 'prawa cz\u0142owieka', 'supply chain': '\u0142a\u0144cuch dostaw' },
-  fr: { 'renewable energy': '\u00e9nergie renouvelable', 'human rights': 'droits humains', 'supply chain': 'cha\u00eene d\'approvisionnement' },
-  es: { 'renewable energy': 'energ\u00eda renovable', 'human rights': 'derechos humanos', 'supply chain': 'cadena de suministro' },
-  it: { 'renewable energy': 'energia rinnovabile', 'human rights': 'diritti umani', 'supply chain': 'catena di fornitura' },
-  nl: { 'renewable energy': 'hernieuwbare energie', 'human rights': 'mensenrechten', 'supply chain': 'toeleveringsketen' },
-};
-
-function replaceTerms(text, lang) {
-  const terms = TERM_MAP[lang];
-  if (!terms) return text;
-  let result = text;
-  for (const [src, dst] of Object.entries(terms)) {
-    result = result.replace(new RegExp(src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), dst);
-  }
-  return result;
-}
-
 export function translateAnswer(answer, targetLang) {
   const lang = norm(targetLang);
   if (!answer || lang === 'en') return answer;
@@ -811,7 +957,7 @@ export function translateAnswer(answer, targetLang) {
   for (const rule of RULES) {
     result = result.replace(rule.regex, (...args) => rule.replace(lang, ...args.slice(1, -2)));
   }
-  return replaceTerms(result, lang);
+  return result;
 }
 
 export function localizeAnswerDrafts(answerDrafts, targetLang) {
@@ -830,6 +976,8 @@ export function getExportStrings(targetLang) {
   return {
     lang,
     htmlTitle: pick(lang, { de: 'Fragebogenantworten', pl: 'Odpowiedzi do kwestionariusza', fr: 'R\u00e9ponses au questionnaire', es: 'Respuestas al cuestionario', it: 'Risposte al questionario', nl: 'Vragenlijstantwoorden', en: 'Questionnaire Responses' }),
+    wordTitle: pick(lang, { de: 'Fragebogenantworten (Word)', pl: 'Odpowiedzi do kwestionariusza (Word)', fr: 'R\u00e9ponses au questionnaire (Word)', es: 'Respuestas al cuestionario (Word)', it: 'Risposte al questionario (Word)', nl: 'Vragenlijstantwoorden (Word)', en: 'Questionnaire Responses (Word)' }),
+    pdfTitle: pick(lang, { de: 'Fragebogenantworten (Druck/PDF)', pl: 'Odpowiedzi do kwestionariusza (druk/PDF)', fr: 'R\u00e9ponses au questionnaire (impression/PDF)', es: 'Respuestas al cuestionario (impresi\u00f3n/PDF)', it: 'Risposte al questionario (stampa/PDF)', nl: 'Vragenlijstantwoorden (afdruk/PDF)', en: 'Questionnaire Responses (Print/PDF)' }),
     framework: pick(lang, { de: 'Rahmenwerk', pl: 'Standard', fr: 'R\u00e9f\u00e9rentiel', es: 'Marco', it: 'Framework', nl: 'Raamwerk', en: 'Framework' }),
     reportingPeriod: pick(lang, { de: 'Berichtszeitraum', pl: 'Okres sprawozdawczy', fr: 'P\u00e9riode de reporting', es: 'Per\u00edodo de reporte', it: 'Periodo di rendicontazione', nl: 'Verslagperiode', en: 'Reporting period' }),
     generated: pick(lang, { de: 'Erstellt', pl: 'Wygenerowano', fr: 'G\u00e9n\u00e9r\u00e9', es: 'Generado', it: 'Generato', nl: 'Gegenereerd', en: 'Generated' }),
