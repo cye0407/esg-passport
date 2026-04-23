@@ -197,44 +197,83 @@ export default function BillDrop({ onDataExtracted, year }) {
                 )}
               </div>
 
-              {results.fields.map((f, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center gap-3 p-2 rounded-lg border transition-all ${
-                    f.accepted ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-50'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={f.accepted}
-                    onChange={() => toggleField(i)}
-                    className="shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-slate-900">{f.field}</span>
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${confColor(f.confidence)}`}>
-                        {f.confidence}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 truncate">{f.source?.rawText}</p>
+              {(() => {
+                const d = results.result?.documentDetection;
+                if (!d?.runnerUp || !d.score || !d.runnerUpScore) return null;
+                if (d.runnerUpScore / d.score < 0.7) return null;
+                return (
+                  <div className="flex items-start gap-2 p-2 mb-2 bg-amber-50 border border-amber-200 rounded text-xs">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-amber-800">
+                      Could also be <span className="font-medium">{d.runnerUp.replace(/_/g, ' ')}</span>.
+                      Double-check the extracted fields match what this document actually says.
+                    </p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-sm font-mono font-semibold text-slate-900">
-                      {typeof f.value === 'number' ? f.value.toLocaleString() : f.value}
-                    </span>
-                    <span className="text-xs text-slate-400 ml-1">{f.unit}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })()}
 
-              {results.result?.warnings?.length > 0 && (
+              {results.fields.map((f, i) => {
+                const rawDiffers = f.rawValueText && f.rawValueText !== String(f.value);
+                const topReasons = (f.reasons || []).slice(0, 2).join(' · ');
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-3 p-2 rounded-lg border transition-all ${
+                      f.accepted ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={f.accepted}
+                      onChange={() => toggleField(i)}
+                      className="shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900">{f.field}</span>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${confColor(f.confidence)}`}>
+                          {f.confidence}
+                        </span>
+                      </div>
+                      {topReasons && (
+                        <p className="text-[10px] text-slate-500 mt-0.5">{topReasons}</p>
+                      )}
+                      <p className="text-xs text-slate-400 truncate">{f.source?.rawText}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-sm font-mono font-semibold text-slate-900">
+                        {typeof f.value === 'number' ? f.value.toLocaleString() : f.value}
+                      </span>
+                      <span className="text-xs text-slate-400 ml-1">{f.unit}</span>
+                      {rawDiffers && (
+                        <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          raw: {f.rawValueText}{f.rawUnitText ? ` ${f.rawUnitText}` : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {results.result?.issues?.length > 0 ? (
+                <div className="p-3 bg-amber-50 rounded-lg mt-2 space-y-1.5">
+                  {results.result.issues.map((issue, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs text-amber-800">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        {issue.field && <span className="font-medium">{issue.field}: </span>}
+                        <span>{issue.message}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : results.result?.warnings?.length > 0 ? (
                 <div className="p-3 bg-amber-50 rounded-lg mt-2">
                   {results.result.warnings.map((w, i) => (
                     <p key={i} className="text-xs text-amber-700">{w}</p>
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
           ) : null}
 
