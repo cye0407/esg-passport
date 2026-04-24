@@ -34,7 +34,7 @@ function CollapsibleSection({ icon: Icon, title, children, defaultOpen = false }
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { activate, isPaid } = useLicense();
+  const { activate, isPaid, tier } = useLicense();
   const [company, setCompany] = useState(null);
   const [settings, setSettings] = useState(null);
   const [saved, setSaved] = useState(false);
@@ -96,8 +96,8 @@ export default function Settings() {
   };
 
   const handleReset = () => {
-    if (!confirm('Are you sure you want to reset ALL data? This cannot be undone.')) return;
-    if (!confirm('Really delete everything?')) return;
+    if (!confirm('Reset all tracked data and company profile? This cannot be undone.')) return;
+    if (!confirm('Your license will remain active on this device. Use Deactivate License if you want to transfer it. Continue?')) return;
     resetData();
     navigate('/onboarding');
   };
@@ -210,56 +210,67 @@ export default function Settings() {
       {/* AI Enhancement */}
       <CollapsibleSection icon={Sparkles} title="AI Answer Enhancement">
         <div className="space-y-4 pt-4">
-          <p className="text-sm text-slate-500">
-            Optionally use AI to rewrite template answers into natural, company-specific language.
-          </p>
-          <div className="space-y-2">
-            <Label>Mode</Label>
-            <Select value={settings.aiMode || 'proxy'} onValueChange={(v) => handleSettingsUpdate('aiMode', v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="proxy">Server proxy (no key needed)</SelectItem>
-                <SelectItem value="direct">Use my own API key</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-slate-400">
-              {(settings.aiMode || 'proxy') === 'proxy'
-                ? 'Requests go through the ESG Passport server. Works out of the box.'
-                : 'Your API key is stored locally and calls go directly from your browser.'}
-            </p>
-          </div>
-
-          {settings.aiMode === 'direct' && (
+          {isPaid ? (
             <>
+              <p className="text-sm text-slate-500">
+                Optionally use AI to rewrite template answers into natural, company-specific language.
+              </p>
               <div className="space-y-2">
-                <Label>Provider</Label>
-                <Select value={settings.aiProvider || 'claude'} onValueChange={(v) => handleSettingsUpdate('aiProvider', v)}>
+                <Label>Mode</Label>
+                <Select value={settings.aiMode || 'proxy'} onValueChange={(v) => handleSettingsUpdate('aiMode', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="claude">Anthropic (Claude)</SelectItem>
-                    <SelectItem value="openai">OpenAI (GPT)</SelectItem>
+                    <SelectItem value="proxy">Server proxy (no key needed)</SelectItem>
+                    <SelectItem value="direct">Use my own API key</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>API Key</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type={showApiKey ? 'text' : 'password'}
-                    value={settings.aiApiKey || ''}
-                    onChange={(e) => handleSettingsUpdate('aiApiKey', e.target.value)}
-                    placeholder={settings.aiProvider === 'openai' ? 'sk-...' : 'sk-ant-...'}
-                  />
-                  <Button variant="ghost" size="sm" onClick={() => setShowApiKey(!showApiKey)} className="px-2">
-                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
-                </div>
                 <p className="text-xs text-slate-400">
-                  Your key stays in your browser. It is never sent to our servers.
+                  {(settings.aiMode || 'proxy') === 'proxy'
+                    ? 'Requests go through the ESG Passport server. Works out of the box.'
+                    : 'Your API key is stored locally and calls go directly from your browser.'}
                 </p>
               </div>
+
+              {settings.aiMode === 'direct' && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Provider</Label>
+                    <Select value={settings.aiProvider || 'claude'} onValueChange={(v) => handleSettingsUpdate('aiProvider', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="claude">Anthropic (Claude)</SelectItem>
+                        <SelectItem value="openai">OpenAI (GPT)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>API Key</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type={showApiKey ? 'text' : 'password'}
+                        value={settings.aiApiKey || ''}
+                        onChange={(e) => handleSettingsUpdate('aiApiKey', e.target.value)}
+                        placeholder={settings.aiProvider === 'openai' ? 'sk-...' : 'sk-ant-...'}
+                      />
+                      <Button variant="ghost" size="sm" onClick={() => setShowApiKey(!showApiKey)} className="px-2">
+                        {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      Your key stays in your browser. It is never sent to our servers.
+                    </p>
+                  </div>
+                </>
+              )}
             </>
+          ) : (
+            <div className="rounded-none border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-medium text-slate-900">AI enhancement is a Pro feature.</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Upgrade to Pro to rewrite prepared answers into more natural, company-specific language.
+              </p>
+            </div>
           )}
         </div>
       </CollapsibleSection>
@@ -292,7 +303,7 @@ export default function Settings() {
         </h2>
         <p className="text-sm text-slate-500 mb-4">
           {getStoredLicense()
-            ? `License active since ${new Date(getStoredLicense().activated_at).toLocaleDateString()}.`
+            ? `ESG Passport ${tier === 'pro-plus' ? 'Pro+' : 'Pro'} active since ${new Date(getStoredLicense().activated_at).toLocaleDateString()}.`
             : 'No license activated.'}
           {' '}Activate here or deactivate to transfer to another device.
         </p>

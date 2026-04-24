@@ -38,6 +38,11 @@ function isLocalDev() {
   return host === 'localhost' || host === '127.0.0.1';
 }
 
+function isDownloadedBuild() {
+  if (typeof window === 'undefined') return false;
+  return window.location.protocol === 'file:';
+}
+
 function generateInstanceName() {
   if (typeof window === 'undefined') return 'web-server';
   const id = window.crypto?.randomUUID?.()
@@ -52,6 +57,21 @@ function getInstanceName() {
   const generated = generateInstanceName();
   localStorage.setItem(LICENSE_INSTANCE_NAME_KEY, generated);
   return generated;
+}
+
+function isAlreadyDeactivatedResponse(status, error) {
+  const normalized = String(error || '').toLowerCase();
+  return (
+    status === 404
+    || status === 410
+    || (status === 400 && (
+      normalized.includes('not_found')
+      || normalized.includes('not found')
+      || normalized.includes('already_deactivated')
+      || normalized.includes('already deactivated')
+      || normalized.includes('instance not found')
+    ))
+  );
 }
 
 async function requestLicenseValidation(key, {
@@ -126,9 +146,12 @@ export async function validateLicenseKey(key, { instanceId = null } = {}) {
   try {
     return await requestLicenseValidation(key, { instanceId });
   } catch {
-    // Server unreachable — likely running from downloaded zip.
-    // Accept the key based on format check alone.
-    return { valid: true, instance_id: null };
+    // Server unreachable. Only downloaded zip builds are allowed to fall back
+    // to a local format-only activation path.
+    if (isDownloadedBuild() || isLocalDev()) {
+      return { valid: true, instance_id: null, fallback: true };
+    }
+    return { valid: false, error: 'Could not reach the license server. Please try again.' };
   }
 }
 
@@ -179,6 +202,10 @@ export async function deactivateLicense() {
     const data = contentType.includes('application/json') ? await response.json() : null;
 
     if (!response.ok) {
+      if (isAlreadyDeactivatedResponse(response.status, data?.error)) {
+        localStorage.removeItem(LICENSE_STORAGE_KEY);
+        return { ok: true, alreadyDeactivated: true };
+      }
       return { ok: false, error: data?.error || 'License deactivation failed. Please try again.' };
     }
   } catch {

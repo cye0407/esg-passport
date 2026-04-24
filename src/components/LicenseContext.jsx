@@ -51,7 +51,7 @@ export function LicenseProvider({ children }) {
       const urlKey = readActivationKeyFromUrl();
       if (urlKey) {
         const result = await activate(urlKey, { source: 'post_purchase_redirect' });
-        setAutoActivation({ ok: result.valid, error: result.error || null });
+        setAutoActivation({ ok: result.valid, error: result.error || null, tier: result.tier || getLicenseTier() });
         setIsChecking(false);
         return;
       }
@@ -86,6 +86,7 @@ export function LicenseProvider({ children }) {
 
 function AutoActivationBanner({ result, onDismiss }) {
   const success = result.ok;
+  const tierLabel = result.tier === 'pro-plus' ? 'Pro+' : 'Pro';
   return (
     <div
       className={`fixed top-0 inset-x-0 z-50 px-4 py-3 text-sm text-white flex items-center justify-center gap-4 ${success ? 'bg-emerald-600' : 'bg-red-600'}`}
@@ -93,7 +94,7 @@ function AutoActivationBanner({ result, onDismiss }) {
     >
       <span>
         {success
-          ? 'Pro license activated — all features unlocked.'
+          ? `${tierLabel} license activated - all features unlocked.`
           : `Activation failed: ${result.error || 'unknown error'}. Paste your key in Settings to try again.`}
       </span>
       <button

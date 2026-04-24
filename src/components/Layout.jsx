@@ -24,8 +24,8 @@ const navigation = [
   { name: 'Data', href: '/data', icon: Database, paid: false },
   { name: 'Policies', href: '/policies', icon: ClipboardCheck, paid: false },
   { name: 'Documents', href: '/documents', icon: FolderOpen, paid: false },
-  { name: 'Report', href: '/report', icon: FileText, paid: false },
-  { name: 'Respond', href: '/respond', icon: Upload, paid: true },
+  { name: 'Report', href: '/report', icon: FileText, paid: true },
+  { name: 'Respond', href: '/respond', icon: Upload, paid: false, preview: true },
   { name: 'Requests', href: '/requests', icon: Inbox, paid: true },
   { name: 'Settings', href: '/settings', icon: Settings, paid: false },
 ];
@@ -100,6 +100,7 @@ export default function Layout() {
                 const isActive = location.pathname === item.href ||
                   (item.href !== '/' && location.pathname.startsWith(item.href));
                 const showLock = item.paid && !isPaid;
+                const showPreview = item.preview && !isPaid;
                 return (
                   <Link
                     key={item.name}
@@ -113,7 +114,12 @@ export default function Layout() {
                   >
                     <item.icon className="w-4 h-4" />
                     {item.name}
-                    {showLock && <Lock className="w-3 h-3 opacity-50" />}
+                    {showPreview && (
+                      <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
+                        Preview
+                      </span>
+                    )}
+                    {showLock && <Lock aria-label={`${item.name} locked`} className="w-3 h-3 opacity-50" />}
                   </Link>
                 );
               })}
@@ -137,6 +143,7 @@ export default function Layout() {
                 const isActive = location.pathname === item.href ||
                   (item.href !== '/' && location.pathname.startsWith(item.href));
                 const showLock = item.paid && !isPaid;
+                const showPreview = item.preview && !isPaid;
                 return (
                   <Link
                     key={item.name}
@@ -148,10 +155,15 @@ export default function Layout() {
                         ? 'bg-indigo-600 text-white'
                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     )}
-                  >
+                    >
                     <item.icon className="w-5 h-5" />
                     {item.name}
-                    {showLock && <Lock className="w-3.5 h-3.5 opacity-50 ml-auto" />}
+                    {showPreview && (
+                      <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
+                        Preview
+                      </span>
+                    )}
+                    {showLock && <Lock aria-label={`${item.name} locked`} className="w-3.5 h-3.5 opacity-50 ml-auto" />}
                   </Link>
                 );
               })}

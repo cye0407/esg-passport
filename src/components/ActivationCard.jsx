@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLicense } from '@/components/LicenseContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,7 +41,8 @@ export default function ActivationCard() {
   // it self-dismisses.
   if (isChecking) return null;
   if (isPaid) return null;
-  if (dismissed && !justPurchased) return null;
+  if (!justPurchased) return null;
+  if (dismissed) return null;
 
   async function handleActivate(e) {
     e.preventDefault();

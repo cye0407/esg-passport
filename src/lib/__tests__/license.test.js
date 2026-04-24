@@ -69,6 +69,23 @@ describe('license flow', () => {
     );
   });
 
+  it('clears the local license when the server says it was already deactivated', async () => {
+    const { storeLicense, deactivateLicense, getStoredLicense } = await import('../license');
+    storeLicense('abcd-1234', 'remote-instance');
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ error: 'not_found' }),
+    });
+
+    const result = await deactivateLicense();
+
+    expect(result).toEqual({ ok: true, alreadyDeactivated: true });
+    expect(getStoredLicense()).toBeNull();
+  });
+
   it('preserves the original activation timestamp during revalidation', async () => {
     const { storeLicense, revalidateStoredLicense, getStoredLicense } = await import('../license');
     storeLicense('abcd-1234', 'existing-instance', {

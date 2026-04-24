@@ -1389,7 +1389,7 @@ export default function Respond() {
                     {filtered.length - FREE_PREVIEW_LIMIT} more answers ready
                   </h3>
                   <p className="text-sm text-slate-600">
-                    You're seeing the first {FREE_PREVIEW_LIMIT} of {filtered.length} answers. Unlock the rest, plus Excel export, multi-language, and AI enhancement — one-time payment, no subscription.
+                    You&apos;re in preview mode. You&apos;re seeing the first {FREE_PREVIEW_LIMIT} of {filtered.length} prepared answers. Upgrade to Pro to unlock the full answer set, export, and AI enhancement - one-time payment, no subscription.
                   </p>
                   <a
                     href={CHECKOUT_URL}
@@ -1397,13 +1397,13 @@ export default function Respond() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-2 h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none transition-colors"
                   >
-                    Unlock all {filtered.length} answers — €299
+                    Upgrade to Pro - €299
                   </a>
                   <p className="text-xs text-slate-400">
                     Already purchased? <Link to="/settings" className="underline">Activate your license key</Link>
                   </p>
                   <div className="flex items-center justify-center gap-3 text-xs text-slate-400 pt-1">
-                    <Link to="/" className="hover:text-slate-600 underline">Maybe later — dashboard</Link>
+                    <Link to="/" className="hover:text-slate-600 underline">Maybe later - dashboard</Link>
                     <span>·</span>
                     <Link to="/data" className="hover:text-slate-600 underline">Add more data</Link>
                   </div>
@@ -1444,7 +1444,7 @@ export default function Respond() {
               title={isPaid ? '' : 'Pro feature — unlock for €299'}
             >
               {isPaid ? <Download className="w-4 h-4 mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
-              {isPaid ? 'Export' : 'Unlock Export — €299'}
+              {isPaid ? 'Export' : 'Export with Pro - €299'}
             </Button>
           </div>
         )}
@@ -1592,8 +1592,19 @@ export default function Respond() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Respond to Questionnaire</h1>
-        <p className="text-slate-500 mt-1">Upload a file, pick a template, or revisit previous results.</p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900">Respond to Questionnaire</h1>
+          {!isPaid && (
+            <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
+              Preview
+            </span>
+          )}
+        </div>
+        <p className="text-slate-500 mt-1">
+          {isPaid
+            ? 'Upload a file, pick a template, or revisit previous results.'
+            : `Upload a file or pick a template to preview your first ${FREE_PREVIEW_LIMIT} prepared answers. Upgrade to Pro for the full workflow, export, and AI enhancement.`}
+        </p>
       </div>
 
       {linkedRequest && (

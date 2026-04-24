@@ -6,11 +6,11 @@ const PRO_PLUS_CHECKOUT = 'https://catyeldi.lemonsqueezy.com/checkout/buy/d5cb10
 
 export default function ExtractorUpgradeCard({ tier }) {
   const headline = tier === 'pro'
-    ? 'Sick of typing numbers from invoices?'
-    : 'Sick of typing numbers from invoices?';
+    ? 'Want to skip typing bill data manually?'
+    : 'Want to skip typing bill data manually?';
   const body = tier === 'pro'
-    ? 'Pro+ adds document extraction. Drop a bill, manifest, or HR report — our extractor reads it and fills this page for you. Electricity, gas, water, waste, workforce, all pulled automatically.'
-    : 'Drop a bill, manifest, or HR report and our extractor reads it and fills this page for you. Electricity, gas, water, waste, workforce — all pulled automatically. Document extraction is a Pro+ feature.';
+    ? 'Upgrade to Pro+ to drop a bill, manifest, or HR report and have the extractor fill this page for you. Electricity, gas, water, waste, and workforce data are pulled automatically.'
+    : 'Document extraction is a Pro+ feature. Upgrade to drop a bill, manifest, or HR report and have the extractor fill this page for you instead of entering values manually.';
 
   return (
     <div className="border-2 border-dashed border-slate-300 bg-white p-6">
@@ -28,7 +28,7 @@ export default function ExtractorUpgradeCard({ tier }) {
             onClick={() => track('checkout_opened', { source: 'extractor_upgrade_card', from_tier: tier })}
             className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2.5"
           >
-            Upgrade to Pro+ — €499
+            Upgrade to Pro+ - €499
             <ArrowRight className="w-4 h-4" />
           </a>
           {tier === 'pro' && (
