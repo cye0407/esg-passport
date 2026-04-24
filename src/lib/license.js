@@ -61,16 +61,18 @@ function getInstanceName() {
 
 function isAlreadyDeactivatedResponse(status, error) {
   const normalized = String(error || '').toLowerCase();
+  if (status === 404 || status === 410) return true;
+  // Match regardless of status: LemonSqueezy can return these codes with
+  // 400 or 403 depending on the endpoint. limit_reached is deliberately
+  // excluded — it means the license is still valid, just overused.
   return (
-    status === 404
-    || status === 410
-    || (status === 400 && (
-      normalized.includes('not_found')
-      || normalized.includes('not found')
-      || normalized.includes('already_deactivated')
-      || normalized.includes('already deactivated')
-      || normalized.includes('instance not found')
-    ))
+    normalized === 'not_found'
+    || normalized === 'disabled'
+    || normalized === 'expired'
+    || normalized.includes('not found')
+    || normalized.includes('already_deactivated')
+    || normalized.includes('already deactivated')
+    || normalized.includes('instance not found')
   );
 }
 
@@ -106,6 +108,8 @@ async function requestLicenseValidation(key, {
     return {
       valid: false,
       error: data.error || 'License validation failed.',
+      code: data.error || null,
+      status: response.status,
     };
   }
 
@@ -128,6 +132,8 @@ async function requestLicenseValidation(key, {
   return {
     valid: false,
     error: errorMessages[data.error] || data.error || 'Invalid license key.',
+    code: data.error || null,
+    status: response.status,
   };
 }
 
@@ -178,6 +184,11 @@ export async function deactivateLicense() {
           activated_at: stored.activated_at,
           instance_name: stored.instance_name,
         });
+      } else if (!refreshed.valid && isAlreadyDeactivatedResponse(refreshed.status, refreshed.code)) {
+        // Server confirms the license is gone (disabled / expired / not_found).
+        // Clear local state instead of stranding the user in a paid UI.
+        localStorage.removeItem(LICENSE_STORAGE_KEY);
+        return { ok: true, reconciled: true };
       }
     } catch {
       return { ok: false, error: 'Could not reach the license server. Your license was not deactivated.' };
@@ -204,7 +215,7 @@ export async function deactivateLicense() {
     if (!response.ok) {
       if (isAlreadyDeactivatedResponse(response.status, data?.error)) {
         localStorage.removeItem(LICENSE_STORAGE_KEY);
-        return { ok: true, alreadyDeactivated: true };
+        return { ok: true, reconciled: true };
       }
       return { ok: false, error: data?.error || 'License deactivation failed. Please try again.' };
     }

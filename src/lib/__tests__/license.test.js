@@ -82,8 +82,60 @@ describe('license flow', () => {
 
     const result = await deactivateLicense();
 
-    expect(result).toEqual({ ok: true, alreadyDeactivated: true });
+    expect(result).toEqual({ ok: true, reconciled: true });
     expect(getStoredLicense()).toBeNull();
+  });
+
+  it('reconciles local state when the license is disabled on the server', async () => {
+    const { storeLicense, deactivateLicense, getStoredLicense } = await import('../license');
+    storeLicense('abcd-1234', 'remote-instance');
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ error: 'disabled' }),
+    });
+
+    const result = await deactivateLicense();
+
+    expect(result).toEqual({ ok: true, reconciled: true });
+    expect(getStoredLicense()).toBeNull();
+  });
+
+  it('reconciles local state when the license is expired on the server', async () => {
+    const { storeLicense, deactivateLicense, getStoredLicense } = await import('../license');
+    storeLicense('abcd-1234', 'remote-instance');
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ error: 'expired' }),
+    });
+
+    const result = await deactivateLicense();
+
+    expect(result).toEqual({ ok: true, reconciled: true });
+    expect(getStoredLicense()).toBeNull();
+  });
+
+  it('reconciles local state when the recovery revalidation finds the license gone', async () => {
+    const { storeLicense, deactivateLicense, getStoredLicense } = await import('../license');
+    storeLicense('abcd-1234', null);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ error: 'not_found' }),
+    });
+
+    const result = await deactivateLicense();
+
+    expect(result).toEqual({ ok: true, reconciled: true });
+    expect(getStoredLicense()).toBeNull();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it('preserves the original activation timestamp during revalidation', async () => {
