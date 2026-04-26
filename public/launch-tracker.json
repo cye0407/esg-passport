@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "ESG Passport Launch Tracker",
-    "lastUpdated": "2026-04-15",
+    "lastUpdated": "2026-04-26",
     "planPath": "LAUNCH-TEST-PLAN.md"
   },
   "summary": {
@@ -22,7 +22,7 @@
       "status": "done",
       "severity": "blocker",
       "owner": "Codex",
-      "notes": "DEV forced-paid state removed from src/components/LicenseContext.jsx. checkLicense() restored on mount. Local Vite activation now targets hosted /api license endpoints instead of nonexistent local /api routes. Production build passes, and deactivate/reactivate license transfer has now been verified working on the live production site."
+      "notes": "DEV forced-paid state removed from src/components/LicenseContext.jsx. checkLicense() restored on mount. Local Vite activation now targets hosted /api license endpoints instead of nonexistent local /api routes. Production build passes, and deactivate/reactivate license transfer has now been verified working on the live production site. 2026-04-24/26: launch rescue resolved 11 blocker/high findings (UpgradeGate per-feature copy for Report and Requests, tier-aware post-purchase banner, hosted-domain guard on offline license fallback, Settings tier label, AI-enhancement gating for free users, idempotent server deactivation incl. disabled/expired/recovery-revalidation paths). Locked by vitest coverage in src/lib/__tests__/license.test.js (7 cases) and src/components/__tests__/. See LAUNCH-RESCUE-FINDINGS_2026-04-24.md."
     },
     {
       "id": "p0-engine",

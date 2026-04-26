@@ -64,7 +64,7 @@ Validation completed:
 
 ### Urgent
 
-- None identified for build/runtime stability. License deactivate/reactivate flow has now been verified working on the live production site.
+- None identified for build/runtime stability. License deactivate/reactivate flow has now been verified working on the live production site. 2026-04-24/26: launch rescue resolved 11 blocker/high findings; server-side license reconciliation now covers `disabled`, `expired`, `not_found`, and the recovery-revalidation path. Tests + build green. See `LAUNCH-RESCUE-FINDINGS_2026-04-24.md`.
 
 ## Known Limitation
 
