@@ -80,14 +80,14 @@ async function fileIsNewerThan(filePath, timestamp) {
   return info.mtimeMs >= timestamp;
 }
 
-async function writeBuildInfo({ extractSha, engineSha }) {
+async function writeBuildInfo({ passportSha, extractSha, engineSha }) {
   const packageJsonPath = path.join(passportRoot, 'package.json');
   const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'));
   const buildInfoPath = path.join(passportRoot, 'src', 'buildInfo.json');
   const existing = JSON.parse(await readFile(buildInfoPath, 'utf8'));
   const desired = {
     passportVersion: packageJson.version,
-    passportSha: getShortSha(passportRoot),
+    passportSha,
     extractSha,
     engineSha,
     builtAt: new Date().toISOString(),
@@ -147,7 +147,11 @@ async function main() {
 
   const extractSha = getShortSha(extractRoot);
   const engineSha = getShortSha(engineRoot);
-  await writeBuildInfo({ extractSha, engineSha });
+  await writeBuildInfo({
+    passportSha: getShortSha(passportRoot),
+    extractSha,
+    engineSha,
+  });
 
   npm('test', passportRoot);
   npm('build', passportRoot);
@@ -160,6 +164,12 @@ async function main() {
 esg-extract: ${extractSha}
 response-ready: ${engineSha}`;
     run('git', ['commit', '-m', message], passportRoot);
+    const releaseSha = getShortSha(passportRoot);
+    await writeBuildInfo({ passportSha: releaseSha, extractSha, engineSha });
+    git(['add', 'src/buildInfo.json'], passportRoot, false);
+    if (hasStagedChanges()) {
+      run('git', ['commit', '--amend', '--no-edit'], passportRoot);
+    }
   } else {
     console.log('No vendor or build-info changes to commit.');
   }
