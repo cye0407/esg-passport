@@ -19,8 +19,14 @@ function run(command, args, cwd, options = {}) {
   const result = spawnSync(command, args, {
     cwd,
     encoding: 'utf8',
+    shell: options.shell ?? false,
     stdio: options.capture ? ['ignore', 'pipe', 'pipe'] : 'inherit',
   });
+
+  if (result.error) {
+    console.error(result.error);
+    fail(`${command} ${args.join(' ')} failed in ${cwd}`);
+  }
 
   if (result.status !== 0) {
     if (options.capture) {
@@ -40,8 +46,7 @@ function git(args, cwd, capture = true) {
 }
 
 function npm(command, cwd) {
-  const executable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  run(executable, ['run', command], cwd);
+  run('npm', ['run', command], cwd, { shell: process.platform === 'win32' });
 }
 
 function ensureCleanRepo(repoPath, label) {
