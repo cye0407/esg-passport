@@ -3,6 +3,7 @@ import { Link, useLocation, Outlet } from 'react-router-dom';
 import { useLicense } from '@/components/LicenseContext';
 import { cn } from '@/lib/utils';
 import { checkForUpdate, APP_VERSION } from '@/lib/versionCheck';
+import buildInfo from '@/buildInfo.json';
 import {
   Shield,
   Home,
@@ -45,7 +46,6 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Update Banner */}
       {updateInfo && !updateDismissed && (
         <div className="bg-indigo-600 text-white text-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4">
@@ -79,11 +79,9 @@ export default function Layout() {
         </div>
       )}
 
-      {/* Top Navigation */}
       <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Logo */}
             <Link to="/" className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-none bg-slate-800 flex items-center justify-center">
                 <Shield className="w-5 h-5 text-white" />
@@ -94,7 +92,6 @@ export default function Layout() {
               </div>
             </Link>
 
-            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-1">
               {navigation.map((item) => {
                 const isActive = location.pathname === item.href ||
@@ -109,7 +106,7 @@ export default function Layout() {
                       'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                       isActive
                         ? 'bg-indigo-600 text-white'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
                     )}
                   >
                     <item.icon className="w-4 h-4" />
@@ -125,7 +122,6 @@ export default function Layout() {
               })}
             </div>
 
-            {/* Mobile menu button */}
             <button
               className="md:hidden p-2 rounded-lg text-slate-700 hover:bg-slate-100"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -135,7 +131,6 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-slate-200 bg-white">
             <div className="px-4 py-3 space-y-1">
@@ -153,9 +148,9 @@ export default function Layout() {
                       'flex items-center gap-3 px-4 py-3 rounded-none text-sm font-medium transition-colors',
                       isActive
                         ? 'bg-indigo-600 text-white'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
                     )}
-                    >
+                  >
                     <item.icon className="w-5 h-5" />
                     {item.name}
                     {showPreview && (
@@ -172,17 +167,20 @@ export default function Layout() {
         )}
       </nav>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Outlet />
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-slate-200 bg-white mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <p className="text-center text-sm text-slate-400">
             ESG Passport v{APP_VERSION} · VSME Compliant · Your data stays on your device
           </p>
+          {buildInfo?.passportVersion && buildInfo.passportVersion !== 'dev' && (
+            <p className="mt-1 text-right text-[10px] text-slate-400">
+              v{buildInfo.passportVersion} · ext@{buildInfo.extractSha} · eng@{buildInfo.engineSha}
+            </p>
+          )}
         </div>
       </footer>
     </div>
