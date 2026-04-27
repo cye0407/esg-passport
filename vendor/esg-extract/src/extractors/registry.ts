@@ -34,7 +34,7 @@ function detectDocumentType(text: string): DocumentTypeDetection {
   scores.gas_invoice = (gasWords || []).length;
 
   // Fuel — diesel, petrol, fleet
-  const fuelWords = lower.match(/\b(diesel|benzin|petrol|gasoline|fleet|flotte|flottenabrechnung|tankstelle|fuel)\b/g);
+  const fuelWords = lower.match(/\b(diesel|benzin|petrol|gasoline|fleet|flotte|flottenabrechnung|tankstelle|fuel|aral|zapfs[aä]ule|beleg-nr|preis\s*je\s*liter)\b/g);
   const fuelScore = (fuelWords || []).length;
 
   // Water — specific terms, not just "wasser" which appears in "abwasser"

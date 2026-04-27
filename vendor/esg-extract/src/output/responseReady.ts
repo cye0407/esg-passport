@@ -19,9 +19,12 @@ export function toResponseReadyData(result: ExtractionResult): ResponseReadyData
       case 'electricityKwh':
         data.electricityKwh = val;
         break;
+      case 'renewablePercent':
+        data.renewablePercent = val;
+        break;
       case 'naturalGasKwh':
-        // ResponseReady expects m3, not kWh — convert (1 m3 ≈ 10.55 kWh)
-        data.naturalGasM3 = Math.round(val / 10.55);
+        // ResponseReady expects m3, not kWh - convert (1 m3 ~= 10.5 kWh)
+        data.naturalGasM3 = Math.round(val / 10.5);
         break;
       case 'waterM3':
         data.waterM3 = val;
@@ -31,6 +34,18 @@ export function toResponseReadyData(result: ExtractionResult): ResponseReadyData
         break;
       case 'hazardousWasteKg':
         data.hazardousWasteKg = val;
+        break;
+      case 'dieselLiters':
+        data.dieselLiters = val;
+        break;
+      case 'recyclingRate':
+        data.recyclingPercent = val;
+        break;
+      case 'totalEmployees':
+        data.employeeCount = val;
+        break;
+      case 'femalePercent':
+        data.femalePercent = val;
         break;
     }
   }

@@ -6,6 +6,44 @@ import type { ExtractionResult, ExtractedField, ExtractionConfig, Issue } from '
 import { parseNumber } from '../matchers/units';
 import { adjustConfidence } from '../matchers/confidence';
 
+function parseFuelNumber(raw: string): number | null {
+  const normalized = raw.replace(/[OoCc]/g, '0').replace(/[Il]/g, '1').trim();
+  if (/^\d+,\d{3}$/.test(normalized)) {
+    return Number(normalized.replace(',', '.'));
+  }
+  return parseNumber(normalized);
+}
+
+function deriveDieselLitersFromPriceAndAmount(text: string): ExtractedField | undefined {
+  const unitPriceMatch = /Preis(?:\s+\w+){0,2}\s+Liter\s*([0-9.,]+)/i.exec(text);
+  const subtotalMatch = /(?:Zwischensumme|Zwischensumms|schensumme)\s*([0-9.,]+)/i.exec(text);
+  const totalMatch = /Gesamt\s*([0-9.,]+)/i.exec(text);
+  if (!unitPriceMatch || (!subtotalMatch && !totalMatch)) return undefined;
+
+  const unitPrice = parseFuelNumber(unitPriceMatch[1]);
+  const subtotal = subtotalMatch ? parseFuelNumber(subtotalMatch[1]) : null;
+  const total = totalMatch ? parseFuelNumber(totalMatch[1]) : null;
+  const amount = Math.max(subtotal ?? 0, total ?? 0);
+  if (!unitPrice || !amount || unitPrice <= 0) return undefined;
+
+  return {
+    field: 'dieselLiters',
+    value: Math.round((amount / unitPrice) * 10) / 10,
+    unit: 'L',
+    confidence: 'low',
+    score: 0.5,
+    reasons: ['derived_from_amount_and_unit_price'],
+    rawValueText: `${amount}/${unitPrice}`,
+    rawUnitText: 'L',
+    normalizedValue: Math.round((amount / unitPrice) * 10) / 10,
+    normalizedUnit: 'L',
+    source: {
+      rawText: (subtotalMatch ? subtotalMatch[0] : totalMatch![0]).substring(0, 120),
+    },
+    period: detectPeriod(text),
+  };
+}
+
 function detectPeriod(text: string): string | undefined {
   const monthYear = /\b(jan(?:uar[iy]?)?|feb(?:ruar[iy]?)?|m[aä]r[czs]?|apr(?:il)?|ma[iy]|jun[ei]?|jul[iy]?|aug(?:ust)?|sep(?:tember)?|o[ck]t(?:ober)?|nov(?:ember)?|de[czs](?:ember)?)\s*(\d{4})\b/i;
   const myMatch = monthYear.exec(text);
@@ -29,9 +67,9 @@ const FUEL_PATTERNS: { field: string; patterns: RegExp[]; unit: string }[] = [
     field: 'dieselLiters',
     patterns: [
       /(?:summe|total|gesamt)\s*(?:diesel)[\s:]*([0-9.,\s]+)\s*(?:l(?:iter)?|L)\b/i,
-      /(?:diesel)[\s:]*([0-9.,\s]+)\s*(?:l(?:iter)?|L)\b/i,
-      /([0-9.,\s]+)\s*(?:l(?:iter)?|L)\s*(?:diesel)/i,
-      /(?:summe|total|gesamt)\s*[\s:]*([0-9.,\s]+)\s*(?:l(?:iter)?|L)\b/i,
+      /(?:diesel)[\s:]*([0-9OCIl.,\s]+)\s*(?:t?l(?:iter)?|L)\b/i,
+      /([0-9OCIl.,\s]+)\s*(?:t?l(?:iter)?|L)\s*(?:diesel)/i,
+      /(?:summe|total|gesamt)\s*[\s:]*([0-9OCIl.,\s]+)\s*(?:t?l(?:iter)?|L)\b/i,
     ],
     unit: 'L',
   },
@@ -57,7 +95,7 @@ export function extractFuel(
       const match = regex.exec(text);
       if (!match) continue;
 
-      const value = parseNumber(match[1]);
+      const value = parseFuelNumber(match[1]);
       if (value === null || value <= 0) continue;
 
       fields.push({
@@ -75,6 +113,26 @@ export function extractFuel(
         period,
       });
       break;
+    }
+  }
+
+  const derivedDiesel = deriveDieselLitersFromPriceAndAmount(text);
+  const directDiesel = fields.find(field => field.field === 'dieselLiters');
+  if (!directDiesel && derivedDiesel) {
+    fields.push(derivedDiesel);
+  } else if (directDiesel && derivedDiesel && typeof directDiesel.value === 'number') {
+    const directValue = directDiesel.value as number;
+    const derivedValue = derivedDiesel.value as number;
+    if (Math.abs(directValue - derivedValue) > 2) {
+      directDiesel.value = derivedValue;
+      directDiesel.rawValueText = derivedDiesel.rawValueText;
+      directDiesel.rawUnitText = derivedDiesel.rawUnitText;
+      directDiesel.normalizedValue = derivedDiesel.normalizedValue;
+      directDiesel.normalizedUnit = derivedDiesel.normalizedUnit;
+      directDiesel.source = derivedDiesel.source;
+      directDiesel.confidence = 'low';
+      directDiesel.score = Math.min(directDiesel.score, derivedDiesel.score);
+      directDiesel.reasons = Array.from(new Set([...directDiesel.reasons, ...derivedDiesel.reasons]));
     }
   }
 

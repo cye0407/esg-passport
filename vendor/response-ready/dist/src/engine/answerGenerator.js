@@ -35,28 +35,6 @@ export function buildDataMap(context) {
     });
     return map;
 }
-function isCompanyEvidenceDomain(domain) {
-    return !!domain && ['company', 'products', 'site', 'financial_context', 'external_context'].includes(domain);
-}
-function getRelevantEvidencePoints(context, matchResult) {
-    const primaryDomain = matchResult.primaryDomain;
-    const secondaryDomains = matchResult.secondaryDomains || [];
-    const domainMatch = (p) => p.domain === primaryDomain || secondaryDomains.includes(p.domain);
-    const operationalPoints = [...context.operational, ...context.calculated].filter(domainMatch);
-    if (isCompanyEvidenceDomain(primaryDomain)) {
-        return [...context.company.filter(domainMatch), ...operationalPoints];
-    }
-    return operationalPoints;
-}
-function hasStructuredSupport(points, questionType) {
-    if (questionType === 'KPI')
-        return points.length > 0;
-    return points.some((p) => {
-        const text = `${p.field} ${p.label}`.toLowerCase();
-        return (typeof p.value === 'string' ||
-            /policy|cert|assurance|framework|goal|target|status|mechanism|code|governance|report|evidence|document|practice|address|product|market|customer|ownership/.test(text));
-    });
-}
 // ============================================
 // Defensive Rewriting (inline, single-answer)
 // ============================================
@@ -75,27 +53,6 @@ function applyRewriteRules(text, rules) {
         result = result[0].toUpperCase() + result.slice(1);
     }
     return result;
-}
-function applyQuestionVariation(answer, question, matchResult) {
-    const text = question.text.toLowerCase();
-    if (matchResult.primaryDomain === 'emissions' && /\bmethodology\b/.test(text) && /\bscope 1\b/.test(text)) {
-        return 'Scope 1 emissions are calculated from tracked fuel consumption and standard emission factors for stationary combustion and mobile fuel use. Where direct meter-based emissions data is not available, the figure is estimated from activity data using standard conversion factors.';
-    }
-    if (matchResult.primaryDomain === 'emissions' && /\bmethodology\b/.test(text) && /\bscope 2\b/.test(text)) {
-        return 'Scope 2 emissions are calculated from purchased electricity consumption and applicable grid emission factors. Location-based figures use country-level grid factors. A separate market-based Scope 2 figure is only reported when supplier-specific renewable procurement data is available.';
-    }
-    if (matchResult.primaryDomain === 'emissions' && /\bmarket-based\b/.test(text) && /\bscope 2\b/.test(text)) {
-        if (/not been recorded/i.test(answer)) {
-            return 'A separate market-based Scope 2 emissions figure has not been recorded in tracked data. Current reported Scope 2 emissions are location-based only.';
-        }
-    }
-    if (matchResult.primaryDomain === 'energy_electricity' && /\bhow much electricity\b/.test(text)) {
-        return answer.replace(/^Our total electricity consumption was/i, 'During the reporting period, our electricity use totaled');
-    }
-    if (matchResult.primaryDomain === 'emissions' && /\bdirect ghg emissions\b/.test(text)) {
-        return answer.replace(/^Our Scope 1 \(direct\) greenhouse gas emissions/i, 'Direct Scope 1 greenhouse gas emissions');
-    }
-    return answer;
 }
 // ============================================
 // Template Matching
@@ -135,15 +92,12 @@ function findMatchingTemplate(matchResult, templates, questionType) {
         // 3. Then primary topic overlap count
         if (bPrimaryOverlap !== aPrimaryOverlap)
             return bPrimaryOverlap - aPrimaryOverlap;
-        // 4. Prefer the narrower template when overlap is equal.
-        if (a.topics.length !== b.topics.length)
-            return a.topics.length - b.topics.length;
-        // 5. Then questionType match as tiebreaker
+        // 4. Then questionType match as tiebreaker
         const aTypeMatch = (a.questionTypes && questionType && a.questionTypes.includes(questionType)) ? 1 : 0;
         const bTypeMatch = (b.questionTypes && questionType && b.questionTypes.includes(questionType)) ? 1 : 0;
         if (bTypeMatch !== aTypeMatch)
             return bTypeMatch - aTypeMatch;
-        // 6. Then total topic overlap
+        // 5. Then total topic overlap
         const aOverlap = a.topics.filter(t => matchResult.topics.includes(t)).length;
         const bOverlap = b.topics.filter(t => matchResult.topics.includes(t)).length;
         return bOverlap - aOverlap;
@@ -157,7 +111,8 @@ function determineConfidence(context, matchResult) {
     // Company profile points (name, industry, country) must NOT inflate confidence
     // for unrelated questions — that's how a DEI question gets "medium" confidence
     // from the fact that a company name exists.
-    const domainPoints = getRelevantEvidencePoints(context, matchResult);
+    const primaryDomain = matchResult.primaryDomain;
+    const domainPoints = [...context.operational, ...context.calculated].filter(p => p.domain === primaryDomain || matchResult.secondaryDomains.includes(p.domain));
     if (domainPoints.length === 0)
         return 'none';
     const hasHighConfidence = domainPoints.some(p => p.confidence === 'high');
@@ -214,9 +169,8 @@ export function createAnswerGenerator(deps) {
         // points in the primary domain. Company profile (name, industry, country) must
         // NOT count — otherwise every question gets hasData=true and the matrix
         // generates confident policy/measure answers from nothing.
-        const relevantPoints = getRelevantEvidencePoints(context, matchResult)
-            .filter(p => p.value !== null && p.value !== undefined && p.value !== '');
-        const hasData = relevantPoints.length > 0;
+        const primaryDomain = matchResult.primaryDomain;
+        const hasData = [...context.operational, ...context.calculated].some(p => p.domain === primaryDomain && p.value !== null && p.value !== undefined && p.value !== '');
         // Phase 1: Try rich data templates FIRST (highest quality — data-driven answers)
         const template = findMatchingTemplate(matchResult, templates, questionType);
         if (template) {
@@ -228,7 +182,7 @@ export function createAnswerGenerator(deps) {
                 // was generated without any operational/calculated data points for the
                 // primary domain (meaning the template used generic language, not real metrics).
                 const explicitDrafted = isObj ? !!result.drafted : false;
-                const hasDomainData = relevantPoints.length > 0;
+                const hasDomainData = [...context.operational, ...context.calculated].some(p => p.domain === primaryDomain && p.value !== null && p.value !== undefined && p.value !== '');
                 const drafted = explicitDrafted || !hasDomainData;
                 answer += getFrameworkNote(framework, frameworkNotes);
                 const primaryPoint = allPoints[0];
@@ -247,9 +201,7 @@ export function createAnswerGenerator(deps) {
             const maturityBand = maturityResolver.resolve(profile, matchResult, hasData);
             // Only use matrix when there's actual domain-relevant data or real informal practices.
             // hasData already scoped to primary domain operational/calculated points.
-            const shouldUseMatrix = questionType === 'KPI'
-                ? (hasData || maturityBand === 'informal')
-                : (maturityBand === 'informal' || (hasData && hasStructuredSupport(relevantPoints, questionType)));
+            const shouldUseMatrix = hasData || maturityBand === 'informal';
             if (shouldUseMatrix) {
                 const matrixAnswer = matrixGenerator.generate(questionType, maturityBand, matchResult, dataMap, context, profile, framework);
                 if (matrixAnswer) {
@@ -369,7 +321,6 @@ export function createAnswerGenerator(deps) {
             if (gapText)
                 finalAnswer += gapText;
         }
-        finalAnswer = applyQuestionVariation(finalAnswer, question, matchResult);
         return {
             questionId: question.id,
             questionText: question.text,

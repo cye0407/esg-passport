@@ -1,42 +1,6 @@
 export const ESG_QUESTION_TYPES = ['POLICY', 'MEASURE', 'KPI'];
 export const ESG_DEFAULT_QUESTION_TYPE = 'MEASURE';
 export const ESG_CLASSIFIER_SIGNALS = [
-    {
-        type: 'KPI',
-        patterns: [/\bwhat is your trir\b/i, /\bwhat is your ltir\b/i, /\btotal recordable incident rate\b/i, /\blost time injury rate\b/i],
-        keywords: ['trir', 'ltir', 'incident rate'],
-        weight: 20,
-    },
-    {
-        type: 'KPI',
-        patterns: [/\bwhat percentage of employees received training\b/i, /\bwhat certifications does your company hold\b/i, /\bwhat sustainability-related certifications\b/i],
-        keywords: ['received training', 'what certifications', 'sustainability-related certifications'],
-        weight: 20,
-    },
-    {
-        type: 'KPI',
-        patterns: [/\blist all current certifications\b/i, /\ball current certifications\b/i, /\bcurrent certifications held\b/i, /\bexternally verified or assured\b/i, /\bexternally assured by a third party\b/i],
-        keywords: ['current certifications', 'externally assured', 'third-party assurance'],
-        weight: 20,
-    },
-    {
-        type: 'MEASURE',
-        patterns: [/\b(?:corporate )?governance structure\b/i, /\besg oversight\b/i, /\bgovernance structure around climate issues\b/i],
-        keywords: ['governance structure', 'esg oversight'],
-        weight: 18,
-    },
-    {
-        type: 'MEASURE',
-        patterns: [/\bhow do you monitor ongoing esg performance of your supply chain\b/i, /\bsupplier risk screening\b/i, /\bhandle esg non-compliance by a supplier\b/i, /\bidentify and mitigate human rights risks\b/i],
-        keywords: ['supply chain monitoring', 'supplier risk screening', 'non-compliance by a supplier', 'human rights risks'],
-        weight: 18,
-    },
-    {
-        type: 'POLICY',
-        patterns: [/\banti-corruption and anti-bribery policy\b/i, /\bdata protection and privacy policy\b/i, /\bsupplier code of conduct\b/i],
-        keywords: ['anti-corruption', 'anti-bribery policy', 'data protection and privacy policy', 'supplier code of conduct'],
-        weight: 18,
-    },
     // ---- POLICY signals ----
     {
         type: 'POLICY',
@@ -48,7 +12,7 @@ export const ESG_CLASSIFIER_SIGNALS = [
             /\bhave you (?:adopted|implemented|established|signed)\b/i,
             /\bformal(?:ized|ised)?\s+(?:approach|framework|guideline)\b/i,
             /\boverall\s+(?:approach|strategy|vision|position)\b/i,
-            /\bmanagement\s+(?:approach|framework|standard)\b/i,
+            /\bmanagement\s+(?:system|approach|framework|standard)\b/i,
             /\bsigned?\s+(?:up|on|to)\b/i, /\badhere\b/i,
             /\bvoluntary\s+(?:initiative|standard|code|pledge)\b/i,
             /\bun\s+global\s+compact\b/i, /\biso\s+\d+/i,
@@ -72,7 +36,6 @@ export const ESG_CLASSIFIER_SIGNALS = [
             /\bwhat\s+(?:actions|measures|steps|initiatives)\b/i,
             /\bhow\s+(?:do|does|is|are)\s+(?:you|your|the)\s+(?:company|organization|organisation)?\s*(?:manage|address|handle|mitigate|ensure|promote|reduce|prevent)/i,
             /\bdescribe\s+(?:your|the)\s+(?:measures|actions|processes|procedures|initiatives|approach|efforts)/i,
-            /\bdescribe\s+(?:your|the)\s+.+management\s+system\b/i,
             /\binspection(?:s)?\b/i, /\baudit(?:s|ing)?\b/i, /\bassess(?:ment|ing)?\b/i,
             /\bprevention\b/i, /\bmitigation\b/i, /\bcorrective\b/i,
             /\boperational\s+control(?:s)?\b/i,
@@ -92,8 +55,6 @@ export const ESG_CLASSIFIER_SIGNALS = [
     {
         type: 'KPI',
         patterns: [
-            /\bwhat percentage of employees received training\b/i,
-            /\bpercentage\s+of\s+employees\s+received\s+training\b/i,
             /\bindicator(?:s)?\b/i, /\bkpi(?:s)?\b/i, /\bmetric(?:s)?\b/i,
             /\btotal\b/i, /\bnumber\s+of\b/i, /\bpercentage\b/i, /\brate\b/i,
             /\bfrequency\b/i, /\bintensity\b/i,
@@ -113,10 +74,9 @@ export const ESG_CLASSIFIER_SIGNALS = [
             'rate', 'frequency', 'intensity', 'per employee', 'quantify', 'how much',
             'how many', 'monitoring', 'tracking', 'reporting', 'data', 'baseline',
             'target', 'trend', 'year-over-year', 'verification', 'assurance',
-            'received training',
             'third-party', 'external audit',
         ],
-        weight: 12,
+        weight: 8,
     },
 ];
 //# sourceMappingURL=classifierSignals.js.map

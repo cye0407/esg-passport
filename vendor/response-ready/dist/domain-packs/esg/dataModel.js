@@ -5,114 +5,10 @@
 // that maps matched questions to relevant data points.
 import { addIfPresent, deduplicatePoints } from '../../src/engine/dataRetrieval';
 import { estimateScope1, estimateScope2Location, estimateScope2Market } from './emissionFactors';
-function normalizePassportLikeInput(raw) {
-    const anyRaw = raw;
-    if (!anyRaw.companyProfile && !Array.isArray(anyRaw.dataRecords))
-        return raw;
-    const profile = (anyRaw.companyProfile || {});
-    const records = Array.isArray(anyRaw.dataRecords) ? anyRaw.dataRecords : [];
-    const reportingPeriod = records.length > 0
-        ? String(records[records.length - 1]?.period || '').slice(0, 4) || String(profile.baselineYear || '')
-        : String(profile.baselineYear || '');
-    let electricityKwh = 0;
-    let renewablePercentWeighted = 0;
-    let renewableWeight = 0;
-    let naturalGasKwh = 0;
-    let dieselLiters = 0;
-    let waterM3 = 0;
-    let totalWasteKg = 0;
-    let recycledWasteKg = 0;
-    let hazardousWasteKg = 0;
-    let employeeCount = Number(profile.totalEmployees || 0);
-    let femaleEmployees = 0;
-    let womenInLeadershipPercent = 0;
-    let womenLeadershipCount = 0;
-    let grievancesReported = 0;
-    let newHires = 0;
-    let recordableIncidents = 0;
-    let lostTimeIncidents = 0;
-    let fatalities = 0;
-    let hoursWorked = 0;
-    let trainingHours = 0;
-    let suppliersAssessedPercent = 0;
-    for (const record of records) {
-        const energy = (record.energy || {});
-        const water = (record.water || {});
-        const waste = (record.waste || {});
-        const workforce = (record.workforce || {});
-        const healthSafety = (record.healthSafety || {});
-        const training = (record.training || {});
-        const supplyChain = (record.supplyChain || {});
-        electricityKwh += Number(energy.electricityKwh || 0);
-        naturalGasKwh += Number(energy.naturalGasKwh || 0);
-        dieselLiters += Number(energy.vehicleFuelLiters || 0);
-        if (energy.electricityKwh && energy.renewablePercent != null) {
-            renewablePercentWeighted += Number(energy.electricityKwh) * Number(energy.renewablePercent);
-            renewableWeight += Number(energy.electricityKwh);
-        }
-        waterM3 += Number(water.consumptionM3 || 0);
-        totalWasteKg += Number(waste.totalKg || 0);
-        recycledWasteKg += Number(waste.recycledKg || 0);
-        hazardousWasteKg += Number(waste.hazardousKg || 0);
-        employeeCount = Math.max(employeeCount, Number(workforce.totalEmployees || 0));
-        femaleEmployees = Math.max(femaleEmployees, Number(workforce.femaleEmployees || 0));
-        if (workforce.womenInLeadershipPercent != null) {
-            womenInLeadershipPercent += Number(workforce.womenInLeadershipPercent);
-            womenLeadershipCount += 1;
-        }
-        grievancesReported += Number(workforce.grievancesReported || 0);
-        newHires += Number(workforce.newHires || 0);
-        recordableIncidents += Number(healthSafety.recordableIncidents || 0);
-        lostTimeIncidents += Number(healthSafety.lostTimeIncidents || 0);
-        fatalities += Number(healthSafety.fatalities || 0);
-        hoursWorked += Number(healthSafety.hoursWorked || 0);
-        trainingHours += Number(training.trainingHours || 0);
-        suppliersAssessedPercent = Math.max(suppliersAssessedPercent, Number(supplyChain.suppliersAssessedPercent || 0));
-    }
-    const renewablePercent = renewableWeight > 0 ? renewablePercentWeighted / renewableWeight : undefined;
-    const recyclingPercent = totalWasteKg > 0 ? (recycledWasteKg / totalWasteKg) * 100 : undefined;
-    const femalePercent = employeeCount > 0 ? (femaleEmployees / employeeCount) * 100 : undefined;
-    const trirRate = hoursWorked > 0 ? (recordableIncidents / hoursWorked) * 200000 : undefined;
-    const trainingHoursPerEmployee = employeeCount > 0 ? trainingHours / employeeCount : undefined;
-    return {
-        ...raw,
-        companyName: String(profile.tradingName || profile.legalName || raw.companyName || ''),
-        industry: String(profile.industrySector || raw.industry || ''),
-        country: String(profile.countryOfIncorporation || raw.country || ''),
-        employeeCount: employeeCount || raw.employeeCount,
-        numberOfSites: Number(profile.numberOfFacilities || raw.numberOfSites || 0) || raw.numberOfSites,
-        reportingPeriod: reportingPeriod || raw.reportingPeriod,
-        certifications: Array.isArray(profile.certifications) ? profile.certifications.join(', ') : raw.certifications,
-        publishesSustainabilityReport: profile.publishesSustainabilityReport === 'yes'
-            ? true
-            : profile.publishesSustainabilityReport === 'no'
-                ? false
-                : raw.publishesSustainabilityReport,
-        electricityKwh: electricityKwh || raw.electricityKwh,
-        renewablePercent: renewablePercent ?? raw.renewablePercent,
-        naturalGasM3: naturalGasKwh > 0 ? naturalGasKwh / 10.55 : raw.naturalGasM3,
-        dieselLiters: dieselLiters || raw.dieselLiters,
-        waterM3: waterM3 || raw.waterM3,
-        totalWasteKg: totalWasteKg || raw.totalWasteKg,
-        recyclingPercent: recyclingPercent ?? raw.recyclingPercent,
-        hazardousWasteKg: hazardousWasteKg || raw.hazardousWasteKg,
-        femalePercent: femalePercent ?? raw.femalePercent,
-        womenInLeadershipPercent: womenLeadershipCount > 0 ? womenInLeadershipPercent / womenLeadershipCount : raw.womenInLeadershipPercent,
-        grievancesReported: grievancesReported || raw.grievancesReported,
-        newHires: newHires || raw.newHires,
-        trirRate: trirRate ?? raw.trirRate,
-        lostTimeIncidents: lostTimeIncidents || raw.lostTimeIncidents,
-        fatalities: fatalities || raw.fatalities,
-        hoursWorked: hoursWorked || raw.hoursWorked,
-        trainingHoursPerEmployee: trainingHoursPerEmployee ?? raw.trainingHoursPerEmployee,
-        suppliersAssessedPercent: suppliersAssessedPercent || raw.suppliersAssessedPercent,
-    };
-}
 // ============================================
 // Data Retrieval
 // ============================================
 export function esgRetrieveData(matchResult, data) {
-    data = normalizePassportLikeInput(data);
     const allDomains = [matchResult.primaryDomain, ...matchResult.secondaryDomains].filter((d) => d !== null);
     const company = [];
     const operational = [];
@@ -141,16 +37,6 @@ export function esgRetrieveData(matchResult, data) {
                 if (domain === 'materials' || domain === 'buyer_requirements') {
                     addIfPresent(company, domain, 'productsServices', 'Products & Services', data.productsServices);
                     addIfPresent(company, domain, 'mainMarkets', 'Main Markets', data.mainMarkets);
-                    if (data.supplierCodeStatus)
-                        operational.push({ domain, field: 'supplierCodeStatus', label: 'Supplier Code Status', value: data.supplierCodeStatus, confidence: 'high' });
-                    if (data.responsibleSourcingPolicyStatus)
-                        operational.push({ domain, field: 'responsibleSourcingPolicyStatus', label: 'Responsible Sourcing Policy Status', value: data.responsibleSourcingPolicyStatus, confidence: 'high' });
-                    if (data.conflictMineralsStatus)
-                        operational.push({ domain, field: 'conflictMineralsStatus', label: 'Conflict Minerals Due Diligence Status', value: data.conflictMineralsStatus, confidence: 'high' });
-                    if (data.cmrtStatus)
-                        operational.push({ domain, field: 'cmrtStatus', label: 'CMRT Status', value: data.cmrtStatus, confidence: 'high' });
-                    if (data.emrtStatus)
-                        operational.push({ domain, field: 'emrtStatus', label: 'EMRT Status', value: data.emrtStatus, confidence: 'high' });
                 }
                 if (domain === 'buyer_requirements' && data.suppliersAssessedPercent !== undefined) {
                     operational.push({ domain: 'buyer_requirements', field: 'suppliersAssessedPercent', label: 'Suppliers ESG-Assessed', value: data.suppliersAssessedPercent, unit: '%', confidence: 'high' });
@@ -160,7 +46,6 @@ export function esgRetrieveData(matchResult, data) {
                 addIfPresent(company, 'products', 'legalEntityName', 'Company Name', data.companyName);
                 addIfPresent(company, 'products', 'industryDescription', 'Industry', data.industry);
                 addIfPresent(company, 'products', 'headquartersCountry', 'Country', data.country);
-                addIfPresent(company, 'products', 'totalFte', 'Total Employees (FTE)', data.employeeCount);
                 addIfPresent(company, 'products', 'productsServices', 'Products & Services', data.productsServices);
                 addIfPresent(company, 'products', 'mainMarkets', 'Main Markets', data.mainMarkets);
                 addIfPresent(company, 'products', 'customerTypes', 'Customer Types', data.customerTypes);
@@ -299,11 +184,9 @@ export function esgRetrieveData(matchResult, data) {
                 if (data.collectiveBargainingPercent !== undefined)
                     operational.push({ domain: 'workforce', field: 'collectiveBargainingPercent', label: 'Collective Bargaining Coverage', value: data.collectiveBargainingPercent, unit: '%', confidence: 'high' });
                 if (data.livingWageCompliant !== undefined)
-                    operational.push({ domain: 'workforce', field: 'livingWageCompliant', label: 'Living Wage Compliance', value: data.livingWageCompliant === 'not_applicable' ? 'Not applicable' : (data.livingWageCompliant ? 'Yes' : 'No'), confidence: 'high' });
-                if (data.humanRightsPolicyStatus)
-                    operational.push({ domain: 'workforce', field: 'humanRightsPolicyStatus', label: 'Human Rights Policy Status', value: data.humanRightsPolicyStatus, confidence: 'high' });
+                    operational.push({ domain: 'workforce', field: 'livingWageCompliant', label: 'Living Wage Compliance', value: data.livingWageCompliant ? 'Yes' : 'No', confidence: 'high' });
                 if (data.grievanceMechanismExists !== undefined)
-                    operational.push({ domain: 'workforce', field: 'grievanceMechanismExists', label: 'Grievance Mechanism', value: data.grievanceMechanismExists === 'not_applicable' ? 'Not applicable' : (data.grievanceMechanismExists ? 'Yes' : 'No'), confidence: 'high' });
+                    operational.push({ domain: 'workforce', field: 'grievanceMechanismExists', label: 'Grievance Mechanism', value: data.grievanceMechanismExists ? 'Yes' : 'No', confidence: 'high' });
                 if (data.grievancesReported !== undefined)
                     operational.push({ domain: 'workforce', field: 'grievancesReported', label: 'Grievances Reported', value: data.grievancesReported, confidence: 'high' });
                 if (data.newHires !== undefined)
@@ -328,6 +211,7 @@ export function esgRetrieveData(matchResult, data) {
                     operational.push({ domain: 'training', field: 'trainingHoursPerEmployee', label: 'Training Hours per Employee', value: data.trainingHoursPerEmployee, unit: 'hours', confidence: 'high' });
                     if (data.employeeCount) {
                         operational.push({ domain: 'training', field: 'totalTrainingHours', label: 'Total Training Hours', value: data.trainingHoursPerEmployee * data.employeeCount, unit: 'hours', confidence: 'high' });
+                        operational.push({ domain: 'training', field: 'employeesTrained', label: 'Employees Trained', value: data.employeeCount, confidence: 'high' });
                     }
                 }
                 break;
@@ -345,18 +229,14 @@ export function esgRetrieveData(matchResult, data) {
                 // Governance flags
                 if (data.noSignificantFines)
                     operational.push({ domain: 'goals', field: 'noSignificantFines', label: 'Fines/Sanctions Status', value: data.noSignificantFines, confidence: 'high' });
-                if (data.codeOfConductStatus)
-                    operational.push({ domain: 'goals', field: 'codeOfConductStatus', label: 'Code of Conduct Status', value: data.codeOfConductStatus, confidence: 'high' });
-                if (data.antiCorruptionStatus)
-                    operational.push({ domain: 'goals', field: 'antiCorruptionStatus', label: 'Anti-Corruption Policy Status', value: data.antiCorruptionStatus, confidence: 'high' });
                 if (data.dataProtectionPolicy !== undefined)
-                    operational.push({ domain: 'goals', field: 'dataProtectionPolicy', label: 'Data Protection Policy', value: data.dataProtectionPolicy === 'not_applicable' ? 'Not applicable' : (data.dataProtectionPolicy ? 'Yes' : 'No'), confidence: 'high' });
+                    operational.push({ domain: 'goals', field: 'dataProtectionPolicy', label: 'Data Protection Policy', value: data.dataProtectionPolicy ? 'Yes' : 'No', confidence: 'high' });
                 if (data.publishesSustainabilityReport !== undefined)
-                    operational.push({ domain: 'regulatory', field: 'publishesSustainabilityReport', label: 'Publishes Sustainability Report', value: data.publishesSustainabilityReport === 'not_applicable' ? 'Not applicable' : (data.publishesSustainabilityReport ? 'Yes' : 'No'), confidence: 'high' });
+                    operational.push({ domain: 'regulatory', field: 'publishesSustainabilityReport', label: 'Publishes Sustainability Report', value: data.publishesSustainabilityReport ? 'Yes' : 'No', confidence: 'high' });
                 if (data.reportingFramework)
                     operational.push({ domain: 'regulatory', field: 'reportingFramework', label: 'Reporting Framework', value: data.reportingFramework, confidence: 'high' });
                 if (data.externalAssurance !== undefined)
-                    operational.push({ domain: 'regulatory', field: 'externalAssurance', label: 'External Assurance', value: data.externalAssurance === 'not_applicable' ? 'Not applicable' : (data.externalAssurance ? 'Yes' : 'No'), confidence: 'high' });
+                    operational.push({ domain: 'regulatory', field: 'externalAssurance', label: 'External Assurance', value: data.externalAssurance ? 'Yes' : 'No', confidence: 'high' });
                 if (data.assuranceStandard)
                     operational.push({ domain: 'regulatory', field: 'assuranceStandard', label: 'Assurance Standard', value: data.assuranceStandard, confidence: 'high' });
                 if (data.csrdApplicable)
@@ -404,18 +284,6 @@ export function esgRetrieveData(matchResult, data) {
             if (draftPolicies.length > 0) {
                 company.push({ domain: 'regulatory', field: 'draftPolicies', label: 'Policies Under Development', value: draftPolicies.map(p => p.name).join(', '), confidence: 'medium' });
             }
-            for (const category of ['environmental', 'social', 'governance']) {
-                const relevant = approvedPolicies.filter(p => p.category === category);
-                if (relevant.length > 0) {
-                    company.push({
-                        domain: 'regulatory',
-                        field: `${category}PoliciesApproved`,
-                        label: `${category.charAt(0).toUpperCase() + category.slice(1)} Policies in Place`,
-                        value: relevant.map(p => p.name).join(', '),
-                        confidence: 'high',
-                    });
-                }
-            }
         }
         // For domain-specific questions: inject relevant approved policies as supporting evidence
         for (const [category, domains] of Object.entries(POLICY_CATEGORY_DOMAINS)) {
@@ -425,10 +293,6 @@ export function esgRetrieveData(matchResult, data) {
                     company.push({ domain: 'regulatory', field: `${category}PoliciesApproved`, label: `${category.charAt(0).toUpperCase() + category.slice(1)} Policies in Place`, value: relevant.map(p => p.name).join(', '), confidence: 'high' });
                 }
             }
-        }
-        const supplierPolicies = approvedPolicies.filter(p => p.name.toLowerCase().includes('supplier'));
-        if (supplierPolicies.length > 0 && allDomains.some(d => ['buyer_requirements', 'materials'].includes(d))) {
-            company.push({ domain: 'buyer_requirements', field: 'supplierPoliciesApproved', label: 'Supplier Policies in Place', value: supplierPolicies.map(p => p.name).join(', '), confidence: 'high' });
         }
     }
     if (data.documents && data.documents.length > 0) {

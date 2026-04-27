@@ -93,6 +93,26 @@ export function extractEnergy(
   // Run generic pattern matching
   let fields = extractWithGenericPatterns(text);
 
+  // Keep only fields that make sense for the detected document type and
+  // recover obvious mislabeled kWh fields from provider-specific layouts.
+  if (documentType === 'electricity_bill') {
+    if (!fields.some(field => field.field === 'electricityKwh')) {
+      const fallback = fields.find(field => field.field === 'naturalGasKwh');
+      if (fallback) {
+        fallback.field = 'electricityKwh';
+      }
+    }
+    fields = fields.filter(field => field.field !== 'naturalGasKwh');
+  } else if (documentType === 'gas_invoice') {
+    if (!fields.some(field => field.field === 'naturalGasKwh')) {
+      const fallback = fields.find(field => field.field === 'electricityKwh');
+      if (fallback) {
+        fallback.field = 'naturalGasKwh';
+      }
+    }
+    fields = fields.filter(field => field.field !== 'electricityKwh' && field.field !== 'renewablePercent');
+  }
+
   // If provider-specific template matched, those fields would override (future)
 
   // Apply confidence adjustments

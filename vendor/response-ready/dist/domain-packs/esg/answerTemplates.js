@@ -16,20 +16,19 @@ export const ESG_ANSWER_TEMPLATES = [
             if (!has(dm, 'totalElectricity'))
                 return null;
             const kwh = num(dm, 'totalElectricity');
-            const mwh = kwh / 1000;
             const renPct = num(dm, 'renewablePercent');
             const period = str(dm, 'reportingPeriod');
             const periodStr = period ? ` during ${period}` : ' during the reporting period';
-            let answer = `Our total electricity consumption was ${fmt(kwh)} kWh (${fmt(mwh)} MWh)${periodStr}.`;
+            let answer = `Our total electricity consumption was ${fmt(kwh)} kWh${periodStr}.`;
             if (renPct > 0) {
                 const renKwh = kwh * renPct / 100;
                 answer += ` Of this, ${fmt(renPct)}% (approximately ${fmt(renKwh)} kWh) was sourced from renewable energy.`;
                 answer += renPct >= 50
-                    ? ' Renewable electricity accounts for the majority of our purchased power.'
-                    : ' Renewable electricity currently represents a minority share of our purchased power.';
+                    ? ' We continue to prioritize the transition to renewable electricity across our operations.'
+                    : ' We are actively working to increase our share of renewable electricity.';
             }
             else {
-                answer += ' Currently, 0% of our electricity is sourced from renewable energy.';
+                answer += ' We are evaluating options to increase our renewable electricity procurement.';
             }
             return answer;
         },
@@ -47,16 +46,12 @@ export const ESG_ANSWER_TEMPLATES = [
             const period = str(dm, 'reportingPeriod');
             const periodStr = period ? ` for ${period}` : ' for the reporting period';
             let answer = `${fmt(renPct)}% of our electricity${periodStr} was sourced from renewable energy.`;
-            if (kwh > 0 && renPct > 0)
+            if (kwh > 0)
                 answer += ` Out of ${fmt(kwh)} kWh total consumption, approximately ${fmt(kwh * renPct / 100)} kWh was renewable.`;
-            if (renPct === 0)
-                answer += ' No renewable electricity was sourced during this period.';
-            else if (renPct === 100)
-                answer += ' All purchased electricity was sourced from renewable energy.';
-            else if (renPct >= 50)
-                answer += ' Renewable electricity is the majority share of our purchased power.';
+            if (renPct >= 50)
+                answer += ' We are on track to further increase renewable procurement across our operations.';
             else
-                answer += ' Renewable electricity currently represents a minority share of our purchased power.';
+                answer += ' We are actively evaluating additional renewable energy options including PPAs and green tariffs.';
             return answer;
         },
     },
@@ -85,11 +80,10 @@ export const ESG_ANSWER_TEMPLATES = [
             if (!has(dm, 'totalElectricity'))
                 return null;
             const kwh = num(dm, 'totalElectricity');
-            const mwh = kwh / 1000;
             const renPct = num(dm, 'renewablePercent');
             const period = str(dm, 'reportingPeriod');
             const periodStr = period ? ` during ${period}` : ' during the reporting period';
-            let answer = `Our total electricity consumption was ${fmt(kwh)} kWh (${fmt(mwh)} MWh)${periodStr}.`;
+            let answer = `Our total electricity consumption was ${fmt(kwh)} kWh${periodStr}.`;
             if (renPct > 0)
                 answer += ` ${fmt(renPct)}% was sourced from renewable energy.`;
             return answer;
@@ -124,7 +118,7 @@ export const ESG_ANSWER_TEMPLATES = [
             const isEstimate = (s1Point?.confidence === 'medium') || (s2Point?.confidence === 'medium') ||
                 (s1Point?.label?.toLowerCase().includes('auto-calculated')) || (s2Point?.label?.toLowerCase().includes('auto-calculated'));
             if (isEstimate) {
-                parts.push('Note: Some figures are estimates derived from activity data (fuel consumption, electricity use) and standard emission factors.');
+                parts.push('Note: Some figures are estimates derived from activity data (fuel consumption, electricity use) and standard emission factors. We are working to improve the granularity of our GHG inventory.');
             }
             const total = s1 + s2;
             if (total > 0)
@@ -150,8 +144,6 @@ export const ESG_ANSWER_TEMPLATES = [
                 parts.push(`Location-based: ${fmt(s2)} tCO2e.`);
             if (s2m)
                 parts.push(`Market-based: ${fmt(s2m)} tCO2e, reflecting our renewable energy procurement strategy.`);
-            else if (s2)
-                parts.push('A separate market-based Scope 2 figure has not been recorded in tracked data.');
             if (kwh)
                 parts.push(`These emissions result from ${fmt(kwh)} kWh of purchased electricity.`);
             const isEstimate = dm.get('scope2Location')?.confidence === 'medium';
@@ -178,12 +170,14 @@ export const ESG_ANSWER_TEMPLATES = [
                     parts.push(`Categories currently reported: ${cats}.`);
             }
             else {
-                parts.push('Scope 3 emissions have not been measured or reported.');
+                parts.push('Scope 3 emissions are not yet fully quantified.');
+                parts.push('We are in the process of establishing data collection processes for the most material Scope 3 categories, including purchased goods and services, upstream transportation, business travel, and employee commuting.');
             }
             if (travel)
                 parts.push(`Business travel: ${fmt(travel)} km.`);
             if (commute)
                 parts.push(`Employee commuting: ${fmt(commute)} km.`);
+            parts.push('We are working to expand the coverage of our Scope 3 inventory and engage with key suppliers on emissions data.');
             return parts.join(' ');
         },
     },
@@ -238,21 +232,14 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['human_rights'],
         questionTypes: ['POLICY'],
         generate: (dm) => {
-            const status = str(dm, 'humanRightsPolicyStatus');
+            const policies = str(dm, 'socialPoliciesApproved');
             const fte = num(dm, 'totalFte');
             const country = str(dm, 'headquartersCountry');
             const parts = [];
-            if (status === 'implemented') {
-                parts.push('Yes, we maintain a formal human rights policy.');
-                parts.push('The policy covers core human rights topics including forced labor, child labor, non-discrimination, and freedom of association and collective bargaining.');
-                parts.push('It applies across our operations and relevant business relationships and is communicated through onboarding, management procedures, and periodic policy review.');
-            }
-            else if (status === 'not_applicable') {
-                parts.push('A standalone human rights policy is recorded as not applicable to the current business model. We nonetheless expect compliance with applicable labor law and respect for fundamental worker rights.');
-            }
-            else if (status === 'in_progress') {
-                parts.push('A formal human rights policy is currently under development.');
-                parts.push('In the meantime, we expect compliance with applicable labor law and respect for core worker rights including freedom of association.');
+            if (policies) {
+                parts.push(`Yes, our human rights commitments are formalized in the following policies: ${policies}.`);
+                parts.push('These policies explicitly prohibit forced labor, child labor, and any form of modern slavery. They affirm employees\' right to freedom of association and collective bargaining.');
+                parts.push('The policies apply to all operations and business relationships and are communicated to employees during onboarding, with annual refresher training.');
             }
             else {
                 parts.push('We are committed to respecting human rights across our operations and value chain.');
@@ -295,7 +282,7 @@ export const ESG_ANSWER_TEMPLATES = [
     {
         domains: ['workforce'],
         topics: ['freedom_of_association', 'collective_bargaining'],
-        questionTypes: ['MEASURE'],
+        questionTypes: ['POLICY', 'MEASURE'],
         generate: (dm) => {
             const cbaPct = num(dm, 'collectiveBargainingPercent');
             const fte = num(dm, 'totalFte');
@@ -412,7 +399,7 @@ export const ESG_ANSWER_TEMPLATES = [
     {
         domains: ['workforce'],
         topics: ['collective_bargaining', 'labor_practices'],
-        questionTypes: ['KPI'],
+        questionTypes: ['KPI', 'POLICY'],
         generate: (dm) => {
             if (!has(dm, 'collectiveBargainingPercent'))
                 return null;
@@ -475,9 +462,6 @@ export const ESG_ANSWER_TEMPLATES = [
                 parts.push(`Yes, all employees${country ? ` in ${country}` : ''} are compensated at or above the applicable living wage.`);
                 parts.push('We benchmark compensation against living wage standards and review pay levels annually to ensure continued compliance.');
             }
-            else if (compliant === 'Not applicable') {
-                parts.push('Living wage benchmarking is recorded as not applicable to this business model or workforce setup.');
-            }
             else {
                 parts.push('We are committed to fair compensation. Alignment with applicable minimum wage legislation has not been formally verified.');
                 parts.push('We are evaluating alignment with living wage benchmarks and plan to formalize our approach in the next reporting period.');
@@ -500,13 +484,10 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (exists === 'Yes') {
                 parts.push('Yes, we maintain a formal grievance mechanism available to all employees and external stakeholders.');
-                parts.push('Channels include direct reporting to management, a designated escalation route, and follow-up procedures to ensure issues are addressed promptly and without retaliation.');
+                parts.push('Channels include direct reporting to management, an anonymous reporting channel, and escalation procedures to ensure issues are addressed promptly and without retaliation.');
                 if (has(dm, 'grievancesReported')) {
                     parts.push(`${period ? `During ${period}, ` : ''}${count} grievance${count !== 1 ? 's were' : ' was'} reported through these channels.`);
                 }
-            }
-            else if (exists === 'Not applicable') {
-                parts.push('A formal grievance mechanism is recorded as not applicable to the current business model or stakeholder setup.');
             }
             else {
                 parts.push('A formal grievance mechanism has not yet been established.');
@@ -765,6 +746,7 @@ export const ESG_ANSWER_TEMPLATES = [
             else {
                 parts.push('Wastewater from our operations is managed in accordance with local environmental regulations and discharge permits where applicable.');
                 parts.push('Sanitary wastewater is discharged to municipal treatment systems. Where our processes generate industrial wastewater, we apply appropriate pre-treatment before discharge and maintain records to support regulatory reporting.');
+                parts.push('We are formalising our water management practices, including discharge monitoring and treatment standards, as part of our ongoing ESG programme.');
             }
             if (water)
                 parts.push(`Our total water withdrawal is ${fmt(water)} m\u00B3 per year, providing a baseline for future discharge tracking.`);
@@ -788,33 +770,6 @@ export const ESG_ANSWER_TEMPLATES = [
             return parts.join(' ');
         },
     },
-    // POLICY/MEASURE: Water management policy / stewardship
-    {
-        domains: ['energy_water'],
-        topics: ['water_policy'],
-        questionTypes: ['POLICY', 'MEASURE'],
-        generate: (dm) => {
-            const policies = str(dm, 'environmentalPoliciesApproved');
-            const water = num(dm, 'waterWithdrawal');
-            const relevantPolicies = policies
-                .split(', ')
-                .map((p) => p.trim())
-                .filter(Boolean)
-                .filter((p) => /water|environment/i.test(p));
-            const parts = [];
-            if (relevantPolicies.length > 0) {
-                parts.push(`Our water stewardship approach is formalized in the following policies: ${[...new Set(relevantPolicies)].join(', ')}.`);
-                if (water > 0)
-                    parts.push(`We track water withdrawal and recorded ${fmt(water)} m\u00B3 during the reporting period.`);
-                parts.push('Our approach focuses on monitoring water use, complying with local requirements, and identifying opportunities to reduce consumption.');
-                return parts.join(' ');
-            }
-            parts.push('A standalone water management policy is not separately recorded in tracked data.');
-            if (water > 0)
-                parts.push(`We do monitor water withdrawal and recorded ${fmt(water)} m\u00B3 during the reporting period, which provides a baseline for future stewardship measures.`);
-            return { answer: parts.join(' '), drafted: true };
-        },
-    },
     // ===================================================================
     // COMPANY PROFILE
     // ===================================================================
@@ -830,15 +785,12 @@ export const ESG_ANSWER_TEMPLATES = [
             const period = str(dm, 'reportingPeriod');
             const ownership = str(dm, 'ownershipStructure');
             const rev = str(dm, 'revenueBand');
-            const fte = num(dm, 'totalFte');
             let answer = `The legal name of our organization is ${name}.`;
             const addr = str(dm, 'registeredAddress');
             if (country && addr)
                 answer += ` The company is incorporated in ${country}. Registered address: ${addr}.`;
             else if (country)
                 answer += ` The company is incorporated in ${country}.`;
-            if (fte > 0)
-                answer += ` We employ ${fmt(fte)} people.`;
             if (ind && ind.toLowerCase() !== 'other')
                 answer += ` We operate in the ${ind} sector.`;
             if (ownership)
@@ -962,7 +914,6 @@ export const ESG_ANSWER_TEMPLATES = [
     {
         domains: ['regulatory'],
         topics: ['external_assurance'],
-        questionTypes: ['KPI', 'POLICY', 'MEASURE'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
             const assured = str(dm, 'externalAssurance');
@@ -974,9 +925,6 @@ export const ESG_ANSWER_TEMPLATES = [
                 parts.push(`Yes, ${name || 'our organization'}'s ESG data has been externally assured.`);
                 if (standard)
                     parts.push(`Assurance was conducted to ${standard}.`);
-            }
-            else if (assured === 'Not applicable') {
-                parts.push(`External assurance of ESG data is not applicable based on the current reporting setup recorded for ${name || 'our organization'}.`);
             }
             else if (assured === 'No') {
                 parts.push(`${name || 'Our organization'}'s ESG data has not yet been externally assured under standards such as ISAE 3000 or AA1000.`);
@@ -990,56 +938,15 @@ export const ESG_ANSWER_TEMPLATES = [
             return parts.join(' ');
         },
     },
-    // Environmental policy / EMS
-    {
-        domains: ['regulatory'],
-        topics: ['environmental_policy'],
-        questionTypes: ['POLICY', 'MEASURE'],
-        generate: (dm) => {
-            const policies = str(dm, 'environmentalPoliciesApproved');
-            const certs = [str(dm, 'validCertificates'), str(dm, 'certificationsHeld')]
-                .filter(Boolean)
-                .join(', ');
-            const certText = certs.toLowerCase();
-            const hasIso14001 = certText.includes('iso 14001') || certText.includes('emas');
-            const relevantPolicies = policies
-                .split(', ')
-                .map((p) => p.trim())
-                .filter(Boolean)
-                .filter((p) => /environment|energy|waste|water|climate/i.test(p));
-            const parts = [];
-            if (relevantPolicies.length > 0 || hasIso14001) {
-                if (relevantPolicies.length > 0) {
-                    parts.push(`Our environmental management approach is formalized in the following policies: ${[...new Set(relevantPolicies)].join(', ')}.`);
-                }
-                else {
-                    parts.push('Our environmental management approach is supported by a documented management system.');
-                }
-                if (hasIso14001) {
-                    parts.push('This approach is supported by an externally verified environmental management certification (ISO 14001 / EMAS where applicable).');
-                }
-                else if (relevantPolicies.length > 0) {
-                    parts.push('We do not currently record ISO 14001 or EMAS certification in tracked data; evidence available today is policy-based rather than third-party certified.');
-                }
-                parts.push('It covers environmental compliance, resource efficiency, and continual improvement across relevant operations.');
-                return parts.join(' ');
-            }
-            return {
-                answer: 'A formal environmental policy or environmental management system is not separately recorded in tracked data. Current tracked certifications do not indicate ISO 14001 or EMAS.',
-                drafted: true,
-            };
-        },
-    },
     // General certifications (Q50 — must list ALL certs, ideally with validity dates)
     {
         domains: ['regulatory'],
         topics: ['certifications'],
-        questionTypes: ['KPI'],
         generate: (dm) => {
             const certs = str(dm, 'certificationsHeld');
             const validCerts = str(dm, 'validCertificates');
             if (certs || validCerts) {
-                const allCerts = [validCerts, certs].filter(Boolean);
+                const allCerts = [certs, validCerts].filter(Boolean);
                 const uniqueCerts = [...new Set(allCerts.join(', ').split(', ').map(c => c.trim()).filter(Boolean))];
                 const parts = [];
                 parts.push(`Our organization holds the following certifications: ${uniqueCerts.join('; ')}.`);
@@ -1054,7 +961,6 @@ export const ESG_ANSWER_TEMPLATES = [
     {
         domains: ['regulatory'],
         topics: ['health_safety_management'],
-        questionTypes: ['POLICY', 'MEASURE'],
         generate: (dm) => {
             const certs = str(dm, 'certificationsHeld');
             const validCerts = str(dm, 'validCertificates');
@@ -1068,52 +974,6 @@ export const ESG_ANSWER_TEMPLATES = [
     // ===================================================================
     // TRAINING
     // ===================================================================
-    {
-        domains: ['training'],
-        topics: ['training_average'],
-        generate: (dm) => {
-            if (!has(dm, 'trainingHoursPerEmployee'))
-                return null;
-            const perEmp = num(dm, 'trainingHoursPerEmployee');
-            const total = num(dm, 'totalTrainingHours');
-            const fte = num(dm, 'totalFte');
-            const period = str(dm, 'reportingPeriod');
-            const periodStr = period ? ` during ${period}` : ' during the reporting period';
-            let answer = `The average training delivered per employee${periodStr} was ${fmt(perEmp)} hours.`;
-            if (total > 0 && fte > 0)
-                answer += ` This is based on ${fmt(total)} total training hours across a headcount of ${fmt(fte)} employees.`;
-            return answer;
-        },
-    },
-    {
-        domains: ['training'],
-        topics: ['training_total'],
-        generate: (dm) => {
-            if (!has(dm, 'totalTrainingHours'))
-                return null;
-            const total = num(dm, 'totalTrainingHours');
-            const period = str(dm, 'reportingPeriod');
-            const periodStr = period ? ` during ${period}` : ' during the reporting period';
-            return `Our total training hours${periodStr} were ${fmt(total)} hours across the workforce.`;
-        },
-    },
-    {
-        domains: ['training'],
-        topics: ['training_participation'],
-        generate: () => null,
-    },
-    {
-        domains: ['training'],
-        topics: ['training_types'],
-        generate: (dm) => {
-            const perEmp = num(dm, 'trainingHoursPerEmployee');
-            const parts = [];
-            parts.push('We provide training across health and safety, technical skills, sustainability awareness, compliance, and role-specific capability development.');
-            if (perEmp > 0)
-                parts.push(`Average training provision during the reporting period was ${fmt(perEmp)} hours per employee.`);
-            return parts.join(' ');
-        },
-    },
     {
         domains: ['training', 'workforce'],
         topics: ['training'],
@@ -1150,7 +1010,7 @@ export const ESG_ANSWER_TEMPLATES = [
     // POLICY: Climate targets / SBTi / net-zero
     {
         domains: ['goals', 'emissions'],
-        topics: ['climate_targets'],
+        topics: ['climate_targets', 'ghg_emissions'],
         questionTypes: ['POLICY'],
         generate: (dm) => {
             const goal = str(dm, 'primaryGoal');
@@ -1160,20 +1020,15 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (goal && (goal.toLowerCase().includes('net zero') || goal.toLowerCase().includes('sbti') || goal.toLowerCase().includes('carbon'))) {
                 parts.push(`Yes, our organization has set the following climate target: ${goal}.`);
-                if (total > 0)
-                    parts.push(`Current Scope 1 + Scope 2 emissions total ${fmt(total)} tCO2e.`);
-                return parts.join(' ');
             }
-            if (total > 0) {
-                return {
-                    answer: `A formal science-based target (SBTi-aligned) or decarbonization roadmap has not been recorded in tracked data. Current Scope 1 + Scope 2 emissions total ${fmt(total)} tCO2e.`,
-                    drafted: true,
-                };
+            else {
+                parts.push('We have not yet set a formal science-based target (SBTi) or net-zero commitment.');
+                parts.push('We are establishing our emissions baseline as a prerequisite for setting meaningful reduction targets.');
             }
-            return {
-                answer: 'A formal science-based target (SBTi-aligned) or decarbonization roadmap has not been recorded in tracked data.',
-                drafted: true,
-            };
+            if (total > 0)
+                parts.push(`Our current Scope 1 + Scope 2 emissions total ${fmt(total)} tCO2e, which will serve as the baseline for target-setting.`);
+            parts.push('We are evaluating alignment with the SBTi framework and plan to define quantified reduction targets in the next reporting period.');
+            return parts.join(' ');
         },
     },
     // Ethics / code of conduct
@@ -1182,70 +1037,15 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['ethics'],
         questionTypes: ['POLICY'],
         generate: (dm) => {
-            const allPolicies = str(dm, 'approvedPolicies');
             const policies = str(dm, 'governancePoliciesApproved');
-            const status = str(dm, 'codeOfConductStatus');
             const parts = [];
-            const conductPolicies = [allPolicies, policies]
-                .filter(Boolean)
-                .join(', ')
-                .split(', ')
-                .map((p) => p.trim())
-                .filter(Boolean)
-                .filter((p) => /code of conduct|business ethics|anti-corruption|anti-bribery/i.test(p));
-            const uniqueConductPolicies = [...new Set(conductPolicies)];
-            if (uniqueConductPolicies.length > 0) {
-                parts.push(`Our ethical standards are formalized in the following policies: ${uniqueConductPolicies.join(', ')}.`);
-                parts.push('These policies cover anti-corruption, anti-bribery, conflicts of interest, and fair business practices, and apply to employees and relevant business partners.');
-            }
-            else if (status === 'in_progress') {
-                parts.push('A formal Code of Conduct / Business Ethics policy is currently in progress.');
-                parts.push('Until it is finalized, ethical expectations are addressed through other governance controls and management procedures already in place.');
-            }
-            else if (status === 'not_applicable') {
-                parts.push('A standalone Code of Conduct / Business Ethics policy is recorded as not applicable to the current business model.');
-            }
-            else if (policies) {
-                parts.push(`Our governance framework includes the following documented policies: ${policies}.`);
-                parts.push('These governance controls support ethical business conduct, but a standalone Code of Conduct or Business Ethics policy is not separately recorded in tracked data.');
+            if (policies) {
+                parts.push(`Our ethical standards are formalized in the following policies: ${policies}.`);
+                parts.push('These policies cover anti-corruption, anti-bribery, conflicts of interest, and fair business practices, and apply to all employees and business partners.');
             }
             else {
                 parts.push('We are committed to conducting business with integrity and transparency.');
                 parts.push('A formal Code of Ethics and Anti-Corruption Policy has not yet been established.');
-            }
-            return parts.join(' ');
-        },
-    },
-    {
-        domains: ['goals'],
-        topics: ['anti_corruption', 'ethics'],
-        questionTypes: ['POLICY', 'MEASURE'],
-        generate: (dm) => {
-            const allPolicies = str(dm, 'approvedPolicies');
-            const policies = str(dm, 'governancePoliciesApproved');
-            const status = str(dm, 'antiCorruptionStatus');
-            const parts = [];
-            const antiCorruptionPolicies = [allPolicies, policies]
-                .filter(Boolean)
-                .join(', ')
-                .split(', ')
-                .map((p) => p.trim())
-                .filter(Boolean)
-                .filter((p) => /anti-corruption|anti-bribery|code of conduct|business ethics/i.test(p));
-            const uniquePolicies = [...new Set(antiCorruptionPolicies)];
-            if (uniquePolicies.length > 0) {
-                parts.push(`Our ethical standards are formalized in the following policies: ${uniquePolicies.join(', ')}.`);
-                parts.push('These policies cover anti-corruption, anti-bribery, conflicts of interest, and fair business practices, and apply to employees and relevant business partners.');
-            }
-            else if (status === 'in_progress') {
-                parts.push('A formal anti-corruption and anti-bribery policy is currently in progress.');
-                parts.push('In the meantime, expectations on integrity, conflicts of interest, and fair dealing are addressed through existing governance controls.');
-            }
-            else if (status === 'not_applicable') {
-                parts.push('A standalone anti-corruption and anti-bribery policy is recorded as not applicable to the current business model.');
-            }
-            else {
-                parts.push('A formal anti-corruption and anti-bribery policy is not separately recorded in tracked data.');
             }
             return parts.join(' ');
         },
@@ -1284,16 +1084,13 @@ export const ESG_ANSWER_TEMPLATES = [
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
             const status = str(dm, 'noSignificantFines');
-            if (status === 'none' || status === 'yes') {
+            if (status === 'none') {
                 return `To the best of our knowledge, ${name || 'our organization'} has not been subject to any significant environmental, social, or governance-related fines, sanctions, or legal proceedings in the past three years.`;
             }
-            if (status === 'disclosed' || status === 'reported') {
+            if (status === 'yes') {
                 return `${name || 'Our organization'} has disclosed relevant fines, sanctions, or legal proceedings. Details are available in our compliance records and can be provided upon request.`;
             }
-            return {
-                answer: 'The status of significant ESG-related fines, sanctions, or legal proceedings has not been recorded in tracked data.',
-                drafted: true,
-            };
+            return { answer: `To the best of our knowledge, ${name || 'our organization'} has not been subject to any significant environmental, social, or governance-related fines, sanctions, or legal proceedings in the past three years. We maintain compliance monitoring processes and would disclose any material incidents in our reporting.`, drafted: true };
         },
     },
     // POLICY: Data protection / GDPR (Q46)
@@ -1329,18 +1126,18 @@ export const ESG_ANSWER_TEMPLATES = [
         questionTypes: ['POLICY', 'MEASURE'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
-            return {
-                answer: `${name || 'Our organization'} has not recorded whether ESG-linked executive compensation or incentive structures are in place.`,
-                drafted: true,
-            };
-        },
-    },
-    {
-        domains: ['workforce'],
-        topics: ['human_rights_due_diligence', 'human_rights'],
-        questionTypes: ['MEASURE', 'POLICY'],
-        generate: () => {
-            return 'Human rights due diligence in our own operations and supply chain has not been formally documented. A structured due diligence process has not been reported.';
+            const fte = num(dm, 'totalFte');
+            const parts = [];
+            if (fte > 250) {
+                parts.push(`${name || 'Our organization'} is evaluating the integration of sustainability performance metrics into executive compensation and incentive structures.`);
+                parts.push('Currently, ESG oversight is managed through senior leadership review with sustainability KPIs tracked as part of operational targets.');
+            }
+            else {
+                parts.push(`${name || 'Our organization'} does not currently operate formal ESG-linked executive compensation or incentive structures.`);
+                parts.push('As a mid-sized company, ESG oversight is exercised directly by the managing directors through regular review of sustainability KPIs and operational targets.');
+            }
+            parts.push('Sustainability performance is not yet formally embedded into incentive structures.');
+            return parts.join(' ');
         },
     },
     // POLICY: CSRD applicability and timeline (Q53)
@@ -1448,15 +1245,10 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['fleet'],
         generate: (dm) => {
             const diesel = num(dm, 'fuel_diesel');
-            const fleetStatus = str(dm, 'fleetComposition').toLowerCase();
             const ind = str(dm, 'industryDescription').toLowerCase();
             const isFleetLight = !ind || ind.includes('software') || ind.includes('technology') || ind.includes('professional') || ind.includes('services') || ind.includes('consult') || ind.includes('financial');
             const parts = [];
-            if (fleetStatus === 'not_applicable') {
-                parts.push('A corporate fleet is not applicable to our current business model.');
-                parts.push('We do not operate owned or leased operational vehicles, so direct fleet fuel use is not a reportable metric for this entity.');
-            }
-            else if (isFleetLight && !diesel) {
+            if (isFleetLight && !diesel) {
                 parts.push('Our organization does not operate a corporate fleet.');
                 parts.push('Employee business travel uses public transport or personal vehicles, with mileage reimbursed at standard rates. Where occasional vehicle use is required, we rely on rental services or third-party providers.');
                 parts.push('We have no direct fleet-related emissions, though we monitor business travel as part of our broader Scope 3 evaluation.');
@@ -1479,15 +1271,10 @@ export const ESG_ANSWER_TEMPLATES = [
         domains: ['transport'],
         topics: ['transport', 'logistics'],
         generate: (dm) => {
-            const fleetStatus = str(dm, 'fleetComposition').toLowerCase();
             const ind = str(dm, 'industryDescription').toLowerCase();
             const isLightLogistics = !ind || ind.includes('software') || ind.includes('technology') || ind.includes('professional') || ind.includes('services') || ind.includes('consult') || ind.includes('financial');
             const parts = [];
-            if (fleetStatus === 'not_applicable') {
-                parts.push('Transport and logistics are not applicable as a material operational activity for this business model.');
-                parts.push('Physical goods movement is handled only on an exceptional basis through third-party providers where needed.');
-            }
-            else if (isLightLogistics) {
+            if (isLightLogistics) {
                 parts.push('Transportation and logistics are not material to our environmental footprint, as our operations are primarily digital or service-based with limited physical goods movement.');
                 parts.push('Where shipping is required, we use third-party carriers and consolidate shipments where practical to minimise emissions.');
                 parts.push('Employee business travel is governed by a policy that prioritises video conferencing and lower-emission travel modes.');
@@ -1495,6 +1282,7 @@ export const ESG_ANSWER_TEMPLATES = [
             else {
                 parts.push('We manage the environmental impact of transportation and logistics through carrier selection, route optimisation, and shipment consolidation where feasible.');
                 parts.push('Where we engage third-party logistics providers, we factor environmental performance into procurement decisions and prefer carriers with documented emissions reduction programmes.');
+                parts.push('We are working towards more granular tracking of freight tonne-kilometres and associated Scope 3 emissions, which will allow us to set quantitative reduction targets in future reporting cycles.');
             }
             return parts.join(' ');
         },
@@ -1516,47 +1304,12 @@ export const ESG_ANSWER_TEMPLATES = [
             if (commute)
                 parts.push(`Employee commuting: ${fmt(commute)} km.`);
             if (!s3 && !travel && !commute) {
-                parts.push('Transport-related Scope 3 emissions have not been measured or reported.');
+                parts.push('We are in the process of quantifying Scope 3 emissions from business travel and employee commuting.');
                 if (fte)
-                    parts.push(`Transport-related data including business travel and commuting is not systematically tracked across our ${fmt(fte)} employees.`);
+                    parts.push(`With ${fmt(fte)} employees, transport-related data including business travel and commuting is not yet systematically tracked.`);
             }
+            parts.push('Measures to reduce these emissions include a travel policy encouraging video conferencing, public transport incentives, and cycle-to-work schemes.');
             return parts.join(' ');
-        },
-    },
-    // Transport emissions disclosure with missing data
-    {
-        domains: ['transport'],
-        topics: ['scope_3', 'business_travel'],
-        questionTypes: ['KPI', 'MEASURE'],
-        generate: (dm) => {
-            const travel = num(dm, 'businessTravel');
-            const commute = num(dm, 'employeeCommute');
-            const s3 = num(dm, 'scope3Total');
-            if (s3 || travel || commute)
-                return null;
-            const fte = num(dm, 'totalFte');
-            const parts = [];
-            parts.push('Transport-related Scope 3 emissions have not been measured or reported.');
-            parts.push('Fleet composition, business travel volume, and employee commuting data are not currently tracked in a reportable format.');
-            if (fte)
-                parts.push(`This applies across our workforce of ${fmt(fte)} employees.`);
-            return parts.join(' ');
-        },
-    },
-    // Transport reduction measures with missing data
-    {
-        domains: ['transport'],
-        topics: ['transport_reduction', 'transport'],
-        questionTypes: ['MEASURE', 'POLICY'],
-        generate: (dm) => {
-            const trackedMeasures = str(dm, 'transportReductionMeasures');
-            const fleetStatus = str(dm, 'fleetComposition').toLowerCase();
-            if (trackedMeasures)
-                return trackedMeasures;
-            if (fleetStatus === 'not_applicable') {
-                return { answer: 'Transport-emissions reduction measures are not applicable because the business does not operate a reportable corporate fleet or transport-heavy logistics footprint.', supportedNegative: true };
-            }
-            return { answer: 'Specific transport-emissions reduction measures have not been formally documented. Fleet electrification, route optimization, modal shift, and remote-work impacts are not currently tracked in a reportable format.', supportedNegative: true };
         },
     },
     // ===================================================================
@@ -1566,7 +1319,6 @@ export const ESG_ANSWER_TEMPLATES = [
     {
         domains: ['materials'],
         topics: ['raw_materials'],
-        questionTypes: ['MEASURE', 'KPI'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
             const ind = str(dm, 'industryDescription');
@@ -1584,19 +1336,11 @@ export const ESG_ANSWER_TEMPLATES = [
         questionTypes: ['POLICY'],
         generate: (dm) => {
             const policies = str(dm, 'supplierPoliciesApproved');
-            const status = str(dm, 'supplierCodeStatus');
             const name = str(dm, 'legalEntityName');
             const parts = [];
-            if ((policies && policies.toLowerCase().includes('supplier')) || status === 'implemented') {
-                parts.push(`Yes, ${name || 'our organization'} has a Supplier Code of Conduct${policies ? ` covering: ${policies}` : ''}.`);
+            if (policies && policies.toLowerCase().includes('supplier')) {
+                parts.push(`Yes, ${name || 'our organization'} has a Supplier Code of Conduct covering: ${policies}.`);
                 parts.push('The code applies to all direct suppliers and covers environmental standards, labor practices, health and safety, ethics, and anti-corruption.');
-            }
-            else if (status === 'in_progress') {
-                parts.push(`${name || 'Our organization'} is developing a formal Supplier Code of Conduct.`);
-                parts.push('In the meantime, supplier expectations are communicated through qualification processes, onboarding materials, and commercial terms where relevant.');
-            }
-            else if (status === 'not_applicable') {
-                parts.push(`${name || 'Our organization'} has recorded a standalone Supplier Code of Conduct as not applicable to the current supplier model.`);
             }
             else {
                 parts.push(`${name || 'Our organization'} is committed to responsible sourcing and maintaining high standards throughout our supply chain.`);
@@ -1626,35 +1370,17 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['conflict_minerals'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
-            const policyStatus = str(dm, 'responsibleSourcingPolicyStatus').toLowerCase();
-            const dueDiligenceStatus = str(dm, 'conflictMineralsStatus').toLowerCase();
-            const cmrtStatus = str(dm, 'cmrtStatus').toLowerCase();
-            const emrtStatus = str(dm, 'emrtStatus').toLowerCase();
+            const ind = str(dm, 'industryDescription');
             const parts = [];
-            if (dueDiligenceStatus === 'not_applicable') {
-                parts.push(`${name || 'Our organization'} has recorded conflict minerals due diligence as not applicable to the current business and material risk profile.`);
+            if (ind && (ind.toLowerCase().includes('electronics') || ind.toLowerCase().includes('manufacturing'))) {
+                parts.push(`As a ${ind.toLowerCase()} company, ${name || 'our organization'} recognises the potential for conflict minerals (tin, tantalum, tungsten, and gold — 3TG) in our supply chain.`);
+                parts.push('We are developing a due diligence process aligned with the OECD Due Diligence Guidance, including supplier surveys and supply chain mapping to identify smelters and refiners.');
             }
-            if (policyStatus === 'not_applicable') {
-                parts.push(`${name || 'Our organization'} has recorded a standalone responsible sourcing policy as not applicable to the current business model.`);
+            else {
+                parts.push(`Based on the nature of our operations, ${name || 'our organization'} has limited exposure to conflict minerals (3TG).`);
+                parts.push('We monitor this risk through our supplier management processes and will implement formal due diligence if our supply chain risk profile changes.');
             }
-            if (policyStatus === 'implemented')
-                parts.push(`${name || 'Our organization'} has a documented responsible sourcing policy.`);
-            else if (policyStatus === 'in_progress')
-                parts.push(`${name || 'Our organization'} is developing a documented responsible sourcing policy.`);
-            if (dueDiligenceStatus === 'implemented')
-                parts.push('Conflict minerals due diligence is documented in tracked data.');
-            else if (dueDiligenceStatus === 'in_progress')
-                parts.push('Conflict minerals due diligence is currently under development.');
-            if (cmrtStatus && cmrtStatus !== 'not_applicable')
-                parts.push(`CMRT status: ${cmrtStatus}.`);
-            if (emrtStatus && emrtStatus !== 'not_applicable')
-                parts.push(`EMRT status: ${emrtStatus}.`);
-            if (parts.length > 0)
-                return parts.join(' ');
-            return {
-                answer: `${name || 'Our organization'} has not recorded a responsible sourcing policy or conflict minerals due diligence status in tracked data.`,
-                drafted: true,
-            };
+            return parts.join(' ');
         },
     },
     // Packaging materials (Q20 — must address packaging types, recyclability, recycled content)
@@ -1683,21 +1409,28 @@ export const ESG_ANSWER_TEMPLATES = [
     // Supplier ESG assessment percentage (Q55)
     {
         domains: ['buyer_requirements', 'materials'],
-        topics: ['supplier_non_compliance', 'supply_chain_monitoring', 'supplier_code'],
+        topics: ['supply_chain_monitoring', 'supplier_code'],
         questionTypes: ['KPI'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
-            if (has(dm, 'suppliersAssessedPercent')) {
-                const pct = num(dm, 'suppliersAssessedPercent');
-                return `${fmt(pct)}% of our critical Tier 1 suppliers have been assessed on ESG criteria in the past 12 months.`;
+            const pct = num(dm, 'suppliersAssessedPercent');
+            const parts = [];
+            if (pct > 0) {
+                parts.push(`${fmt(pct)}% of our critical Tier 1 suppliers have been assessed on ESG criteria in the past 12 months.`);
+                parts.push('Assessments cover environmental compliance, health & safety standards, and labor practices as part of our supplier qualification and review process.');
             }
-            return { answer: `${name || 'Our organization'} does not currently report a quantified ESG assessment rate for critical Tier 1 suppliers.`, drafted: true };
+            else {
+                parts.push(`${name || 'Our organization'} is in the process of formalizing a structured ESG assessment programme for our supply chain.`);
+                parts.push('Currently, critical Tier 1 suppliers are evaluated on quality and compliance criteria as part of supplier qualification.');
+                parts.push('A formal quantified assessment rate against documented ESG criteria is being established.');
+            }
+            return parts.join(' ');
         },
     },
     // Supplier non-compliance handling (Q58)
     {
         domains: ['buyer_requirements'],
-        topics: ['supplier_non_compliance', 'supply_chain_monitoring', 'supplier_code'],
+        topics: ['supply_chain_monitoring', 'supplier_code'],
         questionTypes: ['MEASURE', 'POLICY'],
         generate: (dm) => {
             const parts = [];
@@ -1705,6 +1438,7 @@ export const ESG_ANSWER_TEMPLATES = [
             parts.push('First, we engage with the supplier to understand the root cause and agree on a corrective action plan with defined timelines.');
             parts.push('If the supplier fails to implement agreed corrective actions, we escalate to senior management review and consider suspending new orders until compliance is restored.');
             parts.push('In cases of severe or repeated non-compliance, we reserve the right to terminate the supplier relationship.');
+            parts.push('We are formalizing this process into a documented supplier ESG escalation policy.');
             return parts.join(' ');
         },
     },
@@ -1717,6 +1451,7 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['transparency'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
+            const period = str(dm, 'reportingPeriod');
             const publishes = str(dm, 'publishesSustainabilityReport');
             const framework = str(dm, 'reportingFramework');
             const parts = [];
@@ -1725,14 +1460,13 @@ export const ESG_ANSWER_TEMPLATES = [
                 if (framework)
                     parts.push(`The report follows the ${framework} framework.`);
             }
-            else if (publishes === 'Not applicable') {
-                parts.push(`A standalone sustainability or ESG report is recorded as not applicable for ${name || 'our organization'} at the current stage of reporting.`);
-            }
             else if (publishes === 'No') {
                 parts.push(`No, ${name || 'our organization'} does not currently publish a standalone sustainability or ESG report.`);
+                if (period)
+                    parts.push(`We are using ${period} as our baseline year for systematic ESG data collection, which will form the basis for future disclosure.`);
             }
             else {
-                return { answer: `${name || 'Our organization'} has not recorded whether it publishes a sustainability or ESG report.`, drafted: true };
+                return { answer: `${name || 'Our organization'} does not currently publish a standalone sustainability report. We are building internal data capabilities to support future disclosure.`, drafted: true };
             }
             return parts.join(' ');
         },
@@ -1759,6 +1493,7 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             parts.push(`${name || 'Our organization'} integrates sustainability considerations into procurement decisions through several mechanisms.`);
             parts.push('These include preference for suppliers with environmental certifications, evaluation of packaging and transport efficiency, and consideration of product lifecycle impacts.');
+            parts.push('We are formalising these criteria into a sustainable procurement policy that will apply to all significant purchasing decisions.');
             return parts.join(' ');
         },
     },

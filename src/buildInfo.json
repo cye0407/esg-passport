@@ -1,7 +1,7 @@
 {
-  "passportVersion": "dev",
-  "passportSha": "dev",
-  "extractSha": "dev",
-  "engineSha": "dev",
-  "builtAt": "1970-01-01T00:00:00.000Z"
+  "passportVersion": "1.0.0",
+  "passportSha": "bb8d2b7",
+  "extractSha": "9818494",
+  "engineSha": "4940fcd",
+  "builtAt": "2026-04-27T23:13:40.942Z"
 }

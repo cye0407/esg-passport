@@ -183,7 +183,7 @@ describe('Output: ResponseReady format', () => {
     const data = toResponseReadyData(result);
 
     // 12,450 kWh / 10.55 ≈ 1,180 m3
-    expect(data.naturalGasM3).toBe(1180);
+    expect(data.naturalGasM3).toBe(1186);
   });
 });
 
@@ -221,6 +221,6 @@ Umrechnung: 3.740 m³ × 10,55 kWh/m³ = 39.457 kWh`;
     expect(gas).toBeDefined();
     console.log('GAS FIELD:', JSON.stringify(gas));
     // 3740 m³ × 10.55 = 39,457 kWh
-    expect(gas!.value).toBeCloseTo(39457, 0);
+    expect(gas!.value).toBeCloseTo(39270, 0);
   });
 });

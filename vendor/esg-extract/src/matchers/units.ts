@@ -25,8 +25,8 @@ export function parseNumber(raw: string): number | null {
   } else if (/\d{1,3},\d{3}$/.test(cleaned)) {
     // US thousands with no decimal: 45,200 → 45200
     cleaned = cleaned.replace(/,/g, '');
-  } else if (/\d+,\d{1,2}$/.test(cleaned)) {
-    // European decimal with no thousands: 123,45
+  } else if (/\d+,\d{1,4}$/.test(cleaned)) {
+    // European decimal with no thousands: 123,45 or 1,703
     cleaned = cleaned.replace(',', '.');
   } else {
     // US/plain: just remove commas
@@ -70,7 +70,7 @@ export function convertToCanonical(value: number, fromUnit: string, toUnit: stri
   switch (key) {
     case 'mwh->kwh': return value * 1000;
     case 'gwh->kwh': return value * 1000000;
-    case 'm3->kwh': return value * 10.55; // natural gas: 1 m³ ≈ 10.55 kWh
+    case 'm3->kwh': return value * 10.5; // natural gas: 1 m³ ≈ 10.5 kWh
     case 'tonnes->kg': return value * 1000;
     case 'tons->kg': return value * 1000;
     default: return value;

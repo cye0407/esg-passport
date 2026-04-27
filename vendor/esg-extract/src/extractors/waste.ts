@@ -1,5 +1,5 @@
 // ============================================
-// Waste Extractor — manifests, disposal receipts, collection reports
+// Waste Extractor - manifests, disposal receipts, collection reports
 // ============================================
 
 import type { ExtractionResult, ExtractedField, ExtractionConfig, Issue } from '../types';
@@ -8,7 +8,7 @@ import { adjustConfidence } from '../matchers/confidence';
 
 /** Detect billing/collection period */
 function detectPeriod(text: string): string | undefined {
-  const isoRange = /(\d{4}-\d{2})-\d{2}\s*(?:to|bis|au|–|-)\s*(\d{4}-\d{2})-\d{2}/i;
+  const isoRange = /(\d{4}-\d{2})-\d{2}\s*(?:to|bis|au|-)\s*(\d{4}-\d{2})-\d{2}/i;
   const isoMatch = isoRange.exec(text);
   if (isoMatch) return isoMatch[1];
 
@@ -58,10 +58,10 @@ const WASTE_PATTERNS: { field: string; patterns: RegExp[]; unit: string; altUnit
   {
     field: 'totalWasteKg',
     patterns: [
-      /(?:gesamtmenge|abfallmenge|total\s*des\s*déchets)[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tonnen?|t\b)/i,
-      /(?:total|gesamt|netto)?\s*(?:waste|abfall|déchets)\s*(?:generated|collected|disposed|gesammelt|entsorgt|collectés)?[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tons?|tonnen?|t\b)/i,
+      /(?:gesamtmenge|abfallmenge|total\s*des\s*d[ée]chets)[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tonnen?|t\b)/i,
+      /(?:total|gesamt|netto)?\s*(?:waste|abfall|d[ée]chets)\s*(?:generated|collected|disposed|gesammelt|entsorgt|collect[ée]s)?[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tons?|tonnen?|t\b)/i,
       /(?:total\s*weight|gross\s*weight|net\s*weight)[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tons?)/i,
-      /([0-9.,\s]+)\s*(kg|tonnes?|tons?)\s*(?:total\s*waste|gesamt|total\s*des\s*déchets)/i,
+      /([0-9.,\s]+)\s*(kg|tonnes?|tons?)\s*(?:total\s*waste|gesamt|total\s*des\s*d[ée]chets)/i,
     ],
     unit: 'kg',
     altUnits: [{ from: 'tonnes', to: 'kg' }],
@@ -69,9 +69,9 @@ const WASTE_PATTERNS: { field: string; patterns: RegExp[]; unit: string; altUnit
   {
     field: 'hazardousWasteKg',
     patterns: [
-      /(?:hazardous|dangerous|special|gefährlich|sonder|dangereux)\s*(?:waste|abfall|déchets)[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tons?|tonnen?|t\b)/i,
-      /(?:sonderabfall|gefährliche\s*abfälle|déchets\s*dangereux)[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tonnen?)/i,
-      /([0-9.,\s]+)\s*(kg|tonnes?)\s*(?:hazardous|dangerous|gefährlich|dangereux)/i,
+      /(?:hazardous|dangerous|special|gef[aä]hrlich|sonder|dangereux)\s*(?:waste|abfall|d[ée]chets)[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tons?|tonnen?|t\b)/i,
+      /(?:sonderabfall|gef[aä]hrliche\s*abf[aä]lle|d[ée]chets\s*dangereux)[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tonnen?)/i,
+      /([0-9.,\s]+)\s*(kg|tonnes?)\s*(?:hazardous|dangerous|gef[aä]hrlich|dangereux)/i,
     ],
     unit: 'kg',
     altUnits: [{ from: 'tonnes', to: 'kg' }],
@@ -79,8 +79,9 @@ const WASTE_PATTERNS: { field: string; patterns: RegExp[]; unit: string; altUnit
   {
     field: 'recycledWasteKg',
     patterns: [
-      /(?:recyclingmenge|wertstoff|matières\s*recyclées|recycled\s*(?:waste|material))[\s()\w]*[\s:]+([0-9.,\s]+)\s*(kg|tonnes?|tons?|tonnen?|t\b)/i,
-      /(?:recycled|recovered|diverted|recyclé|valorisé)\s*(?:waste|material|abfall|déchets)?[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tons?|tonnen?|t\b)/i,
+      /(?:recyclingmenge|wertstoffmenge)[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tons?|tonnen?|t\b)/i,
+      /(?:recyclingmenge|wertstoff|mati[eè]res\s*recycl[ée]es|recycled\s*(?:waste|material))[\s()\w]*[\s:]+([0-9.,\s]+)\s*(kg|tonnes?|tons?|tonnen?|t\b)/i,
+      /(?:recycled|recovered|diverted|recycl[ée]|valoris[ée])\s*(?:waste|material|abfall|d[ée]chets)?[\s:]*([0-9.,\s]+)\s*(kg|tonnes?|tons?|tonnen?|t\b)/i,
       /([0-9.,\s]+)\s*(kg|tonnes?)\s*(?:recycled|recovered|diverted)/i,
     ],
     unit: 'kg',
@@ -121,7 +122,7 @@ export function extractWaste(
       let finalValue = value;
 
       if (detectedUnit !== pattern.unit && pattern.altUnits) {
-        const alt = pattern.altUnits.find(a => a.from === detectedUnit);
+        const alt = pattern.altUnits.find(item => item.from === detectedUnit);
         if (alt) {
           finalValue = convertToCanonical(value, detectedUnit, alt.to);
         }
@@ -146,10 +147,9 @@ export function extractWaste(
     }
   }
 
-  // Calculate recycling rate if we have total and recycled but not rate
-  const total = fields.find(f => f.field === 'totalWasteKg');
-  const recycled = fields.find(f => f.field === 'recycledWasteKg');
-  const rateField = fields.find(f => f.field === 'recyclingRate');
+  const total = fields.find(field => field.field === 'totalWasteKg');
+  const recycled = fields.find(field => field.field === 'recycledWasteKg');
+  const rateField = fields.find(field => field.field === 'recyclingRate');
   if (total && recycled && !rateField && typeof total.value === 'number' && typeof recycled.value === 'number' && total.value > 0) {
     fields.push({
       field: 'recyclingRate',
@@ -171,7 +171,7 @@ export function extractWaste(
 
   const gaps: string[] = [];
   const issues: Issue[] = [];
-  if (!fields.some(f => f.field === 'totalWasteKg')) gaps.push('totalWasteKg');
+  if (!fields.some(field => field.field === 'totalWasteKg')) gaps.push('totalWasteKg');
   for (const gap of gaps) {
     issues.push({
       code: 'missing_expected_field',

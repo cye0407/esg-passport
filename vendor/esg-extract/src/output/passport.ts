@@ -21,6 +21,9 @@ export function toPassportRecord(result: ExtractionResult): PassportDataRecord {
       case 'electricityKwh':
         record.energy = { ...record.energy, electricityKwh: val };
         break;
+      case 'renewablePercent':
+        record.energy = { ...record.energy, renewablePercent: val };
+        break;
       case 'naturalGasKwh':
         record.energy = { ...record.energy, naturalGasKwh: val };
         break;
@@ -68,6 +71,9 @@ export function toPassportRecord(result: ExtractionResult): PassportDataRecord {
         break;
       case 'hoursWorked':
         record.healthSafety = { ...record.healthSafety, hoursWorked: val };
+        break;
+      case 'fatalities':
+        record.healthSafety = { ...record.healthSafety, fatalities: val };
         break;
     }
   }
