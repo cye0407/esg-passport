@@ -164,12 +164,6 @@ async function main() {
 esg-extract: ${extractSha}
 response-ready: ${engineSha}`;
     run('git', ['commit', '-m', message], passportRoot);
-    const releaseSha = getShortSha(passportRoot);
-    await writeBuildInfo({ passportSha: releaseSha, extractSha, engineSha });
-    git(['add', 'src/buildInfo.json'], passportRoot, false);
-    if (hasStagedChanges()) {
-      run('git', ['commit', '--amend', '--no-edit'], passportRoot);
-    }
   } else {
     console.log('No vendor or build-info changes to commit.');
   }

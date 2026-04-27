@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { existsSync, readFileSync } from 'fs'
+import { execSync } from 'child_process'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 const localResponseReadyRoot = path.resolve(__dirname, '../response-ready')
@@ -10,6 +11,17 @@ const bundledResponseReadyRoot = path.resolve(__dirname, './vendor/response-read
 const bundledEsgExtractRoot = path.resolve(__dirname, './vendor/esg-extract/src')
 const alias = {
   '@': path.resolve(__dirname, './src'),
+}
+
+function getPassportSha() {
+  try {
+    return execSync('git rev-parse --short HEAD', {
+      cwd: __dirname,
+      encoding: 'utf8',
+    }).trim()
+  } catch {
+    return 'dev'
+  }
 }
 
 if (existsSync(path.join(localResponseReadyRoot, 'src/index.ts'))) {
@@ -33,6 +45,7 @@ export default defineConfig({
   base: './',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    __PASSPORT_SHA__: JSON.stringify(getPassportSha()),
   },
   plugins: [
     react(),
