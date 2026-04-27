@@ -83,7 +83,7 @@ export default function Respond() {
   const [dragActive, setDragActive] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState(null);
-  const [uploadTab, setUploadTab] = useState('upload'); // 'upload' | 'template' | 'history'
+  const [uploadTab, setUploadTab] = useState('upload'); // 'upload' | 'history' | 'readiness'
   const [showMapping, setShowMapping] = useState(false);
   const [columnMapping, setColumnMapping] = useState({ questionText: '', category: '', subcategory: '', referenceId: '' });
   const [mappingColumns, setMappingColumns] = useState(null);
@@ -1602,8 +1602,8 @@ export default function Respond() {
         </div>
         <p className="text-slate-500 mt-1">
           {isPaid
-            ? 'Upload a file, pick a template, or revisit previous results.'
-            : `Upload a file or pick a template to preview your first ${FREE_PREVIEW_LIMIT} prepared answers. Upgrade to Pro for the full workflow, export, and AI enhancement.`}
+            ? 'Upload a customer questionnaire, revisit previous results, or test your readiness against a standard framework.'
+            : `Upload a customer questionnaire to preview your first ${FREE_PREVIEW_LIMIT} prepared answers, or test your readiness against a standard framework. Upgrade to Pro for the full workflow, export, and AI enhancement.`}
         </p>
       </div>
 
@@ -1618,8 +1618,8 @@ export default function Respond() {
       <div className="flex gap-1 bg-slate-100 rounded-none p-1">
         {[
           { id: 'upload', label: 'Upload File', icon: UploadIcon },
-          { id: 'template', label: 'Use Template', icon: ListChecks },
           { id: 'history', label: `Previous (${savedResults.length})`, icon: Clock },
+          { id: 'readiness', label: 'Readiness', icon: ListChecks },
         ].map(tab => (
           <button
             key={tab.id}
@@ -1781,9 +1781,15 @@ export default function Respond() {
         </>
       )}
 
-      {/* Template Tab */}
-      {uploadTab === 'template' && (
+      {/* Readiness Tab */}
+      {uploadTab === 'readiness' && (
         <div className="space-y-3">
+          <div className="bg-slate-50 border border-slate-200 rounded-none p-4">
+            <p className="text-sm font-semibold text-slate-900">Test your response readiness</p>
+            <p className="text-xs text-slate-600 mt-1">
+              No customer ask yet? Run your data through a standard framework and see where your gaps are before a real request lands in your inbox.
+            </p>
+          </div>
           {devExportsEnabled && (
             <div className="bg-amber-50 border border-amber-200 rounded-none p-4 flex items-center justify-between gap-4">
               <div className="min-w-0">
