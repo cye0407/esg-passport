@@ -261,6 +261,7 @@ export function buildCompanyData(year) {
     grievancesReported: totals.grievancesReported != null ? totals.grievancesReported : undefined,
     newHires: totals.newHires != null ? totals.newHires : undefined,
     suppliersAssessedPercent: totals.suppliersAssessedPercent != null ? Math.round(totals.suppliersAssessedPercent) : undefined,
+    industryMetrics: totals.industryMetrics || {},
     trainingHoursPerEmployee,
     trirRate,
     lostTimeIncidents: totals.lostTimeIncidents != null ? totals.lostTimeIncidents : undefined,

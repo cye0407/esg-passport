@@ -5,6 +5,13 @@
 // Same structure as core dataRows in Data.jsx.
 
 export const INDUSTRY_METRICS = {
+  'Agriculture & Farming': [
+    { section: 'agriculture', field: 'landUseHectares', label: 'Land Use (hectares)', noSum: true, labelKey: 'ind.landUse' },
+    { section: 'agriculture', field: 'fertilizerKg', label: 'Fertilizer (kg)', labelKey: 'ind.fertilizer' },
+    { section: 'agriculture', field: 'pesticideKg', label: 'Pesticide (kg)', labelKey: 'ind.pesticide' },
+    { section: 'agriculture', field: 'irrigationWaterM3', label: 'Irrigation Water (m\u00B3)', labelKey: 'ind.irrigationWater' },
+    { section: 'agriculture', field: 'seasonalWorkers', label: 'Seasonal Workers', noSum: true, labelKey: 'ind.seasonal' },
+  ],
   'Manufacturing': [
     { section: 'production', field: 'unitsProduced', label: 'Units Produced', labelKey: 'ind.unitsProduced' },
     { section: 'production', field: 'productionHours', label: 'Production Hours', labelKey: 'ind.productionHours' },
@@ -62,6 +69,12 @@ export const INDUSTRY_METRICS = {
   'Healthcare': [
     { section: 'healthcare', field: 'medicalWasteKg', label: 'Medical Waste (kg)', labelKey: 'ind.medWaste' },
     { section: 'healthcare', field: 'pharmaceuticalWasteKg', label: 'Pharmaceutical Waste (kg)', labelKey: 'ind.pharmaWaste' },
+  ],
+  'Mining & Metals': [
+    { section: 'mining', field: 'oreProcessedTonnes', label: 'Ore / Material Processed (tonnes)', labelKey: 'ind.oreProcessed' },
+    { section: 'mining', field: 'tailingsGeneratedTonnes', label: 'Tailings Generated (tonnes)', labelKey: 'ind.tailings' },
+    { section: 'mining', field: 'waterReusedPercent', label: 'Water Reused (%)', noSum: true, labelKey: 'ind.waterReused' },
+    { section: 'mining', field: 'rehabilitatedLandHectares', label: 'Rehabilitated Land (hectares)', labelKey: 'ind.rehabilitatedLand' },
   ],
   'Wholesale & Distribution': [
     { section: 'distribution', field: 'warehouseSpaceM2', label: 'Warehouse Space (m\u00B2)', noSum: true, labelKey: 'ind.warehouse' },

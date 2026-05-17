@@ -197,6 +197,35 @@ describe('buildCompanyData', () => {
     expect(data.scope3Tco2e).toBe(500);
   });
 
+  it('aggregates industry-specific metrics into CompanyData', () => {
+    seedProfile({ industrySector: 'Mining & Metals' });
+    saveDataRecord({
+      period: '2025-01',
+      mining: {
+        oreProcessedTonnes: 1000,
+        tailingsGeneratedTonnes: 400,
+        waterReusedPercent: 35,
+        rehabilitatedLandHectares: 2,
+      },
+    });
+    saveDataRecord({
+      period: '2025-02',
+      mining: {
+        oreProcessedTonnes: 1500,
+        tailingsGeneratedTonnes: 500,
+        waterReusedPercent: 40,
+        rehabilitatedLandHectares: 3,
+      },
+    });
+
+    const data = buildCompanyData('2025');
+
+    expect(data.industryMetrics.mining.oreProcessedTonnes).toBe(2500);
+    expect(data.industryMetrics.mining.tailingsGeneratedTonnes).toBe(900);
+    expect(data.industryMetrics.mining.waterReusedPercent).toBe(40);
+    expect(data.industryMetrics.mining.rehabilitatedLandHectares).toBe(5);
+  });
+
   it('defaults reportingPeriod to baselineYear from profile', () => {
     seedProfile({ baselineYear: '2024' });
     const data = buildCompanyData();

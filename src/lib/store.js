@@ -3,6 +3,7 @@
 // ============================================
 
 import { DEFAULT_CONFIDENCE_ITEMS, DEFAULT_POLICIES } from './constants';
+import { INDUSTRY_METRICS } from '../data/industry-metrics';
 
 const STORAGE_KEY = 'esg_passport_data';
 const STORAGE_VERSION = '1.0';
@@ -330,6 +331,11 @@ export const saveSettings = (settings) => {
 
 export const getAnnualTotals = (year) => {
   const records = getDataRecords().filter(r => r.period.startsWith(year));
+  const industryRows = Object.values(INDUSTRY_METRICS).flat();
+  const industrySections = [...new Set(industryRows.map(row => row.section))];
+  const noSumIndustryFields = new Set(
+    industryRows.filter(row => row.noSum).map(row => `${row.section}.${row.field}`)
+  );
   
   const sum = (getter) => {
     const values = records.map(getter).filter(v => v != null);
@@ -343,6 +349,20 @@ export const getAnnualTotals = (year) => {
     const sorted = records.filter(r => getter(r) != null).sort((a, b) => b.period.localeCompare(a.period));
     return sorted.length > 0 ? getter(sorted[0]) : null;
   };
+
+  const industryMetrics = {};
+  industrySections.forEach(section => {
+    const fields = [...new Set(industryRows.filter(row => row.section === section).map(row => row.field))];
+    fields.forEach(field => {
+      const value = noSumIndustryFields.has(`${section}.${field}`)
+        ? last(r => r[section]?.[field])
+        : sum(r => r[section]?.[field]);
+      if (value != null) {
+        if (!industryMetrics[section]) industryMetrics[section] = {};
+        industryMetrics[section][field] = value;
+      }
+    });
+  });
 
   return {
     totalEnergyKwh: sum(r => (r.energy?.electricityKwh || 0) + (r.energy?.naturalGasKwh || 0)),
@@ -378,6 +398,7 @@ export const getAnnualTotals = (year) => {
     waterSourceMunicipalPercent: avg(r => r.water?.waterSourceMunicipalPercent),
     suppliersAssessedPercent: avg(r => r.supplyChain?.suppliersAssessedPercent),
     scope3Total: sum(r => r.scope3?.totalScope3Tco2e),
+    industryMetrics,
   };
 };
 
