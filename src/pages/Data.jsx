@@ -400,6 +400,18 @@ export default function Data() {
     return { scope1Tco2e: Math.round(scope1 * 1000) / 1000, scope2Tco2e: Math.round(scope2 * 1000) / 1000 };
   };
 
+  const numberOrNull = (value) => {
+    if (value === '' || value === null || value === undefined) return null;
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const integerOrNull = (value) => {
+    if (value === '' || value === null || value === undefined) return null;
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   const handleSave = async () => {
     if (hasErrors) return;
 
@@ -449,54 +461,54 @@ export default function Data() {
           if (!extraSections[row.section]) extraSections[row.section] = {};
           const val = record[row.section]?.[row.field];
           if (val !== undefined && val !== '' && val !== null) {
-            extraSections[row.section][row.field] = parseFloat(val) || null;
+            extraSections[row.section][row.field] = numberOrNull(val);
           }
         });
 
         const recordToSave = {
           period,
           energy: {
-            electricityKwh: parseFloat(record.energy?.electricityKwh) || null,
-            naturalGasKwh: parseFloat(record.energy?.naturalGasKwh) || null,
-            vehicleFuelLiters: isFieldNotApplicable('energy', 'vehicleFuelLiters') ? null : (parseFloat(record.energy?.vehicleFuelLiters) || null),
-            renewablePercent: parseFloat(record.energy?.renewablePercent) || null,
-            energySavingsKwh: parseFloat(record.energy?.energySavingsKwh) || null,
+            electricityKwh: numberOrNull(record.energy?.electricityKwh),
+            naturalGasKwh: numberOrNull(record.energy?.naturalGasKwh),
+            vehicleFuelLiters: isFieldNotApplicable('energy', 'vehicleFuelLiters') ? null : numberOrNull(record.energy?.vehicleFuelLiters),
+            renewablePercent: numberOrNull(record.energy?.renewablePercent),
+            energySavingsKwh: numberOrNull(record.energy?.energySavingsKwh),
             ...emissions,
           },
           water: {
-            consumptionM3: parseFloat(record.water?.consumptionM3) || null,
-            waterSourceMunicipalPercent: parseFloat(record.water?.waterSourceMunicipalPercent) || null,
+            consumptionM3: numberOrNull(record.water?.consumptionM3),
+            waterSourceMunicipalPercent: numberOrNull(record.water?.waterSourceMunicipalPercent),
           },
           waste: {
-            totalKg: parseFloat(record.waste?.totalKg) || null,
-            recycledKg: parseFloat(record.waste?.recycledKg) || null,
-            hazardousKg: isFieldNotApplicable('waste', 'hazardousKg') ? null : (parseFloat(record.waste?.hazardousKg) || null),
+            totalKg: numberOrNull(record.waste?.totalKg),
+            recycledKg: numberOrNull(record.waste?.recycledKg),
+            hazardousKg: isFieldNotApplicable('waste', 'hazardousKg') ? null : numberOrNull(record.waste?.hazardousKg),
             recyclingRate,
           },
           workforce: {
-            totalEmployees: parseInt(record.workforce?.totalEmployees) || null,
-            femaleEmployees: parseInt(record.workforce?.femaleEmployees) || null,
-            maleEmployees: parseInt(record.workforce?.maleEmployees) || null,
-            womenInLeadershipPercent: parseFloat(record.workforce?.womenInLeadershipPercent) || null,
-            turnoverRate: parseFloat(record.workforce?.turnoverRate) || null,
-            collectiveBargainingPercent: parseFloat(record.workforce?.collectiveBargainingPercent) || null,
+            totalEmployees: integerOrNull(record.workforce?.totalEmployees),
+            femaleEmployees: integerOrNull(record.workforce?.femaleEmployees),
+            maleEmployees: integerOrNull(record.workforce?.maleEmployees),
+            womenInLeadershipPercent: numberOrNull(record.workforce?.womenInLeadershipPercent),
+            turnoverRate: numberOrNull(record.workforce?.turnoverRate),
+            collectiveBargainingPercent: numberOrNull(record.workforce?.collectiveBargainingPercent),
             livingWageCompliant: record.workforce?.livingWageCompliant === 'yes' || record.workforce?.livingWageCompliant === true || null,
             grievanceMechanismExists: record.workforce?.grievanceMechanismExists === 'yes' || record.workforce?.grievanceMechanismExists === true || null,
-            grievancesReported: parseInt(record.workforce?.grievancesReported) || null,
-            newHires: parseInt(record.workforce?.newHires) || null,
+            grievancesReported: integerOrNull(record.workforce?.grievancesReported),
+            newHires: integerOrNull(record.workforce?.newHires),
           },
           healthSafety: {
             // workAccidents kept for backward compatibility (aliased to recordableIncidents on read)
-            recordableIncidents: parseInt(record.healthSafety?.recordableIncidents ?? record.healthSafety?.workAccidents) || null,
-            lostTimeIncidents: parseInt(record.healthSafety?.lostTimeIncidents) || null,
-            fatalities: parseInt(record.healthSafety?.fatalities) || null,
-            hoursWorked: parseInt(record.healthSafety?.hoursWorked) || null,
+            recordableIncidents: integerOrNull(record.healthSafety?.recordableIncidents ?? record.healthSafety?.workAccidents),
+            lostTimeIncidents: integerOrNull(record.healthSafety?.lostTimeIncidents),
+            fatalities: integerOrNull(record.healthSafety?.fatalities),
+            hoursWorked: integerOrNull(record.healthSafety?.hoursWorked),
           },
           training: {
-            trainingHours: parseFloat(record.training?.trainingHours) || null,
+            trainingHours: numberOrNull(record.training?.trainingHours),
           },
           supplyChain: {
-            suppliersAssessedPercent: parseFloat(record.supplyChain?.suppliersAssessedPercent) || null,
+            suppliersAssessedPercent: numberOrNull(record.supplyChain?.suppliersAssessedPercent),
           },
           ...extraSections,
         };
