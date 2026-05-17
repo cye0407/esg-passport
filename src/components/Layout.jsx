@@ -180,7 +180,7 @@ export default function Layout() {
       <footer className="mt-auto border-t border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <p className="text-center text-sm text-slate-400">
-            ESG Passport v{APP_VERSION} · VSME Compliant · Your data stays on your device
+            ESG Passport v{APP_VERSION} · VSME-aligned · Your data stays on your device
           </p>
           {buildInfo?.passportVersion && buildInfo.passportVersion !== 'dev' && (
             <p className="mt-1 text-right text-[10px] text-slate-400">

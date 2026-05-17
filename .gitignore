@@ -27,3 +27,6 @@ dist-ssr
 .env*.local
 
 .codex-cache/
+
+# export harness test artifacts
+/phase0testing/

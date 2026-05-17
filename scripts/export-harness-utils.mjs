@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import XLSX from 'xlsx';
 import { QUESTIONNAIRE_TEMPLATES, templateToParseResult } from '../src/data/questionnaire-templates.js';
@@ -16,8 +17,10 @@ const DEFAULT_CONFIG = {
 
 export const DEFAULT_FIXTURE_PATH = path.resolve('testing/fixtures/esg-for-suppliers.json');
 export const DEFAULT_PHASE0_DIR = path.resolve('phase0testing');
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const APP_ROOT = path.resolve(SCRIPT_DIR, '..');
 const HARNESS_CACHE_DIR = path.resolve('.codex-cache', 'response-ready-harness');
-const RESPONSE_READY_ROOT = path.resolve('..', 'response-ready');
+const RESPONSE_READY_ROOT = path.resolve(APP_ROOT, '..', 'response-ready');
 const RESPONSE_READY_BUNDLE = path.join(HARNESS_CACHE_DIR, 'response-ready-bundle.cjs');
 const require = createRequire(import.meta.url);
 

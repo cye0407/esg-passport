@@ -1,0 +1,21 @@
+ID,Category,Question,Required
+E1,Environment,What was your total electricity consumption for the reporting period?,Yes
+E2,Environment,What percentage of your electricity came from renewable sources?,Yes
+E3,Environment,Please report your Scope 1 and Scope 2 greenhouse gas emissions.,Yes
+E4,Environment,Describe your energy efficiency measures and any reductions achieved.,No
+E5,Environment,How much water did your organization withdraw or consume during the reporting period?,Yes
+E6,Environment,Describe your water management approach and whether you operate in water-stressed areas.,No
+E7,Environment,What was your total waste generated and what percentage was recycled?,Yes
+E8,Environment,Do you generate hazardous waste and how is it handled?,Yes
+S1,Social,How many employees do you have and what is your workforce composition?,Yes
+S2,Social,What was your employee turnover rate during the reporting period?,No
+S3,Social,Describe your health and safety management system.,Yes
+S4,Social,How many recordable injuries, lost time incidents, and fatalities occurred?,Yes
+S5,Social,How many employee training hours were completed?,No
+S6,Social,Do you have a human rights policy or equivalent commitment?,Yes
+G1,Governance,Does your company have a code of conduct?,Yes
+G2,Governance,Does your company have an anti-corruption or anti-bribery policy?,Yes
+G3,Governance,Do you maintain a supplier code of conduct?,Yes
+G4,Governance,List relevant management system certifications such as ISO 9001, ISO 14001, or ISO 45001.,No
+G5,Governance,Have there been any significant fines or sanctions in the reporting period?,Yes
+G6,Governance,Describe how ESG data is reviewed before being shared with customers.,No
