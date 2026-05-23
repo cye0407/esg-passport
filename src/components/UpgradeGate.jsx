@@ -11,7 +11,7 @@ const GATE_CONTENT = {
   'ESG Report': {
     description: 'Upgrade to ESG Passport Pro to turn your tracked data into a shareable ESG Passport report.',
     features: [
-      { icon: FileText, text: 'Generate a shareable ESG Passport from your tracked data' },
+      { icon: FileText, text: 'Create a shareable ESG Passport from your tracked data' },
       { icon: CheckCircle2, text: 'Show buyers your latest metrics, policies, and company profile in one place' },
       { icon: Globe, text: 'Export a professional report you can review before sending' },
       { icon: Sparkles, text: 'Keep your passport updated as your data changes' },
@@ -32,7 +32,7 @@ const GATE_CONTENT = {
     description: 'Upgrade to ESG Passport Pro to upload questionnaires and prepare professional answer drafts from your tracked data.',
     features: [
       { icon: Upload, text: 'Upload any questionnaire - Excel, CSV, PDF, or Word' },
-      { icon: Sparkles, text: '200+ answer templates matched to your questions automatically' },
+      { icon: Sparkles, text: '70+ answer templates matched to your questions automatically' },
       { icon: ListChecks, text: 'Pre-loaded templates for EcoVadis, CDP, and CSRD/VSME' },
       { icon: Globe, text: 'Editable answers with inline edit, mark N/A, and save to library' },
     ],

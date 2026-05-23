@@ -129,7 +129,7 @@ export default function Onboarding() {
               </div>
 
               <p className="text-xs text-slate-400 text-center">
-                Everything runs in your browser. Your data never leaves your device.
+                Your sustainability data stays in your browser — it never leaves your device.
               </p>
 
               <Button

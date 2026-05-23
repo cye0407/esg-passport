@@ -381,7 +381,7 @@ export default function Respond() {
     } catch (err) {
       console.error('Pipeline error:', err);
       track('respond_generation_failed', { error: err?.name || 'unknown' });
-      setPipelineError(`Failed to generate answers: ${err.message}`);
+      setPipelineError(`Failed to prepare answers: ${err.message}`);
       setPhase('results');
     }
   }
@@ -765,7 +765,7 @@ export default function Respond() {
           <div className="w-16 h-16 rounded-none bg-indigo-100 flex items-center justify-center mx-auto mb-6">
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
           </div>
-          <h2 className="text-xl font-semibold text-slate-900 text-center mb-2">Generating your answers</h2>
+          <h2 className="text-xl font-semibold text-slate-900 text-center mb-2">Preparing your answers</h2>
           <p className="text-sm text-slate-500 text-center mb-6">{generatingProgress.step}</p>
           <div className="w-full bg-slate-200 rounded-full h-2">
             <div

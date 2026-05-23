@@ -980,7 +980,7 @@ export function getExportStrings(targetLang) {
     pdfTitle: pick(lang, { de: 'Fragebogenantworten (Druck/PDF)', pl: 'Odpowiedzi do kwestionariusza (druk/PDF)', fr: 'R\u00e9ponses au questionnaire (impression/PDF)', es: 'Respuestas al cuestionario (impresi\u00f3n/PDF)', it: 'Risposte al questionario (stampa/PDF)', nl: 'Vragenlijstantwoorden (afdruk/PDF)', en: 'Questionnaire Responses (Print/PDF)' }),
     framework: pick(lang, { de: 'Rahmenwerk', pl: 'Standard', fr: 'R\u00e9f\u00e9rentiel', es: 'Marco', it: 'Framework', nl: 'Raamwerk', en: 'Framework' }),
     reportingPeriod: pick(lang, { de: 'Berichtszeitraum', pl: 'Okres sprawozdawczy', fr: 'P\u00e9riode de reporting', es: 'Per\u00edodo de reporte', it: 'Periodo di rendicontazione', nl: 'Verslagperiode', en: 'Reporting period' }),
-    generated: pick(lang, { de: 'Erstellt', pl: 'Wygenerowano', fr: 'G\u00e9n\u00e9r\u00e9', es: 'Generado', it: 'Generato', nl: 'Gegenereerd', en: 'Generated' }),
+    generated: pick(lang, { de: 'Erstellt', pl: 'Wygenerowano', fr: 'G\u00e9n\u00e9r\u00e9', es: 'Generado', it: 'Generato', nl: 'Gegenereerd', en: 'Prepared' }),
     question: pick(lang, { de: 'Frage', pl: 'Pytanie', fr: 'Question', es: 'Pregunta', it: 'Domanda', nl: 'Vraag', en: 'Question' }),
     status: pick(lang, { de: 'Status', pl: 'Status', fr: 'Statut', es: 'Estado', it: 'Stato', nl: 'Status', en: 'Status' }),
     coverage: pick(lang, { de: 'Abdeckung', pl: 'Pokrycie', fr: 'Couverture', es: 'Cobertura', it: 'Copertura', nl: 'Dekking', en: 'Coverage' }),
