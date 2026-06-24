@@ -22,7 +22,7 @@ import {
   Download, ChevronDown, ChevronUp, AlertTriangle, HelpCircle,
   BarChart3, Shield, Target, RefreshCw, Globe, Ban, BookmarkPlus,
   BookmarkCheck, TrendingUp, TrendingDown, ClipboardList, Paperclip,
-  Pencil, Sparkles, Check,
+  Pencil, Sparkles, Check, Database,
 } from 'lucide-react';
 
 // Lazy engine singleton — created on first use
@@ -1602,9 +1602,23 @@ export default function Respond() {
         </div>
         <p className="text-slate-500 mt-1">
           {isPaid
-            ? 'Upload a customer questionnaire, revisit previous results, or test your readiness against a standard framework.'
-            : `Upload a customer questionnaire to preview your first ${FREE_PREVIEW_LIMIT} prepared answers, or test your readiness against a standard framework. Upgrade to Pro for the full workflow, export, and AI enhancement.`}
+            ? 'Upload a customer questionnaire, match it to your ESG data, and prepare draft answers for review.'
+            : `Upload a questionnaire or try a sample. Free preview shows the first ${FREE_PREVIEW_LIMIT} matched draft answers from your ESG workspace.`}
         </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          { icon: UploadIcon, title: '1. Upload request', body: 'Use a buyer questionnaire, spreadsheet, PDF, Word file, or built-in sample.' },
+          { icon: Database, title: '2. Add data', body: 'Track ESG data manually, by CSV, or from supported bills and records on Pro+.' },
+          { icon: Sparkles, title: '3. Draft answers', body: 'Passport matches questions to your data and flags evidence gaps before export.' },
+        ].map((item) => (
+          <div key={item.title} className="bg-white border border-slate-200 rounded-none p-4">
+            <item.icon className="w-5 h-5 text-slate-700 mb-3" />
+            <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">{item.body}</p>
+          </div>
+        ))}
       </div>
 
       {linkedRequest && (
@@ -1648,9 +1662,9 @@ export default function Respond() {
           <div className="bg-amber-50 border border-amber-200 rounded-none p-4 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900">For personalized answers, enter 2 minutes of data first</p>
+              <p className="text-sm font-medium text-slate-900">Want the sample to use your own numbers?</p>
               <p className="text-xs text-slate-600 mt-0.5">
-                Without your data, answers will be generic templates. Just electricity + headcount unlocks high-confidence answers for ~80% of questions.
+                Add a few ESG data points first. Otherwise, the preview will show template answers and missing-data flags.
               </p>
             </div>
             <Link
@@ -1675,8 +1689,8 @@ export default function Respond() {
               <div className="bg-indigo-50 border border-indigo-200 rounded-none p-4 flex items-start gap-3">
                 <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900">Don't have a questionnaire handy?</p>
-                  <p className="text-xs text-slate-600 mt-0.5">Try the engine on a {sample.questionCount}-question {sample.framework} sample using your data.</p>
+                  <p className="text-sm font-medium text-slate-900">No questionnaire handy?</p>
+                  <p className="text-xs text-slate-600 mt-0.5">Run a {sample.questionCount}-question {sample.framework} sample and preview the first {FREE_PREVIEW_LIMIT} matched answers.</p>
                 </div>
                 <Button
                   size="sm"
@@ -1684,7 +1698,7 @@ export default function Respond() {
                   onClick={() => selectTemplate(sample.id)}
                   className="border-indigo-300 text-indigo-700 hover:bg-indigo-100 flex-shrink-0"
                 >
-                  Try with sample
+                  Try sample
                 </Button>
               </div>
             );
@@ -1717,9 +1731,9 @@ export default function Respond() {
             ) : (
               <div className="text-center">
                 <UploadIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <p className="font-medium text-slate-900">Drop your questionnaire here</p>
+                <p className="font-medium text-slate-900">Drop your customer questionnaire here</p>
                 <p className="text-sm text-slate-500 mt-1">or click to browse</p>
-                <p className="text-xs text-slate-400 mt-3">Excel (.xlsx, .csv), PDF, or Word (.docx)</p>
+                <p className="text-xs text-slate-400 mt-3">Excel (.xlsx, .csv), PDF, or Word (.docx). Bills and source documents are added from Data/Documents.</p>
               </div>
             )}
           </div>
