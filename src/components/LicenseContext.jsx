@@ -86,7 +86,7 @@ export function LicenseProvider({ children }) {
 
 function AutoActivationBanner({ result, onDismiss }) {
   const success = result.ok;
-  const tierLabel = result.tier === 'pro-plus' ? 'Pro+' : 'Pro';
+  const tierLabel = 'ESG Passport';
   return (
     <div
       className={`fixed top-0 inset-x-0 z-50 px-4 py-3 text-sm text-white flex items-center justify-center gap-4 ${success ? 'bg-emerald-600' : 'bg-red-600'}`}

@@ -9,24 +9,24 @@ import {
 
 const GATE_CONTENT = {
   'ESG Report': {
-    description: 'Upgrade to ESG Passport Pro to turn your tracked data into a shareable ESG Passport report.',
+    description: 'Upgrade to ESG Passport to turn your tracked data into a shareable ESG Passport report.',
     features: [
       { icon: FileText, text: 'Create a shareable ESG Passport from your tracked data' },
       { icon: CheckCircle2, text: 'Show buyers your latest metrics, policies, and company profile in one place' },
       { icon: Globe, text: 'Export a professional report you can review before sending' },
       { icon: Sparkles, text: 'Keep your passport updated as your data changes' },
     ],
-    cta: 'Get ESG Passport Pro - €299',
+    cta: 'Get ESG Passport - €499',
   },
   default: {
-    description: 'Upgrade to ESG Passport Pro to upload questionnaires and prepare professional answer drafts from your tracked data.',
+    description: 'Upgrade to ESG Passport to upload questionnaires and prepare professional answer drafts from your tracked data.',
     features: [
       { icon: Upload, text: 'Upload any questionnaire - Excel, CSV, PDF, or Word' },
       { icon: Sparkles, text: '70+ answer templates matched to your questions automatically' },
       { icon: ListChecks, text: 'Pre-loaded templates for EcoVadis, CDP, and CSRD/VSME' },
       { icon: Globe, text: 'Editable answers with inline edit, mark N/A, and save to library' },
     ],
-    cta: 'Get ESG Passport Pro - €299',
+    cta: 'Get ESG Passport - €499',
   },
 };
 
@@ -85,7 +85,7 @@ export default function UpgradeGate({ feature }) {
         </div>
 
         <a
-          href="https://catyeldi.lemonsqueezy.com/checkout/buy/a8b7a3e5-2b8c-4f6f-922c-f5e04a08fe73"
+          href="https://catyeldi.lemonsqueezy.com/checkout/buy/d5cb1011-fdd1-4936-afe8-819f53073970"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none transition-colors mb-6"

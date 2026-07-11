@@ -266,9 +266,9 @@ export default function Settings() {
             </>
           ) : (
             <div className="rounded-none border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-medium text-slate-900">AI enhancement is a Pro feature.</p>
+              <p className="text-sm font-medium text-slate-900">AI enhancement is a paid Passport feature.</p>
               <p className="mt-1 text-sm text-slate-500">
-                Upgrade to Pro to rewrite prepared answers into more natural, company-specific language.
+                Upgrade to ESG Passport to rewrite prepared answers into more natural, company-specific language.
               </p>
             </div>
           )}
@@ -303,7 +303,7 @@ export default function Settings() {
         </h2>
         <p className="text-sm text-slate-500 mb-4">
           {getStoredLicense()
-            ? `ESG Passport ${tier === 'pro-plus' ? 'Pro+' : 'Pro'} active since ${new Date(getStoredLicense().activated_at).toLocaleDateString()}.`
+            ? `ESG Passport active since ${new Date(getStoredLicense().activated_at).toLocaleDateString()}.`
             : 'No license activated.'}
           {' '}Activate here or deactivate to transfer to another device.
         </p>

@@ -9,8 +9,8 @@ export default function ExtractorUpgradeCard({ tier }) {
     ? 'Want to skip typing bill data manually?'
     : 'Want to skip typing bill data manually?';
   const body = tier === 'pro'
-    ? 'Upgrade to Pro+ to drop a bill, manifest, or HR report and have the extractor fill this page for you. Electricity, gas, water, waste, and workforce data are pulled automatically.'
-    : 'Document extraction is a Pro+ feature. Upgrade to drop a bill, manifest, or HR report and have the extractor fill this page for you instead of entering values manually.';
+    ? 'Upgrade to ESG Passport to drop a bill, manifest, or HR report and have the extractor fill this page for you. Electricity, gas, water, waste, and workforce data are pulled automatically.'
+    : 'Document extraction is included in ESG Passport. Upgrade to drop a bill, manifest, or HR report and have the extractor fill this page for you instead of entering values manually.';
 
   return (
     <div className="border-2 border-dashed border-slate-300 bg-white p-6">
@@ -28,12 +28,12 @@ export default function ExtractorUpgradeCard({ tier }) {
             onClick={() => track('checkout_opened', { source: 'extractor_upgrade_card', from_tier: tier })}
             className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2.5"
           >
-            Upgrade to Pro+ - €499
+            Upgrade to ESG Passport - €499
             <ArrowRight className="w-4 h-4" />
           </a>
           {tier === 'pro' && (
             <p className="text-xs text-slate-400 mt-2">
-              Already have Pro? Email{' '}
+              Already have a license? Email{' '}
               <a href="mailto:contact@esgforsuppliers.com" className="underline">contact@esgforsuppliers.com</a>
               {' '}for the upgrade-only rate.
             </p>
