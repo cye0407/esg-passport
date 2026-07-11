@@ -66,7 +66,7 @@ describe('Layout navigation entitlements', () => {
     await renderLayout();
 
     expect(container.textContent).toContain('Respond');
-    expect(container.textContent).toContain('Preview');
+    expect(container.textContent).toContain('Example');
     expect(container.querySelector('[aria-label="Respond locked"]')).toBeNull();
     expect(container.querySelector('[aria-label="Requests locked"]')).toBeNull();
     expect(container.querySelector('[aria-label="Report locked"]')).not.toBeNull();
