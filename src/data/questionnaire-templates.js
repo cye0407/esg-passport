@@ -104,7 +104,7 @@ export const QUESTIONNAIRE_TEMPLATES = {
 
   basic_supplier: {
     id: 'basic_supplier',
-    name: 'Basic Supplier Questionnaire',
+    name: 'ESG Questionnaire',
     description: 'A typical customer-sent supplier sustainability questionnaire covering core ESG topics.',
     framework: 'Custom',
     questionCount: 15,

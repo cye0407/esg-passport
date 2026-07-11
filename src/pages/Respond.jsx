@@ -41,6 +41,7 @@ const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
 const FREE_PREVIEW_LIMIT = 5;
 const CHECKOUT_URL = 'https://catyeldi.lemonsqueezy.com/checkout/buy/d5cb1011-fdd1-4936-afe8-819f53073970';
 const DATA_SECTIONS = ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training'];
+const PASSPORT_DATA_KEY = 'esg_passport_data';
 
 function hasUsableWorkspaceData() {
   const records = getDataRecords();
@@ -108,7 +109,7 @@ export default function Respond({ demoOnly = false }) {
   const [savedResults, setSavedResults] = useState([]);
   const [demoLibraryUsed, setDemoLibraryUsed] = useState(false);
   const setupSkipped = getSettings()?.setupSkipped === true;
-  const responseUpgradeLabel = (demoLibraryUsed || isDemo) ? 'Create Own Library' : 'Export - Passport';
+  const responseUpgradeLabel = isDemo ? 'Buy ESG Passport - EUR 499' : 'Export - Passport';
   useEffect(() => {
     const data = loadData();
     setSavedResults(data.savedResults || []);
@@ -151,6 +152,7 @@ export default function Respond({ demoOnly = false }) {
   const [enhanceError, setEnhanceError] = useState(null);
   const [showDetails, setShowDetails] = useState(new Set());
   const [savedFeedback, setSavedFeedback] = useState(null);
+  const demoAutoStartedRef = useRef(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportReviewConfirmed, setExportReviewConfirmed] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -261,6 +263,15 @@ export default function Respond({ demoOnly = false }) {
     selectTemplate(templateId);
   };
 
+  useEffect(() => {
+    if (!demoOnly || demoAutoStartedRef.current || phase !== 'upload') return;
+    const sample = [...Object.values(QUESTIONNAIRE_TEMPLATES)].sort((a, b) => (a.questionCount || 999) - (b.questionCount || 999))[0];
+    if (!sample) return;
+    demoAutoStartedRef.current = true;
+    selectTemplate(sample.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoOnly, phase]);
+
   const deleteSavedResult = (id) => {
     const data = loadData();
     data.savedResults = (data.savedResults || []).filter(r => r.id !== id);
@@ -349,13 +360,26 @@ export default function Respond({ demoOnly = false }) {
     track('respond_generation_started', { questions: pr?.questions?.length || 0 });
 
     try {
-      const shouldSeedDemoLibrary = isDemo && !hasUsableWorkspaceData();
-      if (shouldSeedDemoLibrary) {
+      const shouldUseExampleData = isDemo && !hasUsableWorkspaceData();
+      let cd;
+      let profile;
+
+      if (shouldUseExampleData) {
+        const previousWorkspace = window.localStorage.getItem(PASSPORT_DATA_KEY);
         loadDemoData();
         setDemoLibraryUsed(true);
         track('respond_demo_library_loaded', { source: name });
+        cd = buildCompanyData();
+        profile = buildCompanyProfile();
+        if (previousWorkspace === null) {
+          window.localStorage.removeItem(PASSPORT_DATA_KEY);
+        } else {
+          window.localStorage.setItem(PASSPORT_DATA_KEY, previousWorkspace);
+        }
       } else {
         setDemoLibraryUsed(isDemo && getSettings()?.demoLibrarySeeded === true);
+        cd = buildCompanyData();
+        profile = buildCompanyProfile();
       }
 
       setParseResult(pr);
@@ -364,7 +388,6 @@ export default function Respond({ demoOnly = false }) {
       setFramework(fw);
 
       setGeneratingProgress({ step: `Analysing ${questions.length} questions...`, percent: 25 });
-      const cd = buildCompanyData();
       setCompanyData(cd);
 
       const engine = await getEngine();
@@ -384,7 +407,6 @@ export default function Respond({ demoOnly = false }) {
         aggregateSites: true,
       };
 
-      const profile = buildCompanyProfile();
       const drafts = engine.generateDrafts(questions, matchResults, dataContexts, config, profile, classifications);
       const normalizedDrafts = drafts.map(normalizeDraft);
 
@@ -956,7 +978,7 @@ export default function Respond({ demoOnly = false }) {
     const activeFilterCount = (filterConfidence !== 'all' ? 1 : 0) + (filterType !== 'all' ? 1 : 0);
 
     return (
-      <div className="space-y-0">
+      <div className={cn('space-y-0', isDemo && 'pb-44 sm:pb-32')}>
         {/* Feedback toast */}
         {savedFeedback && (
           <div className="fixed top-20 right-4 bg-green-100 text-green-800 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
@@ -988,21 +1010,25 @@ export default function Respond({ demoOnly = false }) {
                 {framework && <span>{framework}</span>}
                 <span>{stats?.total} questions</span>
                 <span>{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                {demoLibraryUsed && <span>Demo response library</span>}
+                {demoLibraryUsed && <span>Example data</span>}
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleReprepare}>
-                <RefreshCw className="w-4 h-4 mr-1.5" /> Re-prepare
-              </Button>
-              <Button variant="outline" size="sm" onClick={resetToUpload}>
-                <UploadIcon className="w-4 h-4 mr-1.5" /> New
-              </Button>
+              {canRespond && (
+                <>
+                  <Button variant="outline" size="sm" onClick={handleReprepare}>
+                    <RefreshCw className="w-4 h-4 mr-1.5" /> Re-prepare
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={resetToUpload}>
+                    <UploadIcon className="w-4 h-4 mr-1.5" /> New
+                  </Button>
+                </>
+              )}
               <Button
                 size="sm"
                 onClick={canRespond ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
                 className="bg-slate-900 hover:bg-slate-800 text-white"
-                title={canRespond ? 'Export responses' : (demoLibraryUsed ? 'Create your own response library with ESG Passport' : 'Export with Passport')}
+                title={canRespond ? 'Export responses' : 'Unlock uploads, exports, and your own source-backed answers'}
               >
                 {canRespond ? <Download className="w-4 h-4 mr-1.5" /> : <Shield className="w-4 h-4 mr-1.5" />}
                 {canRespond ? 'Export' : responseUpgradeLabel}
@@ -1067,7 +1093,7 @@ export default function Respond({ demoOnly = false }) {
                   variant="outline"
                   size="sm"
                   className="text-xs"
-                  title={canRespond ? '' : (demoLibraryUsed ? 'Create your own response library with ESG Passport' : 'Export with Passport')}
+                  title={canRespond ? '' : 'Unlock AI enhancement for your own questionnaire responses'}
                 >
                   {enhancingAll ? (
                     <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {enhanceProgress.done}/{enhanceProgress.total}</>
@@ -1406,33 +1432,14 @@ export default function Respond({ demoOnly = false }) {
           {/* ===== UPGRADE CARD + LOCKED PLACEHOLDERS (free users only) ===== */}
           {isDemo && filtered.length > FREE_PREVIEW_LIMIT && (
             <>
-              <div className="border-b border-slate-200 bg-gradient-to-b from-indigo-50 to-white px-6 py-8">
-                <div className="max-w-xl mx-auto text-center space-y-4">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-none bg-slate-900">
-                    <Shield className="w-6 h-6 text-white" />
-                  </div>
+              <div className="border-b border-slate-200 bg-slate-50 px-6 py-4 text-center">
+                <div className="mx-auto max-w-xl">
                   <h3 className="text-lg font-semibold text-slate-900">
-                    Ready to create your own response library?
+                    More matched answers unlock with ESG Passport.
                   </h3>
                   <p className="text-sm text-slate-600">
-                    This preview uses the demo library. With ESG Passport, drop in bills, invoices, waste records, HR data, and policies, then upload your questionnaire, review the matched answers, and respond with your own source-backed library.
+                    The full workflow uses your documents, your questionnaire, and your reviewed answers.
                   </p>
-                  <a
-                    href={CHECKOUT_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none transition-colors"
-                  >
-                    Build My Library with ESG Passport - EUR 499
-                  </a>
-                  <p className="text-xs text-slate-400">
-                    Already purchased? <Link to="/settings" className="underline">Activate your license key</Link>
-                  </p>
-                  <div className="flex items-center justify-center gap-3 text-xs text-slate-400 pt-1">
-                    <Link to="/" className="hover:text-slate-600 underline">Maybe later - dashboard</Link>
-                    <span>·</span>
-                    <Link to="/data" className="hover:text-slate-600 underline">Add more data</Link>
-                  </div>
                 </div>
               </div>
 
@@ -1467,11 +1474,44 @@ export default function Respond({ demoOnly = false }) {
             <Button
               onClick={canRespond ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
               className="bg-slate-900 hover:bg-slate-800 text-white"
-              title={canRespond ? '' : (demoLibraryUsed ? 'Create your own response library with ESG Passport' : 'Export with Passport')}
+              title={canRespond ? '' : 'Unlock exports for your own questionnaire responses'}
             >
               {canRespond ? <Download className="w-4 h-4 mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
               {canRespond ? 'Export' : responseUpgradeLabel}
             </Button>
+          </div>
+        )}
+        {isDemo && (
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.12)] backdrop-blur">
+            <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900">This is an example response view.</p>
+                <div className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                  <span className="inline-flex items-center gap-1.5">
+                    <UploadIcon className="h-3.5 w-3.5 text-slate-500" /> Upload documents
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Database className="h-3.5 w-3.5 text-slate-500" /> Extract ESG data
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-slate-500" /> Review buyer-ready answers
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <a
+                  href={CHECKOUT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-10 items-center justify-center bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                >
+                  Buy ESG Passport - EUR 499
+                </a>
+                <Link to="/settings" className="text-center text-xs text-slate-500 underline underline-offset-2">
+                  Already purchased?
+                </Link>
+              </div>
+            </div>
           </div>
         )}
         <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
@@ -1619,17 +1659,17 @@ export default function Respond({ demoOnly = false }) {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-900">{canRespond ? 'Respond to Questionnaire' : 'Preview a Response Library'}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{canRespond ? 'Respond to Questionnaire' : 'Example Questionnaire Answers'}</h1>
           {isDemo && (
             <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
-              Demo
+              Example
             </span>
           )}
         </div>
         <p className="text-slate-500 mt-1">
           {isPaid
             ? 'Upload a customer questionnaire, match it to your ESG data, and prepare draft answers for review.'
-            : 'See how Passport turns a populated ESG library into draft questionnaire answers. When you are ready to build this with your own files, upgrade to ESG Passport.'}
+            : 'Run an example customer questionnaire and see how Passport turns ESG documents and tracked data into draft answers.'}
         </p>
       </div>
 
@@ -1684,7 +1724,7 @@ export default function Respond({ demoOnly = false }) {
           <div className="bg-white border border-slate-200 rounded-none p-3 flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-slate-600">No data yet. The preview will use a demo response library so the first answers are not empty.</p>
+              <p className="text-sm text-slate-600">No data yet. Try an example questionnaire, or add your own data first for more useful answers.</p>
             </div>
             <Link
               to="/data"
@@ -1700,7 +1740,7 @@ export default function Respond({ demoOnly = false }) {
       {/* Upload Tab */}
       {uploadTab === 'upload' && (
         <>
-          {/* Try with sample — quick demo path for users without a real questionnaire */}
+          {/* Try with sample — quick example path for users without a real questionnaire */}
           {(() => {
             const sample = [...templates].sort((a, b) => (a.questionCount || 999) - (b.questionCount || 999))[0];
             if (!sample) return null;
@@ -1708,11 +1748,11 @@ export default function Respond({ demoOnly = false }) {
               <div className="bg-indigo-50 border border-indigo-200 rounded-none p-5 flex items-start gap-4">
                 <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900">{canRespond ? 'No questionnaire handy?' : 'Preview the response workflow'}</p>
+                  <p className="text-sm font-medium text-slate-900">{canRespond ? 'No questionnaire handy?' : 'Try an example questionnaire'}</p>
                   <p className="text-xs text-slate-600 mt-0.5">
                     {isPaid
                       ? `Run a ${sample.questionCount}-question ${sample.framework} sample against your current library.`
-                      : `Run a ${sample.questionCount}-question ${sample.framework} sample using a populated demo library. You will see the first ${FREE_PREVIEW_LIMIT} matched draft answers.`}
+                      : `Run a ${sample.questionCount}-question ${sample.framework} example with example ESG data. You will see the first ${FREE_PREVIEW_LIMIT} matched draft answers.`}
                   </p>
                 </div>
                 <Button
@@ -1721,7 +1761,7 @@ export default function Respond({ demoOnly = false }) {
                   onClick={() => runSampleTemplate(sample.id)}
                   className="border-indigo-300 text-indigo-700 hover:bg-indigo-100 flex-shrink-0"
                 >
-                  {canRespond ? 'Try sample' : 'View demo answers'}
+                  {canRespond ? 'Try sample' : 'View example'}
                 </Button>
               </div>
             );
@@ -1763,9 +1803,9 @@ export default function Respond({ demoOnly = false }) {
             </div>
           ) : (
             <div className="bg-white border border-slate-200 rounded-none p-5">
-              <p className="text-sm font-medium text-slate-900">To use your own questionnaire</p>
+              <p className="text-sm font-medium text-slate-900">Your own questionnaire needs ESG Passport</p>
               <p className="mt-1 text-sm text-slate-500">
-                ESG Passport lets you build your own response library from bills, invoices, waste records, HR data, and policies, then upload customer questionnaires against that library.
+                Upload source documents, build your ESG data set, and prepare answers against real customer questionnaires.
               </p>
               <a
                 href={CHECKOUT_URL}
@@ -1773,7 +1813,7 @@ export default function Respond({ demoOnly = false }) {
                 rel="noopener noreferrer"
                 className="mt-4 inline-flex items-center justify-center h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-none"
               >
-                Build My Library with ESG Passport
+                Unlock ESG Passport
               </a>
             </div>
           )}

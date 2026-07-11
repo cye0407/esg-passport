@@ -16,6 +16,7 @@ import {
   Menu,
   Settings,
   Shield,
+  Sparkles,
   Upload,
   X,
 } from 'lucide-react';
@@ -28,7 +29,8 @@ const navigation = [
   { name: 'Policies', href: '/policies', icon: ClipboardCheck, paid: false },
   { name: 'Documents', href: '/documents', icon: FolderOpen, paid: false },
   { name: 'Report', href: '/report', icon: FileText, paid: true },
-  { name: 'Respond', href: '/respond', icon: Upload, paid: false, preview: true },
+  { name: 'Respond', href: '/demo', icon: Sparkles, paid: false, preview: true, hideWhenPaid: true },
+  { name: 'Respond', href: '/respond', icon: Upload, paid: true, hideWhenFree: true },
   { name: 'Requests', href: '/requests', icon: Inbox, paid: false },
   { name: 'Settings', href: '/settings', icon: Settings, paid: false },
 ];
@@ -95,7 +97,7 @@ export default function Layout() {
             </Link>
 
             <div className="hidden items-center gap-1 md:flex">
-              {navigation.map((item) => {
+              {navigation.filter(item => !(item.hideWhenPaid && isPaid) && !(item.hideWhenFree && !isPaid)).map((item) => {
                 const isActive =
                   location.pathname === item.href ||
                   (item.href !== '/' && location.pathname.startsWith(item.href));
@@ -116,7 +118,7 @@ export default function Layout() {
                     {item.name}
                     {showPreview && (
                       <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
-                        Preview
+                        Example
                       </span>
                     )}
                     {showLock && <Lock aria-label={`${item.name} locked`} className="h-3 w-3 opacity-50" />}
@@ -137,7 +139,7 @@ export default function Layout() {
         {mobileMenuOpen && (
           <div className="border-t border-slate-200 bg-white md:hidden">
             <div className="space-y-1 px-4 py-3">
-              {navigation.map((item) => {
+              {navigation.filter(item => !(item.hideWhenPaid && isPaid) && !(item.hideWhenFree && !isPaid)).map((item) => {
                 const isActive =
                   location.pathname === item.href ||
                   (item.href !== '/' && location.pathname.startsWith(item.href));
@@ -159,7 +161,7 @@ export default function Layout() {
                     {item.name}
                     {showPreview && (
                       <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
-                        Preview
+                        Example
                       </span>
                     )}
                     {showLock && (
