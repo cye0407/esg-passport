@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Shield, Key, ExternalLink, Loader2, Upload, Sparkles, ListChecks, Globe,
-  Mail, FileText, Inbox, CheckCircle2,
+  Mail, FileText, CheckCircle2,
 } from 'lucide-react';
 
 const GATE_CONTENT = {
@@ -15,16 +15,6 @@ const GATE_CONTENT = {
       { icon: CheckCircle2, text: 'Show buyers your latest metrics, policies, and company profile in one place' },
       { icon: Globe, text: 'Export a professional report you can review before sending' },
       { icon: Sparkles, text: 'Keep your passport updated as your data changes' },
-    ],
-    cta: 'Get ESG Passport Pro - €299',
-  },
-  'Request Management': {
-    description: 'Upgrade to ESG Passport Pro to track customer questionnaires, deadlines, and prepared responses in one workflow.',
-    features: [
-      { icon: Inbox, text: 'Track incoming customer requests and deadlines in one place' },
-      { icon: Upload, text: 'Open each request directly in the response workflow' },
-      { icon: ListChecks, text: 'Keep prepared answers, review status, and follow-up work organized' },
-      { icon: Sparkles, text: 'Reduce manual back-and-forth when multiple questionnaires are in flight' },
     ],
     cta: 'Get ESG Passport Pro - €299',
   },

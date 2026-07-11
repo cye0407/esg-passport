@@ -29,7 +29,7 @@ const navigation = [
   { name: 'Documents', href: '/documents', icon: FolderOpen, paid: false },
   { name: 'Report', href: '/report', icon: FileText, paid: true },
   { name: 'Respond', href: '/respond', icon: Upload, paid: false, preview: true },
-  { name: 'Requests', href: '/requests', icon: Inbox, paid: true },
+  { name: 'Requests', href: '/requests', icon: Inbox, paid: false },
   { name: 'Settings', href: '/settings', icon: Settings, paid: false },
 ];
 

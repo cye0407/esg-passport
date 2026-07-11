@@ -103,8 +103,8 @@ export default function Onboarding() {
   const valueProps = [
     { icon: Database, text: 'Track energy, water, waste, and workforce data year-round' },
     { icon: ClipboardCheck, text: 'Manage policies and compliance documents' },
-    { icon: Upload, text: 'Upload questionnaires and prepare professional answer drafts with Pro' },
-    { icon: Globe, text: 'Export responses in multiple languages with Pro' },
+    { icon: Upload, text: 'Preview questionnaire matching for free, then upgrade when you need the full answer set' },
+    { icon: Globe, text: 'Export reviewed responses in multiple languages with Pro' },
   ];
 
   return (

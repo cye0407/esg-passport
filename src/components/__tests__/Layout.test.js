@@ -62,13 +62,13 @@ describe('Layout navigation entitlements', () => {
     });
   }
 
-  it('does not mark Respond as locked for free users, but keeps paid routes locked', async () => {
+  it('does not mark Respond or Requests as locked for free users, but keeps paid routes locked', async () => {
     await renderLayout();
 
     expect(container.textContent).toContain('Respond');
     expect(container.textContent).toContain('Preview');
     expect(container.querySelector('[aria-label="Respond locked"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Requests locked"]')).toBeNull();
     expect(container.querySelector('[aria-label="Report locked"]')).not.toBeNull();
-    expect(container.querySelector('[aria-label="Requests locked"]')).not.toBeNull();
   });
 });

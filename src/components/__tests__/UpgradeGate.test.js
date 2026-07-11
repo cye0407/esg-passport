@@ -49,11 +49,11 @@ describe('UpgradeGate', () => {
     expect(container.textContent).not.toContain('Upload any questionnaire');
   });
 
-  it('shows request-specific upgrade copy for the Request Management gate', async () => {
-    await renderGate('Request Management');
+  it('falls back to response-assistant copy for unknown paid features', async () => {
+    await renderGate('Unknown Feature');
 
-    expect(container.textContent).toContain('Unlock Request Management');
-    expect(container.textContent).toContain('Track incoming customer requests and deadlines');
-    expect(container.textContent).not.toContain('Upload any questionnaire');
+    expect(container.textContent).toContain('Unlock Unknown Feature');
+    expect(container.textContent).toContain('Upload any questionnaire');
+    expect(container.textContent).not.toContain('shareable ESG Passport report');
   });
 });
