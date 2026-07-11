@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { saveCompanyProfile, saveSettings } from '@/lib/store';
+import { getSettings, saveCompanyProfile, saveSettings } from '@/lib/store';
 import { track, trackOnce } from '@/lib/track';
 import { INDUSTRIES, COUNTRIES, EMISSION_FACTORS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ import {
 export default function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const setupCompleted = getSettings()?.setupCompleted;
 
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
@@ -41,6 +42,10 @@ export default function Onboarding() {
   useEffect(() => {
     trackOnce('onboarding_started');
   }, []);
+
+  useEffect(() => {
+    if (setupCompleted) navigate('/', { replace: true });
+  }, [navigate, setupCompleted]);
 
   const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
@@ -84,6 +89,15 @@ export default function Onboarding() {
 
     track('onboarding_completed', { destination });
     navigate(destination);
+  };
+
+  const skipToSample = () => {
+    saveSettings({
+      setupCompleted: true,
+      onboardingStep: 3,
+    });
+    track('onboarding_skipped', { destination: '/respond' });
+    navigate('/respond');
   };
 
   const valueProps = [
@@ -139,6 +153,13 @@ export default function Onboarding() {
                 Get Started
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
+
+              <button
+                onClick={skipToSample}
+                className="w-full text-center text-sm text-slate-500 hover:text-slate-700"
+              >
+                Skip setup and try the sample
+              </button>
             </div>
           )}
 

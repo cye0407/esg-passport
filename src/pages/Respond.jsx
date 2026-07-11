@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useSearchParams, Link } from 'react-router-dom';
 import { useLicense } from '@/components/LicenseContext';
 import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getDocuments, getDataRecords } from '@/lib/store';
+import { loadDemoData } from '@/lib/demoData';
 import { QUESTIONNAIRE_TEMPLATES, templateToParseResult } from '@/data/questionnaire-templates';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { LANGUAGES, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
@@ -39,6 +40,17 @@ async function getEngine() {
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
 const FREE_PREVIEW_LIMIT = 5;
 const CHECKOUT_URL = 'https://catyeldi.lemonsqueezy.com/checkout/buy/a8b7a3e5-2b8c-4f6f-922c-f5e04a08fe73';
+const DATA_SECTIONS = ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training'];
+
+function hasUsableWorkspaceData() {
+  const records = getDataRecords();
+  return records.some(r =>
+    DATA_SECTIONS.some(section => {
+      const s = r[section];
+      return s && Object.values(s).some(v => v !== null && v !== undefined && v !== '');
+    })
+  );
+}
 
 function buildExcelFileName(companyName) {
   const safeCompany = String(companyName || 'responses')
@@ -100,14 +112,7 @@ export default function Respond() {
   // Auto-resume sample after user returns from entering data via the nudge
   useEffect(() => {
     if (sessionStorage.getItem('respond_resume_sample') !== '1') return;
-    const records = getDataRecords();
-    const hasAnyData = records.some(r =>
-      ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training'].some(section => {
-        const s = r[section];
-        return s && Object.values(s).some(v => v !== null && v !== undefined && v !== '');
-      })
-    );
-    if (!hasAnyData) return;
+    if (!hasUsableWorkspaceData()) return;
     sessionStorage.removeItem('respond_resume_sample');
     const sample = [...Object.values(QUESTIONNAIRE_TEMPLATES)].sort((a, b) => (a.questionCount || 999) - (b.questionCount || 999))[0];
     if (sample) selectTemplate(sample.id);
@@ -245,6 +250,15 @@ export default function Respond() {
       const template = QUESTIONNAIRE_TEMPLATES[templateId];
       runPipeline(result, template.name);
     }
+  };
+
+  const runSampleTemplate = (templateId) => {
+    const seededDemoData = !hasUsableWorkspaceData();
+    if (seededDemoData) {
+      loadDemoData();
+      track('respond_sample_demo_data_loaded');
+    }
+    selectTemplate(templateId);
   };
 
   const deleteSavedResult = (id) => {
@@ -1650,13 +1664,7 @@ export default function Respond() {
 
       {/* Data nudge — warn users with empty/sparse Data store before they upload */}
       {(() => {
-        const records = getDataRecords();
-        const hasAnyData = records.some(r =>
-          ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training'].some(section => {
-            const s = r[section];
-            return s && Object.values(s).some(v => v !== null && v !== undefined && v !== '');
-          })
-        );
+        const hasAnyData = hasUsableWorkspaceData();
         if (hasAnyData) return null;
         return (
           <div className="bg-amber-50 border border-amber-200 rounded-none p-4 flex items-start gap-3">
@@ -1690,12 +1698,12 @@ export default function Respond() {
                 <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-900">No questionnaire handy?</p>
-                  <p className="text-xs text-slate-600 mt-0.5">Run a {sample.questionCount}-question {sample.framework} sample and preview the first {FREE_PREVIEW_LIMIT} matched answers.</p>
+                  <p className="text-xs text-slate-600 mt-0.5">Run a {sample.questionCount}-question {sample.framework} sample with demo company data and preview the first {FREE_PREVIEW_LIMIT} matched answers.</p>
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => selectTemplate(sample.id)}
+                  onClick={() => runSampleTemplate(sample.id)}
                   className="border-indigo-300 text-indigo-700 hover:bg-indigo-100 flex-shrink-0"
                 >
                   Try sample

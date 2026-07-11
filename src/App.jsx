@@ -98,8 +98,8 @@ function App() {
           <Route path="/documents" element={<Documents />} />
           <Route path="/report" element={<PaidRoute feature="ESG Report"><Report /></PaidRoute>} />
           <Route path="/respond" element={<Respond />} />
-          <Route path="/requests" element={<PaidRoute feature="Request Management"><Requests /></PaidRoute>} />
-          <Route path="/requests/:id" element={<PaidRoute feature="Request Management"><RequestWorkspace /></PaidRoute>} />
+          <Route path="/requests" element={<Requests />} />
+          <Route path="/requests/:id" element={<RequestWorkspace />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
 
