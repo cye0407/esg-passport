@@ -14,7 +14,7 @@ import { useLanguage } from '@/components/LanguageContext';
  *   year — current reporting year
  */
 export default function BillDrop({ onDataExtracted, year }) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [dragging, setDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [progressText, setProgressText] = useState('');
@@ -243,7 +243,7 @@ export default function BillDrop({ onDataExtracted, year }) {
                     </div>
                     <div className="text-right shrink-0">
                       <span className="text-sm font-mono font-semibold text-slate-900">
-                        {typeof f.value === 'number' ? f.value.toLocaleString() : f.value}
+                        {typeof f.value === 'number' ? f.value.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB') : f.value}
                       </span>
                       <span className="text-xs text-slate-400 ml-1">{f.unit}</span>
                       {rawDiffers && (
