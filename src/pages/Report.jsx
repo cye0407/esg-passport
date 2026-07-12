@@ -94,16 +94,16 @@ export default function Report() {
           <p className="text-slate-500 text-sm">{t('rep.periodLine', { company: companyName, year: reportYear, months: monthsCovered })}</p>
 
           <dl className="company-meta grid grid-cols-3 gap-4 mt-4">
-            {company?.industry && (
+            {company?.industrySector && (
               <div>
                 <dt className="text-[11px] uppercase tracking-wider text-slate-400">{t('rep.industry')}</dt>
-                <dd className="text-sm font-semibold">{localizeIndustry(company.industry, lang)}</dd>
+                <dd className="text-sm font-semibold">{localizeIndustry(company.industrySector, lang)}</dd>
               </div>
             )}
-            {company?.country && (
+            {company?.countryOfIncorporation && (
               <div>
                 <dt className="text-[11px] uppercase tracking-wider text-slate-400">{t('rep.country')}</dt>
-                <dd className="text-sm font-semibold">{localizeCountry(company.country, lang)}</dd>
+                <dd className="text-sm font-semibold">{localizeCountry(company.countryOfIncorporation, company.countryOfIncorporation, lang)}</dd>
               </div>
             )}
             {company?.totalEmployees && (
