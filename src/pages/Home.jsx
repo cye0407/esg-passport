@@ -9,6 +9,8 @@ import {
   getSettings,
 } from '@/lib/store';
 import { MONTHS } from '@/lib/constants';
+import { useLanguage } from '@/components/LanguageContext';
+import { formatNumber } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -40,6 +42,7 @@ export default function Home() {
     return <Navigate to="/onboarding" replace />;
   }
 
+  const { lang, t } = useLanguage();
   const [showGuide, setShowGuide] = React.useState(() => {
     return !localStorage.getItem('esg_passport_guide_dismissed');
   });
@@ -48,6 +51,12 @@ export default function Home() {
     localStorage.setItem('esg_passport_guide_dismissed', 'true');
     setShowGuide(false);
   };
+
+  const monthLabel = (mm) => t(`month.${mm}`);
+  // Plural helper: picks `${base}.one` or `${base}.other` and interpolates {count}.
+  const pt = (count, base, vars = {}) => t(`${base}.${count === 1 ? 'one' : 'other'}`, { count, ...vars });
+  const fmt = (num, decimals = 0) =>
+    num == null ? '-' : formatNumber(num, lang, { maximumFractionDigits: decimals });
 
   const company = getCompanyProfile();
   const stats = getReadinessStats();
@@ -68,21 +77,6 @@ export default function Home() {
   const hasAnyData = dataRecords.length > 0;
   const monthsTracked = dataRecords.length;
 
-  const getNextDataMonth = () => {
-    if (!hasCurrentMonthData) return { period: currentPeriod, label: 'this month' };
-    if (!hasLastMonthData) return { period: lastMonth, label: 'last month' };
-    for (let m = 1; m <= currentMonth; m++) {
-      const period = `${currentYear}-${String(m).padStart(2, '0')}`;
-      if (!dataRecords.some(r => r.period === period)) {
-        const monthName = MONTHS.find(mo => mo.value === String(m).padStart(2, '0'))?.label;
-        return { period, label: monthName };
-      }
-    }
-    return { period: currentPeriod, label: 'this month' };
-  };
-
-  const nextDataMonth = getNextDataMonth();
-
   const openRequests = requests.filter(r => r.status !== 'closed' && r.status !== 'sent');
   const upcomingDeadlines = openRequests
     .filter(r => r.deadline)
@@ -100,18 +94,13 @@ export default function Home() {
     ((dataRecords.length > 0 ? 100 : 0) * 0.2)
   );
 
-  const formatNumber = (num, decimals = 0) => {
-    if (num == null) return '-';
-    return num.toLocaleString('en-US', { maximumFractionDigits: decimals });
-  };
-
   const getPrimaryCTA = () => {
     if (urgentDeadlines.length > 0) {
       return {
         type: 'urgent',
-        title: `${urgentDeadlines.length} urgent deadline${urgentDeadlines.length > 1 ? 's' : ''}`,
-        description: `${urgentDeadlines[0].customerName} response due soon`,
-        action: 'View Request',
+        title: pt(urgentDeadlines.length, 'home.cta.urgentTitle'),
+        description: t('home.cta.urgentDesc', { customer: urgentDeadlines[0].customerName }),
+        action: t('home.cta.viewRequest'),
         href: `/requests/${urgentDeadlines[0].id}`,
         icon: AlertTriangle,
         borderColor: 'border-red-500',
@@ -122,9 +111,9 @@ export default function Home() {
     if (!hasAnyData) {
       return {
         type: 'first-time',
-        title: 'Start tracking your sustainability data',
-        description: 'Enter your first month of data to build your response-ready profile',
-        action: 'Enter Data for ' + MONTHS.find(m => m.value === currentPeriod.split('-')[1])?.label,
+        title: t('home.cta.firstTitle'),
+        description: t('home.cta.firstDesc'),
+        action: t('home.cta.enterDataFor', { month: monthLabel(currentPeriod.split('-')[1]) }),
         href: '/data',
         icon: Sparkles,
         borderColor: 'border-indigo-600',
@@ -135,9 +124,9 @@ export default function Home() {
     if (!hasCurrentMonthData) {
       return {
         type: 'monthly-update',
-        title: `Time to enter ${MONTHS.find(m => m.value === String(currentMonth).padStart(2, '0'))?.label} data`,
-        description: `Keep your profile current — you have ${monthsTracked} month${monthsTracked !== 1 ? 's' : ''} tracked so far`,
-        action: 'Enter This Month\'s Data',
+        title: t('home.cta.monthlyTitle', { month: monthLabel(String(currentMonth).padStart(2, '0')) }),
+        description: pt(monthsTracked, 'home.cta.monthlyDesc'),
+        action: t('home.cta.enterThisMonth'),
         href: '/data',
         icon: CalendarPlus,
         borderColor: 'border-blue-500',
@@ -148,9 +137,9 @@ export default function Home() {
     if (stats.safeToShareDataPoints < stats.totalDataPoints * 0.5) {
       return {
         type: 'confidence',
-        title: 'Improve your data confidence',
-        description: `Only ${stats.safeToShareDataPoints} of ${stats.totalDataPoints} data points are safe to share`,
-        action: 'Review Data Quality',
+        title: t('home.cta.confidenceTitle'),
+        description: t('home.cta.confidenceDesc', { safe: stats.safeToShareDataPoints, total: stats.totalDataPoints }),
+        action: t('home.cta.reviewQuality'),
         href: '/data',
         icon: ShieldCheck,
         borderColor: 'border-amber-500',
@@ -161,9 +150,9 @@ export default function Home() {
     if (openRequests.length > 0) {
       return {
         type: 'requests',
-        title: `${openRequests.length} open request${openRequests.length > 1 ? 's' : ''}`,
-        description: 'You have customer requests awaiting response',
-        action: 'View Requests',
+        title: pt(openRequests.length, 'home.cta.requestsTitle'),
+        description: t('home.cta.requestsDesc'),
+        action: t('home.cta.viewRequests'),
         href: '/requests',
         icon: Inbox,
         borderColor: 'border-purple-500',
@@ -173,9 +162,9 @@ export default function Home() {
     }
     return {
       type: 'ready',
-      title: 'You\'re response-ready!',
-      description: 'Your sustainability data is up to date. Upload a questionnaire to respond.',
-      action: 'Upload Questionnaire',
+      title: t('home.cta.readyTitle'),
+      description: t('home.cta.readyDesc'),
+      action: t('home.cta.uploadQuestionnaire'),
       href: '/respond',
       icon: Upload,
       borderColor: 'border-green-500',
@@ -193,9 +182,9 @@ export default function Home() {
         <div className="flex flex-col lg:flex-row lg:items-center gap-6">
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-slate-900 mb-1">
-              {company?.tradingName || company?.legalName || 'Welcome'}
+              {company?.tradingName || company?.legalName || t('home.welcome')}
             </h1>
-            <p className="text-slate-500 text-sm">Your sustainability data, always ready</p>
+            <p className="text-slate-500 text-sm">{t('home.subtitle')}</p>
           </div>
 
           <div className="flex items-center gap-4">
@@ -209,8 +198,8 @@ export default function Home() {
               </div>
             </div>
             <div className="text-sm">
-              <p className="font-medium text-slate-900">Response Ready</p>
-              <p className="text-slate-500">{stats.safeToShareDataPoints}/{stats.totalDataPoints} metrics</p>
+              <p className="font-medium text-slate-900">{t('home.responseReady')}</p>
+              <p className="text-slate-500">{stats.safeToShareDataPoints}/{stats.totalDataPoints} {t('home.metrics')}</p>
             </div>
           </div>
         </div>
@@ -238,29 +227,29 @@ export default function Home() {
       {/* Getting Started Guide */}
       {showGuide && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-none p-6 relative">
-          <button onClick={dismissGuide} className="absolute top-4 right-4 text-indigo-400 hover:text-indigo-600" aria-label="Dismiss guide">
+          <button onClick={dismissGuide} className="absolute top-4 right-4 text-indigo-400 hover:text-indigo-600" aria-label={t('home.dismissGuide')}>
             <X className="w-4 h-4" />
           </button>
           <h2 className="text-lg font-semibold text-slate-900 mb-1 flex items-center gap-2">
             <Info className="w-5 h-5 text-indigo-600" />
-            Before you start
+            {t('home.guideTitle')}
           </h2>
-          <p className="text-sm text-slate-600 mb-4">Three things to know about ESG Passport.</p>
+          <p className="text-sm text-slate-600 mb-4">{t('home.guideSub')}</p>
           <div className="grid sm:grid-cols-3 gap-4">
             <div className="bg-white p-4 border border-indigo-100">
               <PenLine className="w-5 h-5 text-indigo-600 mb-2" />
-              <h3 className="font-medium text-slate-900 text-sm mb-1">You enter the data</h3>
-              <p className="text-xs text-slate-600">The assistant uses the data you track here to prepare answer drafts. More data = better drafts. Start with energy and employees.</p>
+              <h3 className="font-medium text-slate-900 text-sm mb-1">{t('home.guide1Title')}</h3>
+              <p className="text-xs text-slate-600">{t('home.guide1Body')}</p>
             </div>
             <div className="bg-white p-4 border border-indigo-100">
               <HardDrive className="w-5 h-5 text-indigo-600 mb-2" />
-              <h3 className="font-medium text-slate-900 text-sm mb-1">Your data lives in this browser</h3>
-              <p className="text-xs text-slate-600">Everything is stored locally. If you clear your browser data, it's gone. Use Settings &rarr; Export to back up regularly.</p>
+              <h3 className="font-medium text-slate-900 text-sm mb-1">{t('home.guide2Title')}</h3>
+              <p className="text-xs text-slate-600">{t('home.guide2Body')}</p>
             </div>
             <div className="bg-white p-4 border border-indigo-100">
               <FileSpreadsheet className="w-5 h-5 text-indigo-600 mb-2" />
-              <h3 className="font-medium text-slate-900 text-sm mb-1">Review every answer</h3>
-              <p className="text-xs text-slate-600">Answers are drafts based on templates and your data. Always review and edit before sending to a customer.</p>
+              <h3 className="font-medium text-slate-900 text-sm mb-1">{t('home.guide3Title')}</h3>
+              <p className="text-xs text-slate-600">{t('home.guide3Body')}</p>
             </div>
           </div>
         </div>
@@ -271,10 +260,10 @@ export default function Home() {
         <Link to="/data" className="bg-white border border-slate-200 rounded-none p-4 hover:border-slate-300 transition-colors">
           <div className="flex items-center justify-between mb-2">
             <Database className="w-5 h-5 text-slate-400" />
-            {!hasCurrentMonthData && <span className="w-2 h-2 rounded-full bg-amber-500" title="Current month missing" />}
+            {!hasCurrentMonthData && <span className="w-2 h-2 rounded-full bg-amber-500" title={t('home.currentMonthMissing')} />}
           </div>
           <p className="text-2xl font-bold text-slate-900">{monthsTracked}</p>
-          <p className="text-sm text-slate-500">Months tracked</p>
+          <p className="text-sm text-slate-500">{t('home.monthsTracked')}</p>
         </Link>
 
         <Link to="/data" className="bg-white border border-slate-200 rounded-none p-4 hover:border-slate-300 transition-colors">
@@ -282,7 +271,7 @@ export default function Home() {
             <ShieldCheck className="w-5 h-5 text-slate-400" />
           </div>
           <p className="text-2xl font-bold text-slate-900">{stats.safeToShareDataPoints}/{stats.totalDataPoints}</p>
-          <p className="text-sm text-slate-500">Safe to share</p>
+          <p className="text-sm text-slate-500">{t('home.safeToShare')}</p>
         </Link>
 
         <Link to="/policies" className="bg-white border border-slate-200 rounded-none p-4 hover:border-slate-300 transition-colors">
@@ -290,7 +279,7 @@ export default function Home() {
             <ShieldCheck className="w-5 h-5 text-slate-400" />
           </div>
           <p className="text-2xl font-bold text-slate-900">{stats.approvedPolicies}/{stats.totalPolicies}</p>
-          <p className="text-sm text-slate-500">Policies available</p>
+          <p className="text-sm text-slate-500">{t('home.policiesAvailable')}</p>
         </Link>
 
         <Link to="/requests" className="bg-white border border-slate-200 rounded-none p-4 hover:border-slate-300 transition-colors">
@@ -299,7 +288,7 @@ export default function Home() {
             {openRequests.length > 0 && <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-xs rounded-full font-medium">{openRequests.length}</span>}
           </div>
           <p className="text-2xl font-bold text-slate-900">{openRequests.length}</p>
-          <p className="text-sm text-slate-500">Open requests</p>
+          <p className="text-sm text-slate-500">{t('home.openRequests')}</p>
         </Link>
       </div>
 
@@ -307,16 +296,16 @@ export default function Home() {
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Quick Actions */}
         <div className="bg-white border border-slate-200 rounded-none p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Quick Actions</h2>
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">{t('home.quickActions')}</h2>
           <div className="space-y-1">
             <Link to="/data" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors group">
               <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
                 <Database className="w-4 h-4 text-slate-600" />
               </div>
               <div className="flex-1">
-                <p className="font-medium text-slate-900 text-sm">Enter Monthly Data</p>
+                <p className="font-medium text-slate-900 text-sm">{t('home.enterMonthlyData')}</p>
                 <p className="text-xs text-slate-500">
-                  {hasCurrentMonthData ? 'Update or review entries' : `Add ${MONTHS.find(m => m.value === String(currentMonth).padStart(2, '0'))?.label} data`}
+                  {hasCurrentMonthData ? t('home.updateEntries') : t('home.addMonthData', { month: monthLabel(String(currentMonth).padStart(2, '0')) })}
                 </p>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all" />
@@ -327,8 +316,8 @@ export default function Home() {
                 <Upload className="w-4 h-4 text-slate-600" />
               </div>
               <div className="flex-1">
-                <p className="font-medium text-slate-900 text-sm">Upload Questionnaire</p>
-                <p className="text-xs text-slate-500">Prepare answers from your data</p>
+                <p className="font-medium text-slate-900 text-sm">{t('home.uploadQuestionnaire')}</p>
+                <p className="text-xs text-slate-500">{t('home.prepareAnswers')}</p>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all" />
             </Link>
@@ -338,8 +327,8 @@ export default function Home() {
                 <FileText className="w-4 h-4 text-slate-600" />
               </div>
               <div className="flex-1">
-                <p className="font-medium text-slate-900 text-sm">Share ESG Passport</p>
-                <p className="text-xs text-slate-500">Download as PDF or HTML to send to customers</p>
+                <p className="font-medium text-slate-900 text-sm">{t('home.sharePassport')}</p>
+                <p className="text-xs text-slate-500">{t('home.shareSub')}</p>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all" />
             </Link>
@@ -349,8 +338,8 @@ export default function Home() {
                 <Inbox className="w-4 h-4 text-slate-600" />
               </div>
               <div className="flex-1">
-                <p className="font-medium text-slate-900 text-sm">Log Customer Request</p>
-                <p className="text-xs text-slate-500">Track a new questionnaire</p>
+                <p className="font-medium text-slate-900 text-sm">{t('home.logRequest')}</p>
+                <p className="text-xs text-slate-500">{t('home.logRequestSub')}</p>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all" />
             </Link>
@@ -361,7 +350,7 @@ export default function Home() {
         <div className="bg-white border border-slate-200 rounded-none p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <Clock className="w-5 h-5 text-slate-400" />
-            {upcomingDeadlines.length > 0 ? 'Upcoming Deadlines' : 'Recent Requests'}
+            {upcomingDeadlines.length > 0 ? t('home.upcomingDeadlines') : t('home.recentRequests')}
           </h2>
 
           {requests.length > 0 ? (
@@ -381,7 +370,7 @@ export default function Home() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-slate-900 text-sm truncate">{request.customerName}</p>
-                        <p className="text-xs text-slate-500">{request.platform || 'Custom request'}</p>
+                        <p className="text-xs text-slate-500">{request.platform || t('home.customRequest')}</p>
                       </div>
                       {daysUntil !== null && (
                         <div className={cn(
@@ -390,7 +379,7 @@ export default function Home() {
                           isUrgent ? 'bg-amber-50 text-amber-700' :
                           'bg-slate-100 text-slate-600'
                         )}>
-                          {daysUntil < 0 ? 'Overdue' : `${daysUntil}d`}
+                          {daysUntil < 0 ? t('home.overdue') : t('home.daysShort', { days: daysUntil })}
                         </div>
                       )}
                     </div>
@@ -400,16 +389,16 @@ export default function Home() {
 
               {requests.length > 3 && (
                 <Link to="/requests" className="block text-center text-sm text-slate-500 hover:text-slate-700 py-2">
-                  View all {requests.length} requests
+                  {t('home.viewAllRequests', { count: requests.length })}
                 </Link>
               )}
             </div>
           ) : (
             <div className="text-center py-8 text-slate-400">
               <Inbox className="w-10 h-10 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">No requests yet</p>
+              <p className="text-sm">{t('home.noRequests')}</p>
               <Link to="/requests">
-                <Button variant="link" className="text-indigo-600 mt-2 text-sm">Log your first request</Button>
+                <Button variant="link" className="text-indigo-600 mt-2 text-sm">{t('home.logFirstRequest')}</Button>
               </Link>
             </div>
           )}
@@ -421,38 +410,38 @@ export default function Home() {
         <div className="bg-white border border-slate-200 rounded-none p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-slate-400" />
-            {currentYear} Key Metrics
+            {t('home.keyMetrics', { year: currentYear })}
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="p-4 rounded-lg bg-slate-50">
               <Zap className="w-4 h-4 text-slate-400 mb-2" />
-              <p className="text-lg font-bold text-slate-900">{formatNumber(annualTotals.totalEnergyKwh)}</p>
-              <p className="text-xs text-slate-500">kWh Energy</p>
+              <p className="text-lg font-bold text-slate-900">{fmt(annualTotals.totalEnergyKwh)}</p>
+              <p className="text-xs text-slate-500">{t('home.unitEnergy')}</p>
             </div>
             <div className="p-4 rounded-lg bg-slate-50">
               <div className="w-4 h-4 text-slate-400 mb-2 font-bold text-[10px] flex items-center">CO2</div>
-              <p className="text-lg font-bold text-slate-900">{formatNumber((annualTotals.scope1Tco2e || 0) + (annualTotals.scope2Tco2e || 0), 1)}</p>
-              <p className="text-xs text-slate-500">tCO2e Scope 1+2</p>
+              <p className="text-lg font-bold text-slate-900">{fmt((annualTotals.scope1Tco2e || 0) + (annualTotals.scope2Tco2e || 0), 1)}</p>
+              <p className="text-xs text-slate-500">{t('home.unitScope12')}</p>
             </div>
             <div className="p-4 rounded-lg bg-slate-50">
               <Droplets className="w-4 h-4 text-slate-400 mb-2" />
-              <p className="text-lg font-bold text-slate-900">{formatNumber(annualTotals.waterM3)}</p>
-              <p className="text-xs text-slate-500">m3 Water</p>
+              <p className="text-lg font-bold text-slate-900">{fmt(annualTotals.waterM3)}</p>
+              <p className="text-xs text-slate-500">{t('home.unitWater')}</p>
             </div>
             <div className="p-4 rounded-lg bg-slate-50">
               <Trash2 className="w-4 h-4 text-slate-400 mb-2" />
-              <p className="text-lg font-bold text-slate-900">{formatNumber((annualTotals.totalWasteKg || 0) / 1000, 1)}</p>
-              <p className="text-xs text-slate-500">t Waste</p>
+              <p className="text-lg font-bold text-slate-900">{fmt((annualTotals.totalWasteKg || 0) / 1000, 1)}</p>
+              <p className="text-xs text-slate-500">{t('home.unitWaste')}</p>
             </div>
             <div className="p-4 rounded-lg bg-slate-50">
               <Users className="w-4 h-4 text-slate-400 mb-2" />
-              <p className="text-lg font-bold text-slate-900">{formatNumber(annualTotals.totalEmployees) || '-'}</p>
-              <p className="text-xs text-slate-500">Employees</p>
+              <p className="text-lg font-bold text-slate-900">{fmt(annualTotals.totalEmployees) || '-'}</p>
+              <p className="text-xs text-slate-500">{t('home.unitEmployees')}</p>
             </div>
             <div className="p-4 rounded-lg bg-slate-50">
               <ShieldCheck className="w-4 h-4 text-slate-400 mb-2" />
-              <p className="text-lg font-bold text-slate-900">{formatNumber(annualTotals.workAccidents ?? 0)}</p>
-              <p className="text-xs text-slate-500">Accidents</p>
+              <p className="text-lg font-bold text-slate-900">{fmt(annualTotals.workAccidents ?? 0)}</p>
+              <p className="text-xs text-slate-500">{t('home.unitAccidents')}</p>
             </div>
           </div>
         </div>

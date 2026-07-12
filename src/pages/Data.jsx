@@ -7,10 +7,10 @@ import {
   getAnnualTotals,
   saveSettings,
 } from '@/lib/store';
-import { MONTHS, EMISSION_FACTORS } from '@/lib/constants';
+import { EMISSION_FACTORS } from '@/lib/constants';
 import { getIndustryMetrics } from '@/data/industry-metrics';
 import { FIELD_UNITS, getAlternativeUnits, convert } from '@/lib/units';
-import { t } from '@/lib/i18n';
+import { useLanguage } from '@/components/LanguageContext';
 import { track, trackOnce } from '@/lib/track';
 import { detectNumberFormat, parseNumber, parsePeriod, buildColumnMap } from '@/lib/csvImport';
 import Papa from 'papaparse';
@@ -45,6 +45,7 @@ import {
 
 export default function Data() {
   const { tier } = useLicense();
+  const { lang, t } = useLanguage();
   // Honor ?period=YYYY-MM query param from deep links on Respond answer cards
   const initialYear = (() => {
     if (typeof window === 'undefined') return new Date().getFullYear();
@@ -169,7 +170,7 @@ export default function Data() {
       const isFuture = year === currentYear && m > currentMonth;
       months.push({
         period: `${year}-${String(m).padStart(2, '0')}`,
-        label: MONTHS.find(mo => mo.value === String(m).padStart(2, '0'))?.label.slice(0, 3),
+        label: t(`month.${String(m).padStart(2, '0')}`).slice(0, 3),
         isFuture,
       });
     }
@@ -352,7 +353,7 @@ export default function Data() {
     Object.entries(records).forEach(([period, record]) => {
       const renewable = parseFloat(record.energy?.renewablePercent);
       if (renewable && (renewable < 0 || renewable > 100)) {
-        newErrors[`${period}-energy-renewablePercent`] = 'Must be 0-100';
+        newErrors[`${period}-energy-renewablePercent`] = t('err.range0100');
       }
 
       const totalWaste = parseFloat(record.waste?.totalKg) || 0;
@@ -360,10 +361,10 @@ export default function Data() {
       const hazardousWaste = parseFloat(record.waste?.hazardousKg) || 0;
 
       if (recycledWaste > totalWaste && totalWaste > 0) {
-        newErrors[`${period}-waste-recycledKg`] = 'Cannot exceed total waste';
+        newErrors[`${period}-waste-recycledKg`] = t('err.exceedTotalWaste');
       }
       if (hazardousWaste > totalWaste && totalWaste > 0) {
-        newErrors[`${period}-waste-hazardousKg`] = 'Cannot exceed total waste';
+        newErrors[`${period}-waste-hazardousKg`] = t('err.exceedTotalWaste');
       }
 
       const totalEmp = parseFloat(record.workforce?.totalEmployees) || 0;
@@ -371,14 +372,14 @@ export default function Data() {
       const maleEmp = parseFloat(record.workforce?.maleEmployees) || 0;
 
       if (totalEmp > 0 && (femaleEmp + maleEmp) > totalEmp) {
-        newErrors[`${period}-workforce-femaleEmployees`] = 'Female + Male exceeds total';
-        newErrors[`${period}-workforce-maleEmployees`] = 'Female + Male exceeds total';
+        newErrors[`${period}-workforce-femaleEmployees`] = t('err.exceedTotalFM');
+        newErrors[`${period}-workforce-maleEmployees`] = t('err.exceedTotalFM');
       }
       if (femaleEmp > totalEmp && totalEmp > 0) {
-        newErrors[`${period}-workforce-femaleEmployees`] = 'Cannot exceed total employees';
+        newErrors[`${period}-workforce-femaleEmployees`] = t('err.exceedEmployees');
       }
       if (maleEmp > totalEmp && totalEmp > 0) {
-        newErrors[`${period}-workforce-maleEmployees`] = 'Cannot exceed total employees';
+        newErrors[`${period}-workforce-maleEmployees`] = t('err.exceedEmployees');
       }
     });
 
@@ -534,37 +535,35 @@ export default function Data() {
     }
   }, [pendingAutoSave, hasChanges, records]);
 
-  const lang = settings.language || 'en';
-
   // Ordered by importance: required (80% of questionnaires) first, then commonly requested
   const coreDataRows = [
     // === REQUIRED FOR 80% OF REPORTING ===
-    { section: 'energy', field: 'electricityKwh', label: t('data.electricity', lang) || 'Electricity (kWh)', required: true },
-    { section: 'workforce', field: 'totalEmployees', label: t('data.employees', lang) || 'Employees (FTE)', noSum: true, required: true },
-    { section: 'waste', field: 'totalKg', label: t('data.totalWaste', lang) || 'Total Waste (kg)', required: true },
-    { section: 'healthSafety', field: 'recordableIncidents', label: 'Recordable Incidents', tooltip: 'OSHA-recordable injuries/illnesses requiring more than first aid. Used to calculate TRIR.', required: true },
-    { section: 'healthSafety', field: 'lostTimeIncidents', label: 'Lost Time Incidents', tooltip: 'Incidents resulting in days away from work beyond the day of injury. Used to calculate LTIR.' },
-    { section: 'healthSafety', field: 'fatalities', label: 'Fatalities', tooltip: 'Work-related fatalities during the period.' },
-    { section: 'healthSafety', field: 'hoursWorked', label: 'Hours Worked', tooltip: 'Total hours worked by all employees during the period. Used to calculate TRIR. Estimate as FTE × 2,080 if you do not track precisely.' },
+    { section: 'energy', field: 'electricityKwh', label: t('data.electricity') || 'Electricity (kWh)', required: true },
+    { section: 'workforce', field: 'totalEmployees', label: t('data.employees') || 'Employees (FTE)', noSum: true, required: true },
+    { section: 'waste', field: 'totalKg', label: t('data.totalWaste') || 'Total Waste (kg)', required: true },
+    { section: 'healthSafety', field: 'recordableIncidents', label: t('data.recordableIncidents'), tooltip: t('data.tip.recordableIncidents'), required: true },
+    { section: 'healthSafety', field: 'lostTimeIncidents', label: t('data.lostTimeIncidents'), tooltip: t('data.tip.lostTimeIncidents') },
+    { section: 'healthSafety', field: 'fatalities', label: t('data.fatalities'), tooltip: t('data.tip.fatalities') },
+    { section: 'healthSafety', field: 'hoursWorked', label: t('data.hoursWorked'), tooltip: t('data.tip.hoursWorked') },
     // === COMMONLY REQUESTED ===
-    { section: 'energy', field: 'naturalGasKwh', label: t('data.naturalGas', lang) || 'Natural Gas (kWh)' },
-    { section: 'energy', field: 'vehicleFuelLiters', label: t('data.vehicleFuel', lang) || 'Vehicle Fuel (L)' },
-    { section: 'energy', field: 'renewablePercent', label: t('data.renewablePercent', lang) || 'Renewable %', noSum: true },
-    { section: 'water', field: 'consumptionM3', label: t('data.water', lang) || 'Water (m\u00B3)' },
-    { section: 'waste', field: 'recycledKg', label: t('data.recycled', lang) || 'Recycled (kg)' },
-    { section: 'waste', field: 'hazardousKg', label: t('data.hazardous', lang) || 'Hazardous (kg)' },
-    { section: 'workforce', field: 'femaleEmployees', label: t('data.female', lang) || 'Female', noSum: true },
-    { section: 'workforce', field: 'maleEmployees', label: t('data.male', lang) || 'Male', noSum: true },
-    { section: 'training', field: 'trainingHours', label: t('data.trainingHours', lang) || 'Training (hrs)' },
+    { section: 'energy', field: 'naturalGasKwh', label: t('data.naturalGas') || 'Natural Gas (kWh)' },
+    { section: 'energy', field: 'vehicleFuelLiters', label: t('data.vehicleFuel') || 'Vehicle Fuel (L)' },
+    { section: 'energy', field: 'renewablePercent', label: t('data.renewablePercent') || 'Renewable %', noSum: true },
+    { section: 'water', field: 'consumptionM3', label: t('data.water') || 'Water (m\u00B3)' },
+    { section: 'waste', field: 'recycledKg', label: t('data.recycled') || 'Recycled (kg)' },
+    { section: 'waste', field: 'hazardousKg', label: t('data.hazardous') || 'Hazardous (kg)' },
+    { section: 'workforce', field: 'femaleEmployees', label: t('data.female') || 'Female', noSum: true },
+    { section: 'workforce', field: 'maleEmployees', label: t('data.male') || 'Male', noSum: true },
+    { section: 'training', field: 'trainingHours', label: t('data.trainingHours') || 'Training (hrs)' },
     // === SOCIAL METRICS ===
-    { section: 'workforce', field: 'turnoverRate', label: 'Turnover Rate (%)', noSum: true, tooltip: 'Annual voluntary + involuntary turnover as a percentage of average headcount.' },
-    { section: 'workforce', field: 'womenInLeadershipPercent', label: 'Women in Leadership (%)', noSum: true, tooltip: 'Percentage of management/leadership positions held by women.' },
-    { section: 'workforce', field: 'collectiveBargainingPercent', label: 'Collective Bargaining (%)', noSum: true, tooltip: 'Percentage of workforce covered by collective bargaining agreements or works councils.' },
-    { section: 'workforce', field: 'grievancesReported', label: 'Grievances Reported', tooltip: 'Number of grievances reported through formal channels during the period.' },
-    { section: 'workforce', field: 'newHires', label: 'New Hires', tooltip: 'Number of new employees who joined during the period.' },
-    { section: 'energy', field: 'energySavingsKwh', label: 'Energy Savings (kWh)', tooltip: 'Estimated energy savings achieved through efficiency measures during the period.' },
-    { section: 'water', field: 'waterSourceMunicipalPercent', label: 'Municipal Water (%)', noSum: true, tooltip: 'Percentage of water withdrawal from municipal/public supply (vs groundwater, surface water).' },
-    { section: 'supplyChain', field: 'suppliersAssessedPercent', label: 'Suppliers ESG-Assessed (%)', noSum: true, tooltip: 'Percentage of critical Tier 1 suppliers assessed on ESG criteria.' },
+    { section: 'workforce', field: 'turnoverRate', label: t('data.turnoverRate'), noSum: true, tooltip: t('data.tip.turnoverRate') },
+    { section: 'workforce', field: 'womenInLeadershipPercent', label: t('data.womenLeadership'), noSum: true, tooltip: t('data.tip.womenLeadership') },
+    { section: 'workforce', field: 'collectiveBargainingPercent', label: t('data.collectiveBargaining'), noSum: true, tooltip: t('data.tip.collectiveBargaining') },
+    { section: 'workforce', field: 'grievancesReported', label: t('data.grievances'), tooltip: t('data.tip.grievances') },
+    { section: 'workforce', field: 'newHires', label: t('data.newHires'), tooltip: t('data.tip.newHires') },
+    { section: 'energy', field: 'energySavingsKwh', label: t('data.energySavings'), tooltip: t('data.tip.energySavings') },
+    { section: 'water', field: 'waterSourceMunicipalPercent', label: t('data.municipalWater'), noSum: true, tooltip: t('data.tip.municipalWater') },
+    { section: 'supplyChain', field: 'suppliersAssessedPercent', label: t('data.suppliersAssessed'), noSum: true, tooltip: t('data.tip.suppliersAssessed') },
   ];
 
   // Industry-specific metrics appended after core rows
@@ -705,7 +704,7 @@ export default function Data() {
               if (!row || row.length === 0) continue;
               const period = parsePeriod(row[0]);
               if (!period) {
-                skipped.push({ line: i + 1, reason: `Unrecognised period: "${row[0]}"` });
+                skipped.push({ line: i + 1, reason: t('csv.unrecognisedPeriod', { value: row[0] }) });
                 continue;
               }
               const values = {};
@@ -719,7 +718,7 @@ export default function Data() {
 
             if (parsedRows.length === 0) {
               track('csv_import_failed', { error: 'no_valid_rows' });
-              setCsvPreview({ file: file.name, headers, colMap, numberFormat, parsedRows, skipped, error: 'No valid rows could be parsed. Check the period column format.' });
+              setCsvPreview({ file: file.name, headers, colMap, numberFormat, parsedRows, skipped, error: t('csv.noValidRows') });
               finish();
               return;
             }
@@ -852,15 +851,15 @@ export default function Data() {
   }
 
   const comparisonMetrics = [
-    { key: 'electricityKwh', label: 'Electricity (kWh)', format: v => v.toLocaleString(), lowerIsBetter: true },
-    { key: 'scope1Tco2e', label: 'Scope 1 (tCO\u2082e)', format: v => v.toFixed(2), lowerIsBetter: true },
-    { key: 'scope2Tco2e', label: 'Scope 2 (tCO\u2082e)', format: v => v.toFixed(2), lowerIsBetter: true },
-    { key: 'totalWasteKg', label: 'Total Waste (kg)', format: v => v.toLocaleString(), lowerIsBetter: true },
-    { key: 'waterM3', label: 'Water (m\u00B3)', format: v => v.toLocaleString(), lowerIsBetter: true },
-    { key: 'recyclingRate', label: 'Recycling Rate', format: v => v.toFixed(0) + '%', lowerIsBetter: false },
-    { key: 'totalEmployees', label: 'Employees', format: v => String(v), lowerIsBetter: false },
-    { key: 'workAccidents', label: 'Work Accidents', format: v => String(v), lowerIsBetter: true },
-    { key: 'trainingHours', label: 'Training Hours', format: v => v.toLocaleString(), lowerIsBetter: false },
+    { key: 'electricityKwh', label: t('data.electricity'), format: v => v.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US'), lowerIsBetter: true },
+    { key: 'scope1Tco2e', label: t('compare.scope1'), format: v => v.toFixed(2), lowerIsBetter: true },
+    { key: 'scope2Tco2e', label: t('compare.scope2'), format: v => v.toFixed(2), lowerIsBetter: true },
+    { key: 'totalWasteKg', label: t('data.totalWaste'), format: v => v.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US'), lowerIsBetter: true },
+    { key: 'waterM3', label: t('data.water'), format: v => v.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US'), lowerIsBetter: true },
+    { key: 'recyclingRate', label: t('compare.recyclingRate'), format: v => v.toFixed(0) + '%', lowerIsBetter: false },
+    { key: 'totalEmployees', label: t('compare.employees'), format: v => String(v), lowerIsBetter: false },
+    { key: 'workAccidents', label: t('compare.workAccidents'), format: v => String(v), lowerIsBetter: true },
+    { key: 'trainingHours', label: t('compare.trainingHours'), format: v => v.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US'), lowerIsBetter: false },
   ];
 
   // Get unique error messages for display
@@ -873,10 +872,10 @@ export default function Data() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Database className="w-6 h-6" />
-            {entryMode === 'monthly' ? t('data.title.monthly', lang) : t('data.title.annual', lang)}
+            {entryMode === 'monthly' ? t('data.title.monthly') : t('data.title.annual')}
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            {t('data.subtitle', lang).replace('{mode}', entryMode === 'monthly' ? t('btn.monthly', lang).toLowerCase() : t('btn.annual', lang).toLowerCase()).replace('{year}', selectedYear)}
+            {t('data.subtitle').replace('{mode}', entryMode === 'monthly' ? t('btn.monthly').toLowerCase() : t('btn.annual').toLowerCase()).replace('{year}', selectedYear)}
           </p>
         </div>
 
@@ -890,7 +889,7 @@ export default function Data() {
                 entryMode === 'monthly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'
               )}
             >
-              {t('btn.monthly', lang)}
+              {t('btn.monthly')}
             </button>
             <button
               onClick={switchToAnnual}
@@ -899,7 +898,7 @@ export default function Data() {
                 entryMode === 'annual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'
               )}
             >
-              {t('btn.annual', lang)}
+              {t('btn.annual')}
             </button>
           </div>
 
@@ -950,7 +949,7 @@ export default function Data() {
           className="text-slate-900 border-slate-200"
         >
           <UploadIcon className="w-4 h-4 mr-1" />
-          {t('btn.import', lang)}
+          {t('btn.import')}
         </Button>
         <Button
           variant="outline"
@@ -959,7 +958,7 @@ export default function Data() {
           className="text-slate-900 border-slate-200"
         >
           <Download className="w-4 h-4 mr-1" />
-          {t('btn.template', lang)}
+          {t('btn.template')}
         </Button>
         <Button
           variant="outline"
@@ -968,7 +967,7 @@ export default function Data() {
           className="text-slate-900 border-slate-200"
         >
           <Download className="w-4 h-4 mr-1" />
-          Sample 2026 CSV
+          {t('dataUi.sampleCsv')}
         </Button>
         <Button
           variant="outline"
@@ -978,7 +977,7 @@ export default function Data() {
           disabled={getYearRecordCount(selectedYear) === 0}
         >
           <Trash2 className="w-4 h-4 mr-1" />
-          Clear {selectedYear} Data
+          {t('dataUi.clearYearData', { year: selectedYear })}
         </Button>
         <button
           onClick={() => setShowComparison(!showComparison)}
@@ -990,7 +989,7 @@ export default function Data() {
           )}
         >
           <ArrowUpRight className="w-3 h-3" />
-          {t('btn.yoy', lang)}
+          {t('btn.yoy')}
         </button>
       </div>
 
@@ -998,12 +997,12 @@ export default function Data() {
       {industry && optionalFields.length > 0 && (
         <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
           <Factory className="w-4 h-4 flex-shrink-0" />
-          <span>Showing metrics most relevant for <strong>{industry}</strong>.</span>
+          <span>{t('dataUi.industryHint', { industry })}</span>
           <button
             onClick={() => setShowAllMetrics(!showAllMetrics)}
             className="text-slate-900 underline ml-1"
           >
-            {showAllMetrics ? t('btn.showRecommended', lang) : `${t('btn.showAll', lang)} (+${optionalRows.length})`}
+            {showAllMetrics ? t('btn.showRecommended') : `${t('btn.showAll')} (+${optionalRows.length})`}
           </button>
         </div>
       )}
@@ -1011,7 +1010,7 @@ export default function Data() {
       {/* Production Volume (for intensity metrics) */}
       <div className="flex items-center gap-3 bg-slate-50 rounded-lg px-3 py-2">
         <Zap className="w-4 h-4 text-slate-500 flex-shrink-0" />
-        <span className="text-sm text-slate-600">{t('data.productionVolume', lang)}:</span>
+        <span className="text-sm text-slate-600">{t('data.productionVolume')}:</span>
         <input
           type="text"
           inputMode="numeric"
@@ -1032,7 +1031,7 @@ export default function Data() {
         <div className="bg-red-50 border border-red-200 rounded-none p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-red-800">Please fix the following errors:</p>
+            <p className="text-sm font-medium text-red-800">{t('dataUi.fixErrors')}</p>
             <ul className="text-sm text-red-700 mt-1">
               {uniqueErrors.map((err, i) => (
                 <li key={i}>{err}</li>
@@ -1047,7 +1046,7 @@ export default function Data() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200">
-              <th className="text-left py-2 pr-2 font-medium text-slate-900 w-[140px]">Metric</th>
+              <th className="text-left py-2 pr-2 font-medium text-slate-900 w-[140px]">{t('dataUi.metric')}</th>
               {entryMode === 'monthly' ? (
                 <>
                   {monthsToShow.map(month => (
@@ -1061,13 +1060,13 @@ export default function Data() {
                       </div>
                     </th>
                   ))}
-                  <th className="py-2 pl-2 font-medium text-slate-900 text-right w-[80px]">Total</th>
+                  <th className="py-2 pl-2 font-medium text-slate-900 text-right w-[80px]">{t('dataUi.total')}</th>
                 </>
               ) : (
                 <th className="py-2 px-4 font-medium text-center text-slate-900">
                   <div className="flex items-center justify-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    <span>{selectedYear} Total</span>
+                    <span>{t('dataUi.yearTotal', { year: selectedYear })}</span>
                   </div>
                 </th>
               )}
@@ -1080,16 +1079,16 @@ export default function Data() {
                 {idx === coreDataRows.length && industryMetricRows.length > 0 && (
                   <tr className="border-t-2 border-indigo-500/30">
                     <td colSpan={entryMode === 'monthly' ? 14 : 2} className="py-2 text-xs font-semibold text-indigo-500 uppercase tracking-wide">
-                      <span className="flex items-center gap-1"><Zap className="w-3 h-3" />{industry} {t('data.industryMetrics', lang)}</span>
+                      <span className="flex items-center gap-1"><Zap className="w-3 h-3" />{industry} {t('data.industryMetrics')}</span>
                     </td>
                   </tr>
                 )}
               <tr className={cn('border-b border-slate-200', idx % 2 === 0 ? '' : 'bg-slate-50/50')}>
                 <td className="py-1.5 pr-2 text-slate-900 align-top">
                   <span className="flex items-center gap-1">
-                    {row.required && <Flag className="w-3 h-3 text-orange-500 flex-shrink-0" title="Required for 80% of questionnaires" />}
+                    {row.required && <Flag className="w-3 h-3 text-orange-500 flex-shrink-0" title={t('dataUi.requiredTip')} />}
                     {row.label}
-                    {row.noSum && entryMode === 'annual' && <span className="text-[10px] text-slate-400 ml-1">(snapshot)</span>}
+                    {row.noSum && entryMode === 'annual' && <span className="text-[10px] text-slate-400 ml-1">{t('dataUi.snapshot')}</span>}
                   </span>
                   {isOptionalRow(row) && (
                     <button
@@ -1102,7 +1101,7 @@ export default function Data() {
                           : "text-slate-400 hover:text-slate-700"
                       )}
                     >
-                      {isFieldNotApplicable(row.section, row.field) ? 'Marked not applicable' : 'Mark as not applicable'}
+                      {isFieldNotApplicable(row.section, row.field) ? t('dataUi.markedNA') : t('dataUi.markNA')}
                     </button>
                   )}
                   {editingSource === sourceKey(row) ? (
@@ -1116,11 +1115,11 @@ export default function Data() {
                           if (e.key === 'Enter') saveEditSource();
                           if (e.key === 'Escape') cancelEditSource();
                         }}
-                        placeholder="e.g. Stadtwerke portal → Strom tab"
+                        placeholder={t('dataUi.sourcePlaceholder')}
                         className="text-[11px] flex-1 min-w-0 h-6 px-1.5 border border-slate-300 rounded-none bg-white focus:outline-none focus:border-indigo-600"
                       />
-                      <button onClick={saveEditSource} className="text-[11px] text-indigo-600 hover:text-indigo-800 px-1">save</button>
-                      <button onClick={cancelEditSource} className="text-[11px] text-slate-400 hover:text-slate-600 px-1">cancel</button>
+                      <button onClick={saveEditSource} className="text-[11px] text-indigo-600 hover:text-indigo-800 px-1">{t('dataUi.saveShort')}</button>
+                      <button onClick={cancelEditSource} className="text-[11px] text-slate-400 hover:text-slate-600 px-1">{t('dataUi.cancelShort')}</button>
                     </div>
                   ) : dataSources[sourceKey(row)] ? (
                     <button
@@ -1137,7 +1136,7 @@ export default function Data() {
                       onClick={() => startEditSource(row)}
                       className="mt-0.5 block text-[11px] text-slate-300 hover:text-indigo-600 text-left"
                     >
-                      + add source
+                      {t('dataUi.addSource')}
                     </button>
                   )}
                 </td>
@@ -1187,7 +1186,7 @@ export default function Data() {
                         const val = e.target.value.replace(/[^0-9.]/g, '');
                         updateAnnualValue(row.section, row.field, val);
                       }}
-                      placeholder={row.noSum ? 'Current value' : 'Annual total'}
+                      placeholder={row.noSum ? t('dataUi.currentValue') : t('dataUi.annualTotal')}
                       disabled={isFieldNotApplicable(row.section, row.field)}
                       className={cn(
                         "w-full max-w-[200px] mx-auto h-8 text-center text-sm px-2 border rounded-md focus:outline-none block",
@@ -1204,7 +1203,7 @@ export default function Data() {
 
             {/* Emissions Row */}
             <tr className="bg-slate-50 border-t border-slate-200">
-              <td className="py-2 pr-2 font-medium text-slate-900">CO&#x2082;e (tonnes)</td>
+              <td className="py-2 pr-2 font-medium text-slate-900">{t('dataUi.emissionsRow')}</td>
               {entryMode === 'monthly' ? (
                 <>
                   {monthsToShow.map(month => {
@@ -1251,7 +1250,7 @@ export default function Data() {
               <tr className="bg-slate-50 border-t border-slate-200">
                 <td className="py-2 pr-2 font-medium text-slate-900 flex items-center gap-1">
                   <Zap className="w-3 h-3" />
-                  {t('data.intensity', lang)}
+                  {t('data.intensity')}
                 </td>
                 {entryMode === 'monthly' ? (
                   <>
@@ -1300,16 +1299,16 @@ export default function Data() {
       <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
         <span className="flex items-center gap-1">
           <Flag className="w-3 h-3 text-orange-500" />
-          Required for 80% of questionnaires
+          {t('dataUi.legendRequired')}
         </span>
         <span className="flex items-center gap-1">
           <Info className="w-3 h-3" />
-          Emissions use {settings.gridCountry} grid factor ({gridFactor} kg CO&#x2082;/kWh)
+          {t('dataUi.legendGrid', { grid: settings.gridCountry, factor: gridFactor })}
         </span>
         {entryMode === 'annual' && (
           <span className="flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            Annual values are distributed evenly across months when saved
+            {t('dataUi.legendAnnual')}
           </span>
         )}
       </div>
@@ -1319,17 +1318,17 @@ export default function Data() {
         <div className="bg-white border border-slate-200 rounded-none p-4">
           <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <ArrowUpRight className="w-5 h-5" />
-            Year-over-Year Comparison
+            {t('dataUi.yoyTitle')}
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200">
-                  <th className="text-left py-2 pr-4 font-medium text-slate-900">Metric</th>
+                  <th className="text-left py-2 pr-4 font-medium text-slate-900">{t('dataUi.metric')}</th>
                   {comparisonYears.map(y => (
                     <th key={y} className="py-2 px-4 text-center font-medium text-slate-900">{y}</th>
                   ))}
-                  <th className="py-2 px-4 text-center font-medium text-slate-900">Trend</th>
+                  <th className="py-2 px-4 text-center font-medium text-slate-900">{t('dataUi.trend')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1389,15 +1388,15 @@ export default function Data() {
           hasErrors ? "text-red-600" : hasChanges ? "text-amber-700 font-medium" : "text-slate-500"
         )}>
           {hasErrors
-            ? t('status.errors', lang).replace('{count}', Object.keys(errors).length)
+            ? t('status.errors').replace('{count}', Object.keys(errors).length)
             : hasChanges
-              ? '⚠ Unsaved changes — click Save before leaving this page'
-              : t('status.saved', lang)}
+              ? t('dataUi.unsavedBanner')
+              : t('status.saved')}
         </span>
         <div className="flex items-center gap-3">
           {saved && (
             <span className="text-sm text-green-600 flex items-center gap-1">
-              <Check className="w-4 h-4" /> Saved
+              <Check className="w-4 h-4" /> {t('dataUi.savedShort')}
             </span>
           )}
           <Button
@@ -1411,7 +1410,7 @@ export default function Data() {
             )}
           >
             <Save className="w-4 h-4 mr-2" />
-            {saving ? t('btn.saving', lang) : t('btn.save', lang)}
+            {saving ? t('btn.saving') : t('btn.save')}
           </Button>
         </div>
       </div>
@@ -1420,28 +1419,16 @@ export default function Data() {
       <Dialog open={showSourceExplainer} onOpenChange={(open) => { if (!open) dismissSourceExplainer(); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>About source notes</DialogTitle>
-            <DialogDescription>One quick note before you set this up.</DialogDescription>
+            <DialogTitle>{t('csv.sourceTitle')}</DialogTitle>
+            <DialogDescription>{t('csv.sourceDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm text-slate-700">
-            <p>
-              Source notes are <span className="font-medium">paste-only</span>. You write down where each number lives —
-              a portal URL, a network path, &quot;the drawer in Anna&apos;s office&quot; — and copy-click-open it
-              yourself when you need it.
-            </p>
-            <p>
-              <span className="font-medium">Why we don&apos;t auto-open:</span> browsers block links to file shares
-              (<code className="text-xs bg-slate-100 px-1">S:\</code>, <code className="text-xs bg-slate-100 px-1">\\fileserver\</code>),
-              and SharePoint / Personio / utility portals each need their own logins. Pasting the path here means
-              the product never has to ask for your passwords or break when IT changes things.
-            </p>
-            <p className="text-slate-500">
-              Boring, reliable, yours. Future-you (the one not hunting for the electricity bill at 11pm) will
-              thank present-you.
-            </p>
+            <p>{t('csv.sourceP1')}</p>
+            <p>{t('csv.sourceP2')}</p>
+            <p className="text-slate-500">{t('csv.sourceP3')}</p>
           </div>
           <DialogFooter>
-            <Button onClick={dismissSourceExplainer} className="bg-slate-900 hover:bg-slate-800 text-white">Got it</Button>
+            <Button onClick={dismissSourceExplainer} className="bg-slate-900 hover:bg-slate-800 text-white">{t('csv.gotIt')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1450,9 +1437,9 @@ export default function Data() {
       <Dialog open={!!csvPreview} onOpenChange={(open) => { if (!open) cancelCsvImport(); }}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Preview CSV Import</DialogTitle>
+            <DialogTitle>{t('csv.previewTitle')}</DialogTitle>
             <DialogDescription>
-              Review the parsed data before importing. Nothing is saved until you confirm.
+              {t('csv.previewDesc')}
             </DialogDescription>
           </DialogHeader>
 
@@ -1465,7 +1452,7 @@ export default function Data() {
               )}
 
               <div className="text-sm text-slate-600">
-                <span className="font-medium text-slate-900">File:</span> {csvPreview.file}
+                <span className="font-medium text-slate-900">{t('csv.file')}</span> {csvPreview.file}
               </div>
 
               {(csvPreview.overwriteCells > 0 || csvPreview.newCells > 0) && (
@@ -1477,19 +1464,19 @@ export default function Data() {
                 )}>
                   <div className="font-medium">
                     {csvPreview.overwriteCells > 0
-                      ? 'This import will overwrite existing data.'
-                      : 'This import adds new data only.'}
+                      ? t('csv.willOverwrite')
+                      : t('csv.addsNew')}
                   </div>
                   <div className="mt-1 text-xs">
-                    {csvPreview.overlapRows > 0 ? `${csvPreview.overlapRows} row(s) overlap the current year data. ` : ''}
-                    {csvPreview.overwriteCells > 0 ? `${csvPreview.overwriteCells} existing value(s) will be replaced. ` : ''}
-                    {csvPreview.newCells > 0 ? `${csvPreview.newCells} new value(s) will be added.` : ''}
+                    {csvPreview.overlapRows > 0 ? t('csv.overlapRows', { count: csvPreview.overlapRows }) : ''}
+                    {csvPreview.overwriteCells > 0 ? t('csv.overwriteCells', { count: csvPreview.overwriteCells }) : ''}
+                    {csvPreview.newCells > 0 ? t('csv.newCells', { count: csvPreview.newCells }) : ''}
                   </div>
                 </div>
               )}
 
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-slate-900">Number format:</span>
+                <span className="text-sm font-medium text-slate-900">{t('csv.numberFormat')}</span>
                 <div className="flex border border-slate-200 rounded-none overflow-hidden">
                   <button
                     type="button"
@@ -1512,12 +1499,12 @@ export default function Data() {
                     EU (1.234,56)
                   </button>
                 </div>
-                <span className="text-xs text-slate-500">auto-detected — change if numbers look wrong</span>
+                <span className="text-xs text-slate-500">{t('csv.formatHint')}</span>
               </div>
 
               <div>
                 <div className="text-sm font-medium text-slate-900 mb-2">
-                  Detected columns ({Object.values(csvPreview.colMap).filter(c => c.col >= 0).length} of {Object.keys(csvPreview.colMap).length})
+                  {t('csv.detectedColumns', { found: Object.values(csvPreview.colMap).filter(c => c.col >= 0).length, total: Object.keys(csvPreview.colMap).length })}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {Object.entries(csvPreview.colMap).map(([field, { col }]) => (
@@ -1530,7 +1517,7 @@ export default function Data() {
                           : 'bg-slate-50 border-slate-200 text-slate-400'
                       )}
                     >
-                      {field}{col >= 0 ? ` ← ${csvPreview.headers[col]}` : ' (not found)'}
+                      {field}{col >= 0 ? ` ← ${csvPreview.headers[col]}` : ` ${t('csv.notFound')}`}
                     </span>
                   ))}
                 </div>
@@ -1538,16 +1525,16 @@ export default function Data() {
 
               <div>
                 <div className="text-sm font-medium text-slate-900 mb-2">
-                  First {Math.min(3, csvPreview.parsedRows.length)} of {csvPreview.parsedRows.length} rows
+                  {t('csv.firstRows', { shown: Math.min(3, csvPreview.parsedRows.length), total: csvPreview.parsedRows.length })}
                 </div>
                 <div className="border border-slate-200 rounded-none overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-2 py-1.5 text-left font-medium text-slate-700">Period</th>
-                        <th className="px-2 py-1.5 text-left font-medium text-slate-700">Field</th>
-                        <th className="px-2 py-1.5 text-right font-medium text-slate-700">Raw value</th>
-                        <th className="px-2 py-1.5 text-right font-medium text-slate-700">Parsed</th>
+                        <th className="px-2 py-1.5 text-left font-medium text-slate-700">{t('csv.colPeriod')}</th>
+                        <th className="px-2 py-1.5 text-left font-medium text-slate-700">{t('csv.colField')}</th>
+                        <th className="px-2 py-1.5 text-right font-medium text-slate-700">{t('csv.colRaw')}</th>
+                        <th className="px-2 py-1.5 text-right font-medium text-slate-700">{t('csv.colParsed')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1573,7 +1560,7 @@ export default function Data() {
 
               {csvPreview.skipped.length > 0 && (
                 <div className="text-xs text-amber-700">
-                  <span className="font-medium">Skipped {csvPreview.skipped.length} row(s):</span>{' '}
+                  <span className="font-medium">{t('csv.skipped', { count: csvPreview.skipped.length })}</span>{' '}
                   {csvPreview.skipped.slice(0, 3).map(s => s.reason).join('; ')}
                   {csvPreview.skipped.length > 3 ? '…' : ''}
                 </div>
@@ -1582,15 +1569,15 @@ export default function Data() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={cancelCsvImport}>Cancel</Button>
+            <Button variant="outline" onClick={cancelCsvImport}>{t('csv.cancel')}</Button>
             <Button
               onClick={commitCsvImport}
               disabled={!csvPreview || !!csvPreview.error || csvPreview.parsedRows.length === 0}
               className="bg-slate-900 hover:bg-slate-800 text-white"
             >
               {csvPreview?.overwriteCells > 0
-                ? `Replace ${csvPreview.overwriteCells} value${csvPreview.overwriteCells === 1 ? '' : 's'} and import ${csvPreview?.parsedRows.length || 0} row${csvPreview?.parsedRows.length === 1 ? '' : 's'}`
-                : `Import ${csvPreview?.parsedRows.length || 0} row${csvPreview?.parsedRows.length === 1 ? '' : 's'}`}
+                ? t('csv.replaceAndImport', { cells: csvPreview.overwriteCells, rows: csvPreview?.parsedRows.length || 0 })
+                : t('csv.importRows', { rows: csvPreview?.parsedRows.length || 0 })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1599,18 +1586,18 @@ export default function Data() {
       <Dialog open={showClearYearDialog} onOpenChange={setShowClearYearDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Clear {selectedYear} data?</DialogTitle>
+            <DialogTitle>{t('csv.clearTitle', { year: selectedYear })}</DialogTitle>
             <DialogDescription>
-              This removes all saved monthly records for {selectedYear}. The change is staged locally until you save the page.
+              {t('csv.clearDesc', { year: selectedYear })}
             </DialogDescription>
           </DialogHeader>
           <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-            {getYearRecordCount(selectedYear)} month{getYearRecordCount(selectedYear) === 1 ? '' : 's'} currently contain data for {selectedYear}. This action cannot be undone from the page once saved.
+            {t('csv.clearWarn', { count: getYearRecordCount(selectedYear), year: selectedYear })}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowClearYearDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowClearYearDialog(false)}>{t('csv.cancel')}</Button>
             <Button onClick={clearYearData} className="bg-red-700 hover:bg-red-800 text-white">
-              Clear {selectedYear} Data
+              {t('dataUi.clearYearData', { year: selectedYear })}
             </Button>
           </DialogFooter>
         </DialogContent>

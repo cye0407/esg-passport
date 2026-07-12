@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useLicense } from '@/components/LicenseContext';
+import { useT } from '@/components/LanguageContext';
 import { cn } from '@/lib/utils';
 import { APP_VERSION, checkForUpdate } from '@/lib/versionCheck';
 import buildInfo from '@/buildInfo.json';
@@ -23,21 +24,24 @@ import {
 
 const PASSPORT_SHA = typeof __PASSPORT_SHA__ === 'string' ? __PASSPORT_SHA__ : 'dev';
 
+// `name` is a stable, language-independent identifier (used as a fallback and for
+// logic); `labelKey` is the i18n key rendered to the user.
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: Home, paid: false },
-  { name: 'Data', href: '/data', icon: Database, paid: false },
-  { name: 'Policies', href: '/policies', icon: ClipboardCheck, paid: false },
-  { name: 'Documents', href: '/documents', icon: FolderOpen, paid: false },
-  { name: 'Report', href: '/report', icon: FileText, paid: true },
-  { name: 'Respond', href: '/demo', icon: Sparkles, paid: false, preview: true, hideWhenPaid: true },
-  { name: 'Respond', href: '/respond', icon: Upload, paid: true, hideWhenFree: true },
-  { name: 'Requests', href: '/requests', icon: Inbox, paid: false },
-  { name: 'Settings', href: '/settings', icon: Settings, paid: false },
+  { name: 'Dashboard', labelKey: 'nav.dashboard', href: '/', icon: Home, paid: false },
+  { name: 'Data', labelKey: 'nav.data', href: '/data', icon: Database, paid: false },
+  { name: 'Policies', labelKey: 'nav.policies', href: '/policies', icon: ClipboardCheck, paid: false },
+  { name: 'Documents', labelKey: 'nav.documents', href: '/documents', icon: FolderOpen, paid: false },
+  { name: 'Report', labelKey: 'nav.report', href: '/report', icon: FileText, paid: true },
+  { name: 'Respond', labelKey: 'nav.respond', href: '/demo', icon: Sparkles, paid: false, preview: true, hideWhenPaid: true },
+  { name: 'Respond', labelKey: 'nav.respond', href: '/respond', icon: Upload, paid: true, hideWhenFree: true },
+  { name: 'Requests', labelKey: 'nav.requests', href: '/requests', icon: Inbox, paid: false },
+  { name: 'Settings', labelKey: 'nav.settings', href: '/settings', icon: Settings, paid: false },
 ];
 
 export default function Layout() {
   const location = useLocation();
   const { isPaid } = useLicense();
+  const t = useT();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [updateInfo, setUpdateInfo] = React.useState(null);
   const [updateDismissed, setUpdateDismissed] = React.useState(false);
@@ -56,7 +60,7 @@ export default function Layout() {
             <div className="flex items-center gap-2">
               <ArrowUpCircle className="h-4 w-4 shrink-0" />
               <span>
-                Version {updateInfo.latest} is available.
+                {t('layout.updateAvailable', { version: updateInfo.latest })}
                 {updateInfo.notes && <span className="hidden sm:inline"> {updateInfo.notes}</span>}
               </span>
             </div>
@@ -68,13 +72,13 @@ export default function Layout() {
                   rel="noopener noreferrer"
                   className="font-medium underline underline-offset-2 hover:text-indigo-100"
                 >
-                  Download
+                  {t('layout.download')}
                 </a>
               )}
               <button
                 onClick={() => setUpdateDismissed(true)}
                 className="text-indigo-200 hover:text-white"
-                aria-label="Dismiss"
+                aria-label={t('layout.dismiss')}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -92,7 +96,7 @@ export default function Layout() {
               </div>
               <div className="hidden sm:block">
                 <span className="text-xl font-bold text-slate-800">ESG Passport</span>
-                <p className="text-xs text-slate-500">ESG response assistant</p>
+                <p className="text-xs text-slate-500">{t('layout.tagline')}</p>
               </div>
             </Link>
 
@@ -103,9 +107,10 @@ export default function Layout() {
                   (item.href !== '/' && location.pathname.startsWith(item.href));
                 const showLock = item.paid && !isPaid;
                 const showPreview = item.preview && !isPaid;
+                const label = t(item.labelKey);
                 return (
                   <Link
-                    key={item.name}
+                    key={item.href}
                     to={item.href}
                     className={cn(
                       'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
@@ -115,13 +120,13 @@ export default function Layout() {
                     )}
                   >
                     <item.icon className="h-4 w-4" />
-                    {item.name}
+                    {label}
                     {showPreview && (
                       <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
-                        Example
+                        {t('nav.example')}
                       </span>
                     )}
-                    {showLock && <Lock aria-label={`${item.name} locked`} className="h-3 w-3 opacity-50" />}
+                    {showLock && <Lock aria-label={t('nav.locked', { name: label })} className="h-3 w-3 opacity-50" />}
                   </Link>
                 );
               })}
@@ -145,9 +150,10 @@ export default function Layout() {
                   (item.href !== '/' && location.pathname.startsWith(item.href));
                 const showLock = item.paid && !isPaid;
                 const showPreview = item.preview && !isPaid;
+                const label = t(item.labelKey);
                 return (
                   <Link
-                    key={item.name}
+                    key={item.href}
                     to={item.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={cn(
@@ -158,14 +164,14 @@ export default function Layout() {
                     )}
                   >
                     <item.icon className="h-5 w-5" />
-                    {item.name}
+                    {label}
                     {showPreview && (
                       <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
-                        Example
+                        {t('nav.example')}
                       </span>
                     )}
                     {showLock && (
-                      <Lock aria-label={`${item.name} locked`} className="ml-auto h-3.5 w-3.5 opacity-50" />
+                      <Lock aria-label={t('nav.locked', { name: label })} className="ml-auto h-3.5 w-3.5 opacity-50" />
                     )}
                   </Link>
                 );
@@ -182,7 +188,7 @@ export default function Layout() {
       <footer className="mt-auto border-t border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <p className="text-center text-sm text-slate-400">
-            ESG Passport v{APP_VERSION} · VSME-aligned · Your sustainability data stays on your device
+            {t('layout.footer', { version: APP_VERSION })}
           </p>
           {buildInfo?.passportVersion && buildInfo.passportVersion !== 'dev' && (
             <p className="mt-1 text-right text-[10px] text-slate-400">

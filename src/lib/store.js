@@ -41,6 +41,8 @@ const getDefaultData = () => ({
     dateFormat: 'YYYY-MM-DD',
     language: 'en',
     setupCompleted: false,
+    setupSkipped: false,
+    demoLibrarySeeded: false,
     onboardingStep: 0,
     selectedQuestionnaires: [],
     productionVolume: null,
@@ -149,6 +151,7 @@ export const saveCompanyProfile = (profile) => {
     updatedAt: new Date().toISOString(),
   };
   data.settings.setupCompleted = true;
+  data.settings.setupSkipped = false;
   saveData(data);
   return data.companyProfile;
 };

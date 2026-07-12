@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LicenseProvider, useLicense } from '@/components/LicenseContext';
+import { LanguageProvider } from '@/components/LanguageContext';
 import UpgradeGate from '@/components/UpgradeGate';
 import { handleDemoQueryParam } from '@/lib/demoData';
 import { track, trackFirstVisit } from '@/lib/track';
@@ -84,6 +85,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+    <LanguageProvider>
     <LicenseProvider>
     <HashRouter>
       <Routes>
@@ -97,7 +99,8 @@ function App() {
           <Route path="/policies" element={<Policies />} />
           <Route path="/documents" element={<Documents />} />
           <Route path="/report" element={<PaidRoute feature="ESG Report"><Report /></PaidRoute>} />
-          <Route path="/respond" element={<Respond />} />
+          <Route path="/demo" element={<Respond demoOnly />} />
+          <Route path="/respond" element={<PaidRoute feature="Questionnaire Response"><Respond /></PaidRoute>} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/requests/:id" element={<RequestWorkspace />} />
           <Route path="/settings" element={<Settings />} />
@@ -118,6 +121,7 @@ function App() {
       </Routes>
     </HashRouter>
     </LicenseProvider>
+    </LanguageProvider>
     </ErrorBoundary>
   );
 }
