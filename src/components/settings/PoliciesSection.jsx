@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getPolicies, savePolicy, addCustomPolicy, deletePolicy } from '@/lib/store';
 import { POLICY_STATUSES } from '@/lib/constants';
+import { useLanguage } from '@/components/LanguageContext';
+import { localizeStatus } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,20 +15,24 @@ import {
 import { cn } from '@/lib/utils';
 import { Plus, ExternalLink, Trash2 } from 'lucide-react';
 
+// Display-only maps — stored values ('governance'/'high'/…) stay stable.
 const CATEGORIES = [
-  { id: 'all', label: 'All Types' },
-  { id: 'governance', label: 'Governance' },
-  { id: 'environmental', label: 'Environmental' },
-  { id: 'social', label: 'Social' },
+  { id: 'all', labelKey: 'pol.allTypes' },
+  { id: 'governance', labelKey: 'pol.catGovernance' },
+  { id: 'environmental', labelKey: 'pol.catEnvironmental' },
+  { id: 'social', labelKey: 'pol.catSocial' },
 ];
 
 const PRIORITIES = [
-  { value: 'high', label: 'High', color: 'border-red-300 text-red-600' },
-  { value: 'medium', label: 'Medium', color: 'border-amber-300 text-amber-600' },
-  { value: 'low', label: 'Low', color: 'border-slate-200 text-slate-400' },
+  { value: 'high', labelKey: 'pol.prioHigh', color: 'border-red-300 text-red-600' },
+  { value: 'medium', labelKey: 'pol.prioMedium', color: 'border-amber-300 text-amber-600' },
+  { value: 'low', labelKey: 'pol.prioLow', color: 'border-slate-200 text-slate-400' },
 ];
 
+const CATEGORY_KEYS = { governance: 'pol.catGovernance', environmental: 'pol.catEnvironmental', social: 'pol.catSocial' };
+
 export default function PoliciesSection() {
+  const { lang, t } = useLanguage();
   const [policies, setPolicies] = useState([]);
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -48,7 +54,7 @@ export default function PoliciesSection() {
   };
 
   const handleDelete = (id) => {
-    if (!confirm('Delete this policy?')) return;
+    if (!confirm(t('pol.deleteConfirm'))) return;
     deletePolicy(id);
     loadPolicies();
   };
@@ -79,47 +85,47 @@ export default function PoliciesSection() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">{stats.available}/{stats.total} available</p>
+        <p className="text-sm text-slate-500">{t('pol.available', { available: stats.available, total: stats.total })}</p>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
-            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-1" /> Add Policy</Button>
+            <Button size="sm" variant="outline"><Plus className="w-4 h-4 mr-1" /> {t('pol.addPolicy')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Custom Policy</DialogTitle>
-              <DialogDescription>Add a policy not in the default list.</DialogDescription>
+              <DialogTitle>{t('pol.addCustom')}</DialogTitle>
+              <DialogDescription>{t('pol.addCustomDesc')}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Policy Name</Label>
-                <Input value={newPolicy.name} onChange={(e) => setNewPolicy({ ...newPolicy, name: e.target.value })} placeholder="e.g., Social Media Policy" />
+                <Label>{t('pol.policyName')}</Label>
+                <Input value={newPolicy.name} onChange={(e) => setNewPolicy({ ...newPolicy, name: e.target.value })} placeholder={t('pol.policyNamePh')} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Category</Label>
+                  <Label>{t('pol.category')}</Label>
                   <Select value={newPolicy.category} onValueChange={(v) => setNewPolicy({ ...newPolicy, category: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="governance">Governance</SelectItem>
-                      <SelectItem value="environmental">Environmental</SelectItem>
-                      <SelectItem value="social">Social</SelectItem>
+                      <SelectItem value="governance">{t('pol.catGovernance')}</SelectItem>
+                      <SelectItem value="environmental">{t('pol.catEnvironmental')}</SelectItem>
+                      <SelectItem value="social">{t('pol.catSocial')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Priority</Label>
+                  <Label>{t('pol.priority')}</Label>
                   <Select value={newPolicy.priority} onValueChange={(v) => setNewPolicy({ ...newPolicy, priority: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {PRIORITIES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                      {PRIORITIES.map((p) => <SelectItem key={p.value} value={p.value}>{t(p.labelKey)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-              <Button onClick={handleAdd} disabled={!newPolicy.name.trim()}>Add Policy</Button>
+              <Button variant="outline" onClick={() => setShowAddDialog(false)}>{t('respond.cancel')}</Button>
+              <Button onClick={handleAdd} disabled={!newPolicy.name.trim()}>{t('pol.addPolicy')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -130,14 +136,14 @@ export default function PoliciesSection() {
         <Select value={filterCategory} onValueChange={setFilterCategory}>
           <SelectTrigger className="h-8 text-xs w-[10rem]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {CATEGORIES.map((cat) => <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>)}
+            {CATEGORIES.map((cat) => <SelectItem key={cat.id} value={cat.id}>{t(cat.labelKey)}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="h-8 text-xs w-[10rem]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            {POLICY_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+            <SelectItem value="all">{t('pol.allStatuses')}</SelectItem>
+            {POLICY_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{localizeStatus(s.value, s.label, lang)}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -153,8 +159,8 @@ export default function PoliciesSection() {
                   policy.category === 'environmental' && 'border-emerald-300 text-emerald-600',
                   policy.category === 'social' && 'border-sky-300 text-sky-600',
                   policy.category === 'governance' && 'border-violet-300 text-violet-600',
-                )}>{policy.category}</span>
-                <span className={cn('text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-sm border whitespace-nowrap flex-shrink-0', PRIORITIES.find(p => p.value === policy.priority)?.color)}>{policy.priority}</span>
+                )}>{t(CATEGORY_KEYS[policy.category] || 'pol.catGovernance')}</span>
+                <span className={cn('text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-sm border whitespace-nowrap flex-shrink-0', PRIORITIES.find(p => p.value === policy.priority)?.color)}>{t(PRIORITIES.find(p => p.value === policy.priority)?.labelKey || 'pol.prioMedium')}</span>
               </div>
               {policy.id.startsWith('custom_') && (
                 <Button variant="ghost" size="sm" onClick={() => handleDelete(policy.id)} className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0">
@@ -166,11 +172,11 @@ export default function PoliciesSection() {
               <Select value={policy.status} onValueChange={(v) => handleUpdate({ ...policy, status: v })}>
                 <SelectTrigger className={'h-7 text-xs w-[11rem]'}><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {POLICY_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  {POLICY_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{localizeStatus(s.value, s.label, lang)}</SelectItem>)}
                 </SelectContent>
               </Select>
               <div className="flex gap-1 flex-1 min-w-[12rem]">
-                <Input value={policy.fileLocation || ''} onChange={(e) => handleUpdate({ ...policy, fileLocation: e.target.value })} placeholder="URL or path..." className="h-7 text-xs" />
+                <Input value={policy.fileLocation || ''} onChange={(e) => handleUpdate({ ...policy, fileLocation: e.target.value })} placeholder={t('pol.urlPh')} className="h-7 text-xs" />
                 {policy.fileLocation?.startsWith('http') && (
                   <Button variant="ghost" size="sm" className="h-7 w-7 p-0 flex-shrink-0" onClick={() => window.open(policy.fileLocation, '_blank')}>
                     <ExternalLink className="w-3 h-3" />
@@ -181,7 +187,7 @@ export default function PoliciesSection() {
           </div>
         ))}
         {sortedPolicies.length === 0 && (
-          <p className="text-sm text-slate-400 text-center py-4">No policies match the current filter.</p>
+          <p className="text-sm text-slate-400 text-center py-4">{t('pol.noMatch')}</p>
         )}
       </div>
     </div>
