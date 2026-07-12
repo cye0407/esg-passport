@@ -1,4 +1,4 @@
-import type { KeywordRule, SignalRule, AnswerTemplate, ScrubRule, ExportSheetConfig, MatchResult, DataContext, RetrievedDataPoint, ParsedQuestion, GenerationConfig } from './engine';
+import type { KeywordRule, TermAlias, SignalRule, AnswerTemplate, ScrubRule, ExportSheetConfig, MatchResult, DataContext, RetrievedDataPoint, ParsedQuestion, GenerationConfig } from './engine';
 export interface DomainPack<TData = Record<string, unknown>, TProfile = Record<string, unknown>> {
     /** Pack identity */
     name: string;
@@ -7,6 +7,9 @@ export interface DomainPack<TData = Record<string, unknown>, TProfile = Record<s
     keywordRules: KeywordRule[];
     /** Suggested data points per domain (shown to users when data is missing) */
     domainSuggestions: Record<string, string[]>;
+    /** Optional multilingual term aliases: maps foreign/synonym terms to canonical English
+     *  keywords so non-English questionnaires match the English keyword rules. */
+    termAliases?: TermAlias[];
     /** Question types this domain uses, e.g. ['POLICY', 'MEASURE', 'KPI'] */
     questionTypes?: string[];
     /** Signal rules for classifying questions by type */

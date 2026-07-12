@@ -45,15 +45,43 @@ function tryCsvRules(text, csvRules) {
  * @param keywordRules - Keyword rules from the domain pack
  * @param domainSuggestions - Suggested data points per domain
  */
-export function createMatcher(keywordRules, domainSuggestions) {
+export function createMatcher(keywordRules, domainSuggestions, termAliases = []) {
     let csvMappingRules = [];
+    // Normalization for alias detection. Beyond normalizeText, hyphens are folded to spaces so
+    // a multi-word term matches hyphenated German compounds ('Lieferanten-Verhaltenskodex' →
+    // 'lieferanten verhaltenskodex'). Umlauts (ä/ö/ü/ß) become spaces on both sides, so terms
+    // with umlauts are matched consistently ('gefährlich' inside 'gefährlicher Abfall').
+    const normalizeForAlias = (t) => normalizeText(t).replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+    // Pre-normalize alias terms once.
+    const normalizedAliases = termAliases
+        .map(a => ({ term: normalizeForAlias(a.term), add: a.add }))
+        .filter(a => a.term.length > 0);
+    // Append the canonical English keyword(s) for any alias term present in the question, so
+    // the English keyword rules can match a non-English questionnaire. Purely additive —
+    // English-only questions never contain the alias terms, so they are unaffected.
+    function expandWithAliases(text) {
+        if (normalizedAliases.length === 0)
+            return text;
+        const normalized = normalizeForAlias(text);
+        const additions = [];
+        for (const alias of normalizedAliases) {
+            if (normalized.includes(alias.term))
+                additions.push(...alias.add);
+        }
+        return additions.length > 0 ? `${text} ${additions.join(' ')}` : text;
+    }
     function matchQuestion(question) {
-        const text = `${question.text} ${question.category || ''} ${question.subcategory || ''}`;
-        const csvMatch = tryCsvRules(text, csvMappingRules);
+        const baseText = `${question.text} ${question.category || ''} ${question.subcategory || ''}`;
+        // CSV rules match on the original text; keyword rules match on the alias-expanded text.
+        const csvMatch = tryCsvRules(baseText, csvMappingRules);
+        const text = expandWithAliases(baseText);
         const domainScores = new Map();
+        const topicScores = {};
         for (const rule of keywordRules) {
+            let ruleMatched = false;
             for (const keyword of rule.keywords) {
                 if (containsKeyword(text, keyword)) {
+                    ruleMatched = true;
                     const existing = domainScores.get(rule.domain);
                     if (existing) {
                         existing.score += rule.weight;
@@ -70,6 +98,12 @@ export function createMatcher(keywordRules, domainSuggestions) {
                         });
                     }
                 }
+            }
+            // Credit each of the rule's topics with its weight once per matching rule,
+            // so template selection can prefer the topic a question scored highest on.
+            if (ruleMatched) {
+                for (const t of rule.topics)
+                    topicScores[t] = (topicScores[t] || 0) + rule.weight;
             }
         }
         const sortedDomains = Array.from(domainScores.values()).sort((a, b) => b.score - a.score);
@@ -95,6 +129,7 @@ export function createMatcher(keywordRules, domainSuggestions) {
             secondaryDomains: sortedDomains.slice(1, 4).map(d => d.domain),
             topics: Array.from(allTopics),
             primaryTopics: sortedDomains[0] ? Array.from(sortedDomains[0].topics) : [],
+            topicScores,
             confidence,
             matchedKeywords: sortedDomains[0]?.matchedKeywords || [],
             suggestedDataPoints: [...new Set(suggestedDataPoints)].slice(0, 6),

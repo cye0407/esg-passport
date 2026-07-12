@@ -1,7 +1,7 @@
 // ============================================
 // ESG Domain Pack — Answer Templates
 // ============================================
-// 12 rich answer templates for ESG data domains.
+// 70 rich answer templates for ESG data domains.
 import { has, num, str, fmt } from '../../src/engine/answerGenerator';
 export const ESG_ANSWER_TEMPLATES = [
     // ===================================================================
@@ -23,12 +23,6 @@ export const ESG_ANSWER_TEMPLATES = [
             if (renPct > 0) {
                 const renKwh = kwh * renPct / 100;
                 answer += ` Of this, ${fmt(renPct)}% (approximately ${fmt(renKwh)} kWh) was sourced from renewable energy.`;
-                answer += renPct >= 50
-                    ? ' We continue to prioritize the transition to renewable electricity across our operations.'
-                    : ' We are actively working to increase our share of renewable electricity.';
-            }
-            else {
-                answer += ' We are evaluating options to increase our renewable electricity procurement.';
             }
             return answer;
         },
@@ -48,10 +42,6 @@ export const ESG_ANSWER_TEMPLATES = [
             let answer = `${fmt(renPct)}% of our electricity${periodStr} was sourced from renewable energy.`;
             if (kwh > 0)
                 answer += ` Out of ${fmt(kwh)} kWh total consumption, approximately ${fmt(kwh * renPct / 100)} kWh was renewable.`;
-            if (renPct >= 50)
-                answer += ' We are on track to further increase renewable procurement across our operations.';
-            else
-                answer += ' We are actively evaluating additional renewable energy options including PPAs and green tariffs.';
             return answer;
         },
     },
@@ -65,11 +55,12 @@ export const ESG_ANSWER_TEMPLATES = [
             const renPct = num(dm, 'renewablePercent');
             const period = str(dm, 'reportingPeriod');
             const parts = [];
-            parts.push('Our energy efficiency programme focuses on reducing overall consumption and increasing the share of renewable sources.');
-            if (kwh > 0)
-                parts.push(`Our current electricity consumption is ${fmt(kwh)} kWh${period ? ` (${period})` : ''}, with ${renPct > 0 ? fmt(renPct) + '% from renewable sources' : 'renewable procurement under evaluation'}.`);
-            parts.push('Key efficiency measures include regular energy audits, equipment maintenance schedules, LED lighting upgrades, and monitoring of consumption patterns to identify reduction opportunities.');
-            return parts.join(' ');
+            if (kwh > 0) {
+                parts.push(`Our electricity consumption is ${fmt(kwh)} kWh${period ? ` (${period})` : ''}${renPct > 0 ? `, with ${fmt(renPct)}% from renewable sources` : ''}.`);
+                parts.push('We have not separately documented specific energy-efficiency measures for this question.');
+                return { answer: parts.join(' '), drafted: true };
+            }
+            return { answer: 'We do not currently track energy consumption or documented energy-efficiency measures for this question.', drafted: true };
         },
     },
     // Fallback: energy consumption (any question type)
@@ -118,7 +109,7 @@ export const ESG_ANSWER_TEMPLATES = [
             const isEstimate = (s1Point?.confidence === 'medium') || (s2Point?.confidence === 'medium') ||
                 (s1Point?.label?.toLowerCase().includes('auto-calculated')) || (s2Point?.label?.toLowerCase().includes('auto-calculated'));
             if (isEstimate) {
-                parts.push('Note: Some figures are estimates derived from activity data (fuel consumption, electricity use) and standard emission factors. We are working to improve the granularity of our GHG inventory.');
+                parts.push('Note: Some figures are estimates derived from activity data (fuel consumption, electricity use) and standard emission factors.');
             }
             const total = s1 + s2;
             if (total > 0)
@@ -143,7 +134,7 @@ export const ESG_ANSWER_TEMPLATES = [
             if (s2)
                 parts.push(`Location-based: ${fmt(s2)} tCO2e.`);
             if (s2m)
-                parts.push(`Market-based: ${fmt(s2m)} tCO2e, reflecting our renewable energy procurement strategy.`);
+                parts.push(`Market-based: ${fmt(s2m)} tCO2e.`);
             if (kwh)
                 parts.push(`These emissions result from ${fmt(kwh)} kWh of purchased electricity.`);
             const isEstimate = dm.get('scope2Location')?.confidence === 'medium';
@@ -170,15 +161,13 @@ export const ESG_ANSWER_TEMPLATES = [
                     parts.push(`Categories currently reported: ${cats}.`);
             }
             else {
-                parts.push('Scope 3 emissions are not yet fully quantified.');
-                parts.push('We are in the process of establishing data collection processes for the most material Scope 3 categories, including purchased goods and services, upstream transportation, business travel, and employee commuting.');
+                parts.push('Scope 3 emissions are not yet quantified, and we do not currently track Scope 3 categories for this question.');
             }
             if (travel)
                 parts.push(`Business travel: ${fmt(travel)} km.`);
             if (commute)
                 parts.push(`Employee commuting: ${fmt(commute)} km.`);
-            parts.push('We are working to expand the coverage of our Scope 3 inventory and engage with key suppliers on emissions data.');
-            return parts.join(' ');
+            return { answer: parts.join(' '), drafted: !s3 };
         },
     },
     // ===================================================================
@@ -216,13 +205,7 @@ export const ESG_ANSWER_TEMPLATES = [
             const fte = num(dm, 'totalFte');
             const fem = num(dm, 'femalePercent');
             const male = 100 - fem;
-            let answer = `Our workforce of ${fmt(fte)} FTE employees comprises ${fmt(fem)}% female and ${fmt(male)}% male employees.`;
-            if (fem >= 40 && fem <= 60) {
-                answer += ' We maintain a relatively balanced gender distribution across our organization.';
-            }
-            else if (fem < 30) {
-                answer += ' We recognize the need to improve gender diversity and are implementing initiatives to attract and retain a more diverse workforce.';
-            }
+            const answer = `Our workforce of ${fmt(fte)} FTE employees comprises ${fmt(fem)}% female and ${fmt(male)}% male employees.`;
             return answer;
         },
     },
@@ -233,22 +216,25 @@ export const ESG_ANSWER_TEMPLATES = [
         questionTypes: ['POLICY'],
         generate: (dm) => {
             const policies = str(dm, 'socialPoliciesApproved');
+            const humanRightsPolicies = policies
+                .split(',')
+                .map((policy) => policy.trim())
+                .filter((policy) => /human rights|modern slavery|forced labor|forced labour|child labor|child labour|sa8000/i.test(policy));
             const fte = num(dm, 'totalFte');
             const country = str(dm, 'headquartersCountry');
             const parts = [];
-            if (policies) {
-                parts.push(`Yes, our human rights commitments are formalized in the following policies: ${policies}.`);
-                parts.push('These policies explicitly prohibit forced labor, child labor, and any form of modern slavery. They affirm employees\' right to freedom of association and collective bargaining.');
-                parts.push('The policies apply to all operations and business relationships and are communicated to employees during onboarding, with annual refresher training.');
+            if (humanRightsPolicies.length > 0) {
+                parts.push(`Yes, our human rights commitments are formalized in the following policies: ${humanRightsPolicies.join(', ')}.`);
+                parts.push('We have not separately documented the scope, communication, or due-diligence process behind these policies for this question.');
             }
             else {
-                parts.push('We are committed to respecting human rights across our operations and value chain.');
-                parts.push('We prohibit forced labor, child labor, and any form of compulsory work. We respect employees\' right to freedom of association.');
                 parts.push('A formal, standalone Human Rights Policy has not yet been established.');
+                parts.push('We do not currently have documented evidence of a human rights due-diligence process covering forced labor, child labor, modern slavery, freedom of association, and value-chain risk assessment.');
             }
-            if (fte)
+            if (humanRightsPolicies.length > 0 && fte)
                 parts.push(`These commitments apply to all ${fmt(fte)} employees${country ? ` across our operations in ${country}` : ''}.`);
-            return parts.join(' ');
+            const answer = parts.join(' ');
+            return policies ? answer : { answer, drafted: true };
         },
     },
     // POLICY: DEI policy (Q28 — must NOT route to H&S or certifications)
@@ -263,19 +249,17 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             const hasMetrics = fem > 0 || leaderPct > 0;
             if (hasMetrics) {
-                parts.push('We are committed to diversity, equity, and inclusion across our organization.');
-                parts.push('We track workforce composition and leadership diversity as part of our ongoing DEI efforts.');
+                parts.push('We track the following workforce diversity data:');
                 if (fem > 0)
-                    parts.push(`Women currently represent ${fmt(fem)}% of our total workforce${fte > 0 ? ` of ${fmt(fte)} employees` : ''}.`);
+                    parts.push(`Women represent ${fmt(fem)}% of our total workforce${fte > 0 ? ` of ${fmt(fte)} employees` : ''}.`);
                 if (leaderPct > 0)
                     parts.push(`${fmt(leaderPct)}% of management and leadership positions are held by women.`);
-                parts.push('We apply non-discrimination principles in recruitment, promotion, and employment practices, and are working to formalize these commitments into a standalone DEI policy.');
+                parts.push('A standalone DEI policy with documented commitments and measurable targets has not yet been formalized.');
             }
             else {
-                parts.push('We are committed to non-discrimination and equal opportunity in all employment practices.');
                 parts.push('We do not yet have a standalone DEI policy. Formalized commitments, measurable diversity targets, and reporting processes have not been established.');
             }
-            return parts.join(' ');
+            return { answer: parts.join(' '), drafted: !hasMetrics };
         },
     },
     // MEASURE: Freedom of association (Q41 — must address union rights, not wages)
@@ -288,14 +272,16 @@ export const ESG_ANSWER_TEMPLATES = [
             const fte = num(dm, 'totalFte');
             const country = str(dm, 'headquartersCountry');
             const parts = [];
-            parts.push('Yes, we respect employees\' right to freedom of association and collective bargaining in all our operations.');
-            parts.push('Employees are free to join, form, or refrain from joining trade unions or works councils without fear of intimidation, retaliation, or discrimination.');
             if (cbaPct > 0) {
-                parts.push(`Currently, ${fmt(cbaPct)}% of our workforce is covered by collective bargaining agreements${fte > 0 ? `, representing approximately ${fmt(Math.round(fte * cbaPct / 100))} of our ${fmt(fte)} employees` : ''}.`);
+                parts.push(`${fmt(cbaPct)}% of our workforce is covered by collective bargaining agreements${fte > 0 ? `, representing approximately ${fmt(Math.round(fte * cbaPct / 100))} of our ${fmt(fte)} employees` : ''}.`);
+                if (country)
+                    parts.push(`Freedom of association and collective bargaining are exercised within the framework of applicable labour law in ${country}.`);
+                return parts.join(' ');
             }
+            parts.push('We have not separately documented our approach to freedom of association and collective bargaining for this question.');
             if (country)
-                parts.push(`These rights are addressed within the framework of applicable labor law in ${country}.`);
-            return parts.join(' ');
+                parts.push(`Our operations are subject to applicable labour law in ${country}.`);
+            return { answer: parts.join(' '), drafted: true };
         },
     },
     // MEASURE: Working conditions (Q42 — hours, overtime, rest, leave)
@@ -308,15 +294,11 @@ export const ESG_ANSWER_TEMPLATES = [
             const country = str(dm, 'headquartersCountry');
             const cbaPct = num(dm, 'collectiveBargainingPercent');
             const parts = [];
-            parts.push(`Working conditions at our facilities${country ? ` in ${country}` : ''} are governed by employment contracts and applicable labor legislation.`);
-            parts.push('Standard working hours do not exceed the legal maximum and are defined in individual employment contracts.');
-            parts.push('Overtime is voluntary, compensated in accordance with legal requirements, and subject to management approval.');
-            parts.push('All employees are entitled to legally mandated rest periods, daily and weekly rest, annual paid leave, public holidays, and parental leave provisions.');
+            parts.push(`Working conditions at our facilities${country ? ` in ${country}` : ''} are governed by employment contracts and applicable labour law.`);
             if (cbaPct > 0)
-                parts.push(`${fmt(cbaPct)}% of our workforce is covered by collective bargaining agreements, which provide additional working condition protections.`);
-            if (fte > 0)
-                parts.push(`These conditions apply to all ${fmt(fte)} FTE employees.`);
-            return parts.join(' ');
+                parts.push(`${fmt(cbaPct)}% of our workforce is covered by collective bargaining agreements${fte > 0 ? ` (approximately ${fmt(Math.round(fte * cbaPct / 100))} of ${fmt(fte)} FTE employees)` : ''}.`);
+            parts.push('Specific working-hour, overtime, rest-period, and leave practices have not been separately documented for this question.');
+            return { answer: parts.join(' '), drafted: true };
         },
     },
     // KPI: Hires and departures (Q29)
@@ -360,15 +342,13 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (lwCompliant === 'Yes') {
                 parts.push(`Yes, all employees${country ? ` in ${country}` : ''} are compensated at or above the applicable living wage — not merely the legal minimum wage.`);
-                parts.push('We benchmark compensation against recognized living wage standards and review pay levels annually to ensure continued compliance.');
             }
             else {
-                parts.push('We are committed to fair compensation. Alignment with applicable minimum wage legislation has not been formally verified.');
-                parts.push('We are evaluating alignment with recognized living wage benchmarks (as distinct from legal minimum wage) and plan to formalize our approach in the next reporting period.');
+                parts.push('We have not formally verified compensation against applicable minimum-wage or living-wage benchmarks for this question.');
             }
             if (fte > 0)
                 parts.push(`This applies to all ${fmt(fte)} FTE employees.`);
-            return parts.join(' ');
+            return { answer: parts.join(' '), drafted: lwCompliant !== 'Yes' };
         },
     },
     // KPI: Employee turnover rate
@@ -386,12 +366,6 @@ export const ESG_ANSWER_TEMPLATES = [
             let answer = `Our employee turnover rate${periodStr} was ${fmt(rate)}%.`;
             if (fte > 0)
                 answer += ` This is based on our workforce of ${fmt(fte)} FTE employees.`;
-            if (rate <= 10)
-                answer += ' This low turnover rate reflects our focus on employee engagement, development, and competitive working conditions.';
-            else if (rate <= 20)
-                answer += ' We monitor turnover trends and invest in retention measures including career development, training, and employee wellbeing programmes.';
-            else
-                answer += ' We are actively addressing turnover through enhanced onboarding, employee engagement surveys, and retention initiatives.';
             return answer;
         },
     },
@@ -411,15 +385,12 @@ export const ESG_ANSWER_TEMPLATES = [
                 parts.push(`${fmt(pct)}% of our workforce is covered by collective bargaining agreements.`);
                 if (fte > 0)
                     parts.push(`This covers approximately ${fmt(Math.round(fte * pct / 100))} of our ${fmt(fte)} employees.`);
-                parts.push('We respect freedom of association and the right to collective bargaining in all our operations.');
+                return parts.join(' ');
             }
-            else {
-                parts.push('Our workforce is not currently covered by collective bargaining agreements.');
-                if (country)
-                    parts.push(`Working conditions in ${country} are governed by employment contracts that meet or exceed local legal requirements.`);
-                parts.push('We respect freedom of association and employees are free to join or form trade unions.');
-            }
-            return parts.join(' ');
+            parts.push('Our workforce is not currently covered by collective bargaining agreements.');
+            if (country)
+                parts.push(`Working conditions in ${country} are governed by employment contracts and applicable labour law.`);
+            return { answer: parts.join(' '), drafted: true };
         },
     },
     // KPI: Women in leadership / leadership diversity
@@ -437,12 +408,6 @@ export const ESG_ANSWER_TEMPLATES = [
             parts.push(`Women represent ${fmt(leaderPct)}% of our leadership and management positions.`);
             if (femPct > 0)
                 parts.push(`This compares to ${fmt(femPct)}% female representation across our total workforce of ${fte > 0 ? fmt(fte) + ' employees' : 'all employees'}.`);
-            if (leaderPct >= 40)
-                parts.push('We maintain a strong commitment to gender-balanced leadership and continue to support career development pathways for underrepresented groups.');
-            else if (leaderPct >= 25)
-                parts.push('We are actively working to improve gender diversity at leadership level through mentoring, succession planning, and inclusive recruitment practices.');
-            else
-                parts.push('We recognize the need to improve diversity at leadership level and are implementing targeted initiatives including mentoring programmes and inclusive recruitment practices.');
             return parts.join(' ');
         },
     },
@@ -460,15 +425,13 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (compliant === 'Yes') {
                 parts.push(`Yes, all employees${country ? ` in ${country}` : ''} are compensated at or above the applicable living wage.`);
-                parts.push('We benchmark compensation against living wage standards and review pay levels annually to ensure continued compliance.');
             }
             else {
-                parts.push('We are committed to fair compensation. Alignment with applicable minimum wage legislation has not been formally verified.');
-                parts.push('We are evaluating alignment with living wage benchmarks and plan to formalize our approach in the next reporting period.');
+                parts.push('We have not formally verified compensation against applicable minimum-wage or living-wage benchmarks for this question.');
             }
             if (fte > 0)
                 parts.push(`This applies to all ${fmt(fte)} FTE employees.`);
-            return parts.join(' ');
+            return { answer: parts.join(' '), drafted: compliant !== 'Yes' };
         },
     },
     // Grievance mechanism (Q40 — multi-part: mechanism existence + count)
@@ -484,16 +447,12 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (exists === 'Yes') {
                 parts.push('Yes, we maintain a formal grievance mechanism available to all employees and external stakeholders.');
-                parts.push('Channels include direct reporting to management, an anonymous reporting channel, and escalation procedures to ensure issues are addressed promptly and without retaliation.');
                 if (has(dm, 'grievancesReported')) {
-                    parts.push(`${period ? `During ${period}, ` : ''}${count} grievance${count !== 1 ? 's were' : ' was'} reported through these channels.`);
+                    parts.push(`${period ? `During ${period}, ` : ''}${count} grievance${count !== 1 ? 's were' : ' was'} reported through this mechanism.`);
                 }
+                return parts.join(' ');
             }
-            else {
-                parts.push('A formal grievance mechanism has not yet been established.');
-                parts.push('Currently, issues can be raised through direct communication with management.');
-            }
-            return parts.join(' ');
+            return { answer: 'A formal grievance mechanism has not yet been established, and we do not separately track this for this question.', drafted: true };
         },
     },
     // ===================================================================
@@ -509,9 +468,9 @@ export const ESG_ANSWER_TEMPLATES = [
             const periodStr = period ? ` during ${period}` : ' during the reporting period';
             if (has(dm, 'fatalities')) {
                 if (fat === 0) {
-                    return `No, there were no work-related fatalities${periodStr}.`;
+                    return `Zero work-related fatalities were recorded${periodStr}.`;
                 }
-                return `${fat} work-related fatalit${fat === 1 ? 'y' : 'ies'} occurred${periodStr}. A full investigation was conducted, corrective actions were implemented, and findings were shared across all sites to prevent recurrence.`;
+                return `${fat} work-related fatalit${fat === 1 ? 'y' : 'ies'} occurred${periodStr}.`;
             }
             return null;
         },
@@ -549,28 +508,15 @@ export const ESG_ANSWER_TEMPLATES = [
                 if (hoursWorked > 0)
                     parts.push(`Total hours worked: ${fmt(hoursWorked)}.`);
                 if (fat === 0 && lti === 0) {
-                    parts.push('We are pleased to report zero lost time incidents and zero fatalities. Our health and safety management system focuses on proactive hazard identification and continuous improvement.');
-                }
-                else if (fat === 0) {
-                    parts.push('While we recorded zero fatalities, we continue to investigate all incidents to prevent recurrence and strengthen our safety culture.');
+                    parts.push('We recorded zero lost time incidents and zero fatalities.');
                 }
                 return parts.join(' ');
             }
-            // Fallback when no H&S metrics have been entered — industry-conditioned framing
-            const ind = str(dm, 'industryDescription').toLowerCase();
-            const isLowRisk = !ind || ind.includes('software') || ind.includes('technology') || ind.includes('professional') || ind.includes('services') || ind.includes('consult') || ind.includes('financial');
-            const parts = [];
-            if (isLowRisk) {
-                parts.push('Our organization operates in a low-risk office environment with no high-hazard activities.');
-                parts.push('We maintain workplace safety standards consistent with applicable regulations and have not recorded any significant occupational health and safety incidents.');
-                parts.push('Standardized incident rate metrics (TRIR, LTIR) and the underlying hours-worked tracking are being implemented as part of the next reporting cycle to enable formal benchmarking.');
-            }
-            else {
-                parts.push('We track workplace incidents through our internal safety management process and apply corrective actions following any reportable events.');
-                parts.push('Standardized rate metrics (TRIR, LTIR) require systematic hours-worked tracking, which is not yet in place.');
-                parts.push('In the interim, incident counts are reviewed monthly by management and any serious events are investigated to identify root causes and prevent recurrence.');
-            }
-            return parts.join(' ');
+            // No H&S metrics entered — honest gap, no fabricated safety process or "no incidents" claim.
+            return {
+                answer: 'We do not currently track standardized occupational health and safety incident-rate metrics (TRIR, LTIR) or the underlying hours-worked data for this question.',
+                drafted: true,
+            };
         },
     },
     // MEASURE/POLICY: H&S management system (describe your OHS system)
@@ -582,21 +528,66 @@ export const ESG_ANSWER_TEMPLATES = [
             const trir = num(dm, 'trir');
             const lti = num(dm, 'lostTimeIncidents');
             const certs = str(dm, 'certificationsHeld');
+            const has45001 = !!certs && certs.toLowerCase().includes('45001');
+            const hasData = has(dm, 'trir') || has(dm, 'lostTimeIncidents');
             const parts = [];
-            parts.push('Our occupational health and safety management system is designed around hazard identification, risk assessment, and continuous improvement.');
-            parts.push('Key elements include regular workplace inspections, incident investigation and root cause analysis, safety training for all employees, and emergency preparedness procedures.');
-            if (certs && certs.toLowerCase().includes('45001')) {
-                parts.push(`Our system is certified to ISO 45001, maintained through regular external audits.`);
+            if (has45001)
+                parts.push('Our occupational health and safety management system is certified to ISO 45001.');
+            if (hasData)
+                parts.push(`Recorded H&S performance: TRIR ${trir}, lost time incidents ${lti}.`);
+            if (!has45001 && !hasData) {
+                return { answer: 'We have not separately documented our occupational health and safety management approach for this question.', drafted: true };
             }
-            if (has(dm, 'trir') || has(dm, 'lostTimeIncidents')) {
-                parts.push(`Current performance: TRIR ${trir}, lost time incidents ${lti}.`);
-            }
-            return parts.join(' ');
+            if (!has45001)
+                parts.push('We have not separately documented the structure of our health and safety management system beyond the data above.');
+            return { answer: parts.join(' '), drafted: !has45001 };
         },
     },
     // ===================================================================
     // WASTE (fine-grained)
     // ===================================================================
+    // KPI: Healthcare waste streams
+    {
+        domains: ['waste'],
+        topics: ['healthcare_waste', 'hazardous_waste', 'waste_management'],
+        generate: (dm) => {
+            const medical = num(dm, 'medicalWasteKg');
+            const pharma = num(dm, 'pharmaceuticalWasteKg');
+            if (!has(dm, 'medicalWasteKg') && !has(dm, 'pharmaceuticalWasteKg'))
+                return null;
+            const period = str(dm, 'reportingPeriod');
+            const periodStr = period ? ` during ${period}` : ' during the reporting period';
+            const parts = [];
+            parts.push(`Healthcare waste streams recorded${periodStr}:`);
+            if (has(dm, 'medicalWasteKg'))
+                parts.push(`Medical waste: ${fmt(medical)} kg.`);
+            if (has(dm, 'pharmaceuticalWasteKg'))
+                parts.push(`Pharmaceutical waste: ${fmt(pharma)} kg.`);
+            return parts.join(' ');
+        },
+    },
+    // KPI: Mining waste and tailings
+    {
+        domains: ['waste'],
+        topics: ['mining_metrics', 'waste_management'],
+        generate: (dm) => {
+            const tailings = num(dm, 'tailingsGeneratedTonnes');
+            if (!has(dm, 'tailingsGeneratedTonnes'))
+                return null;
+            const ore = num(dm, 'oreProcessedTonnes');
+            const waterReused = num(dm, 'waterReusedPercent');
+            const rehab = num(dm, 'rehabilitatedLandHectares');
+            const parts = [];
+            parts.push(`Tailings generated during the reporting period were ${fmt(tailings)} tonnes.`);
+            if (ore > 0)
+                parts.push(`This relates to ${fmt(ore)} tonnes of ore/material processed.`);
+            if (waterReused > 0)
+                parts.push(`${fmt(waterReused)}% of process water was reused.`);
+            if (rehab > 0)
+                parts.push(`${fmt(rehab)} hectares of land were rehabilitated.`);
+            return parts.join(' ');
+        },
+    },
     // KPI: Total waste
     {
         domains: ['waste'],
@@ -633,10 +624,6 @@ export const ESG_ANSWER_TEMPLATES = [
             let answer = `Our waste diversion (recycling) rate${periodStr} was ${fmt(div)}%.`;
             if (waste > 0)
                 answer += ` Of ${fmt(waste)} kg total waste, ${fmt(waste * div / 100)} kg was recycled or recovered rather than sent to landfill.`;
-            if (div >= 75)
-                answer += ' This reflects our commitment to circular economy principles.';
-            else
-                answer += ' We continue to implement waste segregation and recycling initiatives to improve our diversion rate.';
             return answer;
         },
     },
@@ -654,7 +641,6 @@ export const ESG_ANSWER_TEMPLATES = [
                 let answer = `We generated ${fmt(haz)} kg of hazardous waste${periodStr}.`;
                 if (waste > 0)
                     answer += ` This represents ${fmt(haz / waste * 100)}% of our total waste of ${fmt(waste)} kg.`;
-                answer += ' All hazardous waste is segregated, stored, and disposed of through licensed contractors in accordance with applicable regulations.';
                 return answer;
             }
             if (has(dm, 'totalWaste')) {
@@ -671,13 +657,13 @@ export const ESG_ANSWER_TEMPLATES = [
         generate: (dm) => {
             const waste = num(dm, 'totalWaste');
             const div = num(dm, 'diversionRate');
-            const parts = [];
-            parts.push('Our circular economy initiatives focus on reducing waste generation at source, maximizing material recovery, and designing out waste where possible.');
-            parts.push('Current measures include waste segregation across all operational areas, partnerships with recycling contractors, and evaluation of take-back schemes for key material streams.');
             if (waste > 0 && div > 0) {
-                parts.push(`We currently achieve a ${fmt(div)}% waste diversion rate from ${fmt(waste)} kg total waste, and are targeting further improvement.`);
+                return {
+                    answer: `We achieve a ${fmt(div)}% waste diversion rate from ${fmt(waste)} kg total waste. Specific circular-economy initiatives have not been separately documented for this question.`,
+                    drafted: true,
+                };
             }
-            return parts.join(' ');
+            return { answer: 'We have not documented circular-economy initiatives, and do not track this for this question.', drafted: true };
         },
     },
     // Fallback: general waste (any type not matched above)
@@ -696,17 +682,33 @@ export const ESG_ANSWER_TEMPLATES = [
             if (div > 0)
                 answer += ` We achieved a waste diversion rate of ${fmt(div)}%, meaning ${fmt(waste * div / 100)} kg was recycled or recovered rather than sent to landfill.`;
             if (haz > 0)
-                answer += ` Of this total, ${fmt(haz)} kg was classified as hazardous waste, managed in accordance with applicable regulations.`;
-            if (div >= 75)
-                answer += ' Our high diversion rate reflects our commitment to circular economy principles and waste minimization.';
-            else if (div > 0)
-                answer += ' We continue to implement waste reduction initiatives to improve our diversion rate.';
+                answer += ` Of this total, ${fmt(haz)} kg was classified as hazardous waste.`;
             return answer;
         },
     },
     // ===================================================================
     // WATER
     // ===================================================================
+    // Sector water metrics
+    {
+        domains: ['energy_water', 'effluents'],
+        topics: ['water_usage', 'sector_metrics', 'wastewater'],
+        generate: (dm) => {
+            const irrigation = num(dm, 'irrigationWaterM3');
+            const discharge = num(dm, 'waterDischargeM3');
+            const reused = num(dm, 'waterReusedPercent');
+            if (!has(dm, 'irrigationWaterM3') && !has(dm, 'waterDischargeM3') && !has(dm, 'waterReusedPercent'))
+                return null;
+            const parts = [];
+            if (has(dm, 'irrigationWaterM3'))
+                parts.push(`Irrigation water use was ${fmt(irrigation)} m3 during the reporting period.`);
+            if (has(dm, 'waterDischargeM3'))
+                parts.push(`Recorded water discharge was ${fmt(discharge)} m3.`);
+            if (has(dm, 'waterReusedPercent'))
+                parts.push(`${fmt(reused)}% of water was reused in the relevant process.`);
+            return parts.join(' ');
+        },
+    },
     // KPI: Water withdrawal
     {
         domains: ['energy_water'],
@@ -726,7 +728,6 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             if (fte > 0)
                 answer += ` This equates to approximately ${fmt(water / fte)} m\u00B3 per employee.`;
-            answer += ' We monitor water usage across our operations and seek to reduce consumption through efficiency measures.';
             return answer;
         },
     },
@@ -735,22 +736,12 @@ export const ESG_ANSWER_TEMPLATES = [
         domains: ['effluents', 'energy_water'],
         topics: ['wastewater'],
         generate: (dm) => {
-            const ind = str(dm, 'industryDescription').toLowerCase();
             const water = num(dm, 'waterWithdrawal');
-            const isLightWater = !ind || ind.includes('software') || ind.includes('technology') || ind.includes('professional') || ind.includes('services') || ind.includes('consult') || ind.includes('financial');
             const parts = [];
-            if (isLightWater) {
-                parts.push('Our wastewater discharge is limited to standard sanitary effluent from office facilities, which is discharged to municipal sewer systems and treated by the local utility in accordance with applicable regulations.');
-                parts.push('We do not generate industrial process wastewater. Water-related environmental impacts are not material to our operations, though we monitor consumption as part of our broader environmental management approach.');
-            }
-            else {
-                parts.push('Wastewater from our operations is managed in accordance with local environmental regulations and discharge permits where applicable.');
-                parts.push('Sanitary wastewater is discharged to municipal treatment systems. Where our processes generate industrial wastewater, we apply appropriate pre-treatment before discharge and maintain records to support regulatory reporting.');
-                parts.push('We are formalising our water management practices, including discharge monitoring and treatment standards, as part of our ongoing ESG programme.');
-            }
+            parts.push('We have not separately documented our wastewater discharge volumes, treatment, or monitoring practices for this question.');
             if (water)
-                parts.push(`Our total water withdrawal is ${fmt(water)} m\u00B3 per year, providing a baseline for future discharge tracking.`);
-            return parts.join(' ');
+                parts.push(`Our total water withdrawal is ${fmt(water)} m\u00B3 per year.`);
+            return { answer: parts.join(' '), drafted: true };
         },
     },
     // POLICY/MEASURE: Water stress
@@ -761,13 +752,12 @@ export const ESG_ANSWER_TEMPLATES = [
             const water = num(dm, 'waterWithdrawal');
             const country = str(dm, 'headquartersCountry');
             const parts = [];
-            parts.push('We assess water stress risks as part of our environmental management approach.');
             if (country)
                 parts.push(`Our operations are based in ${country}.`);
-            parts.push('We do not currently operate in regions classified as high water stress by the WRI Aqueduct tool, though we monitor this as part of our site-level risk assessments.');
+            parts.push('We have not assessed or documented our exposure to water-stressed regions (e.g. via the WRI Aqueduct tool) for this question.');
             if (water)
-                parts.push(`Our total water withdrawal is ${fmt(water)} m\u00B3 per year, primarily from municipal supply.`);
-            return parts.join(' ');
+                parts.push(`Our total water withdrawal is ${fmt(water)} m\u00B3 per year.`);
+            return { answer: parts.join(' '), drafted: true };
         },
     },
     // ===================================================================
@@ -785,6 +775,7 @@ export const ESG_ANSWER_TEMPLATES = [
             const period = str(dm, 'reportingPeriod');
             const ownership = str(dm, 'ownershipStructure');
             const rev = str(dm, 'revenueBand');
+            const fte = num(dm, 'totalFte');
             let answer = `The legal name of our organization is ${name}.`;
             const addr = str(dm, 'registeredAddress');
             if (country && addr)
@@ -793,6 +784,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 answer += ` The company is incorporated in ${country}.`;
             if (ind && ind.toLowerCase() !== 'other')
                 answer += ` We operate in the ${ind} sector.`;
+            if (fte > 0)
+                answer += ` We employ ${fmt(fte)} people.`;
             if (ownership)
                 answer += ` Ownership structure: ${ownership}.`;
             if (rev)
@@ -854,6 +847,53 @@ export const ESG_ANSWER_TEMPLATES = [
     },
     // Products and services
     {
+        domains: ['products'],
+        topics: ['production_metrics', 'facility_metrics'],
+        generate: (dm) => {
+            const units = num(dm, 'unitsProduced');
+            const hours = num(dm, 'productionHours');
+            const material = num(dm, 'materialInputTonnes');
+            const ore = num(dm, 'oreProcessedTonnes');
+            const stores = num(dm, 'storeCount');
+            const storeArea = num(dm, 'storeAreaM2');
+            const warehouse = num(dm, 'warehouseSpaceM2');
+            const deliveries = num(dm, 'deliveriesCount');
+            const office = num(dm, 'officeSpaceM2');
+            if (!has(dm, 'unitsProduced') &&
+                !has(dm, 'productionHours') &&
+                !has(dm, 'materialInputTonnes') &&
+                !has(dm, 'oreProcessedTonnes') &&
+                !has(dm, 'storeCount') &&
+                !has(dm, 'storeAreaM2') &&
+                !has(dm, 'warehouseSpaceM2') &&
+                !has(dm, 'deliveriesCount') &&
+                !has(dm, 'officeSpaceM2'))
+                return null;
+            const parts = [];
+            parts.push('Operational activity metrics for the reporting period are as follows:');
+            if (has(dm, 'unitsProduced'))
+                parts.push(`Units produced: ${fmt(units)}.`);
+            if (has(dm, 'productionHours'))
+                parts.push(`Production hours: ${fmt(hours)} hours.`);
+            if (has(dm, 'materialInputTonnes'))
+                parts.push(`Material input: ${fmt(material)} tonnes.`);
+            if (has(dm, 'oreProcessedTonnes'))
+                parts.push(`Ore/material processed: ${fmt(ore)} tonnes.`);
+            if (has(dm, 'storeCount'))
+                parts.push(`Stores: ${fmt(stores)}.`);
+            if (has(dm, 'storeAreaM2'))
+                parts.push(`Store area: ${fmt(storeArea)} m2.`);
+            if (has(dm, 'warehouseSpaceM2'))
+                parts.push(`Warehouse space: ${fmt(warehouse)} m2.`);
+            if (has(dm, 'deliveriesCount'))
+                parts.push(`Deliveries made: ${fmt(deliveries)}.`);
+            if (has(dm, 'officeSpaceM2'))
+                parts.push(`Office space: ${fmt(office)} m2.`);
+            return parts.join(' ');
+        },
+    },
+    // Products and services
+    {
         domains: ['products', 'company'],
         topics: ['products_services', 'company_profile'],
         generate: (dm) => {
@@ -889,7 +929,7 @@ export const ESG_ANSWER_TEMPLATES = [
             if (rev)
                 parts.push(`Revenue band: ${rev}.`);
             if (!products && !markets) {
-                parts.push('Our products and services are detailed in our company registration documents and marketing materials. We serve customers across domestic and European markets.');
+                parts.push('A description of our products, services, and served markets has not been provided for this question.');
             }
             return parts.join(' ');
         },
@@ -950,11 +990,10 @@ export const ESG_ANSWER_TEMPLATES = [
                 const uniqueCerts = [...new Set(allCerts.join(', ').split(', ').map(c => c.trim()).filter(Boolean))];
                 const parts = [];
                 parts.push(`Our organization holds the following certifications: ${uniqueCerts.join('; ')}.`);
-                parts.push('These certifications are maintained through regular external surveillance audits and demonstrate our commitment to internationally recognized management standards.');
                 parts.push('Certificate numbers and validity dates are available on request.');
                 return parts.join(' ');
             }
-            return 'Our organization does not currently hold third-party environmental or quality management certifications. We are evaluating ISO 14001 and ISO 9001 certification pathways as part of our continuous improvement strategy.';
+            return { answer: 'Our organization does not currently hold third-party environmental or quality management certifications.', drafted: true };
         },
     },
     // ISO 45001 specific (H&S certification)
@@ -966,9 +1005,9 @@ export const ESG_ANSWER_TEMPLATES = [
             const validCerts = str(dm, 'validCertificates');
             const allCerts = [certs, validCerts].filter(Boolean).join(', ').toLowerCase();
             if (allCerts.includes('45001')) {
-                return 'Yes, our organization holds ISO 45001 certification for our occupational health and safety management system. The certification is maintained through regular external surveillance audits and covers all operational sites.';
+                return 'Yes, our organization holds ISO 45001 certification for our occupational health and safety management system.';
             }
-            return 'Our organization does not currently hold ISO 45001 or equivalent health and safety certification. Our health and safety management system is based on risk assessment principles and regulatory compliance. We are evaluating ISO 45001 certification as part of our continuous improvement strategy.';
+            return { answer: 'Our organization does not currently hold ISO 45001 or equivalent health and safety certification.', drafted: true };
         },
     },
     // ===================================================================
@@ -988,7 +1027,6 @@ export const ESG_ANSWER_TEMPLATES = [
             let answer = `${periodStr.charAt(0).toUpperCase() + periodStr.slice(1)}, we delivered an average of ${fmt(perEmp)} training hours per employee.`;
             if (total > 0 && fte > 0)
                 answer += ` This represents a total of ${fmt(total)} hours of training across our ${fmt(fte)} employees.`;
-            answer += ' Training programmes cover areas including health and safety, technical skills, and sustainability awareness.';
             return answer;
         },
     },
@@ -1001,10 +1039,9 @@ export const ESG_ANSWER_TEMPLATES = [
         generate: (dm) => {
             const goal = str(dm, 'primaryGoal');
             if (goal) {
-                return `Our primary sustainability commitment is: ${goal}. We are integrating this target into our business strategy and operational planning, and we track progress against this goal as part of our regular management review process.`;
+                return `Our stated sustainability goal is: ${goal}.`;
             }
-            const period = str(dm, 'reportingPeriod');
-            return `We are in the process of formalising our sustainability goals. Our immediate priorities include establishing baseline measurements for energy consumption, emissions, and waste, and setting reduction targets for the next reporting period${period ? ` (${parseInt(period) + 1})` : ''}.`;
+            return { answer: 'We have not formalized documented sustainability goals or targets for this question.', drafted: true };
         },
     },
     // POLICY: Climate targets / SBTi / net-zero
@@ -1020,15 +1057,14 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (goal && (goal.toLowerCase().includes('net zero') || goal.toLowerCase().includes('sbti') || goal.toLowerCase().includes('carbon'))) {
                 parts.push(`Yes, our organization has set the following climate target: ${goal}.`);
+                if (total > 0)
+                    parts.push(`Our current Scope 1 + Scope 2 emissions total ${fmt(total)} tCO2e.`);
+                return parts.join(' ');
             }
-            else {
-                parts.push('We have not yet set a formal science-based target (SBTi) or net-zero commitment.');
-                parts.push('We are establishing our emissions baseline as a prerequisite for setting meaningful reduction targets.');
-            }
+            parts.push('We have not set a formal science-based target (SBTi) or net-zero commitment, and do not track a documented decarbonization roadmap for this question.');
             if (total > 0)
-                parts.push(`Our current Scope 1 + Scope 2 emissions total ${fmt(total)} tCO2e, which will serve as the baseline for target-setting.`);
-            parts.push('We are evaluating alignment with the SBTi framework and plan to define quantified reduction targets in the next reporting period.');
-            return parts.join(' ');
+                parts.push(`Our current Scope 1 + Scope 2 emissions total ${fmt(total)} tCO2e.`);
+            return { answer: parts.join(' '), drafted: true };
         },
     },
     // Ethics / code of conduct
@@ -1041,13 +1077,10 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (policies) {
                 parts.push(`Our ethical standards are formalized in the following policies: ${policies}.`);
-                parts.push('These policies cover anti-corruption, anti-bribery, conflicts of interest, and fair business practices, and apply to all employees and business partners.');
+                return parts.join(' ');
             }
-            else {
-                parts.push('We are committed to conducting business with integrity and transparency.');
-                parts.push('A formal Code of Ethics and Anti-Corruption Policy has not yet been established.');
-            }
-            return parts.join(' ');
+            parts.push('A formal Code of Ethics and Anti-Corruption Policy has not yet been established.');
+            return { answer: parts.join(' '), drafted: true };
         },
     },
     // POLICY: Corporate governance / board oversight of ESG
@@ -1056,25 +1089,15 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['governance', 'strategy'],
         questionTypes: ['POLICY', 'MEASURE'],
         generate: (dm) => {
-            const name = str(dm, 'legalEntityName');
-            const fte = num(dm, 'totalFte');
             const policies = str(dm, 'governancePoliciesApproved');
             const certs = str(dm, 'certificationsHeld');
             const parts = [];
-            if (fte > 50) {
-                parts.push(`${name ? name + "'s" : 'Our'} senior management has direct oversight of sustainability and ESG matters.`);
-                parts.push('ESG performance is reviewed as part of our regular management review cycle, with key metrics reported to the management board at least quarterly.');
-            }
-            else {
-                parts.push(`As a ${fte > 0 ? fmt(fte) + '-employee' : 'small'} organization, ESG oversight is exercised directly by the managing directors.`);
-                parts.push('Sustainability topics are discussed as part of regular business reviews.');
-            }
             if (policies)
                 parts.push(`Our governance framework is supported by the following policies: ${policies}.`);
             if (certs)
-                parts.push(`Our management system certifications (${certs}) provide additional structured oversight through regular external audits.`);
-            parts.push('A formalized ESG governance structure with explicit accountability and reporting lines has not yet been established.');
-            return parts.join(' ');
+                parts.push(`We hold the following management-system certifications: ${certs}.`);
+            parts.push('A formalized ESG governance structure with explicit accountability and reporting lines, and the supporting oversight process, has not been separately documented for this question.');
+            return { answer: parts.join(' '), drafted: true };
         },
     },
     // POLICY: Fines, sanctions, legal proceedings (Q45)
@@ -1090,7 +1113,7 @@ export const ESG_ANSWER_TEMPLATES = [
             if (status === 'yes') {
                 return `${name || 'Our organization'} has disclosed relevant fines, sanctions, or legal proceedings. Details are available in our compliance records and can be provided upon request.`;
             }
-            return { answer: `To the best of our knowledge, ${name || 'our organization'} has not been subject to any significant environmental, social, or governance-related fines, sanctions, or legal proceedings in the past three years. We maintain compliance monitoring processes and would disclose any material incidents in our reporting.`, drafted: true };
+            return { answer: `${name || 'Our organization'} has not recorded its fines, sanctions, or legal-proceedings status for this question.`, drafted: true };
         },
     },
     // POLICY: Data protection / GDPR (Q46)
@@ -1105,18 +1128,14 @@ export const ESG_ANSWER_TEMPLATES = [
             const isEU = country && ['Germany', 'France', 'Poland', 'Italy', 'Spain', 'Netherlands', 'Belgium', 'Austria', 'Sweden', 'Czech Republic', 'Denmark', 'Finland', 'Portugal', 'Ireland', 'Greece', 'Romania', 'Hungary', 'Croatia', 'Slovakia', 'Slovenia', 'Bulgaria', 'Lithuania', 'Latvia', 'Estonia', 'Luxembourg', 'EU Average'].includes(country);
             const parts = [];
             if (hasPolicy === 'Yes') {
-                parts.push(`Yes, ${name || 'our organization'} maintains data protection and privacy controls${isEU ? ' aligned with the EU General Data Protection Regulation (GDPR)' : ' in accordance with applicable data protection legislation'}.`);
-                parts.push('Personal data of employees, customers, and business partners is protected through access controls, role-based permissions, contractual confidentiality obligations, and employee awareness training.');
-                parts.push('We maintain procedures for data subject requests, breach notification, and secure handling of personal data.');
+                parts.push(`Yes, ${name || 'our organization'} has a data protection and privacy policy${isEU ? ' aligned with the EU General Data Protection Regulation (GDPR)' : ' in accordance with applicable data protection legislation'}.`);
+                parts.push('We have not separately documented the specific safeguards behind this policy for this question.');
+                return parts.join(' ');
             }
-            else if (hasPolicy === 'No') {
-                parts.push(`${name || 'Our organization'} is developing a formal data protection and privacy policy${isEU ? ' aligned with GDPR requirements' : ''}.`);
-                parts.push('Basic data protection measures are in place including access controls and confidentiality obligations, but a comprehensive documented framework is being established.');
+            if (hasPolicy === 'No') {
+                return { answer: `${name || 'Our organization'} does not currently have a formal data protection and privacy policy${isEU ? ' aligned with GDPR' : ''}, and does not track this for this question.`, drafted: true };
             }
-            else {
-                return { answer: `${name || 'Our organization'} maintains data protection controls${isEU ? ' in accordance with GDPR' : ''}. Personal data is protected through access controls, confidentiality obligations, and employee awareness measures.`, drafted: true };
-            }
-            return parts.join(' ');
+            return { answer: `${name || 'Our organization'} has not recorded whether a data protection and privacy policy is in place for this question.`, drafted: true };
         },
     },
     // POLICY: ESG-linked executive compensation (Q48)
@@ -1126,18 +1145,10 @@ export const ESG_ANSWER_TEMPLATES = [
         questionTypes: ['POLICY', 'MEASURE'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
-            const fte = num(dm, 'totalFte');
-            const parts = [];
-            if (fte > 250) {
-                parts.push(`${name || 'Our organization'} is evaluating the integration of sustainability performance metrics into executive compensation and incentive structures.`);
-                parts.push('Currently, ESG oversight is managed through senior leadership review with sustainability KPIs tracked as part of operational targets.');
-            }
-            else {
-                parts.push(`${name || 'Our organization'} does not currently operate formal ESG-linked executive compensation or incentive structures.`);
-                parts.push('As a mid-sized company, ESG oversight is exercised directly by the managing directors through regular review of sustainability KPIs and operational targets.');
-            }
-            parts.push('Sustainability performance is not yet formally embedded into incentive structures.');
-            return parts.join(' ');
+            return {
+                answer: `${name || 'Our organization'} does not currently operate formal ESG-linked executive compensation or incentive structures, and does not track this for this question.`,
+                drafted: true,
+            };
         },
     },
     // POLICY: CSRD applicability and timeline (Q53)
@@ -1152,7 +1163,6 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (csrd === 'yes') {
                 parts.push(`Yes, ${name || 'our organization'} is subject to CSRD reporting obligations.`);
-                parts.push('We are building the internal data foundation to align reporting with European Sustainability Reporting Standards (ESRS), including data collection, gap analysis, and reporting infrastructure.');
             }
             else if (csrd === 'no') {
                 parts.push(`${name || 'Our organization'} is not currently subject to CSRD reporting obligations based on current size and legal structure.`);
@@ -1160,15 +1170,13 @@ export const ESG_ANSWER_TEMPLATES = [
                     const details = [fte > 0 ? `${fmt(fte)} employees` : null, rev ? `revenue band ${rev}` : null].filter(Boolean).join(', ');
                     parts.push(`Current profile: ${details}.`);
                 }
-                parts.push('We are nonetheless building ESG data capabilities in preparation for potential future applicability or voluntary adoption of ESRS-aligned reporting.');
             }
             else if (csrd === 'assessing') {
                 parts.push(`${name || 'Our organization'} is currently assessing its applicability under CSRD based on entity size, legal structure, and group-reporting context.`);
                 if (fte > 0 || rev) {
                     const details = [fte > 0 ? `${fmt(fte)} employees` : null, rev ? `revenue band ${rev}` : null].filter(Boolean).join(', ');
-                    parts.push(`Based on our current profile (${details}), we are determining whether and when CSRD reporting obligations will apply.`);
+                    parts.push(`Based on our current profile (${details}), applicability is being determined.`);
                 }
-                parts.push('We are building the internal data foundation needed to support ESRS-aligned reporting.');
             }
             else {
                 // No csrdApplicable data — return null to let other templates try
@@ -1187,16 +1195,14 @@ export const ESG_ANSWER_TEMPLATES = [
             const lti = num(dm, 'lostTimeIncidents');
             const certs = str(dm, 'certificationsHeld');
             const parts = [];
-            parts.push('All workplace incidents, including near-misses, are subject to a structured investigation process.');
-            parts.push('Our approach includes immediate incident reporting and scene preservation, root cause analysis using structured methods (e.g., 5-Why analysis), identification of corrective and preventive actions with assigned owners and deadlines, and follow-up verification to confirm effectiveness.');
             if (certs && certs.toLowerCase().includes('45001')) {
-                parts.push('This process is embedded in our ISO 45001-certified occupational health and safety management system.');
+                parts.push('Incident management is conducted within our ISO 45001-certified occupational health and safety management system.');
             }
-            parts.push('Investigation findings are shared with relevant teams to prevent recurrence and are reviewed as part of management review meetings.');
             if (has(dm, 'trir') || has(dm, 'lostTimeIncidents')) {
-                parts.push(`Current safety performance: TRIR ${trir}${has(dm, 'lostTimeIncidents') ? `, lost time incidents: ${lti}` : ''}.`);
+                parts.push(`Recorded safety performance: TRIR ${trir}${has(dm, 'lostTimeIncidents') ? `, lost time incidents: ${lti}` : ''}.`);
             }
-            return parts.join(' ');
+            parts.push('We have not separately documented our incident investigation and corrective-action process for this question.');
+            return { answer: parts.join(' '), drafted: true };
         },
     },
     // ===================================================================
@@ -1210,30 +1216,15 @@ export const ESG_ANSWER_TEMPLATES = [
             const diesel = num(dm, 'fuel_diesel');
             const period = str(dm, 'reportingPeriod');
             const periodStr = period ? ` during ${period}` : ' during the reporting period';
-            const ind = str(dm, 'industryDescription').toLowerCase();
-            const isLightFuel = !ind || ind.includes('software') || ind.includes('technology') || ind.includes('professional') || ind.includes('services') || ind.includes('consult') || ind.includes('financial');
             if (gas || diesel) {
                 const parts = [`Our fuel consumption${periodStr}:`];
                 if (gas)
                     parts.push(`Natural gas: ${fmt(gas)} m\u00B3.`);
                 if (diesel)
                     parts.push(`Diesel: ${fmt(diesel)} litres.`);
-                parts.push('Fuel consumption is a key input for our Scope 1 emissions calculation. We are evaluating opportunities to reduce fossil fuel dependency through electrification and energy efficiency measures.');
                 return parts.join(' ');
             }
-            // Fallback when no fuel data has been entered — industry-conditioned framing
-            const parts = [];
-            if (isLightFuel) {
-                parts.push('Our organization is primarily office-based and direct fuel consumption is limited.');
-                parts.push('Where applicable, fuel use is restricted to occasional vehicle travel and any heating systems in our facilities, which in most cases use natural gas or electric heating provided by the building owner.');
-                parts.push('We do not currently break down fuel consumption by type as it is not material to our overall emissions profile, and we will introduce more granular tracking if our operational footprint changes.');
-            }
-            else {
-                parts.push('We currently track fuel consumption at an aggregate level for Scope 1 emissions reporting.');
-                parts.push('Primary fuel sources used in our operations include natural gas (for heating and process applications where applicable) and diesel (for any owned or operated vehicles and equipment).');
-                parts.push('A formal breakdown by fuel type with reportable quantities is planned for the next reporting period as part of our ongoing improvements to GHG inventory granularity.');
-            }
-            return parts.join(' ');
+            return { answer: 'We do not currently track fuel consumption by type for this question.', drafted: true };
         },
     },
     // ===================================================================
@@ -1245,47 +1236,36 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['fleet'],
         generate: (dm) => {
             const diesel = num(dm, 'fuel_diesel');
-            const ind = str(dm, 'industryDescription').toLowerCase();
-            const isFleetLight = !ind || ind.includes('software') || ind.includes('technology') || ind.includes('professional') || ind.includes('services') || ind.includes('consult') || ind.includes('financial');
+            const km = num(dm, 'totalKmDriven');
+            const fleetSize = num(dm, 'fleetSize');
+            const vehicleAge = num(dm, 'avgVehicleAge');
+            const altFuel = num(dm, 'altFuelPercent');
             const parts = [];
-            if (isFleetLight && !diesel) {
-                parts.push('Our organization does not operate a corporate fleet.');
-                parts.push('Employee business travel uses public transport or personal vehicles, with mileage reimbursed at standard rates. Where occasional vehicle use is required, we rely on rental services or third-party providers.');
-                parts.push('We have no direct fleet-related emissions, though we monitor business travel as part of our broader Scope 3 evaluation.');
+            if (has(dm, 'totalKmDriven') || has(dm, 'fleetSize') || has(dm, 'avgVehicleAge') || has(dm, 'altFuelPercent')) {
+                parts.push('Fleet activity recorded for the reporting period:');
+                if (has(dm, 'fleetSize'))
+                    parts.push(`Fleet size: ${fmt(fleetSize)} vehicles.`);
+                if (has(dm, 'totalKmDriven'))
+                    parts.push(`Total distance driven: ${fmt(km)} km.`);
+                if (has(dm, 'avgVehicleAge'))
+                    parts.push(`Average vehicle age: ${fmt(vehicleAge)} years.`);
+                if (has(dm, 'altFuelPercent'))
+                    parts.push(`Alternative-fuel vehicles: ${fmt(altFuel)}% of the fleet.`);
+                if (diesel)
+                    parts.push(`Diesel consumption: ${fmt(diesel)} litres.`);
+                return parts.join(' ');
             }
-            else {
-                parts.push('We operate a small operational fleet to support our business activities, composed of company-owned and leased vehicles.');
-                if (diesel) {
-                    parts.push(`Current fuel consumption: ${fmt(diesel)} litres of diesel during the reporting period.`);
-                }
-                else {
-                    parts.push('A detailed breakdown of vehicle types and fuel sources is maintained internally and is being formalised for external reporting in the next cycle.');
-                }
-                parts.push('We are evaluating the transition to electric or hybrid vehicles where commercially viable, as part of our fleet renewal strategy and our commitment to reducing direct emissions.');
-            }
-            return parts.join(' ');
+            return { answer: 'We have not separately documented our fleet composition or fleet-related data for this question.', drafted: true };
         },
     },
     // Transport / logistics environmental impact (catches questions that don't match fleet/business_travel)
     {
         domains: ['transport'],
         topics: ['transport', 'logistics'],
-        generate: (dm) => {
-            const ind = str(dm, 'industryDescription').toLowerCase();
-            const isLightLogistics = !ind || ind.includes('software') || ind.includes('technology') || ind.includes('professional') || ind.includes('services') || ind.includes('consult') || ind.includes('financial');
-            const parts = [];
-            if (isLightLogistics) {
-                parts.push('Transportation and logistics are not material to our environmental footprint, as our operations are primarily digital or service-based with limited physical goods movement.');
-                parts.push('Where shipping is required, we use third-party carriers and consolidate shipments where practical to minimise emissions.');
-                parts.push('Employee business travel is governed by a policy that prioritises video conferencing and lower-emission travel modes.');
-            }
-            else {
-                parts.push('We manage the environmental impact of transportation and logistics through carrier selection, route optimisation, and shipment consolidation where feasible.');
-                parts.push('Where we engage third-party logistics providers, we factor environmental performance into procurement decisions and prefer carriers with documented emissions reduction programmes.');
-                parts.push('We are working towards more granular tracking of freight tonne-kilometres and associated Scope 3 emissions, which will allow us to set quantitative reduction targets in future reporting cycles.');
-            }
-            return parts.join(' ');
-        },
+        generate: () => ({
+            answer: 'We have not separately documented the environmental impact of our transportation and logistics, and do not track this for this question.',
+            drafted: true,
+        }),
     },
     // Business travel / commuting (Scope 3)
     {
@@ -1295,7 +1275,7 @@ export const ESG_ANSWER_TEMPLATES = [
             const travel = num(dm, 'businessTravel');
             const commute = num(dm, 'employeeCommute');
             const s3 = num(dm, 'scope3Total');
-            const fte = num(dm, 'totalFte');
+            const wfh = num(dm, 'wfhPercent');
             const parts = [];
             if (s3)
                 parts.push(`Our Scope 3 emissions total ${fmt(s3)} tCO2e.`);
@@ -1303,13 +1283,12 @@ export const ESG_ANSWER_TEMPLATES = [
                 parts.push(`Business travel: ${fmt(travel)} km.`);
             if (commute)
                 parts.push(`Employee commuting: ${fmt(commute)} km.`);
-            if (!s3 && !travel && !commute) {
-                parts.push('We are in the process of quantifying Scope 3 emissions from business travel and employee commuting.');
-                if (fte)
-                    parts.push(`With ${fmt(fte)} employees, transport-related data including business travel and commuting is not yet systematically tracked.`);
+            if (has(dm, 'wfhPercent'))
+                parts.push(`Remote work coverage: ${fmt(wfh)}%.`);
+            if (parts.length === 0) {
+                return { answer: 'We do not currently track Scope 3 emissions from business travel or employee commuting for this question.', drafted: true };
             }
-            parts.push('Measures to reduce these emissions include a travel policy encouraging video conferencing, public transport incentives, and cycle-to-work schemes.');
-            return parts.join(' ');
+            return { answer: parts.join(' '), drafted: !s3 };
         },
     },
     // ===================================================================
@@ -1318,36 +1297,101 @@ export const ESG_ANSWER_TEMPLATES = [
     // Raw materials
     {
         domains: ['materials'],
+        topics: ['agriculture_inputs'],
+        generate: (dm) => {
+            const land = num(dm, 'landUseHectares');
+            const fertilizer = num(dm, 'fertilizerKg');
+            const pesticide = num(dm, 'pesticideKg');
+            const irrigation = num(dm, 'irrigationWaterM3');
+            const seasonal = num(dm, 'seasonalWorkers');
+            if (!has(dm, 'landUseHectares') && !has(dm, 'fertilizerKg') && !has(dm, 'pesticideKg') && !has(dm, 'irrigationWaterM3') && !has(dm, 'seasonalWorkers'))
+                return null;
+            const parts = [];
+            parts.push('Agriculture-related operational inputs recorded for the reporting period:');
+            if (has(dm, 'landUseHectares'))
+                parts.push(`Land use: ${fmt(land)} hectares.`);
+            if (has(dm, 'fertilizerKg'))
+                parts.push(`Fertilizer use: ${fmt(fertilizer)} kg.`);
+            if (has(dm, 'pesticideKg'))
+                parts.push(`Pesticide use: ${fmt(pesticide)} kg.`);
+            if (has(dm, 'irrigationWaterM3'))
+                parts.push(`Irrigation water: ${fmt(irrigation)} m3.`);
+            if (has(dm, 'seasonalWorkers'))
+                parts.push(`Seasonal workers: ${fmt(seasonal)}.`);
+            return parts.join(' ');
+        },
+    },
+    {
+        domains: ['materials'],
+        topics: ['mining_metrics'],
+        generate: (dm) => {
+            const ore = num(dm, 'oreProcessedTonnes');
+            const tailings = num(dm, 'tailingsGeneratedTonnes');
+            const reused = num(dm, 'waterReusedPercent');
+            const rehab = num(dm, 'rehabilitatedLandHectares');
+            if (!has(dm, 'oreProcessedTonnes') && !has(dm, 'tailingsGeneratedTonnes') && !has(dm, 'waterReusedPercent') && !has(dm, 'rehabilitatedLandHectares'))
+                return null;
+            const parts = [];
+            parts.push('Mining and materials activity recorded for the reporting period:');
+            if (has(dm, 'oreProcessedTonnes'))
+                parts.push(`Ore/material processed: ${fmt(ore)} tonnes.`);
+            if (has(dm, 'tailingsGeneratedTonnes'))
+                parts.push(`Tailings generated: ${fmt(tailings)} tonnes.`);
+            if (has(dm, 'waterReusedPercent'))
+                parts.push(`Water reused: ${fmt(reused)}%.`);
+            if (has(dm, 'rehabilitatedLandHectares'))
+                parts.push(`Land rehabilitated: ${fmt(rehab)} hectares.`);
+            return parts.join(' ');
+        },
+    },
+    {
+        domains: ['materials'],
+        topics: ['construction_materials'],
+        generate: (dm) => {
+            const concrete = num(dm, 'concreteTonnes');
+            const steel = num(dm, 'steelTonnes');
+            const equipment = num(dm, 'equipmentHours');
+            if (!has(dm, 'concreteTonnes') && !has(dm, 'steelTonnes') && !has(dm, 'equipmentHours'))
+                return null;
+            const parts = [];
+            parts.push('Construction material and equipment activity recorded for the reporting period:');
+            if (has(dm, 'concreteTonnes'))
+                parts.push(`Concrete: ${fmt(concrete)} tonnes.`);
+            if (has(dm, 'steelTonnes'))
+                parts.push(`Steel: ${fmt(steel)} tonnes.`);
+            if (has(dm, 'equipmentHours'))
+                parts.push(`Equipment operation: ${fmt(equipment)} hours.`);
+            return parts.join(' ');
+        },
+    },
+    // Raw materials
+    {
+        domains: ['materials'],
         topics: ['raw_materials'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
-            const ind = str(dm, 'industryDescription');
-            const parts = [];
-            parts.push(`${name || 'Our organization'} uses a range of materials in ${ind ? `our ${ind.toLowerCase()} operations` : 'our operations'}.`);
-            parts.push('We are in the process of quantifying our raw material consumption by type and tracking the percentage sourced from recycled or secondary sources.');
-            parts.push('Our procurement approach prioritises suppliers who can provide materials with verified recycled content and environmental certifications.');
-            return parts.join(' ');
+            const material = num(dm, 'materialInputTonnes');
+            if (has(dm, 'materialInputTonnes')) {
+                return `${name || 'Our organization'} recorded material input of ${fmt(material)} tonnes for the reporting period.`;
+            }
+            return { answer: `${name || 'Our organization'} has not documented its raw-material consumption by type or the share sourced from recycled or secondary materials for this question.`, drafted: true };
         },
     },
     // Supplier code of conduct
     {
         domains: ['buyer_requirements', 'materials'],
         topics: ['supplier_code', 'ethics'],
-        questionTypes: ['POLICY'],
+        questionTypes: ['POLICY', 'MEASURE'],
         generate: (dm) => {
-            const policies = str(dm, 'supplierPoliciesApproved');
             const name = str(dm, 'legalEntityName');
-            const parts = [];
-            if (policies && policies.toLowerCase().includes('supplier')) {
-                parts.push(`Yes, ${name || 'our organization'} has a Supplier Code of Conduct covering: ${policies}.`);
-                parts.push('The code applies to all direct suppliers and covers environmental standards, labor practices, health and safety, ethics, and anti-corruption.');
+            // supplierPoliciesApproved only contains an actual Supplier Code of Conduct
+            // (narrowed in dataModel). State existence only — do not fabricate the code's
+            // coverage or any monitoring controls the user did not provide.
+            const hasSupplierCode = /supplier code/i.test(str(dm, 'supplierPoliciesApproved'));
+            if (hasSupplierCode) {
+                return `Yes, ${name || 'our organization'} maintains a Supplier Code of Conduct.`;
             }
-            else {
-                parts.push(`${name || 'Our organization'} is committed to responsible sourcing and maintaining high standards throughout our supply chain.`);
-                parts.push('A formal Supplier Code of Conduct has not yet been established.');
-            }
-            parts.push('Supplier compliance is monitored through qualification processes, periodic reviews, and incoming quality inspections.');
-            return parts.join(' ');
+            return { answer: 'A formal Supplier Code of Conduct has not yet been established.', drafted: true };
         },
     },
     // Supply chain ESG monitoring
@@ -1357,30 +1401,105 @@ export const ESG_ANSWER_TEMPLATES = [
         questionTypes: ['MEASURE'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
-            const parts = [];
-            parts.push(`${name || 'Our organization'} monitors ESG performance within our supply chain through supplier qualification processes, periodic assessments, and ongoing engagement.`);
-            parts.push('Current measures include ESG criteria in supplier selection, periodic supplier visits, and preference for locally sourced materials where feasible.');
-            parts.push('A structured supplier ESG assessment programme with documented scoring criteria has not yet been established.');
-            return parts.join(' ');
+            // State only the user-provided supplier-assessment figure, if any. Do not
+            // fabricate monitoring measures (audits, visits, selection criteria).
+            const assessed = str(dm, 'suppliersAssessedPercent');
+            if (assessed) {
+                return {
+                    answer: `${assessed}% of our suppliers have been assessed on ESG criteria. We have not separately documented the structured supplier ESG monitoring measures behind this figure for this question.`,
+                    drafted: true,
+                };
+            }
+            return {
+                answer: `${name || 'Our organization'} has not established a documented supplier ESG monitoring or assessment programme, and does not currently track this for this question.`,
+                drafted: true,
+            };
         },
     },
-    // Conflict minerals
+    // Conflict minerals (3TG). State only the honest gap — do NOT assert materiality
+    // ("not material / we don't source products containing them"), which is a heuristic
+    // inference the user never provided.
     {
         domains: ['materials'],
         topics: ['conflict_minerals'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
-            const ind = str(dm, 'industryDescription');
+            return {
+                answer: `${name || 'Our organization'} does not currently conduct or track conflict-minerals (3TG: tin, tantalum, tungsten, gold) due diligence — including smelter/refiner identification, country-of-origin determination, or CMRT/EMRT declarations — for this question.`,
+                drafted: true,
+            };
+        },
+    },
+    // Forced & child labor (measure- or policy-phrased). Narrow topic from the high-weight
+    // keyword rule. Surfaces the company's own labour/ethics policies if present, otherwise
+    // an honest gap — never asserts a due-diligence programme the user did not provide.
+    {
+        domains: ['workforce'],
+        topics: ['forced_child_labor'],
+        generate: (dm) => {
+            const labourPolicies = str(dm, 'socialPoliciesApproved')
+                .split(',')
+                .map((p) => p.trim())
+                .filter((p) => /human rights|modern slavery|forced lab|child lab|code of conduct|supplier code|sa8000|ethics/i.test(p));
+            const country = str(dm, 'headquartersCountry');
+            const fte = num(dm, 'totalFte');
             const parts = [];
-            if (ind && (ind.toLowerCase().includes('electronics') || ind.toLowerCase().includes('manufacturing'))) {
-                parts.push(`As a ${ind.toLowerCase()} company, ${name || 'our organization'} recognises the potential for conflict minerals (tin, tantalum, tungsten, and gold — 3TG) in our supply chain.`);
-                parts.push('We are developing a due diligence process aligned with the OECD Due Diligence Guidance, including supplier surveys and supply chain mapping to identify smelters and refiners.');
+            if (labourPolicies.length > 0) {
+                parts.push(`Our prohibition of child labour and of forced, bonded, or compulsory labour is addressed within the following policies: ${labourPolicies.join(', ')}.`);
+                parts.push('We do not currently maintain separate documented due-diligence records (such as age verification or supplier labour audits) specific to this question.');
             }
             else {
-                parts.push(`Based on the nature of our operations, ${name || 'our organization'} has limited exposure to conflict minerals (3TG).`);
-                parts.push('We monitor this risk through our supplier management processes and will implement formal due diligence if our supply chain risk profile changes.');
+                parts.push('We have not established a standalone policy or documented due-diligence process specifically prohibiting child labour and forced, bonded, or compulsory labour.');
             }
-            return parts.join(' ');
+            if (country)
+                parts.push(`As an employer based in ${country}, our employment practices are subject to applicable national labour law.`);
+            if (fte)
+                parts.push(`This applies to our ${fmt(fte)} employees.`);
+            return { answer: parts.join(' '), drafted: true };
+        },
+    },
+    // Chemical / restricted-substance management (ZDHC MRSL, REACH SVHC, PFAS, chemical inventory).
+    // Honest gap only — no heuristic materiality claim about whether the user uses chemicals.
+    {
+        domains: ['regulatory', 'materials'],
+        topics: ['chemical_management'],
+        generate: () => ({
+            answer: 'We do not currently track conformance to chemical restricted-substance frameworks (such as ZDHC MRSL or REACH SVHC) or maintain a documented chemical inventory for this question.',
+            drafted: true,
+        }),
+    },
+    // Trade compliance: sanctions screening / export controls. Honest gap unless tracked.
+    {
+        domains: ['goals'],
+        topics: ['trade_compliance'],
+        generate: () => ({
+            answer: 'We do not currently operate a documented sanctions-screening or export-control compliance programme, and do not track this as a separate control for this question.',
+            drafted: true,
+        }),
+    },
+    // Sustainable fibres / materials sourcing & animal-derived materials. Honest gap only —
+    // no heuristic materiality claim about whether the user makes/sells physical products.
+    {
+        domains: ['materials'],
+        topics: ['sustainable_materials'],
+        generate: () => ({
+            answer: 'We have not documented the fibre/material composition of our products or obtained recognised sustainable-material certifications (such as GOTS, GRS, RDS, or FSC) for this question.',
+            drafted: true,
+        }),
+    },
+    // Product eco-labels / Environmental Product Declarations. Relevance-aware honesty.
+    {
+        domains: ['regulatory'],
+        topics: ['ecolabels'],
+        generate: (dm) => {
+            const certs = str(dm, 'certificationsHeld');
+            if (certs && /ecolabel|blue angel|nordic swan|epd|environmental product declaration/i.test(certs)) {
+                return { answer: `Our products carry the following recognised environmental labels/declarations: ${certs}.` };
+            }
+            return {
+                answer: 'Our products do not currently carry recognised eco-labels (such as the EU Ecolabel, Blue Angel, or Nordic Swan) or published Environmental Product Declarations, and we do not track this for this question.',
+                drafted: true,
+            };
         },
     },
     // Packaging materials (Q20 — must address packaging types, recyclability, recycled content)
@@ -1388,22 +1507,15 @@ export const ESG_ANSWER_TEMPLATES = [
         domains: ['packaging', 'waste'],
         topics: ['packaging'],
         generate: (dm) => {
-            const ind = str(dm, 'industryDescription').toLowerCase();
-            const waste = num(dm, 'totalWaste');
             const div = num(dm, 'diversionRate');
+            const packagingWaste = num(dm, 'packagingWasteKg');
             const parts = [];
-            if (ind.includes('manufactur') || ind.includes('automotive') || ind.includes('engineer') || ind.includes('industrial')) {
-                parts.push('Our primary packaging materials include corrugated cardboard, wooden pallets, PE protective film, and reusable metal or plastic transport containers for selected customer shipments.');
-                parts.push('The majority of our packaging by weight is recyclable. We use reusable transport packaging where customer logistics arrangements permit.');
-                parts.push('We are working to increase the share of recycled-content cardboard and reduce single-use plastic packaging. A precise percentage breakdown is currently being consolidated.');
-            }
-            else {
-                parts.push('Our packaging materials consist primarily of cardboard, paper, and plastic protective packaging.');
-                parts.push('We are working to increase the recyclability and recycled content of our packaging materials.');
-            }
+            if (has(dm, 'packagingWasteKg'))
+                parts.push(`Recorded packaging waste for the reporting period was ${fmt(packagingWaste)} kg.`);
             if (div > 0)
                 parts.push(`Our overall waste diversion rate is ${fmt(div)}%, which includes packaging waste streams.`);
-            return parts.join(' ');
+            parts.push('We have not separately documented our packaging materials, their recyclability, or recycled content for this question.');
+            return { answer: parts.join(' '), drafted: true };
         },
     },
     // Supplier ESG assessment percentage (Q55)
@@ -1412,19 +1524,16 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['supply_chain_monitoring', 'supplier_code'],
         questionTypes: ['KPI'],
         generate: (dm) => {
-            const name = str(dm, 'legalEntityName');
             const pct = num(dm, 'suppliersAssessedPercent');
-            const parts = [];
-            if (pct > 0) {
-                parts.push(`${fmt(pct)}% of our critical Tier 1 suppliers have been assessed on ESG criteria in the past 12 months.`);
-                parts.push('Assessments cover environmental compliance, health & safety standards, and labor practices as part of our supplier qualification and review process.');
+            // State only the provided figure; do not fabricate what assessments cover or
+            // an in-progress programme the user never described.
+            if (dm.has('suppliersAssessedPercent')) {
+                return `${fmt(pct)}% of our suppliers have been assessed on ESG criteria.`;
             }
-            else {
-                parts.push(`${name || 'Our organization'} is in the process of formalizing a structured ESG assessment programme for our supply chain.`);
-                parts.push('Currently, critical Tier 1 suppliers are evaluated on quality and compliance criteria as part of supplier qualification.');
-                parts.push('A formal quantified assessment rate against documented ESG criteria is being established.');
-            }
-            return parts.join(' ');
+            return {
+                answer: 'We do not currently track the percentage of suppliers assessed on ESG criteria.',
+                drafted: true,
+            };
         },
     },
     // Supplier non-compliance handling (Q58)
@@ -1432,15 +1541,12 @@ export const ESG_ANSWER_TEMPLATES = [
         domains: ['buyer_requirements'],
         topics: ['supply_chain_monitoring', 'supplier_code'],
         questionTypes: ['MEASURE', 'POLICY'],
-        generate: (dm) => {
-            const parts = [];
-            parts.push('When ESG non-compliance is identified at a supplier, our approach follows an escalation process:');
-            parts.push('First, we engage with the supplier to understand the root cause and agree on a corrective action plan with defined timelines.');
-            parts.push('If the supplier fails to implement agreed corrective actions, we escalate to senior management review and consider suspending new orders until compliance is restored.');
-            parts.push('In cases of severe or repeated non-compliance, we reserve the right to terminate the supplier relationship.');
-            parts.push('We are formalizing this process into a documented supplier ESG escalation policy.');
-            return parts.join(' ');
-        },
+        generate: () => ({
+            // Do not fabricate an escalation/corrective-action/termination process the
+            // user never provided.
+            answer: 'We have not documented a formal process for handling supplier ESG non-compliance (corrective action, escalation, or termination), and do not track this for this question.',
+            drafted: true,
+        }),
     },
     // ===================================================================
     // SUSTAINABILITY STRATEGY (fine-grained)
@@ -1451,7 +1557,6 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['transparency'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
-            const period = str(dm, 'reportingPeriod');
             const publishes = str(dm, 'publishesSustainabilityReport');
             const framework = str(dm, 'reportingFramework');
             const parts = [];
@@ -1461,40 +1566,36 @@ export const ESG_ANSWER_TEMPLATES = [
                     parts.push(`The report follows the ${framework} framework.`);
             }
             else if (publishes === 'No') {
-                parts.push(`No, ${name || 'our organization'} does not currently publish a standalone sustainability or ESG report.`);
-                if (period)
-                    parts.push(`We are using ${period} as our baseline year for systematic ESG data collection, which will form the basis for future disclosure.`);
+                return { answer: `No, ${name || 'our organization'} does not currently publish a standalone sustainability or ESG report.`, drafted: true };
             }
             else {
-                return { answer: `${name || 'Our organization'} does not currently publish a standalone sustainability report. We are building internal data capabilities to support future disclosure.`, drafted: true };
+                return { answer: `${name || 'Our organization'} has not recorded whether it publishes a standalone sustainability report for this question.`, drafted: true };
             }
             return parts.join(' ');
         },
     },
-    // ESG risk management
+    // ESG risk management — honest gap; do not fabricate a risk-management process.
     {
         domains: ['swot', 'goals'],
         topics: ['risk_management', 'strategy'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
-            const parts = [];
-            parts.push(`${name || 'Our organization'} identifies and manages material ESG risks through a combination of regulatory monitoring, stakeholder engagement, and operational risk assessment.`);
-            parts.push('Key risk areas reviewed include climate-related risks (physical and transitional), supply chain disruption, regulatory compliance (including CSRD), and workforce-related risks.');
-            parts.push('ESG risks are integrated into our management review process and inform our sustainability strategy and target-setting.');
-            return parts.join(' ');
+            return {
+                answer: `${name || 'Our organization'} has not documented a formal ESG risk-management process (risk identification, assessment, and management-review integration), and does not track this for this question.`,
+                drafted: true,
+            };
         },
     },
-    // Sustainability in procurement
+    // Sustainability in procurement — honest gap; do not fabricate procurement practices.
     {
         domains: ['goals', 'materials', 'buyer_requirements'],
         topics: ['strategy', 'supplier_management'],
         generate: (dm) => {
             const name = str(dm, 'legalEntityName');
-            const parts = [];
-            parts.push(`${name || 'Our organization'} integrates sustainability considerations into procurement decisions through several mechanisms.`);
-            parts.push('These include preference for suppliers with environmental certifications, evaluation of packaging and transport efficiency, and consideration of product lifecycle impacts.');
-            parts.push('We are formalising these criteria into a sustainable procurement policy that will apply to all significant purchasing decisions.');
-            return parts.join(' ');
+            return {
+                answer: `${name || 'Our organization'} has not documented how sustainability considerations are integrated into procurement decisions, and does not track this for this question.`,
+                drafted: true,
+            };
         },
     },
 ];

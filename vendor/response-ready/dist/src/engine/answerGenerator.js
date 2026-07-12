@@ -100,7 +100,15 @@ function findMatchingTemplate(matchResult, templates, questionType) {
         // 5. Then total topic overlap
         const aOverlap = a.topics.filter(t => matchResult.topics.includes(t)).length;
         const bOverlap = b.topics.filter(t => matchResult.topics.includes(t)).length;
-        return bOverlap - aOverlap;
+        if (bOverlap !== aOverlap)
+            return bOverlap - aOverlap;
+        // 6. Final tiebreaker: prefer the template whose topics the question scored
+        // highest on (sum of matched keyword-rule weights). Resolves cases where two
+        // same-domain templates are otherwise equal (e.g. a 'chemical_management'
+        // question that also weakly hits 'certifications') without relying on array order.
+        const scores = matchResult.topicScores || {};
+        const topicScore = (t) => t.topics.reduce((sum, topic) => sum + (scores[topic] || 0), 0);
+        return topicScore(b) - topicScore(a);
     })[0] || null;
 }
 // ============================================

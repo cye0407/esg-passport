@@ -40,12 +40,30 @@ export interface KeywordRule {
     topics: string[];
     weight: number;
 }
+/**
+ * Maps a foreign-language / synonym term to the canonical English keyword(s) that existing
+ * KeywordRules already match on. When `term` is found in a question (as a normalized
+ * substring, so it survives German compounding — 'abfall' hits 'Abfallaufkommen'), the
+ * canonical terms are appended to the text before keyword matching runs. This lets a domain
+ * pack support non-English questionnaires without duplicating all of its rules.
+ */
+export interface TermAlias {
+    /** Term to look for in the question. Matched case-insensitively as a normalized substring. */
+    term: string;
+    /** Canonical keyword(s) to inject when `term` is present. Must be strings the pack's
+     *  KeywordRule[] already matches on, so the injected words route to the right domain. */
+    add: string[];
+}
 export interface MatchResult {
     questionId: string;
     primaryDomain: string | null;
     secondaryDomains: string[];
     topics: string[];
     primaryTopics?: string[];
+    /** Sum of matched keyword-rule weights per topic. Lets answer-template selection
+     *  prefer the topic a question scored most strongly on when two candidate templates
+     *  in the same domain otherwise tie. */
+    topicScores?: Record<string, number>;
     confidence: 'high' | 'medium' | 'low' | 'none';
     matchedKeywords: string[];
     suggestedDataPoints: string[];

@@ -28,7 +28,7 @@ import { loadMappingRules } from './engine/configLoader';
  */
 export function createResponseEngine(pack) {
     // Wire up matcher
-    const matcher = createMatcher(pack.keywordRules, pack.domainSuggestions);
+    const matcher = createMatcher(pack.keywordRules, pack.domainSuggestions, pack.termAliases);
     // Wire up classifier (optional)
     const classifier = pack.classifierSignals && pack.questionTypes
         ? createClassifier(pack.classifierSignals, pack.questionTypes, pack.defaultQuestionType)

@@ -224,8 +224,11 @@ function applySheetData(workbook, sheetName, sheetData) {
         const toCol = colLetter(START_COL + colCount - 1);
         ws.autoFilter = `${fromCol}${headerRowNum}:${toCol}${headerRowNum}`;
     }
-    // Detect Confidence column
-    const confidenceCol = sheetData.headers.findIndex(h => h.toLowerCase() === 'confidence');
+    // Detect the column whose values match the confidence source color rules.
+    const confidenceSourceCol = sheetData.headers.findIndex(h => h.toLowerCase() === 'confidence source');
+    const confidenceCol = confidenceSourceCol >= 0
+        ? confidenceSourceCol
+        : sheetData.headers.findIndex(h => h.toLowerCase() === 'confidence');
     // Data rows
     let dataRowIndex = 0;
     for (const rowData of sheetData.rows) {

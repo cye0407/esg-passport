@@ -14,6 +14,19 @@ export const ESG_KEYWORD_RULES = [
     { keywords: ['externally verified', 'externally assured', 'external assurance', 'external verification', 'third-party assurance', 'isae 3000', 'aa1000'], domain: 'regulatory', topics: ['external_assurance'], weight: 15 },
     { keywords: ['publish a sustainability report', 'publish a sustainability', 'publish an esg report', 'do you publish'], domain: 'regulatory', topics: ['transparency'], weight: 15 },
     { keywords: ['subject to csrd', 'csrd reporting obligations', 'csrd applicability', 'csrd timeline', 'compliance with the european sustainability'], domain: 'regulatory', topics: ['csrd'], weight: 15 },
+    { keywords: ['water management policy', 'water stewardship'], domain: 'energy_water', topics: ['water_usage', 'water_stress'], weight: 30 },
+    { keywords: ['supplier code of conduct'], domain: 'buyer_requirements', topics: ['supplier_code'], weight: 30 },
+    { keywords: ['business model', 'principal products', 'markets served', 'number of employees'], domain: 'products', topics: ['products_services', 'company_profile'], weight: 30 },
+    // Narrow, high-weight overrides for new-domain topics. Keyed on SPECIFIC terms only
+    // so they win for genuine questions without contaminating broader workforce/regulatory
+    // questions (e.g. a gender-breakdown question filed under a "human rights" category).
+    { keywords: ['child labor', 'child labour', 'forced labor', 'forced labour', 'forced or compulsory labor', 'forced or compulsory labour', 'bonded labor', 'bonded labour', 'involuntary labor', 'involuntary labour', 'indentured', 'modern slavery', 'human trafficking', 'surrender', 'identification or passport', 'passports as a condition'], domain: 'workforce', topics: ['forced_child_labor'], weight: 16 },
+    { keywords: ['mrsl', 'zdhc', 'restricted substances', 'restricted substance', 'chemical inventory', 'chemical management', 'chemical discharge', 'svhc', 'pfas'], domain: 'regulatory', topics: ['chemical_management'], weight: 16 },
+    { keywords: ['sanctions screening', 'sanctioned parties', 'denied parties', 'export control', 'export controls', 'trade compliance', 'dual-use'], domain: 'goals', topics: ['trade_compliance'], weight: 30 },
+    { keywords: ['incidents of bribery', 'bribery or corruption', 'incidents of corruption', 'corruption been identified', 'corruption or bribery', 'bribery been identified'], domain: 'goals', topics: ['fines_sanctions'], weight: 16 },
+    { keywords: ['eco-label', 'ecolabel', 'eu ecolabel', 'blue angel', 'nordic swan', 'type i ecolabel'], domain: 'regulatory', topics: ['ecolabels'], weight: 16 },
+    { keywords: ['sustainable fibers', 'sustainable fibres', 'recycled polyester', 'recycled cotton', 'organic cotton', 'gots', 'grs', 'rds', 'animal-derived', 'animal welfare', 'primary fibers', 'primary fibres', 'leather, wool', 'wool, down'], domain: 'materials', topics: ['sustainable_materials'], weight: 16 },
+    { keywords: ['conflict minerals', 'responsible minerals', '3tg', 'cmrt', 'emrt', 'tantalum', 'tungsten', 'cobalt', 'smelter', 'refiner', 'oecd due diligence', 'conflict-free', 'drc conflict'], domain: 'materials', topics: ['conflict_minerals'], weight: 16 },
     // === GHG Emissions (all scopes route to 'emissions' domain) ===
     { keywords: ['scope 1', 'scope1', 'direct emission', 'direct ghg', 'stationary combustion', 'mobile combustion', 'fugitive'], domain: 'emissions', topics: ['ghg_emissions', 'scope_1'], weight: 10 },
     { keywords: ['scope 2', 'scope2', 'indirect emission', 'purchased electricity emission', 'purchased energy emission', 'market-based', 'location-based'], domain: 'emissions', topics: ['ghg_emissions', 'scope_2'], weight: 10 },
@@ -33,24 +46,31 @@ export const ESG_KEYWORD_RULES = [
     { keywords: ['water consumption', 'water use', 'water withdrawal', 'water intake', 'water intensity'], domain: 'energy_water', topics: ['water_usage'], weight: 9 },
     { keywords: ['wastewater', 'effluent', 'water discharge', 'water treatment', 'water pollution'], domain: 'effluents', topics: ['wastewater', 'water_usage'], weight: 9 },
     { keywords: ['water stress', 'water scarcity', 'water risk', 'water-stressed'], domain: 'energy_water', topics: ['water_stress'], weight: 10 },
+    { keywords: ['irrigation', 'irrigation water', 'water reused', 'water reuse'], domain: 'energy_water', topics: ['water_usage', 'sector_metrics'], weight: 12 },
     // === Waste (fine-grained topics) ===
     { keywords: ['total waste', 'waste generated', 'waste volume', 'waste weight'], domain: 'waste', topics: ['waste_total'], weight: 10 },
     { keywords: ['recycling', 'recycle', 'recycled', 'diversion rate', 'waste diversion'], domain: 'waste', topics: ['recycling'], weight: 10 },
     { keywords: ['hazardous waste', 'hazardous material', 'dangerous goods', 'special waste'], domain: 'waste', topics: ['hazardous_waste'], weight: 11 },
+    { keywords: ['medical waste', 'pharmaceutical waste', 'clinical waste'], domain: 'waste', topics: ['healthcare_waste'], weight: 12 },
+    { keywords: ['tailings', 'tailings generated', 'mine waste'], domain: 'waste', topics: ['mining_metrics'], weight: 12 },
     { keywords: ['circular economy', 'circularity', 'closed loop', 'take-back', 'reuse', 'refurbish'], domain: 'waste', topics: ['circular_economy'], weight: 10 },
     { keywords: ['waste', 'landfill', 'incineration', 'disposal'], domain: 'waste', topics: ['waste_management'], weight: 7 },
     // === Materials & Packaging ===
     { keywords: ['raw material', 'material consumption', 'material use', 'virgin material', 'primary material', 'recycled source', 'primary raw'], domain: 'materials', topics: ['raw_materials'], weight: 11 },
+    { keywords: ['fertilizer', 'fertiliser', 'pesticide', 'land use', 'hectares', 'seasonal workers'], domain: 'materials', topics: ['agriculture_inputs', 'raw_materials'], weight: 12 },
+    { keywords: ['ore processed', 'material processed', 'rehabilitated land', 'mining inputs'], domain: 'materials', topics: ['mining_metrics', 'raw_materials'], weight: 12 },
+    { keywords: ['concrete', 'steel tonnes', 'equipment hours', 'construction materials'], domain: 'materials', topics: ['construction_materials', 'raw_materials'], weight: 12 },
     { keywords: ['recycled content', 'recycled material', 'secondary material', 'post-consumer', 'pre-consumer'], domain: 'materials', topics: ['raw_materials', 'circular_economy'], weight: 10 },
     { keywords: ['packaging', 'package', 'packaging material', 'single-use', 'plastic packaging', 'recyclable packaging'], domain: 'packaging', topics: ['packaging'], weight: 10 },
     // === Supply Chain ===
-    { keywords: ['supplier code of conduct', 'supplier assessment', 'supplier audit', 'supplier screening'], domain: 'buyer_requirements', topics: ['supplier_code', 'ethics'], weight: 10 },
+    { keywords: ['supplier assessment', 'supplier audit', 'supplier screening', 'suppliers assessed', 'percentage of suppliers', 'percent of suppliers', '% of suppliers'], domain: 'buyer_requirements', topics: ['supply_chain_monitoring'], weight: 16 },
     { keywords: ['supply chain esg', 'supply chain sustainability', 'supplier esg', 'esg performance supply'], domain: 'buyer_requirements', topics: ['supply_chain_monitoring'], weight: 10 },
     { keywords: ['conflict minerals', 'cmrt', 'conflict mineral reporting', '3tg', 'responsible minerals'], domain: 'materials', topics: ['conflict_minerals', 'compliance'], weight: 10 },
     { keywords: ['supplier', 'supply chain', 'vendor', 'procurement', 'sourcing'], domain: 'materials', topics: ['supplier_management'], weight: 7 },
     // === Transport & Logistics ===
     { keywords: ['business travel', 'employee commuting', 'commute'], domain: 'transport', topics: ['scope_3', 'business_travel'], weight: 10 },
-    { keywords: ['fleet', 'vehicle', 'truck', 'delivery', 'fleet composition'], domain: 'transport', topics: ['fleet'], weight: 9 },
+    { keywords: ['remote work', 'work from home', 'wfh'], domain: 'transport', topics: ['business_travel', 'scope_3'], weight: 10 },
+    { keywords: ['fleet', 'vehicle', 'truck', 'delivery', 'fleet composition', 'km driven', 'kilometers driven', 'alternative fuel vehicles'], domain: 'transport', topics: ['fleet'], weight: 9 },
     { keywords: ['transport', 'transportation', 'logistics', 'shipping', 'freight', 'distribution'], domain: 'transport', topics: ['transport', 'logistics'], weight: 8 },
     // === Workforce (fine-grained topics) ===
     { keywords: ['employee', 'headcount', 'fte', 'full-time equivalent', 'workforce size', 'staff', 'personnel', 'how many employees'], domain: 'workforce', topics: ['employee_count'], weight: 9 },
@@ -100,7 +120,9 @@ export const ESG_KEYWORD_RULES = [
     { keywords: ['procurement decision', 'sourcing decision', 'sustainable procurement', 'sustainability procurement', 'sustainability considerations'], domain: 'goals', topics: ['strategy', 'supplier_management'], weight: 9 },
     // === Company Profile ===
     { keywords: ['company name', 'legal name', 'legal entity', 'registered name', 'headquarters', 'head office'], domain: 'company', topics: ['company_profile'], weight: 8 },
-    { keywords: ['product', 'service', 'output', 'production volume', 'main products', 'primary markets'], domain: 'products', topics: ['products_services'], weight: 8 },
+    { keywords: ['production volume', 'units produced', 'production hours', 'production output'], domain: 'products', topics: ['production_metrics', 'products_services'], weight: 12 },
+    { keywords: ['warehouse space', 'deliveries made', 'store count', 'store area', 'office space'], domain: 'products', topics: ['facility_metrics', 'products_services'], weight: 11 },
+    { keywords: ['product', 'service', 'output', 'main products', 'primary markets'], domain: 'products', topics: ['products_services'], weight: 8 },
     { keywords: ['revenue', 'turnover', 'sales', 'financial', 'revenue band'], domain: 'financial_context', topics: ['revenue'], weight: 8 },
     { keywords: ['site', 'facility', 'location', 'plant', 'factory', 'office', 'premises'], domain: 'site', topics: ['facilities'], weight: 7 },
     { keywords: ['target', 'goal', 'objective', 'ambition'], domain: 'goals', topics: ['targets', 'strategy'], weight: 6 },

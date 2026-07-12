@@ -11,4 +11,6 @@ export { createRewriter } from './defensiveRewriter';
 export type { RewriterInstance } from './defensiveRewriter';
 export { exportToExcel, exportToBuffer } from './excelExporter';
 export type { ExportOptions } from './excelExporter';
+export { registerPlaybook, getRegisteredPlaybooks, getDefaultPlaybooks, getPlaybookById, clearPlaybooks, resetPlaybooks, scorePlaybooks, detectPlaybook, } from './playbookRegistry';
+export { findLibraryMatches } from './libraryMatcher';
 //# sourceMappingURL=index.d.ts.map

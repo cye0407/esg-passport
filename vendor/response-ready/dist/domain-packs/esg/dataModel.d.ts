@@ -15,6 +15,7 @@ export interface ESGCompanyData {
     subsidiaries?: string;
     customerTypes?: string;
     mainMarkets?: string;
+    industryMetrics?: Record<string, Record<string, number>>;
     registeredAddress?: string;
     noSignificantFines?: string;
     dataProtectionPolicy?: boolean;

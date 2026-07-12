@@ -1,4 +1,4 @@
-import type { ParsedQuestion, MatchResult, KeywordRule, MappingRule } from '../types';
+import type { ParsedQuestion, MatchResult, KeywordRule, MappingRule, TermAlias } from '../types';
 export interface KeywordMatcherInstance {
     matchQuestion: (question: ParsedQuestion) => MatchResult;
     matchQuestions: (questions: ParsedQuestion[]) => MatchResult[];
@@ -16,5 +16,5 @@ export interface KeywordMatcherInstance {
  * @param keywordRules - Keyword rules from the domain pack
  * @param domainSuggestions - Suggested data points per domain
  */
-export declare function createMatcher(keywordRules: KeywordRule[], domainSuggestions: Record<string, string[]>): KeywordMatcherInstance;
+export declare function createMatcher(keywordRules: KeywordRule[], domainSuggestions: Record<string, string[]>, termAliases?: TermAlias[]): KeywordMatcherInstance;
 //# sourceMappingURL=keywordMatcher.d.ts.map
