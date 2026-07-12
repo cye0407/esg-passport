@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getRequestById, saveRequest, getConfidenceRecords, getPolicies, getAnnualTotals } from '@/lib/store';
 import { REQUEST_STATUSES, QUESTIONNAIRE_TOPICS, QUESTIONNAIRE_TEMPLATES } from '@/lib/constants';
+import { useLanguage } from '@/components/LanguageContext';
+import { localizeStatus, localizeTopic, localizeTemplate, localizeDataPoint } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { ArrowLeft, Building2, Calendar, CheckCircle2, AlertCircle, XCircle, Send, Clock, Upload } from 'lucide-react';
 
 export default function RequestWorkspace() {
+  const { lang, t } = useLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const [request, setRequest] = useState(null);
@@ -39,7 +42,7 @@ export default function RequestWorkspace() {
 
   const handleTopicToggle = (topicId) => {
     const newTopics = selectedTopics.includes(topicId)
-      ? selectedTopics.filter(t => t !== topicId)
+      ? selectedTopics.filter(x => x !== topicId)
       : [...selectedTopics, topicId];
     setSelectedTopics(newTopics);
     handleUpdate({ questionnaire: { ...request.questionnaire, requestedTopics: newTopics } });
@@ -59,13 +62,13 @@ export default function RequestWorkspace() {
     setTimeout(() => setStatusSaved(false), 3000);
   };
 
-  if (!request) return <div className="p-8 text-center text-slate-400">Loading...</div>;
+  if (!request) return <div className="p-8 text-center text-slate-400">{t('rw.loading')}</div>;
 
   // Analyze readiness for selected topics
   const getDataPointsForTopics = () => {
     const dataPoints = new Set();
     selectedTopics.forEach(topicId => {
-      const topic = QUESTIONNAIRE_TOPICS.find(t => t.id === topicId);
+      const topic = QUESTIONNAIRE_TOPICS.find(tp => tp.id === topicId);
       if (topic) topic.dataPoints.forEach(dp => dataPoints.add(dp));
     });
     return Array.from(dataPoints);
@@ -92,20 +95,21 @@ export default function RequestWorkspace() {
 
   const days = getDaysUntil(request.deadline);
   const statusBadge = REQUEST_STATUSES.find(s => s.value === request.status) || { label: request.status, color: 'bg-gray-100' };
+  const dateLocale = lang === 'de' ? 'de-DE' : 'en-GB';
 
   return (
     <div className="space-y-6">
       {/* Status feedback */}
       {statusSaved && (
         <div className="fixed top-20 right-4 bg-green-100 text-green-800 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" /> Status updated
+          <CheckCircle2 className="w-4 h-4" /> {t('rw.statusUpdated')}
         </div>
       )}
 
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link to="/requests">
-          <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" /> Back</Button>
+          <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" /> {t('btn.back')}</Button>
         </Link>
       </div>
 
@@ -117,12 +121,12 @@ export default function RequestWorkspace() {
               <h1 className="text-2xl font-bold text-slate-900">{request.customerName}</h1>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-              <span className={cn('px-2 py-1 rounded', statusBadge.color)}>{statusBadge.label}</span>
-              <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> Received: {new Date(request.dateReceived).toLocaleDateString()}</span>
+              <span className={cn('px-2 py-1 rounded', statusBadge.color)}>{localizeStatus(request.status, statusBadge.label, lang)}</span>
+              <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {t('rw.received', { date: new Date(request.dateReceived).toLocaleDateString(dateLocale) })}</span>
               {request.deadline && (
                 <span className={cn('flex items-center gap-1 px-2 py-1 rounded', days < 0 ? 'bg-red-100 text-red-700' : days <= 7 ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700')}>
                   <Clock className="w-4 h-4" />
-                  {days < 0 ? `Overdue by ${Math.abs(days)}d` : `Due in ${days}d`}
+                  {days < 0 ? t('rw.overdueBy', { days: Math.abs(days) }) : t('rw.dueIn', { days })}
                 </span>
               )}
             </div>
@@ -130,19 +134,19 @@ export default function RequestWorkspace() {
           <Select value={request.status} onValueChange={(v) => handleUpdate({ status: v })}>
             <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {REQUEST_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+              {REQUEST_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{localizeStatus(s.value, s.label, lang)}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
 
         {/* Quick Template Selector */}
         <div className="mb-6">
-          <Label className="text-sm text-slate-500 mb-2 block">Quick select questionnaire type:</Label>
+          <Label className="text-sm text-slate-500 mb-2 block">{t('rw.quickSelect')}</Label>
           <div className="flex flex-wrap gap-2">
             {Object.entries(QUESTIONNAIRE_TEMPLATES).map(([key, template]) => (
               <Button key={key} variant="outline" size="sm" onClick={() => applyTemplate(key)}
                 className={cn(request.questionnaire?.type === key && 'bg-indigo-600 text-white')}>
-                {template.name}
+                {localizeTemplate(key, template.name, lang)}
               </Button>
             ))}
           </div>
@@ -150,12 +154,12 @@ export default function RequestWorkspace() {
 
         {/* What They're Asking For */}
         <div className="mb-6">
-          <Label className="text-sm font-medium text-slate-900 mb-3 block">What they're asking for:</Label>
+          <Label className="text-sm font-medium text-slate-900 mb-3 block">{t('rw.asking')}</Label>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {QUESTIONNAIRE_TOPICS.map(topic => (
               <label key={topic.id} className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
                 <Checkbox checked={selectedTopics.includes(topic.id)} onCheckedChange={() => handleTopicToggle(topic.id)} />
-                <span className="text-sm text-slate-900">{topic.label}</span>
+                <span className="text-sm text-slate-900">{localizeTopic(topic.id, topic.label, lang)}</span>
               </label>
             ))}
           </div>
@@ -165,45 +169,45 @@ export default function RequestWorkspace() {
       {/* Readiness Analysis */}
       {selectedTopics.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-none p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Your Data Readiness</h2>
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">{t('rw.readiness')}</h2>
 
           <div className="grid sm:grid-cols-3 gap-4 mb-6">
             <div className="p-4 rounded-none bg-green-50 border border-green-200">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
-                <span className="font-medium text-green-800">Ready to Share ({readyDataPoints.length})</span>
+                <span className="font-medium text-green-800">{t('rw.readyToShare', { count: readyDataPoints.length })}</span>
               </div>
               <div className="text-sm text-green-700">
                 {readyDataPoints.length > 0 ? readyDataPoints.map(dp => {
                   const conf = confidence.find(c => c.id === dp);
-                  return conf?.label;
-                }).join(', ') : 'None yet'}
+                  return localizeDataPoint(dp, conf?.label, lang);
+                }).join(', ') : t('rw.noneYet')}
               </div>
             </div>
 
             <div className="p-4 rounded-none bg-yellow-50 border border-yellow-200">
               <div className="flex items-center gap-2 mb-2">
                 <AlertCircle className="w-5 h-5 text-yellow-600" />
-                <span className="font-medium text-yellow-800">Needs Attention ({needsAttention.length})</span>
+                <span className="font-medium text-yellow-800">{t('rw.needsAttention', { count: needsAttention.length })}</span>
               </div>
               <div className="text-sm text-yellow-700">
                 {needsAttention.length > 0 ? needsAttention.map(dp => {
                   const conf = confidence.find(c => c.id === dp);
-                  return conf?.label;
-                }).join(', ') : 'None'}
+                  return localizeDataPoint(dp, conf?.label, lang);
+                }).join(', ') : t('rw.none')}
               </div>
             </div>
 
             <div className="p-4 rounded-none bg-gray-50 border border-gray-200">
               <div className="flex items-center gap-2 mb-2">
                 <XCircle className="w-5 h-5 text-gray-500" />
-                <span className="font-medium text-gray-700">Not Tracked ({notTracked.length})</span>
+                <span className="font-medium text-gray-700">{t('rw.notTracked', { count: notTracked.length })}</span>
               </div>
               <div className="text-sm text-gray-600">
                 {notTracked.length > 0 ? notTracked.map(dp => {
                   const conf = confidence.find(c => c.id === dp);
-                  return conf?.label || dp;
-                }).join(', ') : 'All tracked!'}
+                  return localizeDataPoint(dp, conf?.label || dp, lang);
+                }).join(', ') : t('rw.allTracked')}
               </div>
             </div>
           </div>
@@ -212,12 +216,12 @@ export default function RequestWorkspace() {
           <div className="flex flex-wrap gap-3">
             <Link to={`/respond?requestId=${request.id}`}>
               <Button className="bg-slate-900 hover:bg-slate-800 text-white">
-                <Upload className="w-4 h-4 mr-2" /> Upload & Prepare Answers
+                <Upload className="w-4 h-4 mr-2" /> {t('rw.uploadPrepare')}
               </Button>
             </Link>
             {request.status !== 'sent' && (
               <Button variant="outline" onClick={handleMarkAsSent}>
-                <Send className="w-4 h-4 mr-2" /> Mark as Sent
+                <Send className="w-4 h-4 mr-2" /> {t('rw.markSent')}
               </Button>
             )}
           </div>
@@ -227,18 +231,18 @@ export default function RequestWorkspace() {
       {/* Empty state when no topics selected */}
       {selectedTopics.length === 0 && (
         <div className="bg-white border border-slate-200 rounded-none p-8 text-center text-slate-400">
-          <p className="font-medium text-slate-500">Select questionnaire topics above to see your data readiness</p>
-          <p className="text-sm mt-1">Or choose a quick template (EcoVadis, CDP, etc.) to auto-select relevant topics</p>
+          <p className="font-medium text-slate-500">{t('rw.emptyTitle')}</p>
+          <p className="text-sm mt-1">{t('rw.emptyHint')}</p>
         </div>
       )}
 
       {/* Notes */}
       <div className="bg-white border border-slate-200 rounded-none p-6">
-        <Label className="text-sm font-medium text-slate-900 mb-2 block">Notes</Label>
+        <Label className="text-sm font-medium text-slate-900 mb-2 block">{t('rw.notes')}</Label>
         <Textarea
           value={request.notes || ''}
           onChange={(e) => handleUpdate({ notes: e.target.value })}
-          placeholder="Add notes about this request..."
+          placeholder={t('rw.notesPh')}
           rows={3}
         />
       </div>
