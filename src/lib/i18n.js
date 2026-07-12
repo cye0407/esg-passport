@@ -501,6 +501,24 @@ const translations = {
     'bill.apply': 'Apply {count} fields',
     'bill.next': ' → Next',
     'bill.raw': 'raw:',
+    // Requests page
+    'req.title': 'Customer Requests',
+    'req.subtitle': 'Track and respond to sustainability data requests',
+    'req.logRequest': 'Log Request',
+    'req.logNew': 'Log New Request',
+    'req.customerName': 'Customer Name *',
+    'req.customerNamePh': 'e.g., ACME Corp',
+    'req.platform': 'Platform',
+    'req.deadline': 'Deadline',
+    'req.asking': 'What are they asking for?',
+    'req.askingPh': 'e.g., Scope 1+2 emissions, policies...',
+    'req.total': 'Total',
+    'req.open': 'Open',
+    'req.sent': 'Sent',
+    'req.logFirst': 'Log your first customer request to get started',
+    'req.confirm': 'Confirm',
+    'pol.subtitle': 'Track your environmental, social, and governance policies',
+    'doc.subtitle': 'Register certificates, audit reports, and evidence',
     // Buttons & labels
     'btn.save': 'Save',
     'btn.saving': 'Saving...',
@@ -1117,6 +1135,23 @@ const translations = {
     'bill.apply': '{count} Felder übernehmen',
     'bill.next': ' → Weiter',
     'bill.raw': 'Rohwert:',
+    'req.title': 'Kundenanfragen',
+    'req.subtitle': 'Datenanfragen zur Nachhaltigkeit verfolgen und beantworten',
+    'req.logRequest': 'Anfrage erfassen',
+    'req.logNew': 'Neue Anfrage erfassen',
+    'req.customerName': 'Kundenname *',
+    'req.customerNamePh': 'z. B. ACME GmbH',
+    'req.platform': 'Plattform',
+    'req.deadline': 'Frist',
+    'req.asking': 'Wonach wird gefragt?',
+    'req.askingPh': 'z. B. Scope-1+2-Emissionen, Richtlinien...',
+    'req.total': 'Gesamt',
+    'req.open': 'Offen',
+    'req.sent': 'Gesendet',
+    'req.logFirst': 'Erfassen Sie Ihre erste Kundenanfrage, um zu starten',
+    'req.confirm': 'Bestätigen',
+    'pol.subtitle': 'Verfolgen Sie Ihre Umwelt-, Sozial- und Governance-Richtlinien',
+    'doc.subtitle': 'Zertifikate, Prüfberichte und Nachweise erfassen',
     'btn.save': 'Speichern',
     'btn.saving': 'Wird gespeichert...',
     'btn.import': 'CSV importieren',
@@ -1507,8 +1542,10 @@ const PROFILE_OPTION_DE = {
   'Cooperative': 'Genossenschaft',
   'Non-profit': 'Gemeinnützig',
   'Other': 'Sonstige',
-  // Customer types
+  // Customer types / request platforms
   'Government / Public sector': 'Behörden / Öffentlicher Sektor',
+  'Supplier Portal': 'Lieferantenportal',
+  'Custom Request (Email/PDF)': 'Eigene Anfrage (E-Mail/PDF)',
   // Certifications (ISO number stays; parenthetical translated)
   'ISO 9001 (Quality)': 'ISO 9001 (Qualität)',
   'ISO 14001 (Environment)': 'ISO 14001 (Umwelt)',
@@ -1531,4 +1568,25 @@ const PROFILE_OPTION_DE = {
 export function localizeProfileOption(value, lang = 'en') {
   if (lang === 'de') return PROFILE_OPTION_DE[value] || value;
   return value;
+}
+
+// Status enum labels (REQUEST_STATUSES / POLICY_STATUSES / DATA_STATUSES). The stored
+// value (e.g. 'in_progress') stays stable; only the display label is localized.
+const STATUS_DE = {
+  received: 'Empfangen',
+  in_progress: 'In Bearbeitung',
+  ready: 'Sendebereit',
+  sent: 'Gesendet',
+  closed: 'Geschlossen',
+  available: 'Vorhanden',
+  not_applicable: 'Nicht zutreffend',
+  not_available: 'Nicht vorhanden',
+  not_planned: 'Nicht geplant',
+  not_started: 'Nicht begonnen',
+  complete: 'Abgeschlossen',
+};
+
+export function localizeStatus(value, fallbackLabel, lang = 'en') {
+  if (lang === 'de') return STATUS_DE[value] || fallbackLabel;
+  return fallbackLabel;
 }
