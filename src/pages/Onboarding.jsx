@@ -4,6 +4,7 @@ import { getSettings, saveCompanyProfile, saveSettings } from '@/lib/store';
 import { track, trackOnce } from '@/lib/track';
 import { INDUSTRIES, COUNTRIES, EMISSION_FACTORS } from '@/lib/constants';
 import { useLanguage } from '@/components/LanguageContext';
+import { localizeIndustry, localizeCountry } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -231,7 +232,7 @@ export default function Onboarding() {
                 <Select value={industry} onValueChange={(v) => { setIndustry(v); if (v !== 'Other') setCustomIndustry(''); }}>
                   <SelectTrigger className="h-12"><SelectValue placeholder={t('onboard.industryPlaceholder')} /></SelectTrigger>
                   <SelectContent>
-                    {INDUSTRIES.map((ind) => <SelectItem key={ind} value={ind}>{ind}</SelectItem>)}
+                    {INDUSTRIES.map((ind) => <SelectItem key={ind} value={ind}>{localizeIndustry(ind, lang)}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 {industry === 'Other' && (
@@ -252,7 +253,7 @@ export default function Onboarding() {
                   <Select value={country} onValueChange={setCountry}>
                     <SelectTrigger className="h-12"><SelectValue placeholder={t('onboard.countryPlaceholder')} /></SelectTrigger>
                     <SelectContent>
-                      {COUNTRIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                      {COUNTRIES.map((c) => <SelectItem key={c.code} value={c.code}>{localizeCountry(c.code, c.name, lang)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

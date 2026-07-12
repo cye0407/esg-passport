@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getCompanyProfile, saveCompanyProfile } from '@/lib/store';
 import { INDUSTRIES, COUNTRIES } from '@/lib/constants';
+import { useLanguage } from '@/components/LanguageContext';
+import { localizeIndustry, localizeCountry, localizeProfileOption } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -103,6 +105,7 @@ const FIELDS = [
 ];
 
 export default function CompanyProfileSection() {
+  const { lang, t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [profile, setProfile] = useState({});
   const [saved, setSaved] = useState(false);
@@ -147,7 +150,7 @@ export default function CompanyProfileSection() {
 
   const handleToggle = () => {
     if (open && hasChanges) {
-      const ok = window.confirm('You have unsaved changes to your Company Profile. Collapse anyway and lose them?');
+      const ok = window.confirm(t('cps.confirmCollapse'));
       if (!ok) return;
       // Reset in-memory edits back to last saved state
       const stored = getCompanyProfile() || {};
@@ -188,9 +191,9 @@ export default function CompanyProfileSection() {
         <div className="flex items-center gap-3">
           <Building2 className="w-5 h-5 text-slate-700" />
           <div className="text-left">
-            <h2 className="text-base font-semibold text-slate-900">Company Profile</h2>
+            <h2 className="text-base font-semibold text-slate-900">{t('cps.title')}</h2>
             <p className="text-xs text-slate-500">
-              {completionCount} of {FIELDS.length} fields complete · {completionPercent}%
+              {t('cps.completion', { count: completionCount, total: FIELDS.length, percent: completionPercent })}
             </p>
           </div>
         </div>
@@ -209,122 +212,122 @@ export default function CompanyProfileSection() {
       {open && (
         <div className="border-t border-slate-200 p-6 space-y-6">
           <p className="text-xs text-slate-500">
-            These fields populate the qualitative answers in your questionnaires. The more complete your profile, the more personalized your responses.
+            {t('cps.intro')}
           </p>
 
           {/* Identity */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Legal Name</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.legalName')}</Label>
               <Input value={profile.legalName || ''} onChange={(e) => update('legalName', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Trading Name</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.tradingName')}</Label>
               <Input value={profile.tradingName || ''} onChange={(e) => update('tradingName', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">ESG Contact Email</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.esgContactEmail')}</Label>
               <Input type="email" value={profile.esgContactEmail || ''} onChange={(e) => update('esgContactEmail', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Year Founded</Label>
-              <Input type="number" value={profile.yearFounded || ''} onChange={(e) => update('yearFounded', e.target.value)} placeholder="e.g. 1998" />
+              <Label className="text-xs font-medium text-slate-700">{t('cps.yearFounded')}</Label>
+              <Input type="number" value={profile.yearFounded || ''} onChange={(e) => update('yearFounded', e.target.value)} placeholder={t('cps.yearFoundedPh')} />
             </div>
           </div>
 
           {/* Registered address */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-700">Registered Address</Label>
+            <Label className="text-xs font-medium text-slate-700">{t('cps.registeredAddress')}</Label>
             <Input
               value={profile.registeredAddress || ''}
               onChange={(e) => update('registeredAddress', e.target.value)}
-              placeholder="e.g. Industriestr. 24, 40231 Düsseldorf, Germany"
+              placeholder={t('cps.registeredAddressPh')}
             />
           </div>
 
           {/* Industry / location */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Industry</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.industry')}</Label>
               <Select value={profile.industrySector || ''} onValueChange={(v) => update('industrySector', v)}>
-                <SelectTrigger><SelectValue placeholder="Select industry" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.selectIndustry')} /></SelectTrigger>
                 <SelectContent>
-                  {INDUSTRIES.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                  {INDUSTRIES.map(i => <SelectItem key={i} value={i}>{localizeIndustry(i, lang)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Country of Incorporation</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.country')}</Label>
               <Select value={profile.countryOfIncorporation || ''} onValueChange={(v) => update('countryOfIncorporation', v)}>
-                <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.selectCountry')} /></SelectTrigger>
                 <SelectContent>
-                  {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                  {COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{localizeCountry(c.code, c.name, lang)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Total Employees (FTE)</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.totalEmployees')}</Label>
               <Input type="number" value={profile.totalEmployees || ''} onChange={(e) => update('totalEmployees', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Number of Sites / Facilities</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.facilities')}</Label>
               <Input type="number" value={profile.numberOfFacilities || ''} onChange={(e) => update('numberOfFacilities', e.target.value)} />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-xs font-medium text-slate-700">Operating Countries</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.operatingCountries')}</Label>
               <Input
                 value={profile.operatingCountries || ''}
                 onChange={(e) => update('operatingCountries', e.target.value)}
-                placeholder="e.g. Germany, France, Poland"
+                placeholder={t('cps.operatingCountriesPh')}
               />
             </div>
           </div>
 
           {/* Products / services */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-700">Products / Services</Label>
+            <Label className="text-xs font-medium text-slate-700">{t('cps.products')}</Label>
             <Textarea
               rows={3}
               value={profile.productsServices || ''}
               onChange={(e) => update('productsServices', e.target.value)}
-              placeholder="Brief description of what your company makes or sells. e.g. 'Precision-machined components for the automotive aftermarket.'"
+              placeholder={t('cps.productsPh')}
             />
           </div>
 
           {/* Ownership / structure */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Ownership Structure</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.ownership')}</Label>
               <Select value={profile.ownership || ''} onValueChange={(v) => update('ownership', v)}>
-                <SelectTrigger><SelectValue placeholder="Select ownership type" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.selectOwnership')} /></SelectTrigger>
                 <SelectContent>
-                  {OWNERSHIP_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  {OWNERSHIP_OPTIONS.map(o => <SelectItem key={o} value={o}>{localizeProfileOption(o, lang)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Annual Revenue Band</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.revenue')}</Label>
               <Select value={profile.revenueBand || ''} onValueChange={(v) => update('revenueBand', v)}>
-                <SelectTrigger><SelectValue placeholder="Select range" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.selectRange')} /></SelectTrigger>
                 <SelectContent>
-                  {REVENUE_BANDS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  {REVENUE_BANDS.map(r => <SelectItem key={r} value={r}>{localizeProfileOption(r, lang)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Parent Company (if any)</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.parent')}</Label>
               <Input value={profile.parentCompany || ''} onChange={(e) => update('parentCompany', e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Subsidiaries (if any)</Label>
-              <Input value={profile.subsidiaries || ''} onChange={(e) => update('subsidiaries', e.target.value)} placeholder="Comma-separated" />
+              <Label className="text-xs font-medium text-slate-700">{t('cps.subsidiaries')}</Label>
+              <Input value={profile.subsidiaries || ''} onChange={(e) => update('subsidiaries', e.target.value)} placeholder={t('cps.commaSeparated')} />
             </div>
           </div>
 
           {/* Customers / markets */}
           <div className="space-y-3">
             <div>
-              <Label className="text-xs font-medium text-slate-700 block mb-2">Customer Types</Label>
+              <Label className="text-xs font-medium text-slate-700 block mb-2">{t('cps.customerTypes')}</Label>
               <div className="flex flex-wrap gap-2">
                 {CUSTOMER_TYPES.map(ct => {
                   const checked = (profile.customerTypes || []).includes(ct);
@@ -339,25 +342,25 @@ export default function CompanyProfileSection() {
                           : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                       }`}
                     >
-                      {ct}
+                      {localizeProfileOption(ct, lang)}
                     </button>
                   );
                 })}
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Main Markets</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.mainMarkets')}</Label>
               <Input
                 value={profile.mainMarkets || ''}
                 onChange={(e) => update('mainMarkets', e.target.value)}
-                placeholder="e.g. Western Europe, North America"
+                placeholder={t('cps.mainMarketsPh')}
               />
             </div>
           </div>
 
           {/* Certifications */}
           <div>
-            <Label className="text-xs font-medium text-slate-700 block mb-2">Certifications</Label>
+            <Label className="text-xs font-medium text-slate-700 block mb-2">{t('cps.certifications')}</Label>
             <div className="flex flex-wrap gap-2">
               {CERTIFICATIONS.map(c => {
                 const checked = (profile.certifications || []).includes(c);
@@ -372,7 +375,7 @@ export default function CompanyProfileSection() {
                         : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                     }`}
                   >
-                    {c}
+                    {localizeProfileOption(c, lang)}
                   </button>
                 );
               })}
@@ -382,27 +385,26 @@ export default function CompanyProfileSection() {
           {/* Social governance */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Living Wage Compliance</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.livingWage')}</Label>
               <Select value={profile.livingWageCompliant || ''} onValueChange={(v) => update('livingWageCompliant', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.select')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="yes">Yes — all employees paid at or above living wage</SelectItem>
-                  <SelectItem value="no">No / Not yet assessed</SelectItem>
-                  <SelectItem value="not_applicable">Not applicable to this business</SelectItem>
+                  <SelectItem value="yes">{t('cps.livingWageYes')}</SelectItem>
+                  <SelectItem value="no">{t('cps.livingWageNo')}</SelectItem>
+                  <SelectItem value="not_applicable">{t('cps.naBusiness')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Formal Policies</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.formalPolicies')}</Label>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Documented policies and formal mechanisms are managed in the Policies tab. Use that page for data privacy,
-                human rights, supplier code, and whistleblower / grievance status.
+                {t('cps.formalPoliciesBody')}
               </p>
               <Link
                 to="/policies"
                 className="inline-flex items-center gap-1 text-xs font-medium text-slate-900 hover:text-slate-700 underline underline-offset-2"
               >
-                Open Policies
+                {t('cps.openPolicies')}
                 <ArrowUpRight className="w-3 h-3" />
               </Link>
             </div>
@@ -411,65 +413,65 @@ export default function CompanyProfileSection() {
           {/* Governance & compliance */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Significant Fines / Sanctions (past 3 years)</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.fines')}</Label>
               <Select value={profile.noSignificantFines || ''} onValueChange={(v) => update('noSignificantFines', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.select')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="yes">Yes — details available</SelectItem>
+                  <SelectItem value="none">{t('cps.none')}</SelectItem>
+                  <SelectItem value="yes">{t('cps.finesYes')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">CSRD Applicability</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.csrd')}</Label>
               <Select value={profile.csrdApplicable || ''} onValueChange={(v) => update('csrdApplicable', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.select')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="yes">Yes — in scope</SelectItem>
-                  <SelectItem value="assessing">Currently assessing</SelectItem>
-                  <SelectItem value="no">Not currently in scope</SelectItem>
+                  <SelectItem value="yes">{t('cps.csrdYes')}</SelectItem>
+                  <SelectItem value="assessing">{t('cps.csrdAssessing')}</SelectItem>
+                  <SelectItem value="no">{t('cps.csrdNo')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">External ESG Data Assurance</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.assurance')}</Label>
               <Select value={profile.externalAssurance || ''} onValueChange={(v) => update('externalAssurance', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.select')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="yes">Yes — externally assured</SelectItem>
-                  <SelectItem value="no">No — not yet assured</SelectItem>
-                  <SelectItem value="not_applicable">Not applicable to this business</SelectItem>
+                  <SelectItem value="yes">{t('cps.assuranceYes')}</SelectItem>
+                  <SelectItem value="no">{t('cps.assuranceNo')}</SelectItem>
+                  <SelectItem value="not_applicable">{t('cps.naBusiness')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {profile.externalAssurance === 'yes' && (
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-slate-700">Assurance Standard</Label>
+                <Label className="text-xs font-medium text-slate-700">{t('cps.assuranceStandard')}</Label>
                 <Input
                   value={profile.assuranceStandard || ''}
                   onChange={(e) => update('assuranceStandard', e.target.value)}
-                  placeholder="e.g. ISAE 3000, AA1000"
+                  placeholder={t('cps.assuranceStandardPh')}
                 />
               </div>
             )}
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Publish Sustainability Report?</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.publishReport')}</Label>
               <Select value={profile.publishesSustainabilityReport || ''} onValueChange={(v) => update('publishesSustainabilityReport', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.select')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="yes">Yes — published</SelectItem>
-                  <SelectItem value="no">No — not yet</SelectItem>
-                  <SelectItem value="not_applicable">Not applicable to this business</SelectItem>
+                  <SelectItem value="yes">{t('cps.publishYes')}</SelectItem>
+                  <SelectItem value="no">{t('cps.publishNo')}</SelectItem>
+                  <SelectItem value="not_applicable">{t('cps.naBusiness')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {profile.publishesSustainabilityReport === 'yes' && (
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-slate-700">Reporting Framework</Label>
+                <Label className="text-xs font-medium text-slate-700">{t('cps.framework')}</Label>
                 <Input
                   value={profile.reportingFramework || ''}
                   onChange={(e) => update('reportingFramework', e.target.value)}
-                  placeholder="e.g. GRI, CSRD/ESRS, TCFD"
+                  placeholder={t('cps.frameworkPh')}
                 />
               </div>
             )}
@@ -477,69 +479,68 @@ export default function CompanyProfileSection() {
 
           {/* Policy and process status */}
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-            Formal policy ownership lives in the Policies tab. This section is only for process-specific statuses and
-            operational notes that do not map cleanly to a single tracked policy document.
+            {t('cps.policyNote')}
             <div className="mt-2 flex flex-wrap gap-3">
               <Link to="/policies" className="inline-flex items-center gap-1 font-medium text-slate-900 hover:text-slate-700 underline underline-offset-2">
-                Manage formal policies
+                {t('cps.managePolicies')}
                 <ArrowUpRight className="w-3 h-3" />
               </Link>
-              <span>Examples: Data Privacy, Human Rights Policy, Supplier Code, Whistleblower / Grievance</span>
+              <span>{t('cps.policyExamples')}</span>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Human Rights Due Diligence</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.hrdd')}</Label>
               <Select value={profile.humanRightsDueDiligenceStatus || ''} onValueChange={(v) => update('humanRightsDueDiligenceStatus', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.select')} /></SelectTrigger>
                 <SelectContent>
                   {IMPLEMENTATION_STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    <SelectItem key={option.value} value={option.value}>{localizeProfileOption(option.label, lang)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Responsible Sourcing Policy</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.sourcing')}</Label>
               <Select value={profile.responsibleSourcingPolicyStatus || ''} onValueChange={(v) => update('responsibleSourcingPolicyStatus', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.select')} /></SelectTrigger>
                 <SelectContent>
                   {IMPLEMENTATION_STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    <SelectItem key={option.value} value={option.value}>{localizeProfileOption(option.label, lang)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Conflict Minerals Due Diligence</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.conflictMinerals')}</Label>
               <Select value={profile.conflictMineralsStatus || ''} onValueChange={(v) => update('conflictMineralsStatus', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('cps.select')} /></SelectTrigger>
                 <SelectContent>
                   {IMPLEMENTATION_STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    <SelectItem key={option.value} value={option.value}>{localizeProfileOption(option.label, lang)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">CMRT / EMRT Collection</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.cmrtEmrt')}</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Select value={profile.cmrtStatus || ''} onValueChange={(v) => update('cmrtStatus', v)}>
                   <SelectTrigger><SelectValue placeholder="CMRT" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="implemented">CMRT live</SelectItem>
-                    <SelectItem value="in_progress">CMRT in progress</SelectItem>
-                    <SelectItem value="not_in_place">No CMRT</SelectItem>
-                    <SelectItem value="not_applicable">CMRT not applicable</SelectItem>
+                    <SelectItem value="implemented">{t('cps.cmrtLive')}</SelectItem>
+                    <SelectItem value="in_progress">{t('cps.cmrtProgress')}</SelectItem>
+                    <SelectItem value="not_in_place">{t('cps.cmrtNone')}</SelectItem>
+                    <SelectItem value="not_applicable">{t('cps.cmrtNa')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={profile.emrtStatus || ''} onValueChange={(v) => update('emrtStatus', v)}>
                   <SelectTrigger><SelectValue placeholder="EMRT" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="implemented">EMRT live</SelectItem>
-                    <SelectItem value="in_progress">EMRT in progress</SelectItem>
-                    <SelectItem value="not_in_place">No EMRT</SelectItem>
-                    <SelectItem value="not_applicable">EMRT not applicable</SelectItem>
+                    <SelectItem value="implemented">{t('cps.emrtLive')}</SelectItem>
+                    <SelectItem value="in_progress">{t('cps.emrtProgress')}</SelectItem>
+                    <SelectItem value="not_in_place">{t('cps.emrtNone')}</SelectItem>
+                    <SelectItem value="not_applicable">{t('cps.emrtNa')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -549,58 +550,58 @@ export default function CompanyProfileSection() {
           {/* Operational notes for draft generation */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Supplier Corrective / Escalation Process</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.supplierCorrective')}</Label>
               <Textarea
                 value={profile.supplierCorrectiveActionProcess || ''}
                 onChange={(e) => update('supplierCorrectiveActionProcess', e.target.value)}
                 rows={3}
-                placeholder="Describe how supplier ESG non-compliance is handled."
+                placeholder={t('cps.supplierCorrectivePh')}
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Wastewater Treatment / Discharge</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.wastewater')}</Label>
               <Textarea
                 value={profile.wastewaterTreatmentDetails || ''}
                 onChange={(e) => update('wastewaterTreatmentDetails', e.target.value)}
                 rows={3}
-                placeholder="Describe treatment, discharge routes, and permit basis."
+                placeholder={t('cps.wastewaterPh')}
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Transport Reduction Measures</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.transport')}</Label>
               <Textarea
                 value={profile.transportReductionMeasures || ''}
                 onChange={(e) => update('transportReductionMeasures', e.target.value)}
                 rows={3}
-                placeholder="e.g. route optimisation, carrier selection, fleet electrification, remote work."
+                placeholder={t('cps.transportPh')}
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Fleet Composition</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.fleet')}</Label>
               <Input
                 value={profile.fleetComposition || ''}
                 onChange={(e) => update('fleetComposition', e.target.value)}
-                placeholder="e.g. 6 diesel vans, 2 EVs, no owned HGV fleet"
+                placeholder={t('cps.fleetPh')}
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-slate-700">Packaging Recycled Content (%)</Label>
+              <Label className="text-xs font-medium text-slate-700">{t('cps.packaging')}</Label>
               <Input
                 type="number"
                 value={profile.packagingRecycledContentPercent || ''}
                 onChange={(e) => update('packagingRecycledContentPercent', e.target.value)}
-                placeholder="e.g. 35"
+                placeholder={t('cps.packagingPh')}
               />
             </div>
           </div>
 
           {/* Reporting period */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-700">Reporting Period</Label>
+            <Label className="text-xs font-medium text-slate-700">{t('cps.reportingPeriod')}</Label>
             <Select value={profile.reportingPeriod || ''} onValueChange={(v) => update('reportingPeriod', v)}>
-              <SelectTrigger><SelectValue placeholder="Select reporting period" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t('cps.selectPeriod')} /></SelectTrigger>
               <SelectContent>
-                {REPORTING_PERIODS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                {REPORTING_PERIODS.map(r => <SelectItem key={r} value={r}>{localizeProfileOption(r, lang)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -608,7 +609,7 @@ export default function CompanyProfileSection() {
           {/* Save bar */}
           <div className="flex items-center justify-between pt-2 border-t border-slate-100">
             <p className="text-xs text-slate-500">
-              {hasChanges ? 'Unsaved changes' : saved ? 'Saved' : 'All changes saved'}
+              {hasChanges ? t('cps.unsaved') : saved ? t('cps.saved') : t('cps.allSaved')}
             </p>
             <Button
               onClick={handleSave}
@@ -616,7 +617,7 @@ export default function CompanyProfileSection() {
               size="sm"
               className="bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-50"
             >
-              {saved ? <><Check className="w-4 h-4 mr-1.5" />Saved</> : 'Save Profile'}
+              {saved ? <><Check className="w-4 h-4 mr-1.5" />{t('cps.saved')}</> : t('cps.saveProfile')}
             </Button>
           </div>
         </div>
