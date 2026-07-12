@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useLicense } from '@/components/LicenseContext';
+import { useLanguage } from '@/components/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -7,26 +8,27 @@ import {
   Mail, FileText, CheckCircle2,
 } from 'lucide-react';
 
+// Copy is stored as i18n keys and resolved with t() at render (module-level, no hook here).
 const GATE_CONTENT = {
   'ESG Report': {
-    description: 'Upgrade to ESG Passport to turn your tracked data into a shareable ESG Passport report.',
+    titleKey: 'gate.reportTitle',
+    descKey: 'gate.reportDesc',
     features: [
-      { icon: FileText, text: 'Create a shareable ESG Passport from your tracked data' },
-      { icon: CheckCircle2, text: 'Show buyers your latest metrics, policies, and company profile in one place' },
-      { icon: Globe, text: 'Export a professional report you can review before sending' },
-      { icon: Sparkles, text: 'Keep your passport updated as your data changes' },
+      { icon: FileText, textKey: 'gate.reportF1' },
+      { icon: CheckCircle2, textKey: 'gate.reportF2' },
+      { icon: Globe, textKey: 'gate.reportF3' },
+      { icon: Sparkles, textKey: 'gate.reportF4' },
     ],
-    cta: 'Get ESG Passport - €499',
   },
   default: {
-    description: 'Upgrade to ESG Passport to upload questionnaires and prepare professional answer drafts from your tracked data.',
+    titleKey: 'gate.defaultTitle',
+    descKey: 'gate.defaultDesc',
     features: [
-      { icon: Upload, text: 'Upload any questionnaire - Excel, CSV, PDF, or Word' },
-      { icon: Sparkles, text: '70+ answer templates matched to your questions automatically' },
-      { icon: ListChecks, text: 'Pre-loaded templates for EcoVadis, CDP, and CSRD/VSME' },
-      { icon: Globe, text: 'Editable answers with inline edit, mark N/A, and save to library' },
+      { icon: Upload, textKey: 'gate.defaultF1' },
+      { icon: Sparkles, textKey: 'gate.defaultF2' },
+      { icon: ListChecks, textKey: 'gate.defaultF3' },
+      { icon: Globe, textKey: 'gate.defaultF4' },
     ],
-    cta: 'Get ESG Passport - €499',
   },
 };
 
@@ -36,6 +38,7 @@ const GATE_CONTENT = {
  */
 export default function UpgradeGate({ feature }) {
   const { activate } = useLicense();
+  const { t } = useLanguage();
   const [licenseKey, setLicenseKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,7 +48,7 @@ export default function UpgradeGate({ feature }) {
     e.preventDefault();
     const key = licenseKey.trim();
     if (!key) {
-      setError('Please enter a license key.');
+      setError(t('settings.enterKey'));
       return;
     }
 
@@ -68,10 +71,10 @@ export default function UpgradeGate({ feature }) {
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900">
-            Unlock {feature || 'Response Assistant'}
+            {t(content.titleKey)}
           </h2>
           <p className="text-slate-500 max-w-md mx-auto">
-            {content.description}
+            {t(content.descKey)}
           </p>
         </div>
 
@@ -79,7 +82,7 @@ export default function UpgradeGate({ feature }) {
           {content.features.map((item, index) => (
             <div key={index} className="flex items-start gap-3">
               <item.icon className="w-5 h-5 text-slate-700 mt-0.5 flex-shrink-0" />
-              <span className="text-sm text-slate-600">{item.text}</span>
+              <span className="text-sm text-slate-600">{t(item.textKey)}</span>
             </div>
           ))}
         </div>
@@ -90,7 +93,7 @@ export default function UpgradeGate({ feature }) {
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none transition-colors mb-6"
         >
-          {content.cta}
+          {t('gate.cta')}
           <ExternalLink className="w-4 h-4" />
         </a>
 
@@ -99,7 +102,7 @@ export default function UpgradeGate({ feature }) {
             <div className="w-full border-t border-slate-200" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-3 text-slate-400">Already purchased?</span>
+            <span className="bg-white px-3 text-slate-400">{t('respond.alreadyPurchased')}</span>
           </div>
         </div>
 
@@ -109,7 +112,7 @@ export default function UpgradeGate({ feature }) {
             <Input
               value={licenseKey}
               onChange={(e) => setLicenseKey(e.target.value)}
-              placeholder="Enter your license key"
+              placeholder={t('settings.licenseKeyPh')}
               className="h-10 pl-10 font-mono text-sm"
               disabled={loading}
             />
@@ -126,17 +129,17 @@ export default function UpgradeGate({ feature }) {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Validating...
+                {t('gate.validating')}
               </>
             ) : (
-              'Activate License'
+              t('settings.activateLicense')
             )}
           </Button>
         </form>
 
         <p className="text-center text-xs text-slate-400 mt-6">
           <Mail className="w-3 h-3 inline mr-1" />
-          Questions? <a href="mailto:contact@esgforsuppliers.com" className="underline hover:text-slate-600">contact@esgforsuppliers.com</a>
+          {t('gate.questions')} <a href="mailto:contact@esgforsuppliers.com" className="underline hover:text-slate-600">contact@esgforsuppliers.com</a>
         </p>
       </div>
     </div>

@@ -1,40 +1,34 @@
 import React, { useState } from 'react';
 import { useLicense } from '@/components/LicenseContext';
+import { useLanguage } from '@/components/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Key, Loader2, CheckCircle2, X, Mail } from 'lucide-react';
 
 const DISMISS_KEY = 'esg_passport_activation_card_dismissed';
 
-// Maps ?welcome=<value> to a tier-specific greeting. Any truthy value falls
-// back to ESG Passport, which matches the default product and keeps the legacy
-// ?welcome=1 redirect working unchanged.
-function normalizeWelcomeTier(raw) {
+// Maps ?welcome=<value> to a tier type. Any truthy value falls back to the default
+// (keeps the legacy ?welcome=1 redirect working). The localized copy is resolved in
+// the component via t(), so this stays language-agnostic.
+function normalizeWelcomeType(raw) {
   if (!raw) return null;
   const v = raw.toLowerCase();
-  if (v === 'pro-plus' || v === 'proplus' || v === 'pro+') {
-    return {
-      label: 'ESG Passport',
-      subheadline: 'Paste the license key from your purchase email to unlock the full response workflow plus document extraction for bills, invoices, manifests, and HR reports.',
-    };
-  }
-  return {
-    label: 'ESG Passport',
-    subheadline: 'Paste the license key from your purchase email to unlock the full questionnaire response workflow on this device.',
-  };
+  if (v === 'pro-plus' || v === 'proplus' || v === 'pro+') return 'proplus';
+  return 'default';
 }
 
 export default function ActivationCard() {
   const { isPaid, activate, isChecking } = useLicense();
+  const { lang, t } = useLanguage();
   const [dismissed, setDismissed] = useState(() => !!localStorage.getItem(DISMISS_KEY));
   const [licenseKey, setLicenseKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const welcomeTier = typeof window !== 'undefined'
-    ? normalizeWelcomeTier(new URLSearchParams(window.location.search).get('welcome'))
+  const welcomeType = typeof window !== 'undefined'
+    ? normalizeWelcomeType(new URLSearchParams(window.location.search).get('welcome'))
     : null;
-  const justPurchased = welcomeTier !== null;
+  const justPurchased = welcomeType !== null;
 
   // Don't pop up while the license context is still deciding — otherwise
   // buyers with the ?activate= auto-flow would briefly see the modal before
@@ -48,7 +42,7 @@ export default function ActivationCard() {
     e.preventDefault();
     const key = licenseKey.trim();
     if (!key) {
-      setError('Please paste the license key from your purchase email.');
+      setError(t('act.pasteKey'));
       return;
     }
     setLoading(true);
@@ -67,12 +61,13 @@ export default function ActivationCard() {
     if (e.target === e.currentTarget) dismiss();
   }
 
-  const headline = justPurchased
-    ? `Welcome — activate your ESG Passport ${welcomeTier.label}`
-    : 'Have a license key?';
+  const headline = justPurchased ? t('act.welcomeHeadline') : t('act.haveKey');
   const subheadline = justPurchased
-    ? welcomeTier.subheadline
-    : 'Paste your license key to unlock paid Passport features on this device. You can always activate later from Settings.';
+    ? (welcomeType === 'proplus' ? t('act.subProPlus') : t('act.subDefault'))
+    : t('act.subGeneric');
+  const paidPlanUrl = lang === 'de'
+    ? 'https://esgforsuppliers.com/de/passport'
+    : 'https://esgforsuppliers.com/passport';
 
   return (
     <div
@@ -85,7 +80,7 @@ export default function ActivationCard() {
       <div className={`relative w-full max-w-xl bg-white shadow-xl rounded-none border-2 ${justPurchased ? 'border-emerald-500' : 'border-slate-200'}`}>
         <button
           onClick={dismiss}
-          aria-label="Close"
+          aria-label={t('act.close')}
           className="absolute top-3 right-3 p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100"
         >
           <X className="w-4 h-4" />
@@ -121,9 +116,9 @@ export default function ActivationCard() {
               disabled={loading}
             >
               {loading ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Activating…</>
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('act.activating')}</>
               ) : (
-                'Activate License'
+                t('settings.activateLicense')
               )}
             </Button>
           </form>
@@ -131,8 +126,8 @@ export default function ActivationCard() {
           <p className="text-xs text-slate-500 mt-4 flex items-center gap-1.5">
             <Mail className="w-3 h-3" />
             {justPurchased
-              ? <>Check your spam folder if you can&rsquo;t find the email, or <a href="mailto:contact@esgforsuppliers.com" className="underline">contact support</a>.</>
-              : <>No license yet? <a href="https://esgforsuppliers.com/passport" className="underline">See paid plan</a></>}
+              ? <>{t('act.spamText')} <a href="mailto:contact@esgforsuppliers.com" className="underline">{t('act.contactSupport')}</a>.</>
+              : <>{t('act.noLicenseYet')} <a href={paidPlanUrl} className="underline">{t('act.seePaidPlan')}</a></>}
           </p>
         </div>
       </div>

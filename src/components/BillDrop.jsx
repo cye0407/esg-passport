@@ -4,6 +4,7 @@ import { readPdfText } from '../../web-helpers/pdfReader';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Upload, FileText, Check, X, AlertTriangle } from 'lucide-react';
+import { useLanguage } from '@/components/LanguageContext';
 
 /**
  * BillDrop — drop utility bills to auto-fill ESG data.
@@ -13,6 +14,7 @@ import { Upload, FileText, Check, X, AlertTriangle } from 'lucide-react';
  *   year — current reporting year
  */
 export default function BillDrop({ onDataExtracted, year }) {
+  const { t } = useLanguage();
   const [dragging, setDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [progressText, setProgressText] = useState('');
@@ -41,7 +43,7 @@ export default function BillDrop({ onDataExtracted, year }) {
         fileName: file.name,
         result,
         fields: [],
-        error: 'No ESG data found. Try an electricity bill, gas invoice, water bill, waste manifest, or payroll report.',
+        error: t('bill.noData'),
       };
     }
     return {
@@ -50,13 +52,13 @@ export default function BillDrop({ onDataExtracted, year }) {
       fields: result.fields.map(f => ({ ...f, accepted: f.confidence !== 'low' })),
       error: null,
     };
-  }, []);
+  }, [t]);
 
   const processFiles = useCallback(async (fileList) => {
     setProcessing(true);
     const allResults = [];
     for (let i = 0; i < fileList.length; i++) {
-      setProgressText(`Reading ${fileList[i].name} (${i + 1}/${fileList.length})...`);
+      setProgressText(t('bill.reading', { name: fileList[i].name, index: i + 1, total: fileList.length }));
       try {
         const r = await processFile(fileList[i]);
         allResults.push(r);
@@ -65,7 +67,7 @@ export default function BillDrop({ onDataExtracted, year }) {
           fileName: fileList[i].name,
           result: null,
           fields: [],
-          error: `Failed: ${err.message}`,
+          error: t('bill.failed', { message: err.message }),
         });
       }
     }
@@ -77,7 +79,7 @@ export default function BillDrop({ onDataExtracted, year }) {
       setResults(allResults[0]);
       setQueue(allResults.slice(1));
     }
-  }, [processFile]);
+  }, [processFile, t]);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
@@ -148,16 +150,16 @@ export default function BillDrop({ onDataExtracted, year }) {
         {processing ? (
           <div className="flex items-center justify-center gap-2 text-slate-500">
             <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-            <span className="text-sm font-medium">{progressText || 'Reading documents...'}</span>
+            <span className="text-sm font-medium">{progressText || t('bill.readingDocs')}</span>
           </div>
         ) : (
           <>
             <FileText className="w-6 h-6 mx-auto mb-2 text-slate-400" />
             <p className="text-sm font-medium text-slate-700">
-              Drop a bill or invoice to auto-fill data
+              {t('bill.dropZone')}
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              Electricity, gas, water, waste, or payroll — PDF or text
+              {t('bill.dropHint')}
             </p>
           </>
         )}
@@ -172,7 +174,7 @@ export default function BillDrop({ onDataExtracted, year }) {
               {results?.fileName}
               {queue.length > 0 && (
                 <span className="text-xs font-normal text-slate-400 ml-2">
-                  +{queue.length} more
+                  {t('bill.more', { count: queue.length })}
                 </span>
               )}
             </DialogTitle>
@@ -205,8 +207,7 @@ export default function BillDrop({ onDataExtracted, year }) {
                   <div className="flex items-start gap-2 p-2 mb-2 bg-amber-50 border border-amber-200 rounded text-xs">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                     <p className="text-amber-800">
-                      Could also be <span className="font-medium">{d.runnerUp.replace(/_/g, ' ')}</span>.
-                      Double-check the extracted fields match what this document actually says.
+                      {t('bill.couldAlsoBePre')} <span className="font-medium">{d.runnerUp.replace(/_/g, ' ')}</span>{t('bill.couldAlsoBePost')}
                     </p>
                   </div>
                 );
@@ -247,7 +248,7 @@ export default function BillDrop({ onDataExtracted, year }) {
                       <span className="text-xs text-slate-400 ml-1">{f.unit}</span>
                       {rawDiffers && (
                         <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                          raw: {f.rawValueText}{f.rawUnitText ? ` ${f.rawUnitText}` : ''}
+                          {t('bill.raw')} {f.rawValueText}{f.rawUnitText ? ` ${f.rawUnitText}` : ''}
                         </p>
                       )}
                     </div>
@@ -279,13 +280,13 @@ export default function BillDrop({ onDataExtracted, year }) {
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={handleCancel}>
-              {queue.length > 0 ? 'Skip' : 'Cancel'}
+              {queue.length > 0 ? t('bill.skip') : t('respond.cancel')}
             </Button>
             {results?.fields?.some(f => f.accepted) && (
               <Button onClick={handleConfirm}>
                 <Check className="w-4 h-4 mr-1" />
-                Apply {results.fields.filter(f => f.accepted).length} fields
-                {queue.length > 0 ? ' → Next' : ''}
+                {t('bill.apply', { count: results.fields.filter(f => f.accepted).length })}
+                {queue.length > 0 ? t('bill.next') : ''}
               </Button>
             )}
           </DialogFooter>
