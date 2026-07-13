@@ -1,15 +1,23 @@
-import type { ParsedQuestion, MatchResult, DataContext, AnswerDraft, GenerationConfig, RetrievedDataPoint, AnswerTemplate, ScrubRule, ClassificationResult } from '../types';
+import type { ParsedQuestion, MatchResult, DataContext, AnswerDraft, GenerationConfig, RetrievedDataPoint, AnswerTemplate, ScrubRule, ClassificationResult, Lang } from '../types';
 import type { MaturityResolver, MatrixGenerator, InformalPracticeHandler, IndustryContextProvider } from '../types/domain-pack';
 export declare function val(dataMap: Map<string, RetrievedDataPoint>, field: string): string | number | boolean | null;
 export declare function has(dataMap: Map<string, RetrievedDataPoint>, ...fields: string[]): boolean;
 export declare function num(dataMap: Map<string, RetrievedDataPoint>, field: string): number;
 export declare function str(dataMap: Map<string, RetrievedDataPoint>, field: string): string;
-export declare function fmt(n: number): string;
+export declare function fmt(n: number, lang?: Lang): string;
+/**
+ * Pick a string by language. `de` falls back to `en` when omitted.
+ * Used by answer templates and the generator to keep data-extraction logic
+ * single-sourced while localizing only the surface strings.
+ */
+export declare function L(lang: Lang | undefined, en: string, de: string): string;
 export declare function buildDataMap(context: DataContext): Map<string, RetrievedDataPoint>;
 export interface TopicRequirementSpec {
     requiredFields: string[];
     optionalFields?: string[];
     gapDescriptions: Record<string, string>;
+    /** German gap descriptions, keyed by field. Falls back to `gapDescriptions` when absent. */
+    gapDescriptionsDe?: Record<string, string>;
 }
 export interface AnswerGeneratorDeps<TProfile = Record<string, unknown>> {
     templates: AnswerTemplate[];

@@ -136,12 +136,15 @@ export type TemplateResult = string | {
     drafted?: boolean;
 } | null;
 /** Template that generates an answer from retrieved data. */
+/** Output language for generated answers. Extend as more locales are translated. */
+export type Lang = 'en' | 'de';
 export interface AnswerTemplate {
     domains: string[];
     topics: string[];
     /** Optional: restrict this template to specific question types (POLICY, MEASURE, KPI). If omitted, matches any type. */
     questionTypes?: string[];
-    generate: (dataMap: Map<string, RetrievedDataPoint>, framework?: string) => TemplateResult;
+    /** `lang` selects the output language (default 'en'). Templates that omit German fall back to English. */
+    generate: (dataMap: Map<string, RetrievedDataPoint>, framework?: string, lang?: Lang) => TemplateResult;
 }
 export interface GenerationConfig {
     useLLM: boolean;
@@ -150,6 +153,8 @@ export interface GenerationConfig {
     includeLimitations: boolean;
     verbosity: 'concise' | 'standard' | 'detailed';
     aggregateSites: boolean;
+    /** Output language for generated answer text (default 'en'). */
+    language?: Lang;
 }
 export interface ResponseSession {
     id: string;

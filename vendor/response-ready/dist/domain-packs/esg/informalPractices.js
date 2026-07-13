@@ -25,11 +25,12 @@ export const esgInformalPracticeHandler = {
             return practiceDomains.some(d => allDomains.includes(d));
         });
     },
-    generateAnswer(_companyName, practices, matchResult, _industry, framework) {
+    generateAnswer(_companyName, practices, matchResult, _industry, framework, lang) {
         // Resolve company name and industry from the practices array context
         // (The handler receives them from the engine orchestration)
+        const de = lang === 'de';
         const typedPractices = practices;
-        const companyName = _companyName || 'Our organization';
+        const companyName = _companyName || (de ? 'Unser Unternehmen' : 'Our organization');
         const industry = _industry || 'general';
         const ctx = esgIndustryContextProvider.getContext(industry);
         const formalized = typedPractices.filter(p => p.isFormalized);
@@ -37,21 +38,31 @@ export const esgInformalPracticeHandler = {
         const parts = [];
         const envDomains = ['emissions', 'energy_electricity', 'energy_fuel', 'energy_water', 'waste'];
         const isEnv = envDomains.includes(matchResult.primaryDomain || '');
-        parts.push(`${companyName} operates with a commitment to responsible ${isEnv ? 'environmental' : 'operational'} management.`);
+        parts.push(de
+            ? `${companyName} handelt mit dem Anspruch eines verantwortungsvollen ${isEnv ? 'Umweltmanagements' : 'Betriebsmanagements'}.`
+            : `${companyName} operates with a commitment to responsible ${isEnv ? 'environmental' : 'operational'} management.`);
         if (formalized.length > 0) {
             const formalDescs = formalized.map(p => p.description).join('; ');
-            parts.push(`Our established practices include: ${formalDescs}.`);
+            parts.push(de
+                ? `Zu unseren etablierten Maßnahmen gehören: ${formalDescs}.`
+                : `Our established practices include: ${formalDescs}.`);
         }
         if (informal.length > 0) {
             const informalDescs = informal.map(p => p.description).join('; ');
-            parts.push(`Our current operations include: ${informalDescs}.`);
-            parts.push('We are in the process of formalizing these practices into documented policies and procedures to strengthen our management approach.');
+            parts.push(de
+                ? `Zu unseren aktuellen Betriebsabläufen gehören: ${informalDescs}.`
+                : `Our current operations include: ${informalDescs}.`);
+            parts.push(de
+                ? 'Wir sind dabei, diese Maßnahmen in dokumentierte Richtlinien und Verfahren zu überführen, um unseren Managementansatz zu stärken.'
+                : 'We are in the process of formalizing these practices into documented policies and procedures to strengthen our management approach.');
         }
         const topicsCovered = [...new Set(typedPractices.map(p => p.topic))];
         for (const topic of topicsCovered) {
             const approach = ctx.managementApproaches[topic];
             if (approach) {
-                parts.push(`Our management approach encompasses ${approach}.`);
+                parts.push(de
+                    ? `Unser Managementansatz umfasst ${approach}.`
+                    : `Our management approach encompasses ${approach}.`);
                 break;
             }
         }

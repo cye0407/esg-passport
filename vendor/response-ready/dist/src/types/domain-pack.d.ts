@@ -1,4 +1,4 @@
-import type { KeywordRule, TermAlias, SignalRule, AnswerTemplate, ScrubRule, ExportSheetConfig, MatchResult, DataContext, RetrievedDataPoint, ParsedQuestion, GenerationConfig } from './engine';
+import type { KeywordRule, TermAlias, SignalRule, AnswerTemplate, ScrubRule, ExportSheetConfig, MatchResult, DataContext, RetrievedDataPoint, ParsedQuestion, GenerationConfig, Lang } from './engine';
 export interface DomainPack<TData = Record<string, unknown>, TProfile = Record<string, unknown>> {
     /** Pack identity */
     name: string;
@@ -27,6 +27,7 @@ export interface DomainPack<TData = Record<string, unknown>, TProfile = Record<s
         requiredFields: string[];
         optionalFields?: string[];
         gapDescriptions: Record<string, string>;
+        gapDescriptionsDe?: Record<string, string>;
     }>;
     /** Provides industry-specific terminology, measures, and policy language */
     industryContextProvider?: IndustryContextProvider;
@@ -67,11 +68,11 @@ export interface MaturityResolver<TProfile = Record<string, unknown>> {
     resolve: (profile: TProfile | undefined, matchResult: MatchResult, hasData: boolean) => string;
 }
 export interface MatrixGenerator<TProfile = Record<string, unknown>> {
-    generate: (questionType: string, maturityBand: string, matchResult: MatchResult, dataMap: Map<string, RetrievedDataPoint>, context: DataContext, profile: TProfile, framework?: string) => string | null;
+    generate: (questionType: string, maturityBand: string, matchResult: MatchResult, dataMap: Map<string, RetrievedDataPoint>, context: DataContext, profile: TProfile, framework?: string, lang?: Lang) => string | null;
 }
 export interface InformalPracticeHandler<TProfile = Record<string, unknown>> {
     findRelevant: (profile: TProfile, matchResult: MatchResult) => unknown[];
-    generateAnswer: (companyName: string, practices: unknown[], matchResult: MatchResult, industry: string, framework?: string) => string;
+    generateAnswer: (companyName: string, practices: unknown[], matchResult: MatchResult, industry: string, framework?: string, lang?: Lang) => string;
 }
 export interface Calculator<TData = Record<string, unknown>> {
     calculate: (data: TData, ...args: unknown[]) => {

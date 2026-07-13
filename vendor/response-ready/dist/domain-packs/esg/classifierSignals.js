@@ -16,12 +16,20 @@ export const ESG_CLASSIFIER_SIGNALS = [
             /\bsigned?\s+(?:up|on|to)\b/i, /\badhere\b/i,
             /\bvoluntary\s+(?:initiative|standard|code|pledge)\b/i,
             /\bun\s+global\s+compact\b/i, /\biso\s+\d+/i,
+            // ---- German POLICY signals ----
+            /\brichtlinie(?:n)?\b/i, /\bverhaltenskodex\b/i, /\bkodex\b/i,
+            /\bleitlinie(?:n)?\b/i, /\bgrundsätze?\b/i, /\bverpflichtung\b/i,
+            /\bselbstverpflichtung\b/i, /\bverfügen\s+sie\s+über\b/i,
+            /\bhaben\s+sie\s+(?:eine|einen|ein)\b/i, /\bzertifiziert\b/i,
         ],
         keywords: [
             'policy', 'policies', 'commitment', 'adhere', 'principle', 'charter',
             'code of conduct', 'pledge', 'statement', 'framework', 'vision',
             'strategy', 'position', 'signed', 'subscribe', 'management system',
             'management approach', 'overall approach', 'guideline', 'declaration',
+            // German
+            'richtlinie', 'verhaltenskodex', 'kodex', 'leitlinie', 'grundsätze',
+            'verpflichtung', 'verfügen sie über',
         ],
         weight: 10,
     },
@@ -41,6 +49,12 @@ export const ESG_CLASSIFIER_SIGNALS = [
             /\boperational\s+control(?:s)?\b/i,
             /\brisk\s+(?:assessment|management|mitigation)\b/i,
             /\bdue\s+diligence\b/i,
+            // ---- German MEASURE signals ----
+            /\bwelche\s+maßnahmen?\b/i, /\bmaßnahmen?\b/i, /\bverfahren\b/i,
+            /\bprozess(?:e)?\b/i, /\bschulung(?:en)?\b/i,
+            /\bwie\s+stellen\s+sie\b/i, /\bstellen\s+sie\s+sicher\b/i,
+            /\bwie\s+gehen\s+sie\b/i, /\bbeschreiben\s+sie\b/i,
+            /\büberprüf\w*\b/i, /\bsorgfaltspflicht\b/i,
         ],
         keywords: [
             'actions', 'measures', 'initiatives', 'procedures', 'processes',
@@ -48,6 +62,9 @@ export const ESG_CLASSIFIER_SIGNALS = [
             'manage', 'address', 'handle', 'mitigate', 'ensure', 'promote',
             'reduce', 'prevent', 'inspection', 'audit', 'assessment', 'prevention',
             'corrective', 'due diligence', 'risk assessment', 'operational controls',
+            // German
+            'maßnahme', 'maßnahmen', 'verfahren', 'prozess', 'schulung',
+            'beschreiben sie', 'sorgfaltspflicht',
         ],
         weight: 8,
     },
@@ -68,6 +85,11 @@ export const ESG_CLASSIFIER_SIGNALS = [
             /\bm[³3]\b/i, /\btonnes?\b/i, /\bkg\b/i,
             /\bverif(?:y|ied|ication)\b/i, /\bthird[\s-]party\b/i,
             /\bexternal[\s-](?:audit|assurance|verification)\b/i,
+            // ---- German KPI signals ----
+            /\bwie\s+hoch\b/i, /\bwie\s+viele?\b/i, /\bgesamt\w*\b/i,
+            /\banteil\b/i, /\banzahl\b/i, /\bhöhe\b/i,
+            /\b\w*quote\b/i, /\b\w*verbrauch\b/i, /\bmenge\b/i,
+            /\bpro\s+mitarbeit\w*\b/i, /\bkennzahl(?:en)?\b/i,
         ],
         keywords: [
             'indicators', 'kpi', 'metrics', 'total', 'number of', 'percentage',
@@ -75,6 +97,9 @@ export const ESG_CLASSIFIER_SIGNALS = [
             'how many', 'monitoring', 'tracking', 'reporting', 'data', 'baseline',
             'target', 'trend', 'year-over-year', 'verification', 'assurance',
             'third-party', 'external audit',
+            // German
+            'wie hoch', 'wie viele', 'wie viel', 'gesamt', 'anteil', 'anzahl',
+            'quote', 'verbrauch', 'menge', 'kennzahl',
         ],
         weight: 8,
     },

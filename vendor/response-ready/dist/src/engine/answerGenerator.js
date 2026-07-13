@@ -25,8 +25,38 @@ export function str(dataMap, field) {
     const v = val(dataMap, field);
     return v !== null && v !== undefined ? String(v) : '';
 }
-export function fmt(n) {
-    return n.toLocaleString('en-US', { maximumFractionDigits: 1 });
+export function fmt(n, lang) {
+    return n.toLocaleString(lang === 'de' ? 'de-DE' : 'en-US', { maximumFractionDigits: 1 });
+}
+/**
+ * Pick a string by language. `de` falls back to `en` when omitted.
+ * Used by answer templates and the generator to keep data-extraction logic
+ * single-sourced while localizing only the surface strings.
+ */
+export function L(lang, en, de) {
+    return lang === 'de' && de ? de : en;
+}
+// Generator-level boilerplate strings (not template-specific). Keyed by language.
+const GEN_STRINGS = {
+    insufficient: {
+        en: 'This data is not currently tracked. We do not have sufficient information to answer this disclosure.',
+        de: 'Diese Daten werden derzeit nicht erfasst. Uns liegen nicht genügend Informationen vor, um diese Angabe zu beantworten.',
+    },
+    unknownInput: {
+        en: 'Unknown — input required.',
+        de: 'Unbekannt – Eingabe erforderlich.',
+    },
+    estimateAssumption: {
+        en: 'Some values are estimates based on activity data and standard conversion factors.',
+        de: 'Einige Werte sind Schätzungen auf Basis von Aktivitätsdaten und Standard-Umrechnungsfaktoren.',
+    },
+    dataGapsPrefix: {
+        en: '\n\nData gaps: ',
+        de: '\n\nDatenlücken: ',
+    },
+};
+function gs(key, lang) {
+    return lang === 'de' ? GEN_STRINGS[key].de : GEN_STRINGS[key].en;
 }
 export function buildDataMap(context) {
     const map = new Map();
@@ -148,7 +178,7 @@ export function createAnswerGenerator(deps) {
      * Check which required fields are missing for the matched topics.
      * Returns gap descriptions for display.
      */
-    function checkRequiredGaps(matchResult, dataMap) {
+    function checkRequiredGaps(matchResult, dataMap, lang) {
         const gaps = [];
         const seen = new Set();
         const topics = matchResult.topics || [];
@@ -162,7 +192,7 @@ export function createAnswerGenerator(deps) {
                 seen.add(field);
                 const point = dataMap.get(field);
                 if (!point || point.value === null || point.value === undefined || point.value === '') {
-                    const desc = req.gapDescriptions[field];
+                    const desc = (lang === 'de' && req.gapDescriptionsDe?.[field]) || req.gapDescriptions[field];
                     if (desc)
                         gaps.push(desc);
                 }
@@ -170,7 +200,7 @@ export function createAnswerGenerator(deps) {
         }
         return gaps;
     }
-    function generateSimpleAnswer(context, matchResult, framework, profile, questionType) {
+    function generateSimpleAnswer(context, matchResult, framework, profile, questionType, lang) {
         const dataMap = buildDataMap(context);
         const allPoints = [...context.company, ...context.operational, ...context.calculated];
         // hasData for maturity/matrix purposes must check only operational/calculated
@@ -182,7 +212,7 @@ export function createAnswerGenerator(deps) {
         // Phase 1: Try rich data templates FIRST (highest quality — data-driven answers)
         const template = findMatchingTemplate(matchResult, templates, questionType);
         if (template) {
-            const result = template.generate(dataMap, framework);
+            const result = template.generate(dataMap, framework, lang);
             if (result) {
                 const isObj = typeof result === 'object' && result !== null;
                 let answer = isObj ? result.answer : result;
@@ -211,7 +241,7 @@ export function createAnswerGenerator(deps) {
             // hasData already scoped to primary domain operational/calculated points.
             const shouldUseMatrix = hasData || maturityBand === 'informal';
             if (shouldUseMatrix) {
-                const matrixAnswer = matrixGenerator.generate(questionType, maturityBand, matchResult, dataMap, context, profile, framework);
+                const matrixAnswer = matrixGenerator.generate(questionType, maturityBand, matchResult, dataMap, context, profile, framework, lang);
                 if (matrixAnswer) {
                     const primaryPoint = allPoints[0];
                     // Matrix answers from 'none' or 'informal' bands are always drafted —
@@ -233,7 +263,7 @@ export function createAnswerGenerator(deps) {
             if (relevant.length > 0) {
                 const answer = informalPracticeHandler.generateAnswer('', // company name — pack should resolve from profile
                 relevant, matchResult, '', // industry — pack should resolve from profile
-                framework);
+                framework, lang);
                 return { answer, usedPractice: true };
             }
         }
@@ -244,15 +274,16 @@ export function createAnswerGenerator(deps) {
         // insufficiency rather than stitching unrelated data into an answer.
         // Phase 5: Honest insufficiency — no data or no matching template
         return {
-            answer: 'This data is not currently tracked. We do not have sufficient information to answer this disclosure.',
+            answer: gs('insufficient', lang),
             drafted: true,
             insufficientData: true,
         };
     }
-    function generateAnswerDraft(question, matchResult, dataContext, _config, profile, classification) {
+    function generateAnswerDraft(question, matchResult, dataContext, config, profile, classification) {
         const framework = question.framework;
         const questionType = classification?.questionType;
-        const { answer, dataValue, dataSource, usedPractice, drafted, insufficientData } = generateSimpleAnswer(dataContext, matchResult, framework, profile, questionType);
+        const lang = config.language ?? 'en';
+        const { answer, dataValue, dataSource, usedPractice, drafted, insufficientData } = generateSimpleAnswer(dataContext, matchResult, framework, profile, questionType, lang);
         // Force 'none' confidence when the answer is an honest insufficiency fallback
         const answerConfidence = insufficientData ? 'none'
             : drafted ? 'medium'
@@ -264,7 +295,7 @@ export function createAnswerGenerator(deps) {
             p.confidence === 'low' ||
             p.confidence === 'medium');
         if (hasEstimates) {
-            assumptions.push('Some values are estimates based on activity data and standard conversion factors.');
+            assumptions.push(gs('estimateAssumption', lang));
         }
         let confidenceSource;
         if (insufficientData) {
@@ -298,7 +329,7 @@ export function createAnswerGenerator(deps) {
         }
         // Post-generation: check topic requirements for missing required fields
         const dataMap = buildDataMap(dataContext);
-        const requiredGaps = checkRequiredGaps(matchResult, dataMap);
+        const requiredGaps = checkRequiredGaps(matchResult, dataMap, lang);
         // Merge requirement gaps into limitations
         for (const gap of requiredGaps) {
             if (!limitations.includes(gap))
@@ -316,7 +347,7 @@ export function createAnswerGenerator(deps) {
         const promptForMissing = matchResult.csvPromptIfMissing || undefined;
         if (finalConfidenceSource === 'unknown' && !usedPractice && !insufficientData) {
             const promptSuffix = promptForMissing ? ` ${promptForMissing}` : '';
-            finalAnswer = `Unknown — input required.${promptSuffix}`;
+            finalAnswer = `${gs('unknownInput', lang)}${promptSuffix}`;
         }
         else if (scrubRules.length > 0) {
             finalAnswer = applyRewriteRules(finalAnswer, scrubRules);
@@ -324,7 +355,7 @@ export function createAnswerGenerator(deps) {
         // Append explicit gap declarations to drafted or incomplete answers
         if ((drafted || requiredGaps.length > 0) && !finalAnswer.toLowerCase().includes('unknown')) {
             const gapText = requiredGaps.length > 0
-                ? '\n\nData gaps: ' + requiredGaps.join('; ') + '.'
+                ? gs('dataGapsPrefix', lang) + requiredGaps.join('; ') + '.'
                 : '';
             if (gapText)
                 finalAnswer += gapText;

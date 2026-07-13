@@ -21,8 +21,10 @@ export const ESG_TERM_ALIASES = [
     { term: 'energie', add: ['energy consumption'] },
     { term: 'erneuerbar', add: ['renewable', 'renewable source'] },
     { term: 'ökostrom', add: ['green energy', 'renewable'] },
-    { term: 'erdgas', add: ['natural gas'] },
-    { term: 'gasverbrauch', add: ['natural gas'] },
+    // Gas questions are often stated "in kWh", which alone would tie/route to electricity.
+    // Injecting 'fuel consumption' (energy_fuel, weight 10) gives gas the stronger signal.
+    { term: 'erdgas', add: ['natural gas', 'fuel consumption'] },
+    { term: 'gasverbrauch', add: ['natural gas', 'fuel consumption'] },
     { term: 'kraftstoff', add: ['fuel consumption'] },
     { term: 'treibstoff', add: ['fuel consumption'] },
     { term: 'benzin', add: ['petrol'] },
