@@ -39,6 +39,8 @@ export function esgRetrieveData(matchResult, data) {
                 // Domain-specific extras
                 if (domain === 'effluents') {
                     addIfPresent(company, domain, 'waterWithdrawal', 'Water Withdrawal', data.waterM3);
+                    if (data.wastewaterTreatmentDetails)
+                        operational.push({ domain: 'effluents', field: 'wastewaterTreatmentDetails', label: 'Wastewater Treatment', value: data.wastewaterTreatmentDetails, confidence: 'high' });
                     addIndustryMetric(operational, data, domain, 'textile', 'waterDischargeM3', 'Water Discharge', 'm3');
                     addIndustryMetric(operational, data, domain, 'agriculture', 'irrigationWaterM3', 'Irrigation Water', 'm3');
                     addIndustryMetric(operational, data, domain, 'mining', 'waterReusedPercent', 'Water Reused', '%');
@@ -46,6 +48,21 @@ export function esgRetrieveData(matchResult, data) {
                 if (domain === 'materials' || domain === 'buyer_requirements') {
                     addIfPresent(company, domain, 'productsServices', 'Products & Services', data.productsServices);
                     addIfPresent(company, domain, 'mainMarkets', 'Main Markets', data.mainMarkets);
+                    // Conflict minerals / responsible sourcing status (buyer-facing supply-chain topics)
+                    if (data.conflictMineralsStatus)
+                        operational.push({ domain, field: 'conflictMineralsStatus', label: 'Conflict Minerals Due Diligence Status', value: data.conflictMineralsStatus, confidence: 'high' });
+                    if (data.cmrtStatus)
+                        operational.push({ domain, field: 'cmrtStatus', label: 'CMRT Status', value: data.cmrtStatus, confidence: 'high' });
+                    if (data.emrtStatus)
+                        operational.push({ domain, field: 'emrtStatus', label: 'EMRT Status', value: data.emrtStatus, confidence: 'high' });
+                    if (data.responsibleSourcingPolicyStatus)
+                        operational.push({ domain, field: 'responsibleSourcingPolicyStatus', label: 'Responsible Sourcing Policy Status', value: data.responsibleSourcingPolicyStatus, confidence: 'high' });
+                    if (data.supplierCodeStatus)
+                        operational.push({ domain, field: 'supplierCodeStatus', label: 'Supplier Code of Conduct Status', value: data.supplierCodeStatus, confidence: 'high' });
+                    if (data.supplierCorrectiveActionProcess)
+                        operational.push({ domain, field: 'supplierCorrectiveActionProcess', label: 'Supplier Corrective-Action Process', value: data.supplierCorrectiveActionProcess, confidence: 'high' });
+                    if (data.humanRightsDueDiligenceStatus)
+                        operational.push({ domain, field: 'humanRightsDueDiligenceStatus', label: 'Human Rights Due Diligence Status', value: data.humanRightsDueDiligenceStatus, confidence: 'high' });
                 }
                 if (domain === 'materials') {
                     addIndustryMetric(operational, data, domain, 'production', 'materialInputTonnes', 'Material Input', 'tonnes');
@@ -62,6 +79,8 @@ export function esgRetrieveData(matchResult, data) {
                     addIndustryMetric(operational, data, domain, 'construction', 'steelTonnes', 'Steel', 'tonnes');
                 }
                 if (domain === 'packaging') {
+                    if (data.packagingRecycledContentPercent !== undefined)
+                        operational.push({ domain: 'packaging', field: 'packagingRecycledContentPercent', label: 'Packaging Recycled Content', value: data.packagingRecycledContentPercent, unit: '%', confidence: 'high' });
                     addIndustryMetric(operational, data, domain, 'retail', 'packagingWasteKg', 'Packaging Waste', 'kg');
                     addIndustryMetric(operational, data, domain, 'distribution', 'packagingWasteKg', 'Packaging Waste', 'kg');
                 }
@@ -174,6 +193,16 @@ export function esgRetrieveData(matchResult, data) {
                         calculated.push({ domain: 'emissions', field: 'scope2Market', label: `Scope 2 Market-Based (Auto-calculated — ${scope2Market.source})`, value: scope2Market.value, unit: 'tCO2e', confidence: 'medium' });
                     }
                 }
+                // Scope 3 also belongs to the emissions domain. A "do you track Scope 3?" question
+                // routes here (via the scope-3 keyword → emissions), so surface Scope 3 figures under
+                // emissions too — otherwise the Scope-3 template can only report "not yet quantified"
+                // even when the value exists (it is otherwise only retrieved under the transport domain).
+                if (data.scope3Tco2e !== undefined) {
+                    calculated.push({ domain: 'emissions', field: 'scope3Total', label: 'Scope 3 Emissions (User Provided)', value: data.scope3Tco2e, unit: 'tCO2e', confidence: 'high' });
+                }
+                if (data.scope3Categories) {
+                    operational.push({ domain: 'emissions', field: 'scope3Categories', label: 'Scope 3 Categories Reported', value: data.scope3Categories, confidence: 'high' });
+                }
                 break;
             }
             case 'transport': {
@@ -186,6 +215,10 @@ export function esgRetrieveData(matchResult, data) {
                 if (data.scope3Categories) {
                     operational.push({ domain: 'transport', field: 'scope3Categories', label: 'Scope 3 Categories Reported', value: data.scope3Categories, confidence: 'high' });
                 }
+                if (data.transportReductionMeasures)
+                    operational.push({ domain: 'transport', field: 'transportReductionMeasures', label: 'Transport Reduction Measures', value: data.transportReductionMeasures, confidence: 'high' });
+                if (data.fleetComposition)
+                    operational.push({ domain: 'transport', field: 'fleetComposition', label: 'Fleet Composition', value: data.fleetComposition, confidence: 'high' });
                 if (data.businessTravelKm)
                     operational.push({ domain: 'transport', field: 'businessTravel', label: 'Business Travel', value: data.businessTravelKm, unit: 'km', confidence: 'high' });
                 if (data.employeeCommuteKm)
@@ -240,7 +273,7 @@ export function esgRetrieveData(matchResult, data) {
                 if (data.collectiveBargainingPercent !== undefined)
                     operational.push({ domain: 'workforce', field: 'collectiveBargainingPercent', label: 'Collective Bargaining Coverage', value: data.collectiveBargainingPercent, unit: '%', confidence: 'high' });
                 if (data.livingWageCompliant !== undefined)
-                    operational.push({ domain: 'workforce', field: 'livingWageCompliant', label: 'Living Wage Compliance', value: data.livingWageCompliant ? 'Yes' : 'No', confidence: 'high' });
+                    operational.push({ domain: 'workforce', field: 'livingWageCompliant', label: 'Living Wage Compliance', value: data.livingWageCompliant === 'not_applicable' ? 'Not applicable' : (data.livingWageCompliant ? 'Yes' : 'No'), confidence: 'high' });
                 if (data.grievanceMechanismExists !== undefined)
                     operational.push({ domain: 'workforce', field: 'grievanceMechanismExists', label: 'Grievance Mechanism', value: data.grievanceMechanismExists ? 'Yes' : 'No', confidence: 'high' });
                 if (data.grievancesReported !== undefined)
@@ -286,17 +319,26 @@ export function esgRetrieveData(matchResult, data) {
                 if (data.noSignificantFines)
                     operational.push({ domain: 'goals', field: 'noSignificantFines', label: 'Fines/Sanctions Status', value: data.noSignificantFines, confidence: 'high' });
                 if (data.dataProtectionPolicy !== undefined)
-                    operational.push({ domain: 'goals', field: 'dataProtectionPolicy', label: 'Data Protection Policy', value: data.dataProtectionPolicy ? 'Yes' : 'No', confidence: 'high' });
+                    operational.push({ domain: 'goals', field: 'dataProtectionPolicy', label: 'Data Protection Policy', value: data.dataProtectionPolicy === 'not_applicable' ? 'Not applicable' : (data.dataProtectionPolicy ? 'Yes' : 'No'), confidence: 'high' });
                 if (data.publishesSustainabilityReport !== undefined)
                     operational.push({ domain: 'regulatory', field: 'publishesSustainabilityReport', label: 'Publishes Sustainability Report', value: data.publishesSustainabilityReport ? 'Yes' : 'No', confidence: 'high' });
                 if (data.reportingFramework)
                     operational.push({ domain: 'regulatory', field: 'reportingFramework', label: 'Reporting Framework', value: data.reportingFramework, confidence: 'high' });
                 if (data.externalAssurance !== undefined)
-                    operational.push({ domain: 'regulatory', field: 'externalAssurance', label: 'External Assurance', value: data.externalAssurance ? 'Yes' : 'No', confidence: 'high' });
+                    operational.push({ domain: 'regulatory', field: 'externalAssurance', label: 'External Assurance', value: data.externalAssurance === 'not_applicable' ? 'Not applicable' : (data.externalAssurance ? 'Yes' : 'No'), confidence: 'high' });
                 if (data.assuranceStandard)
                     operational.push({ domain: 'regulatory', field: 'assuranceStandard', label: 'Assurance Standard', value: data.assuranceStandard, confidence: 'high' });
                 if (data.csrdApplicable)
                     operational.push({ domain: 'regulatory', field: 'csrdApplicable', label: 'CSRD Applicability', value: data.csrdApplicable, confidence: 'high' });
+                // Governance status fields (anti-corruption, code of conduct, human-rights policy/DD)
+                if (data.antiCorruptionStatus)
+                    operational.push({ domain: 'goals', field: 'antiCorruptionStatus', label: 'Anti-Corruption Policy Status', value: data.antiCorruptionStatus, confidence: 'high' });
+                if (data.codeOfConductStatus)
+                    operational.push({ domain: 'goals', field: 'codeOfConductStatus', label: 'Code of Conduct Status', value: data.codeOfConductStatus, confidence: 'high' });
+                if (data.humanRightsPolicyStatus)
+                    operational.push({ domain: 'goals', field: 'humanRightsPolicyStatus', label: 'Human Rights Policy Status', value: data.humanRightsPolicyStatus, confidence: 'high' });
+                if (data.humanRightsDueDiligenceStatus)
+                    operational.push({ domain: 'goals', field: 'humanRightsDueDiligenceStatus', label: 'Human Rights Due Diligence Status', value: data.humanRightsDueDiligenceStatus, confidence: 'high' });
                 break;
             case 'financial_context':
                 addIfPresent(company, 'financial_context', 'revenueBand', 'Revenue Band', data.revenueBand);

@@ -11,6 +11,10 @@ export declare function fmt(n: number, lang?: Lang): string;
  * single-sourced while localizing only the surface strings.
  */
 export declare function L(lang: Lang | undefined, en: string, de: string): string;
+/** Localize a country name for German output; passthrough for `en` or unknown values. */
+export declare function deCountry(country: string, lang?: Lang): string;
+/** Localize a comma-separated list of country names (e.g. "Germany, Poland"). */
+export declare function deCountries(list: string, lang?: Lang): string;
 export declare function buildDataMap(context: DataContext): Map<string, RetrievedDataPoint>;
 export interface TopicRequirementSpec {
     requiredFields: string[];

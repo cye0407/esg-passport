@@ -20,7 +20,7 @@ export const ESG_TERM_ALIASES = [
     { term: 'energieeffizienz', add: ['energy efficiency'] },
     { term: 'energie', add: ['energy consumption'] },
     { term: 'erneuerbar', add: ['renewable', 'renewable source'] },
-    { term: 'ökostrom', add: ['green energy', 'renewable'] },
+    { term: 'ökostrom', add: ['renewable'] },
     // Gas questions are often stated "in kWh", which alone would tie/route to electricity.
     // Injecting 'fuel consumption' (energy_fuel, weight 10) gives gas the stronger signal.
     { term: 'erdgas', add: ['natural gas', 'fuel consumption'] },
@@ -30,6 +30,14 @@ export const ESG_TERM_ALIASES = [
     { term: 'benzin', add: ['petrol'] },
     { term: 'heizöl', add: ['heating oil'] },
     // --- Emissions ---
+    // German questionnaires write scopes hyphenated ("Scope-1-Emissionen"). Keyword matching
+    // keeps hyphens, so the space-separated keywords 'scope 1/2/3' never match the hyphenated
+    // form and every scope question collapses onto the same generic emissions answer. Alias
+    // normalization folds hyphens to spaces, so these bridge the hyphenated German scopes back
+    // to the canonical scope keywords. Purely additive (English never contains 'scope-N-…').
+    { term: 'scope 1', add: ['scope 1'] },
+    { term: 'scope 2', add: ['scope 2'] },
+    { term: 'scope 3', add: ['scope 3'] },
     { term: 'treibhausgas', add: ['greenhouse gas'] },
     { term: 'thg', add: ['ghg'] },
     { term: 'emission', add: ['carbon emission'] },
@@ -42,9 +50,12 @@ export const ESG_TERM_ALIASES = [
     { term: 'wasser', add: ['water consumption'] },
     { term: 'abwasser', add: ['wastewater'] },
     { term: 'wasserentnahme', add: ['water withdrawal'] },
+    { term: 'wasserknappheit', add: ['water stress'] },
+    { term: 'wasserstress', add: ['water stress'] },
+    { term: 'wassermangel', add: ['water stress'] },
     // --- Waste ---
     { term: 'abfall', add: ['waste'] },
-    { term: 'abfallaufkommen', add: ['total waste', 'waste generated'] },
+    { term: 'abfallaufkommen', add: ['total waste'] },
     { term: 'gesamtabfall', add: ['total waste'] },
     { term: 'müll', add: ['waste'] },
     { term: 'recycling', add: ['recycling'] },
@@ -52,7 +63,7 @@ export const ESG_TERM_ALIASES = [
     { term: 'verwertung', add: ['recycling'] },
     { term: 'recyclingquote', add: ['diversion rate'] },
     { term: 'gefährlich', add: ['hazardous waste'] },
-    { term: 'sondermüll', add: ['special waste', 'hazardous waste'] },
+    { term: 'sondermüll', add: ['hazardous waste'] },
     { term: 'entsorgung', add: ['disposal'] },
     { term: 'deponie', add: ['landfill'] },
     { term: 'kreislaufwirtschaft', add: ['circular economy'] },
@@ -60,17 +71,38 @@ export const ESG_TERM_ALIASES = [
     // --- Materials ---
     { term: 'rohstoff', add: ['raw material'] },
     { term: 'rezyklat', add: ['recycled material'] },
+    // 'recycelt' is not a substring of the 'recycling' alias; map it to the waste recycling
+    // keyword so bulk-waste "…recycelt" questions route to waste at rule strength (L14).
+    { term: 'recycelt', add: ['recycling'] },
     // --- Workforce ---
     { term: 'mitarbeit', add: ['employee'] },
     { term: 'beschäftigt', add: ['employee'] },
-    { term: 'belegschaft', add: ['workforce size', 'employee'] },
+    { term: 'belegschaft', add: ['employee'] },
     { term: 'personal', add: ['personnel'] },
-    { term: 'vollzeitäquivalent', add: ['fte', 'full-time equivalent'] },
-    { term: 'frauenanteil', add: ['gender', 'women'] },
+    { term: 'vollzeitäquivalent', add: ['full-time equivalent'] },
+    { term: 'frauenanteil', add: ['women'] },
+    { term: 'weiblich', add: ['women'] },
+    // Women-in-leadership: route to leadership_diversity (weight 10) so it beats the
+    // spurious 'fte' token that umlaut-normalization leaves in "Führungskräfte" (→ "…kr fte").
+    { term: 'führungskräfte', add: ['women in leadership'] },
+    { term: 'führungsposition', add: ['women in leadership'] },
+    { term: 'leitungsposition', add: ['women in leadership'] },
     { term: 'geschlecht', add: ['gender'] },
     { term: 'diversität', add: ['diversity'] },
     { term: 'vielfalt', add: ['diversity'] },
-    { term: 'fluktuation', add: ['turnover'] },
+    // → 'turnover rate' (not 'staff turnover'/'employee turnover', which contain the rule-88
+    // tokens 'staff'/'employee' and would re-add a spurious employee_count topic).
+    { term: 'fluktuation', add: ['turnover rate'] },
+    // HR / social metrics (M16) + apprentices/absenteeism (M14).
+    { term: 'krankenstand', add: ['absenteeism'] },
+    { term: 'krankheitstage', add: ['absenteeism'] },
+    { term: 'fehlzeiten', add: ['absenteeism'] },
+    { term: 'elternzeit', add: ['parental leave'] },
+    { term: 'mutterschutz', add: ['maternity leave'] },
+    { term: 'mitarbeiterzufriedenheit', add: ['employee satisfaction'] },
+    { term: 'lohngefälle', add: ['gender pay gap'] },
+    { term: 'entgeltlücke', add: ['gender pay gap'] },
+    { term: 'auszubildende', add: ['training', 'employee'] },
     { term: 'gewerkschaft', add: ['trade union'] },
     { term: 'tarifvertrag', add: ['collective bargaining'] },
     { term: 'betriebsrat', add: ['works council'] },
@@ -92,8 +124,8 @@ export const ESG_TERM_ALIASES = [
     { term: 'ausbildung', add: ['training'] },
     // --- Health & Safety ---
     { term: 'arbeitssicherheit', add: ['health and safety'] },
-    { term: 'arbeitsschutz', add: ['health and safety', 'occupational health'] },
-    { term: 'unfall', add: ['accident', 'injury'] },
+    { term: 'arbeitsschutz', add: ['occupational health'] },
+    { term: 'unfall', add: ['accident'] },
     { term: 'unfälle', add: ['accident'] },
     { term: 'verletzung', add: ['injury'] },
     { term: 'berufskrankheit', add: ['occupational health'] },
@@ -104,10 +136,32 @@ export const ESG_TERM_ALIASES = [
     { term: 'verhaltenskodex', add: ['code of conduct'] },
     { term: 'korruption', add: ['anti-corruption'] },
     { term: 'bestechung', add: ['bribery'] },
+    { term: 'bußgeld', add: ['fine'] },
+    { term: 'sanktion', add: ['sanction'] },
+    { term: 'strafzahlung', add: ['penalty'] },
+    { term: 'externe prüfung', add: ['external assurance'] },
+    { term: 'extern geprüft', add: ['external assurance'] },
+    { term: 'unabhängige prüfung', add: ['external assurance'] },
+    // Assurance stems on non-umlaut tokens (prüfung normalizes to 'pr fung', so no stem alias
+    // is possible for it). 'verifiziert'/'vermerk' catch verified/Prüfvermerk phrasings (M12).
+    { term: 'verifiziert', add: ['external assurance'] },
+    { term: 'vermerk', add: ['external assurance'] },
     { term: 'richtlinie', add: ['policy'] },
-    { term: 'umweltrichtlinie', add: ['environmental management'] },
+    // An "Umweltrichtlinie" is an environmental POLICY — route it like a policy question
+    // (via 'policy' → goals/policies), NOT to 'environmental management' which pulls to the
+    // certifications answer. 'umweltmanagement'/EMS still maps to environmental management.
+    { term: 'umweltrichtlinie', add: ['policy'] },
     { term: 'umweltmanagement', add: ['environmental management'] },
-    { term: 'datenschutz', add: ['data protection', 'gdpr'] },
+    { term: 'datenschutz', add: ['data protection'] },
+    { term: 'cybersicherheit', add: ['cybersecurity'] },
+    { term: 'informationssicherheit', add: ['information security'] },
+    { term: 'datenpanne', add: ['data breach'] },
+    { term: 'datenschutzverletzung', add: ['data breach'] },
+    // Governance / business ethics (M20).
+    { term: 'interessenkonflikt', add: ['conflict of interest'] },
+    { term: 'geldwäsche', add: ['anti-money laundering'] },
+    { term: 'lobbyarbeit', add: ['lobbying'] },
+    { term: 'steuertransparenz', add: ['tax transparency'] },
     { term: 'hinweisgeber', add: ['whistleblower'] },
     { term: 'beschwerde', add: ['grievance'] },
     { term: 'nachhaltigkeitsbericht', add: ['sustainability report'] },
@@ -116,14 +170,55 @@ export const ESG_TERM_ALIASES = [
     // --- Certifications ---
     { term: 'zertifizierung', add: ['certification'] },
     { term: 'zertifikat', add: ['certification'] },
-    { term: 'bewertung', add: ['assessment', 'rating'] },
+    // Narrowed to 'assessment' only (was ['assessment','rating']) so bare '-bewertung' compounds
+    // stop being pulled into the EcoVadis buyer_requirements domain (M10). Specific compounds
+    // are handled explicitly below.
+    { term: 'bewertung', add: ['assessment'] },
+    { term: 'risikobewertung', add: ['risk assessment'] },
+    { term: 'lieferantenbewertung', add: ['supplier assessment'] },
+    // "Audits/Bewertungen Ihrer Lieferanten" — the German word order separates audit/assessment
+    // from the supplier noun, so the contiguous 'supplier audit'/'supplier assessment' keyword
+    // never fires from alias-stemming alone (C). Bridge the whole phrase to the keyword.
+    { term: 'audits ihrer lieferanten', add: ['supplier audit'] },
+    { term: 'audit ihrer lieferanten', add: ['supplier audit'] },
+    { term: 'audits ihrer zulieferer', add: ['supplier audit'] },
+    { term: 'bewertungen ihrer lieferanten', add: ['supplier assessment'] },
+    { term: 'bewertung ihrer lieferanten', add: ['supplier assessment'] },
+    { term: 'lieferantenaudit', add: ['supplier audit'] },
+    { term: 'taxonomie', add: ['eu taxonomy'] },
+    { term: 'eu-taxonomie', add: ['eu taxonomy'] },
+    // Materiality (H7).
+    { term: 'wesentlichkeit', add: ['materiality'] },
+    { term: 'wesentlichkeitsanalyse', add: ['materiality assessment'] },
+    { term: 'doppelte wesentlichkeit', add: ['double materiality'] },
     // --- Supply chain ---
     { term: 'lieferant', add: ['supplier'] },
+    { term: 'zulieferer', add: ['supplier'] },
     { term: 'lieferkette', add: ['supply chain'] },
     { term: 'beschaffung', add: ['procurement'] },
+    // Due diligence / supply-chain law (M13).
+    { term: 'sorgfaltspflicht', add: ['due diligence'] },
+    { term: 'lieferkettensorgfaltspflichtengesetz', add: ['lksg', 'due diligence'] },
+    { term: 'lksg', add: ['lksg', 'due diligence'] },
+    { term: 'lieferkettengesetz', add: ['lieferkettengesetz'] },
+    // --- Biodiversity / pollution / community ---
+    { term: 'biodiversität', add: ['biodiversity'] },
+    { term: 'artenvielfalt', add: ['biodiversity'] },
+    { term: 'entwaldung', add: ['deforestation'] },
+    { term: 'ökosystem', add: ['ecosystem'] },
+    { term: 'luftverschmutzung', add: ['air pollution'] },
+    { term: 'luftemission', add: ['air pollution'] },
+    { term: 'umweltvorfall', add: ['environmental incident'] },
+    { term: 'gemeinschaft', add: ['local community'] },
+    { term: 'gemeinde', add: ['local community'] },
+    { term: 'soziales engagement', add: ['community engagement'] },
     // --- Company / financial ---
-    { term: 'umsatz', add: ['revenue', 'turnover'] },
-    { term: 'standort', add: ['site', 'location'] },
+    // 'umsatz' → revenue ONLY. German employee turnover is 'Fluktuation', never 'Umsatz', so
+    // injecting 'turnover' spuriously raised a workforce/turnover secondary domain (M11).
+    { term: 'umsatz', add: ['revenue'] },
+    // Only 'site' — 'site' and 'location' are the same keyword rule, so adding both
+    // double-scored the site domain and hijacked e.g. water-scarcity "…an Ihren Standorten".
+    { term: 'standort', add: ['site'] },
     { term: 'produktionsvolumen', add: ['production volume'] },
 ];
 //# sourceMappingURL=germanAliases.js.map

@@ -36,6 +36,33 @@ export function fmt(n, lang) {
 export function L(lang, en, de) {
     return lang === 'de' && de ? de : en;
 }
+// Common country names EN→DE, for localizing country values echoed into German
+// answer text. Unknown values pass through unchanged (user may already enter German).
+const COUNTRY_DE = {
+    germany: 'Deutschland', austria: 'Österreich', switzerland: 'Schweiz',
+    france: 'Frankreich', italy: 'Italien', spain: 'Spanien',
+    netherlands: 'Niederlande', belgium: 'Belgien', poland: 'Polen',
+    'czech republic': 'Tschechien', czechia: 'Tschechien', sweden: 'Schweden',
+    denmark: 'Dänemark', finland: 'Finnland', norway: 'Norwegen',
+    portugal: 'Portugal', ireland: 'Irland', greece: 'Griechenland',
+    romania: 'Rumänien', hungary: 'Ungarn', croatia: 'Kroatien',
+    slovakia: 'Slowakei', slovenia: 'Slowenien', bulgaria: 'Bulgarien',
+    lithuania: 'Litauen', latvia: 'Lettland', estonia: 'Estland',
+    luxembourg: 'Luxemburg', 'united kingdom': 'Vereinigtes Königreich',
+    'united states': 'Vereinigte Staaten', usa: 'USA',
+};
+/** Localize a country name for German output; passthrough for `en` or unknown values. */
+export function deCountry(country, lang) {
+    if (lang !== 'de' || !country)
+        return country;
+    return COUNTRY_DE[country.trim().toLowerCase()] || country;
+}
+/** Localize a comma-separated list of country names (e.g. "Germany, Poland"). */
+export function deCountries(list, lang) {
+    if (lang !== 'de' || !list)
+        return list;
+    return list.split(',').map((c) => deCountry(c.trim(), lang)).join(', ');
+}
 // Generator-level boilerplate strings (not template-specific). Keyed by language.
 const GEN_STRINGS = {
     insufficient: {

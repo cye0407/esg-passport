@@ -1,1 +1,1 @@
-{"version":3,"file":"answerTemplates.d.ts","sourceRoot":"","sources":["../../../domain-packs/esg/answerTemplates.ts"],"names":[],"mappings":"AAKA,OAAO,KAAK,EAAE,cAAc,EAAsB,MAAM,iBAAiB,CAAC;AAG1E,eAAO,MAAM,oBAAoB,EAAE,cAAc,EAu7DhD,CAAC"}
+{"version":3,"file":"answerTemplates.d.ts","sourceRoot":"","sources":["../../../domain-packs/esg/answerTemplates.ts"],"names":[],"mappings":"AAKA,OAAO,KAAK,EAAE,cAAc,EAAsB,MAAM,iBAAiB,CAAC;AA8C1E,eAAO,MAAM,oBAAoB,EAAE,cAAc,EAq1EhD,CAAC"}
