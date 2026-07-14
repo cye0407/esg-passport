@@ -27,15 +27,19 @@ function slugify(str) {
 }
 
 function formatStatus(draft, copy) {
+  if (draft.supportLevel === 'estimated') return copy.estimated;
   return draft.supportLevel === 'draft' ? copy.draft : copy.supported;
 }
 
 function formatCoverage(draft, copy) {
   switch (draft.dataCoverage) {
     case 'complete': return copy.dataBacked;
+    case 'estimated': return copy.estimated;
     case 'partial': return copy.partiallyBacked;
     case 'missing': return copy.notBacked;
-    default: return draft.supportLevel === 'draft' ? copy.notBacked : copy.dataBacked;
+    default:
+      if (draft.supportLevel === 'estimated') return copy.estimated;
+      return draft.supportLevel === 'draft' ? copy.notBacked : copy.dataBacked;
   }
 }
 

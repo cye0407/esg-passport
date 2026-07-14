@@ -185,6 +185,21 @@ export function buildCompanyData(year) {
     isValid: d.validUntil ? new Date(d.validUntil) >= now : true,
   }));
 
+  // Prefer a positive signal from EITHER source (policy or profile). A seeded
+  // DEFAULT_POLICY left untouched normalizes to `not_available` → false, which
+  // must NOT veto a real profile "yes" (the old `??` short-circuit bug).
+  const dataPrivacyPolicyTri = policyStatusToTriState(policyMap.data_privacy?.status);
+  const dataProtectionProfileTri = toTriStateBoolean(profile?.dataProtectionPolicy);
+  const dataProtectionPolicy = dataPrivacyPolicyTri === true
+    ? true
+    : (dataProtectionProfileTri !== undefined ? dataProtectionProfileTri : dataPrivacyPolicyTri);
+
+  const whistleblowerPolicyTri = policyStatusToTriState(policyMap.whistleblower?.status);
+  const grievanceProfileTri = toTriStateBoolean(profile?.grievanceMechanismExists);
+  const grievanceMechanismExists = whistleblowerPolicyTri === true
+    ? true
+    : (grievanceProfileTri !== undefined ? grievanceProfileTri : whistleblowerPolicyTri);
+
   return {
     companyName: profile?.tradingName || profile?.legalName || '',
     industry: profile?.industrySector || '',
@@ -211,7 +226,7 @@ export function buildCompanyData(year) {
 
     // Governance flags
     noSignificantFines: profile?.noSignificantFines || undefined,
-    dataProtectionPolicy: policyStatusToTriState(policyMap.data_privacy?.status) ?? toTriStateBoolean(profile?.dataProtectionPolicy),
+    dataProtectionPolicy,
     publishesSustainabilityReport: toTriStateBoolean(profile?.publishesSustainabilityReport),
     reportingFramework: profile?.reportingFramework || undefined,
     externalAssurance: toTriStateBoolean(profile?.externalAssurance),
@@ -257,7 +272,7 @@ export function buildCompanyData(year) {
     turnoverRate: totals.turnoverRate != null ? Math.round(totals.turnoverRate * 10) / 10 : undefined,
     collectiveBargainingPercent: totals.collectiveBargainingPercent != null ? Math.round(totals.collectiveBargainingPercent) : undefined,
     livingWageCompliant: toTriStateBoolean(profile?.livingWageCompliant),
-    grievanceMechanismExists: policyStatusToTriState(policyMap.whistleblower?.status) ?? toTriStateBoolean(profile?.grievanceMechanismExists),
+    grievanceMechanismExists,
     grievancesReported: totals.grievancesReported != null ? totals.grievancesReported : undefined,
     newHires: totals.newHires != null ? totals.newHires : undefined,
     suppliersAssessedPercent: totals.suppliersAssessedPercent != null ? Math.round(totals.suppliersAssessedPercent) : undefined,

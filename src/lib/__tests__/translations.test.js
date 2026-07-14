@@ -141,6 +141,28 @@ describe('translations', () => {
     expect(word).not.toContain('Questionnaire Responses (Word)');
   });
 
+  it('labels estimated answers as estimated (not draft / not backed) in exports', () => {
+    const html = buildHtmlDocument([
+      {
+        questionText: 'Scope 1 & 2 GHG emissions',
+        answer: 'Total Scope 1 & 2 emissions were 1,250 tCO2e for the reporting period.',
+        verifiedAnswer: 'Total Scope 1 & 2 emissions were 1,250 tCO2e for the reporting period.',
+        supportLevel: 'estimated',
+        dataCoverage: 'estimated',
+      },
+    ], {
+      companyName: 'Acme',
+      generatedAt: '2026-04-21T10:15:00.000Z',
+      language: 'de',
+    });
+
+    // German export: status + coverage cells both read "Geschätzt"
+    expect(html).toContain('Geschätzt');
+    // Must NOT be mislabelled as a draft or as "no data"
+    expect(html).not.toContain('Entwurf');
+    expect(html).not.toContain('Nicht durch erfasste Daten belegt');
+  });
+
   it('throws a clear error when print preview is popup-blocked', () => {
     const createObjectURL = vi.fn(() => 'blob:test');
     const revokeObjectURL = vi.fn();

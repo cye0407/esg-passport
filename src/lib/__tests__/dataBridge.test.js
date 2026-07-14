@@ -254,6 +254,56 @@ describe('buildCompanyData', () => {
     expect(policiesById.supplier_code.status).toBe('available');
   });
 
+  // ------------------------------------------------------------------
+  // Regression: `??` short-circuit let an untouched default policy
+  // (status not_available → false) veto a real profile "yes", emitting a
+  // confidently-wrong "we have NO policy" statement (findings H1 + H2).
+  // ------------------------------------------------------------------
+  describe('policy/profile tri-state merge (H1/H2 regression)', () => {
+    it('untouched default data_privacy policy does NOT veto profile dataProtectionPolicy=yes', () => {
+      seedProfile({ dataProtectionPolicy: 'yes' });
+      // data_privacy policy left at its seeded default (status not_available)
+      const data = buildCompanyData('2025');
+      expect(data.dataProtectionPolicy).toBe(true);
+    });
+
+    it('untouched default whistleblower policy does NOT veto profile grievanceMechanismExists=yes', () => {
+      seedProfile({ grievanceMechanismExists: 'yes' });
+      // whistleblower policy left at its seeded default (status not_available)
+      const data = buildCompanyData('2025');
+      expect(data.grievanceMechanismExists).toBe(true);
+    });
+
+    it('a policy marked available yields true even without a profile signal', () => {
+      seedProfile();
+      const stored = loadData();
+      stored.policies = stored.policies.map(p =>
+        (p.id === 'data_privacy' || p.id === 'whistleblower')
+          ? { ...p, status: 'available' }
+          : p
+      );
+      saveData(stored);
+      const data = buildCompanyData('2025');
+      expect(data.dataProtectionPolicy).toBe(true);
+      expect(data.grievanceMechanismExists).toBe(true);
+    });
+
+    it('profile "no" is preserved over an untouched default policy', () => {
+      seedProfile({ dataProtectionPolicy: 'no', grievanceMechanismExists: 'no' });
+      const data = buildCompanyData('2025');
+      expect(data.dataProtectionPolicy).toBe(false);
+      expect(data.grievanceMechanismExists).toBe(false);
+    });
+
+    it('with neither a positive profile signal nor an available policy, falls back to the policy tri-state (false)', () => {
+      seedProfile();
+      // No profile flags set; both policies at seeded default (not_available)
+      const data = buildCompanyData('2025');
+      expect(data.dataProtectionPolicy).toBe(false);
+      expect(data.grievanceMechanismExists).toBe(false);
+    });
+  });
+
   it('exposes governance policy implementation statuses for in-progress policies', () => {
     seedProfile();
     const data = loadData();

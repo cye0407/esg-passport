@@ -73,6 +73,7 @@ const CONFIDENCE_CONFIG = {
 
 const SUPPORT_CONFIG = {
   supported: { color: 'text-emerald-700', bg: 'bg-emerald-50', dot: 'bg-emerald-500', labelKey: 'support.supported' },
+  estimated: { color: 'text-amber-700', bg: 'bg-amber-50', dot: 'bg-amber-500', labelKey: 'support.estimated' },
   draft: { color: 'text-violet-700', bg: 'bg-violet-50', dot: 'bg-violet-500', labelKey: 'support.draft' },
 };
 
@@ -242,14 +243,16 @@ export default function Respond({ demoOnly = false }) {
       if (result.success && result.questions.length > 0) {
         runPipeline(result, file.name);
       } else if (result.questions.length === 0) {
-        setParseError(t('respond.errNoQuestions'));
+        setParseError(result.errors?.length ? result.errors.join('. ') : t('respond.errNoQuestions'));
         setShowMapping(true);
         if (result.metadata?.availableColumns) setMappingColumns(result.metadata.availableColumns);
       } else {
         setParseError(result.errors.join('. '));
       }
-    } catch {
-      setParseError(t('respond.errUnreadable'));
+    } catch (error) {
+      console.error('Questionnaire parse failed:', error);
+      const message = error instanceof Error ? error.message : '';
+      setParseError(message ? `${t('respond.errUnreadable')} ${message}` : t('respond.errUnreadable'));
     } finally {
       setParsing(false);
     }
@@ -292,8 +295,16 @@ export default function Respond({ demoOnly = false }) {
     needsReview: s.needsReview ?? s.answerConfidence !== 'high',
     verifiedAnswer: s.verifiedAnswer ?? s.answer ?? null,
     draftAnswer: s.draftAnswer ?? (s.isDrafted ? s.answer : null),
-    supportLevel: s.supportLevel || (s.confidenceSource === 'provided' && !s.isDrafted ? 'supported' : 'draft'),
-    dataCoverage: s.dataCoverage || (s.confidenceSource === 'provided' && !s.isDrafted ? 'complete' : (s.limitations?.length ? 'partial' : 'missing')),
+    supportLevel: s.supportLevel || (
+      s.confidenceSource === 'provided' && !s.isDrafted ? 'supported'
+        : (s.confidenceSource === 'estimated' || s.isEstimate) && !s.isDrafted ? 'estimated'
+          : 'draft'
+    ),
+    dataCoverage: s.dataCoverage || (
+      s.confidenceSource === 'provided' && !s.isDrafted ? 'complete'
+        : (s.confidenceSource === 'estimated' || s.isEstimate) && !s.isDrafted ? 'estimated'
+          : (s.limitations?.length ? 'partial' : 'missing')
+    ),
     contentMode: s.contentMode || (s.isDrafted ? 'mixed' : 'verified_only'),
     evidenceRefs: s.evidenceRefs || [],
     missingFields: s.missingFields || [],
@@ -409,6 +420,10 @@ export default function Respond({ demoOnly = false }) {
         includeLimitations: true,
         verbosity: 'standard',
         aggregateSites: true,
+        // Generate answers in the selected language at the source. The engine
+        // supports en/de; anything else falls back to English generation (and
+        // the translateAnswer() display layer handles remaining locales).
+        language: language === 'de' ? 'de' : 'en',
       };
 
       const drafts = engine.generateDrafts(questions, matchResults, dataContexts, config, profile, classifications);
@@ -487,9 +502,12 @@ export default function Respond({ demoOnly = false }) {
   const getCoverageLabel = (draft) => {
     switch (draft.dataCoverage) {
       case 'complete': return t('respond.covComplete');
+      case 'estimated': return t('respond.covEstimated');
       case 'partial': return t('respond.covPartial');
       case 'missing': return t('respond.covMissing');
-      default: return draft.supportLevel === 'draft' ? t('respond.covMissing') : t('respond.covComplete');
+      default:
+        if (draft.supportLevel === 'estimated') return t('respond.covEstimated');
+        return draft.supportLevel === 'draft' ? t('respond.covMissing') : t('respond.covComplete');
     }
   };
 
