@@ -8,6 +8,7 @@ import {
 } from '@/lib/license';
 import { track } from '@/lib/track';
 import ActivationCard from '@/components/ActivationCard';
+import { useLanguage } from '@/components/LanguageContext';
 
 const LicenseContext = createContext({
   isPaid: false,
@@ -85,6 +86,7 @@ export function LicenseProvider({ children }) {
 }
 
 function AutoActivationBanner({ result, onDismiss }) {
+  const { t } = useLanguage();
   const success = result.ok;
   const tierLabel = 'ESG Passport';
   return (
@@ -94,14 +96,14 @@ function AutoActivationBanner({ result, onDismiss }) {
     >
       <span>
         {success
-          ? `${tierLabel} license activated - all features unlocked.`
-          : `Activation failed: ${result.error || 'unknown error'}. Paste your key in Settings to try again.`}
+          ? t('lic.activated', { tier: tierLabel })
+          : t('lic.failed', { error: result.error || t('lic.unknownError') })}
       </span>
       <button
         onClick={onDismiss}
         className="underline underline-offset-2 hover:no-underline"
       >
-        Dismiss
+        {t('lic.dismiss')}
       </button>
     </div>
   );

@@ -49,10 +49,10 @@ describe('UpgradeGate', () => {
     expect(container.textContent).not.toContain('Upload any questionnaire');
   });
 
-  it('falls back to response-assistant copy for unknown paid features', async () => {
+  it('falls back to default response-workflow copy for unknown paid features', async () => {
     await renderGate('Unknown Feature');
 
-    expect(container.textContent).toContain('Unlock Unknown Feature');
+    expect(container.textContent).toContain('Unlock the response workflow');
     expect(container.textContent).toContain('Upload any questionnaire');
     expect(container.textContent).not.toContain('shareable ESG Passport report');
   });

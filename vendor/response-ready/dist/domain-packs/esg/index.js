@@ -3,6 +3,7 @@
 // ============================================
 // Assembles all ESG-specific modules into a single DomainPack.
 import { ESG_KEYWORD_RULES, ESG_DOMAIN_SUGGESTIONS } from './keywordRules';
+import { ESG_TERM_ALIASES } from './germanAliases';
 import { ESG_CLASSIFIER_SIGNALS, ESG_QUESTION_TYPES, ESG_DEFAULT_QUESTION_TYPE } from './classifierSignals';
 import { ESG_ANSWER_TEMPLATES } from './answerTemplates';
 import { ESG_SCRUB_RULES } from './scrubRules';
@@ -23,6 +24,7 @@ export const esgDomainPack = {
     // Keyword Matching
     keywordRules: ESG_KEYWORD_RULES,
     domainSuggestions: ESG_DOMAIN_SUGGESTIONS,
+    termAliases: ESG_TERM_ALIASES,
     // Question Classification
     questionTypes: [...ESG_QUESTION_TYPES],
     classifierSignals: ESG_CLASSIFIER_SIGNALS,

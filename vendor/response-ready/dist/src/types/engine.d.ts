@@ -40,12 +40,30 @@ export interface KeywordRule {
     topics: string[];
     weight: number;
 }
+/**
+ * Maps a foreign-language / synonym term to the canonical English keyword(s) that existing
+ * KeywordRules already match on. When `term` is found in a question (as a normalized
+ * substring, so it survives German compounding — 'abfall' hits 'Abfallaufkommen'), the
+ * canonical terms are appended to the text before keyword matching runs. This lets a domain
+ * pack support non-English questionnaires without duplicating all of its rules.
+ */
+export interface TermAlias {
+    /** Term to look for in the question. Matched case-insensitively as a normalized substring. */
+    term: string;
+    /** Canonical keyword(s) to inject when `term` is present. Must be strings the pack's
+     *  KeywordRule[] already matches on, so the injected words route to the right domain. */
+    add: string[];
+}
 export interface MatchResult {
     questionId: string;
     primaryDomain: string | null;
     secondaryDomains: string[];
     topics: string[];
     primaryTopics?: string[];
+    /** Sum of matched keyword-rule weights per topic. Lets answer-template selection
+     *  prefer the topic a question scored most strongly on when two candidate templates
+     *  in the same domain otherwise tie. */
+    topicScores?: Record<string, number>;
     confidence: 'high' | 'medium' | 'low' | 'none';
     matchedKeywords: string[];
     suggestedDataPoints: string[];
@@ -118,12 +136,15 @@ export type TemplateResult = string | {
     drafted?: boolean;
 } | null;
 /** Template that generates an answer from retrieved data. */
+/** Output language for generated answers. Extend as more locales are translated. */
+export type Lang = 'en' | 'de';
 export interface AnswerTemplate {
     domains: string[];
     topics: string[];
     /** Optional: restrict this template to specific question types (POLICY, MEASURE, KPI). If omitted, matches any type. */
     questionTypes?: string[];
-    generate: (dataMap: Map<string, RetrievedDataPoint>, framework?: string) => TemplateResult;
+    /** `lang` selects the output language (default 'en'). Templates that omit German fall back to English. */
+    generate: (dataMap: Map<string, RetrievedDataPoint>, framework?: string, lang?: Lang) => TemplateResult;
 }
 export interface GenerationConfig {
     useLLM: boolean;
@@ -132,6 +153,8 @@ export interface GenerationConfig {
     includeLimitations: boolean;
     verbosity: 'concise' | 'standard' | 'detailed';
     aggregateSites: boolean;
+    /** Output language for generated answer text (default 'en'). */
+    language?: Lang;
 }
 export interface ResponseSession {
     id: string;

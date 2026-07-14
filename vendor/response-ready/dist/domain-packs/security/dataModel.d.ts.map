@@ -1,0 +1,1 @@
+{"version":3,"file":"dataModel.d.ts","sourceRoot":"","sources":["../../../domain-packs/security/dataModel.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,WAAW,EAAE,WAAW,EAAsB,MAAM,iBAAiB,CAAC;AAEpF,OAAO,KAAK,EAIV,yBAAyB,EAC1B,MAAM,SAAS,CAAC;AAiDjB,wBAAgB,oBAAoB,CAAC,WAAW,EAAE,WAAW,EAAE,IAAI,EAAE,yBAAyB,GAAG,WAAW,CA4D3G"}

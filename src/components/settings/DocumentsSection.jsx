@@ -5,16 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useLanguage } from '@/components/LanguageContext';
+import { localizeCertType } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { FileText, Plus, Trash2, Calendar, Shield, Award, FileSpreadsheet, Building2, X, Check } from 'lucide-react';
 
+// Display-only labels — stored `value` ('certificate' etc.) stays stable.
 const DOC_CATEGORIES = [
-  { value: 'certificate', label: 'Certificate', icon: Award },
-  { value: 'policy', label: 'Policy Document', icon: Shield },
-  { value: 'audit', label: 'Audit Report', icon: FileSpreadsheet },
-  { value: 'evidence', label: 'Measurement Evidence', icon: FileText },
-  { value: 'report', label: 'Annual/ESG Report', icon: Building2 },
-  { value: 'other', label: 'Other', icon: FileText },
+  { value: 'certificate', labelKey: 'doc.catCertificate', icon: Award },
+  { value: 'policy', labelKey: 'doc.catPolicy', icon: Shield },
+  { value: 'audit', labelKey: 'doc.catAudit', icon: FileSpreadsheet },
+  { value: 'evidence', labelKey: 'doc.catEvidence', icon: FileText },
+  { value: 'report', labelKey: 'doc.catReport', icon: Building2 },
+  { value: 'other', labelKey: 'doc.catOther', icon: FileText },
 ];
 
 const CERTIFICATE_TYPES = [
@@ -38,6 +41,7 @@ const CERTIFICATE_TYPES = [
 ];
 
 export default function DocumentsSection() {
+  const { lang, t } = useLanguage();
   const [documents, setDocuments] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editDoc, setEditDoc] = useState(null);
@@ -75,9 +79,9 @@ export default function DocumentsSection() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">{documents.length} document{documents.length !== 1 ? 's' : ''} registered</p>
+        <p className="text-sm text-slate-500">{documents.length === 1 ? t('doc.registeredOne', { count: documents.length }) : t('doc.registered', { count: documents.length })}</p>
         <Button size="sm" variant="outline" onClick={() => { setShowForm(true); setEditDoc(null); setForm({ name: '', category: 'certificate', validUntil: '', notes: '', referenceNumber: '' }); }}>
-          <Plus className="w-4 h-4 mr-1" /> Add Document
+          <Plus className="w-4 h-4 mr-1" /> {t('doc.add')}
         </Button>
       </div>
 
@@ -85,77 +89,77 @@ export default function DocumentsSection() {
       {showForm && (
         <div className="rounded-lg border border-slate-200 p-4 space-y-3 bg-slate-50">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-900">{editDoc ? 'Edit Document' : 'Add Document'}</p>
+            <p className="text-sm font-medium text-slate-900">{editDoc ? t('doc.edit') : t('doc.add')}</p>
             <button onClick={() => { setShowForm(false); setEditDoc(null); }} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs text-slate-500">Category</Label>
+              <Label className="text-xs text-slate-500">{t('doc.category')}</Label>
               <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
                 <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>{DOC_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+                <SelectContent>{DOC_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{t(c.labelKey)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {form.category === 'certificate' ? (
               <div>
-                <Label className="text-xs text-slate-500">Certificate Type *</Label>
+                <Label className="text-xs text-slate-500">{t('doc.certType')}</Label>
                 <Select
                   value={CERTIFICATE_TYPES.includes(form.name) ? form.name : 'Other'}
                   onValueChange={v => setForm(f => ({ ...f, name: v === 'Other' ? '' : v }))}
                 >
-                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select type" /></SelectTrigger>
-                  <SelectContent>{CERTIFICATE_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={t('doc.selectType')} /></SelectTrigger>
+                  <SelectContent>{CERTIFICATE_TYPES.map(ct => <SelectItem key={ct} value={ct}>{localizeCertType(ct, lang)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             ) : (
               <div>
-                <Label className="text-xs text-slate-500">Name *</Label>
-                <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g., Annual Sustainability Report" className="h-8 text-sm" />
+                <Label className="text-xs text-slate-500">{t('doc.name')}</Label>
+                <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('doc.namePh')} className="h-8 text-sm" />
               </div>
             )}
             <div>
-              <Label className="text-xs text-slate-500">Valid Until</Label>
+              <Label className="text-xs text-slate-500">{t('doc.validUntil')}</Label>
               <Input type="date" value={form.validUntil} onChange={e => setForm(f => ({ ...f, validUntil: e.target.value }))} className="h-8 text-sm" />
             </div>
             <div>
-              <Label className="text-xs text-slate-500">Reference Number</Label>
-              <Input value={form.referenceNumber} onChange={e => setForm(f => ({ ...f, referenceNumber: e.target.value }))} placeholder="e.g., CERT-2024-001" className="h-8 text-sm" />
+              <Label className="text-xs text-slate-500">{t('doc.refNumber')}</Label>
+              <Input value={form.referenceNumber} onChange={e => setForm(f => ({ ...f, referenceNumber: e.target.value }))} placeholder={t('doc.refPh')} className="h-8 text-sm" />
             </div>
           </div>
           {form.category === 'certificate' && !CERTIFICATE_TYPES.includes(form.name) && (
             <div>
-              <Label className="text-xs text-slate-500">Certificate Name *</Label>
-              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Enter certificate name" className="h-8 text-sm" />
+              <Label className="text-xs text-slate-500">{t('doc.certName')}</Label>
+              <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('doc.certNamePh')} className="h-8 text-sm" />
             </div>
           )}
           <div>
-            <Label className="text-xs text-slate-500">Notes</Label>
-            <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Additional details..." rows={2} className="text-sm" />
+            <Label className="text-xs text-slate-500">{t('doc.notes')}</Label>
+            <Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder={t('doc.notesPh')} rows={2} className="text-sm" />
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setShowForm(false); setEditDoc(null); }}>Cancel</Button>
-            <Button size="sm" onClick={handleSave} disabled={!form.name.trim()}><Check className="w-3 h-3 mr-1" /> {editDoc ? 'Update' : 'Save'}</Button>
+            <Button variant="outline" size="sm" onClick={() => { setShowForm(false); setEditDoc(null); }}>{t('respond.cancel')}</Button>
+            <Button size="sm" onClick={handleSave} disabled={!form.name.trim()}><Check className="w-3 h-3 mr-1" /> {editDoc ? t('doc.update') : t('doc.save')}</Button>
           </div>
         </div>
       )}
 
       {/* Document List */}
       {documents.length === 0 && !showForm ? (
-        <p className="text-sm text-slate-400 text-center py-4">No documents registered yet. Add certificates, policies, and audit reports.</p>
+        <p className="text-sm text-slate-400 text-center py-4">{t('doc.empty')}</p>
       ) : (
         <div className="space-y-3">
           {grouped.map(group => (
             <div key={group.value}>
               <p className="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
-                <group.icon className="w-3 h-3" /> {group.label} ({group.docs.length})
+                <group.icon className="w-3 h-3" /> {t(group.labelKey)} ({group.docs.length})
               </p>
               <div className="space-y-1">
                 {group.docs.map(doc => (
                   <div key={doc.id} className="rounded-lg border border-slate-200 p-3 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate">{doc.name}</p>
+                      <p className="text-sm font-medium text-slate-900 truncate">{localizeCertType(doc.name, lang)}</p>
                       <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-slate-400">
-                        {doc.referenceNumber && <span>Ref: {doc.referenceNumber}</span>}
+                        {doc.referenceNumber && <span>{t('doc.ref', { ref: doc.referenceNumber })}</span>}
                         {doc.validUntil && (
                           <span className={cn('flex items-center gap-1 px-1.5 py-0.5 rounded',
                             isExpired(doc.validUntil) ? 'bg-red-100 text-red-700' :
@@ -163,13 +167,13 @@ export default function DocumentsSection() {
                             'bg-green-100 text-green-700'
                           )}>
                             <Calendar className="w-3 h-3" />
-                            {isExpired(doc.validUntil) ? 'Expired' : `Valid until ${new Date(doc.validUntil).toLocaleDateString()}`}
+                            {isExpired(doc.validUntil) ? t('doc.expired') : t('doc.validUntilDate', { date: new Date(doc.validUntil).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-GB') })}
                           </span>
                         )}
                       </div>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(doc)} className="text-slate-600 h-7 text-xs">Edit</Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(doc)} className="text-slate-600 h-7 text-xs">{t('doc.editBtn')}</Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDelete(doc.id)} className="text-red-500 hover:text-red-700 h-7 w-7 p-0">
                         <Trash2 className="w-3 h-3" />
                       </Button>
@@ -185,13 +189,13 @@ export default function DocumentsSection() {
       {/* Expiry Alerts */}
       {documents.some(d => isExpired(d.validUntil) || isExpiringSoon(d.validUntil)) && (
         <div className="rounded-lg border-l-4 border-yellow-500 bg-yellow-50 p-3">
-          <p className="text-sm font-medium text-slate-900 mb-1">Expiry Alerts</p>
+          <p className="text-sm font-medium text-slate-900 mb-1">{t('doc.expiryAlerts')}</p>
           <div className="space-y-0.5 text-xs">
             {documents.filter(d => isExpired(d.validUntil)).map(d => (
-              <p key={d.id} className="text-red-600">{d.name} — expired</p>
+              <p key={d.id} className="text-red-600">{t('doc.expiredItem', { name: localizeCertType(d.name, lang) })}</p>
             ))}
             {documents.filter(d => isExpiringSoon(d.validUntil)).map(d => (
-              <p key={d.id} className="text-yellow-600">{d.name} — expires soon</p>
+              <p key={d.id} className="text-yellow-600">{t('doc.expiresSoon', { name: localizeCertType(d.name, lang) })}</p>
             ))}
           </div>
         </div>

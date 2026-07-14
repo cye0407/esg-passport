@@ -144,17 +144,84 @@ function looksLikeQuestion(text) {
         return true;
     return false;
 }
+function countChar(text, char) {
+    return text.split(char).length - 1;
+}
+function normalizeExtractedQuestionText(text) {
+    return text
+        .replace(/\s+([?.!,;:])/g, '$1')
+        .replace(/\b([A-Za-z])\s-\s([A-Za-z])\b/g, '$1-$2')
+        .replace(/\b(Scope)\s-\s([123])\b/gi, '$1-$2')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function isTableSeparator(line) {
+    return /^\|\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?$/.test(line.trim());
+}
+function isQuestionTableHeader(cells) {
+    return cells.some(c => c.toLowerCase() === 'question')
+        && cells.some(c => /^id$/i.test(c) || /target|stress/i.test(c));
+}
+function extractQuestionFromTableLine(line) {
+    if (!line.trim().startsWith('|') || isTableSeparator(line))
+        return null;
+    const cells = line
+        .replace(/^\|/, '')
+        .replace(/\|$/, '')
+        .split('|')
+        .map(c => normalizeExtractedQuestionText(c));
+    if (cells.length < 2 || isQuestionTableHeader(cells))
+        return null;
+    if (cells.length >= 3 && cells[0].length <= 30 && cells[1].length >= 10) {
+        return { text: cells[1], referenceId: cells[0] };
+    }
+    const questionIndex = cells.findIndex((cell, idx) => idx > 0 && (looksLikeQuestion(cell) || INTERROGATIVE_START.test(cell) || IMPERATIVE_START.test(cell)));
+    if (questionIndex < 0)
+        return null;
+    const referenceId = cells[0] && cells[0].length <= 30 ? cells[0] : undefined;
+    return { text: cells[questionIndex], referenceId };
+}
+function mergeSplitTableRows(lines) {
+    const merged = [];
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        if (!line.trim().startsWith('|') || isTableSeparator(line)) {
+            merged.push(line);
+            continue;
+        }
+        while (countChar(line, '|') < 3
+            && i + 1 < lines.length
+            && !lines[i + 1].trim().startsWith('|')
+            && !/^#{1,6}\s/.test(lines[i + 1].trim())) {
+            line += ' ' + lines[++i];
+        }
+        merged.push(line);
+    }
+    return merged;
+}
 // ============================================
 // Text-to-Questions (shared by PDF + DOCX)
 // ============================================
 function questionsFromText(text, fileName) {
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const lines = mergeSplitTableRows(text.split('\n').map(l => l.trim()).filter(l => l.length > 0));
     const questions = [];
     let currentCategory;
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (TOC_LINE.test(line))
             continue;
+        const tableQuestion = extractQuestionFromTableLine(line);
+        if (tableQuestion) {
+            questions.push({
+                id: uuid(),
+                rowIndex: i + 1,
+                text: tableQuestion.text,
+                category: currentCategory,
+                referenceId: tableQuestion.referenceId,
+                rawRow: { text: line },
+            });
+            continue;
+        }
         if (line.length < 50 && !line.includes('?') && !line.match(/^\d+[\.\)]/) && !STRUCTURED_NUMBERING.test(line)) {
             currentCategory = line.replace(/[:.]$/, '').trim();
             continue;
@@ -204,10 +271,16 @@ function questionsFromText(text, fileName) {
 // ============================================
 async function parsePdfFile(file) {
     try {
-        const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
+        const pdfInit = isBrowser
+            ? {
+                data: arrayBuffer,
+                workerSrc: new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString(),
+            }
+            : { data: arrayBuffer, disableWorker: true };
+        const pdf = await pdfjsLib.getDocument(pdfInit).promise;
         const textParts = [];
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
             const page = await pdf.getPage(pageNum);

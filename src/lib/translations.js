@@ -987,6 +987,7 @@ export function getExportStrings(targetLang) {
     answer: pick(lang, { de: 'Antwort', pl: 'Odpowied\u017a', fr: 'R\u00e9ponse', es: 'Respuesta', it: 'Risposta', nl: 'Antwoord', en: 'Answer' }),
     suggestedDraft: pick(lang, { de: 'Vorgeschlagener Entwurf', pl: 'Sugerowany szkic', fr: 'Projet sugg\u00e9r\u00e9', es: 'Borrador sugerido', it: 'Bozza suggerita', nl: 'Voorgestelde concepttekst', en: 'Suggested Draft' }),
     supported: pick(lang, { de: 'Belegt', pl: 'Potwierdzone danymi', fr: '\u00c9tay\u00e9', es: 'Respaldado', it: 'Supportato', nl: 'Onderbouwd', en: 'Supported' }),
+    estimated: pick(lang, { de: 'Gesch\u00e4tzt', pl: 'Szacunkowe', fr: 'Estim\u00e9', es: 'Estimado', it: 'Stimato', nl: 'Geschat', en: 'Estimated' }),
     draft: pick(lang, { de: 'Entwurf', pl: 'Szkic', fr: 'Brouillon', es: 'Borrador', it: 'Bozza', nl: 'Concept', en: 'Draft' }),
     dataBacked: pick(lang, { de: 'Datenbasiert', pl: 'Oparte na danych', fr: 'Appuy\u00e9 par des donn\u00e9es', es: 'Respaldado por datos', it: 'Supportato dai dati', nl: 'Op gegevens gebaseerd', en: 'Data backed' }),
     partiallyBacked: pick(lang, { de: 'Teilweise datenbasiert', pl: 'Cz\u0119\u015bciowo oparte na danych', fr: 'Partiellement \u00e9tay\u00e9 par des donn\u00e9es', es: 'Parcialmente respaldado por datos', it: 'Parzialmente supportato dai dati', nl: 'Gedeeltelijk op gegevens gebaseerd', en: 'Partially backed by tracked data' }),

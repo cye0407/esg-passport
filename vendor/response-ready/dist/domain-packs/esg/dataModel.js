@@ -5,6 +5,12 @@
 // that maps matched questions to relevant data points.
 import { addIfPresent, deduplicatePoints } from '../../src/engine/dataRetrieval';
 import { estimateScope1, estimateScope2Location, estimateScope2Market } from './emissionFactors';
+function addIndustryMetric(target, data, domain, section, field, label, unit, outputField) {
+    const value = data.industryMetrics?.[section]?.[field];
+    if (value !== undefined && value !== null) {
+        target.push({ domain, field: outputField || field, label, value, unit, confidence: 'high' });
+    }
+}
 // ============================================
 // Data Retrieval
 // ============================================
@@ -33,10 +39,50 @@ export function esgRetrieveData(matchResult, data) {
                 // Domain-specific extras
                 if (domain === 'effluents') {
                     addIfPresent(company, domain, 'waterWithdrawal', 'Water Withdrawal', data.waterM3);
+                    if (data.wastewaterTreatmentDetails)
+                        operational.push({ domain: 'effluents', field: 'wastewaterTreatmentDetails', label: 'Wastewater Treatment', value: data.wastewaterTreatmentDetails, confidence: 'high' });
+                    addIndustryMetric(operational, data, domain, 'textile', 'waterDischargeM3', 'Water Discharge', 'm3');
+                    addIndustryMetric(operational, data, domain, 'agriculture', 'irrigationWaterM3', 'Irrigation Water', 'm3');
+                    addIndustryMetric(operational, data, domain, 'mining', 'waterReusedPercent', 'Water Reused', '%');
                 }
                 if (domain === 'materials' || domain === 'buyer_requirements') {
                     addIfPresent(company, domain, 'productsServices', 'Products & Services', data.productsServices);
                     addIfPresent(company, domain, 'mainMarkets', 'Main Markets', data.mainMarkets);
+                    // Conflict minerals / responsible sourcing status (buyer-facing supply-chain topics)
+                    if (data.conflictMineralsStatus)
+                        operational.push({ domain, field: 'conflictMineralsStatus', label: 'Conflict Minerals Due Diligence Status', value: data.conflictMineralsStatus, confidence: 'high' });
+                    if (data.cmrtStatus)
+                        operational.push({ domain, field: 'cmrtStatus', label: 'CMRT Status', value: data.cmrtStatus, confidence: 'high' });
+                    if (data.emrtStatus)
+                        operational.push({ domain, field: 'emrtStatus', label: 'EMRT Status', value: data.emrtStatus, confidence: 'high' });
+                    if (data.responsibleSourcingPolicyStatus)
+                        operational.push({ domain, field: 'responsibleSourcingPolicyStatus', label: 'Responsible Sourcing Policy Status', value: data.responsibleSourcingPolicyStatus, confidence: 'high' });
+                    if (data.supplierCodeStatus)
+                        operational.push({ domain, field: 'supplierCodeStatus', label: 'Supplier Code of Conduct Status', value: data.supplierCodeStatus, confidence: 'high' });
+                    if (data.supplierCorrectiveActionProcess)
+                        operational.push({ domain, field: 'supplierCorrectiveActionProcess', label: 'Supplier Corrective-Action Process', value: data.supplierCorrectiveActionProcess, confidence: 'high' });
+                    if (data.humanRightsDueDiligenceStatus)
+                        operational.push({ domain, field: 'humanRightsDueDiligenceStatus', label: 'Human Rights Due Diligence Status', value: data.humanRightsDueDiligenceStatus, confidence: 'high' });
+                }
+                if (domain === 'materials') {
+                    addIndustryMetric(operational, data, domain, 'production', 'materialInputTonnes', 'Material Input', 'tonnes');
+                    addIndustryMetric(operational, data, domain, 'agriculture', 'landUseHectares', 'Land Use', 'hectares');
+                    addIndustryMetric(operational, data, domain, 'agriculture', 'fertilizerKg', 'Fertilizer', 'kg');
+                    addIndustryMetric(operational, data, domain, 'agriculture', 'pesticideKg', 'Pesticide', 'kg');
+                    addIndustryMetric(operational, data, domain, 'agriculture', 'irrigationWaterM3', 'Irrigation Water', 'm3');
+                    addIndustryMetric(operational, data, domain, 'agriculture', 'seasonalWorkers', 'Seasonal Workers');
+                    addIndustryMetric(operational, data, domain, 'mining', 'oreProcessedTonnes', 'Ore / Material Processed', 'tonnes');
+                    addIndustryMetric(operational, data, domain, 'mining', 'tailingsGeneratedTonnes', 'Tailings Generated', 'tonnes');
+                    addIndustryMetric(operational, data, domain, 'mining', 'waterReusedPercent', 'Water Reused', '%');
+                    addIndustryMetric(operational, data, domain, 'mining', 'rehabilitatedLandHectares', 'Rehabilitated Land', 'hectares');
+                    addIndustryMetric(operational, data, domain, 'construction', 'concreteTonnes', 'Concrete', 'tonnes');
+                    addIndustryMetric(operational, data, domain, 'construction', 'steelTonnes', 'Steel', 'tonnes');
+                }
+                if (domain === 'packaging') {
+                    if (data.packagingRecycledContentPercent !== undefined)
+                        operational.push({ domain: 'packaging', field: 'packagingRecycledContentPercent', label: 'Packaging Recycled Content', value: data.packagingRecycledContentPercent, unit: '%', confidence: 'high' });
+                    addIndustryMetric(operational, data, domain, 'retail', 'packagingWasteKg', 'Packaging Waste', 'kg');
+                    addIndustryMetric(operational, data, domain, 'distribution', 'packagingWasteKg', 'Packaging Waste', 'kg');
                 }
                 if (domain === 'buyer_requirements' && data.suppliersAssessedPercent !== undefined) {
                     operational.push({ domain: 'buyer_requirements', field: 'suppliersAssessedPercent', label: 'Suppliers ESG-Assessed', value: data.suppliersAssessedPercent, unit: '%', confidence: 'high' });
@@ -46,10 +92,20 @@ export function esgRetrieveData(matchResult, data) {
                 addIfPresent(company, 'products', 'legalEntityName', 'Company Name', data.companyName);
                 addIfPresent(company, 'products', 'industryDescription', 'Industry', data.industry);
                 addIfPresent(company, 'products', 'headquartersCountry', 'Country', data.country);
+                addIfPresent(company, 'products', 'totalFte', 'Total Employees (FTE)', data.employeeCount);
                 addIfPresent(company, 'products', 'productsServices', 'Products & Services', data.productsServices);
                 addIfPresent(company, 'products', 'mainMarkets', 'Main Markets', data.mainMarkets);
                 addIfPresent(company, 'products', 'customerTypes', 'Customer Types', data.customerTypes);
                 addIfPresent(company, 'products', 'operatingCountries', 'Operating Countries', data.operatingCountries);
+                addIndustryMetric(operational, data, 'products', 'production', 'unitsProduced', 'Units Produced');
+                addIndustryMetric(operational, data, 'products', 'production', 'productionHours', 'Production Hours', 'hours');
+                addIndustryMetric(operational, data, 'products', 'production', 'materialInputTonnes', 'Material Input', 'tonnes');
+                addIndustryMetric(operational, data, 'products', 'mining', 'oreProcessedTonnes', 'Ore / Material Processed', 'tonnes');
+                addIndustryMetric(operational, data, 'products', 'retail', 'storeCount', 'Store Count');
+                addIndustryMetric(operational, data, 'products', 'retail', 'storeAreaM2', 'Store Area', 'm2');
+                addIndustryMetric(operational, data, 'products', 'distribution', 'warehouseSpaceM2', 'Warehouse Space', 'm2');
+                addIndustryMetric(operational, data, 'products', 'distribution', 'deliveriesCount', 'Deliveries Made');
+                addIndustryMetric(operational, data, 'products', 'office', 'officeSpaceM2', 'Office Space', 'm2');
                 if (!data.productsServices && !data.mainMarkets) {
                     dataGaps.push('No products/services description');
                 }
@@ -104,6 +160,9 @@ export function esgRetrieveData(matchResult, data) {
                 else {
                     dataGaps.push('No water consumption data');
                 }
+                addIndustryMetric(operational, data, 'energy_water', 'agriculture', 'irrigationWaterM3', 'Irrigation Water', 'm3');
+                addIndustryMetric(operational, data, 'energy_water', 'mining', 'waterReusedPercent', 'Water Reused', '%');
+                addIndustryMetric(operational, data, 'energy_water', 'textile', 'waterDischargeM3', 'Water Discharge', 'm3');
                 break;
             case 'emissions': {
                 if (data.scope1Tco2e !== undefined) {
@@ -134,6 +193,16 @@ export function esgRetrieveData(matchResult, data) {
                         calculated.push({ domain: 'emissions', field: 'scope2Market', label: `Scope 2 Market-Based (Auto-calculated — ${scope2Market.source})`, value: scope2Market.value, unit: 'tCO2e', confidence: 'medium' });
                     }
                 }
+                // Scope 3 also belongs to the emissions domain. A "do you track Scope 3?" question
+                // routes here (via the scope-3 keyword → emissions), so surface Scope 3 figures under
+                // emissions too — otherwise the Scope-3 template can only report "not yet quantified"
+                // even when the value exists (it is otherwise only retrieved under the transport domain).
+                if (data.scope3Tco2e !== undefined) {
+                    calculated.push({ domain: 'emissions', field: 'scope3Total', label: 'Scope 3 Emissions (User Provided)', value: data.scope3Tco2e, unit: 'tCO2e', confidence: 'high' });
+                }
+                if (data.scope3Categories) {
+                    operational.push({ domain: 'emissions', field: 'scope3Categories', label: 'Scope 3 Categories Reported', value: data.scope3Categories, confidence: 'high' });
+                }
                 break;
             }
             case 'transport': {
@@ -146,13 +215,25 @@ export function esgRetrieveData(matchResult, data) {
                 if (data.scope3Categories) {
                     operational.push({ domain: 'transport', field: 'scope3Categories', label: 'Scope 3 Categories Reported', value: data.scope3Categories, confidence: 'high' });
                 }
+                if (data.transportReductionMeasures)
+                    operational.push({ domain: 'transport', field: 'transportReductionMeasures', label: 'Transport Reduction Measures', value: data.transportReductionMeasures, confidence: 'high' });
+                if (data.fleetComposition)
+                    operational.push({ domain: 'transport', field: 'fleetComposition', label: 'Fleet Composition', value: data.fleetComposition, confidence: 'high' });
                 if (data.businessTravelKm)
                     operational.push({ domain: 'transport', field: 'businessTravel', label: 'Business Travel', value: data.businessTravelKm, unit: 'km', confidence: 'high' });
                 if (data.employeeCommuteKm)
                     operational.push({ domain: 'transport', field: 'employeeCommute', label: 'Employee Commuting', value: data.employeeCommuteKm, unit: 'km', confidence: 'high' });
                 if (data.freightTonKm)
                     operational.push({ domain: 'transport', field: 'freightTransport', label: 'Freight Transport', value: data.freightTonKm, unit: 'ton-km', confidence: 'high' });
-                if (!data.scope3Tco2e && !data.businessTravelKm && !data.employeeCommuteKm && !data.freightTonKm) {
+                addIndustryMetric(operational, data, 'transport', 'fleet', 'totalKmDriven', 'Total km Driven', 'km');
+                addIndustryMetric(operational, data, 'transport', 'fleet', 'fleetSize', 'Fleet Size', 'vehicles');
+                addIndustryMetric(operational, data, 'transport', 'fleet', 'avgVehicleAge', 'Average Vehicle Age', 'years');
+                addIndustryMetric(operational, data, 'transport', 'fleet', 'altFuelPercent', 'Alternative Fuel Vehicles', '%');
+                addIndustryMetric(operational, data, 'transport', 'office', 'businessTravelKm', 'Business Travel', 'km', 'businessTravel');
+                addIndustryMetric(operational, data, 'transport', 'office', 'wfhPercent', 'Remote Work', '%');
+                addIndustryMetric(operational, data, 'transport', 'distribution', 'deliveriesCount', 'Deliveries Made');
+                const hasIndustryTransport = Boolean(data.industryMetrics?.fleet || data.industryMetrics?.office || data.industryMetrics?.distribution);
+                if (!data.scope3Tco2e && !data.businessTravelKm && !data.employeeCommuteKm && !data.freightTonKm && !hasIndustryTransport) {
                     dataGaps.push('No Scope 3 / transport data');
                 }
                 break;
@@ -168,6 +249,14 @@ export function esgRetrieveData(matchResult, data) {
                 else {
                     dataGaps.push('No waste data');
                 }
+                addIndustryMetric(operational, data, 'waste', 'healthcare', 'medicalWasteKg', 'Medical Waste', 'kg');
+                addIndustryMetric(operational, data, 'waste', 'healthcare', 'pharmaceuticalWasteKg', 'Pharmaceutical Waste', 'kg');
+                addIndustryMetric(operational, data, 'waste', 'mining', 'oreProcessedTonnes', 'Ore / Material Processed', 'tonnes');
+                addIndustryMetric(operational, data, 'waste', 'mining', 'tailingsGeneratedTonnes', 'Tailings Generated', 'tonnes');
+                addIndustryMetric(operational, data, 'waste', 'mining', 'waterReusedPercent', 'Water Reused', '%');
+                addIndustryMetric(operational, data, 'waste', 'mining', 'rehabilitatedLandHectares', 'Rehabilitated Land', 'hectares');
+                addIndustryMetric(operational, data, 'waste', 'retail', 'packagingWasteKg', 'Packaging Waste', 'kg');
+                addIndustryMetric(operational, data, 'waste', 'distribution', 'packagingWasteKg', 'Packaging Waste', 'kg');
                 break;
             case 'workforce':
                 addIfPresent(company, 'workforce', 'industryDescription', 'Industry', data.industry);
@@ -184,7 +273,7 @@ export function esgRetrieveData(matchResult, data) {
                 if (data.collectiveBargainingPercent !== undefined)
                     operational.push({ domain: 'workforce', field: 'collectiveBargainingPercent', label: 'Collective Bargaining Coverage', value: data.collectiveBargainingPercent, unit: '%', confidence: 'high' });
                 if (data.livingWageCompliant !== undefined)
-                    operational.push({ domain: 'workforce', field: 'livingWageCompliant', label: 'Living Wage Compliance', value: data.livingWageCompliant ? 'Yes' : 'No', confidence: 'high' });
+                    operational.push({ domain: 'workforce', field: 'livingWageCompliant', label: 'Living Wage Compliance', value: data.livingWageCompliant === 'not_applicable' ? 'Not applicable' : (data.livingWageCompliant ? 'Yes' : 'No'), confidence: 'high' });
                 if (data.grievanceMechanismExists !== undefined)
                     operational.push({ domain: 'workforce', field: 'grievanceMechanismExists', label: 'Grievance Mechanism', value: data.grievanceMechanismExists ? 'Yes' : 'No', confidence: 'high' });
                 if (data.grievancesReported !== undefined)
@@ -230,17 +319,26 @@ export function esgRetrieveData(matchResult, data) {
                 if (data.noSignificantFines)
                     operational.push({ domain: 'goals', field: 'noSignificantFines', label: 'Fines/Sanctions Status', value: data.noSignificantFines, confidence: 'high' });
                 if (data.dataProtectionPolicy !== undefined)
-                    operational.push({ domain: 'goals', field: 'dataProtectionPolicy', label: 'Data Protection Policy', value: data.dataProtectionPolicy ? 'Yes' : 'No', confidence: 'high' });
+                    operational.push({ domain: 'goals', field: 'dataProtectionPolicy', label: 'Data Protection Policy', value: data.dataProtectionPolicy === 'not_applicable' ? 'Not applicable' : (data.dataProtectionPolicy ? 'Yes' : 'No'), confidence: 'high' });
                 if (data.publishesSustainabilityReport !== undefined)
                     operational.push({ domain: 'regulatory', field: 'publishesSustainabilityReport', label: 'Publishes Sustainability Report', value: data.publishesSustainabilityReport ? 'Yes' : 'No', confidence: 'high' });
                 if (data.reportingFramework)
                     operational.push({ domain: 'regulatory', field: 'reportingFramework', label: 'Reporting Framework', value: data.reportingFramework, confidence: 'high' });
                 if (data.externalAssurance !== undefined)
-                    operational.push({ domain: 'regulatory', field: 'externalAssurance', label: 'External Assurance', value: data.externalAssurance ? 'Yes' : 'No', confidence: 'high' });
+                    operational.push({ domain: 'regulatory', field: 'externalAssurance', label: 'External Assurance', value: data.externalAssurance === 'not_applicable' ? 'Not applicable' : (data.externalAssurance ? 'Yes' : 'No'), confidence: 'high' });
                 if (data.assuranceStandard)
                     operational.push({ domain: 'regulatory', field: 'assuranceStandard', label: 'Assurance Standard', value: data.assuranceStandard, confidence: 'high' });
                 if (data.csrdApplicable)
                     operational.push({ domain: 'regulatory', field: 'csrdApplicable', label: 'CSRD Applicability', value: data.csrdApplicable, confidence: 'high' });
+                // Governance status fields (anti-corruption, code of conduct, human-rights policy/DD)
+                if (data.antiCorruptionStatus)
+                    operational.push({ domain: 'goals', field: 'antiCorruptionStatus', label: 'Anti-Corruption Policy Status', value: data.antiCorruptionStatus, confidence: 'high' });
+                if (data.codeOfConductStatus)
+                    operational.push({ domain: 'goals', field: 'codeOfConductStatus', label: 'Code of Conduct Status', value: data.codeOfConductStatus, confidence: 'high' });
+                if (data.humanRightsPolicyStatus)
+                    operational.push({ domain: 'goals', field: 'humanRightsPolicyStatus', label: 'Human Rights Policy Status', value: data.humanRightsPolicyStatus, confidence: 'high' });
+                if (data.humanRightsDueDiligenceStatus)
+                    operational.push({ domain: 'goals', field: 'humanRightsDueDiligenceStatus', label: 'Human Rights Due Diligence Status', value: data.humanRightsDueDiligenceStatus, confidence: 'high' });
                 break;
             case 'financial_context':
                 addIfPresent(company, 'financial_context', 'revenueBand', 'Revenue Band', data.revenueBand);
@@ -292,6 +390,18 @@ export function esgRetrieveData(matchResult, data) {
                 if (relevant.length > 0) {
                     company.push({ domain: 'regulatory', field: `${category}PoliciesApproved`, label: `${category.charAt(0).toUpperCase() + category.slice(1)} Policies in Place`, value: relevant.map(p => p.name).join(', '), confidence: 'high' });
                 }
+            }
+        }
+        // Supplier-facing policies (e.g. "Supplier Code of Conduct") are categorized as
+        // governance, so they don't reach supply-chain question domains via the category
+        // map above. Surface them explicitly so supplier-code questions don't wrongly
+        // report "not established" when the policy exists.
+        if (allDomains.includes('buyer_requirements') || allDomains.includes('materials')) {
+            // Only an actual Supplier Code of Conduct — not any supplier-named policy
+            // (e.g. "Supplier Onboarding Procedure") — satisfies "Supplier Code exists".
+            const supplierPolicies = approvedPolicies.filter(p => /supplier code/i.test(p.name));
+            if (supplierPolicies.length > 0) {
+                company.push({ domain: 'buyer_requirements', field: 'supplierPoliciesApproved', label: 'Supplier Code of Conduct in Place', value: supplierPolicies.map(p => p.name).join(', '), confidence: 'high' });
             }
         }
     }

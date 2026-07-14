@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { getSettings, saveCompanyProfile, saveSettings } from '@/lib/store';
 import { track, trackOnce } from '@/lib/track';
 import { INDUSTRIES, COUNTRIES, EMISSION_FACTORS } from '@/lib/constants';
+import { useLanguage } from '@/components/LanguageContext';
+import { localizeIndustry, localizeCountry } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,12 +25,16 @@ import {
   Upload,
   Database,
   ClipboardCheck,
-  Lock,
   Mail,
+  ArrowLeft,
 } from 'lucide-react';
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const { lang, t } = useLanguage();
+  // Cross-links to the marketing site should stay in-language.
+  const marketingBase = 'https://esgforsuppliers.com';
+  const passportUrl = lang === 'de' ? `${marketingBase}/de/passport` : `${marketingBase}/passport`;
   const [step, setStep] = useState(1);
   const setupCompleted = getSettings()?.setupCompleted;
 
@@ -69,6 +75,7 @@ export default function Onboarding() {
 
     saveSettings({
       setupCompleted: true,
+      setupSkipped: false,
       onboardingStep: 3,
       selectedQuestionnaires: [],
       gridCountry: EMISSION_FACTORS.electricity[country] ? country : 'EU_AVERAGE',
@@ -94,22 +101,32 @@ export default function Onboarding() {
   const skipToSample = () => {
     saveSettings({
       setupCompleted: true,
+      setupSkipped: true,
       onboardingStep: 3,
     });
-    track('onboarding_skipped', { destination: '/respond' });
-    navigate('/respond');
+    // Free sample lives at /demo; /respond is the paid workflow.
+    track('onboarding_skipped', { destination: '/demo' });
+    navigate('/demo');
   };
 
   const valueProps = [
-    { icon: Database, text: 'Track energy, water, waste, and workforce data year-round' },
-    { icon: ClipboardCheck, text: 'Manage policies and compliance documents' },
-    { icon: Upload, text: 'Preview questionnaire matching for free, then upgrade when you need the full answer set' },
-    { icon: Globe, text: 'Export reviewed responses in multiple languages with Pro' },
+    { icon: Database, text: t('onboard.value1') },
+    { icon: ClipboardCheck, text: t('onboard.value2') },
+    { icon: Upload, text: t('onboard.value3') },
+    { icon: Globe, text: t('onboard.value4') },
   ];
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
+        <a
+          href={passportUrl}
+          className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {t('onboard.back')}
+        </a>
+
         {/* Progress */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${step >= 1 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'}`}>1</div>
@@ -127,9 +144,9 @@ export default function Onboarding() {
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-none bg-slate-800 mb-2">
                   <Shield className="w-8 h-8 text-white" />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-900">Welcome to ESG Passport</h2>
+                <h2 className="text-2xl font-bold text-slate-900">{t('onboard.welcome')}</h2>
                 <p className="text-slate-500 max-w-md mx-auto">
-                  Track your sustainability data and respond to any ESG questionnaire — all from your browser.
+                  {t('onboard.welcomeSub')}
                 </p>
               </div>
 
@@ -143,14 +160,14 @@ export default function Onboarding() {
               </div>
 
               <p className="text-xs text-slate-400 text-center">
-                Your sustainability data stays in your browser — it never leaves your device.
+                {t('onboard.privacy')}
               </p>
 
               <Button
                 onClick={() => { track('onboarding_profile_started'); setStep(2); }}
                 className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none"
               >
-                Get Started
+                {t('onboard.startPreview')}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
 
@@ -158,8 +175,18 @@ export default function Onboarding() {
                 onClick={skipToSample}
                 className="w-full text-center text-sm text-slate-500 hover:text-slate-700"
               >
-                Skip setup and try the sample
+                {t('onboard.skip')}
               </button>
+
+              {/* Excel Toolkit is English-only (out of scope for DE) — hide it from the German flow. */}
+              {lang !== 'de' && (
+                <a
+                  href="https://esgforsuppliers.com/esg-response-toolkit"
+                  className="block w-full text-center text-sm text-slate-500 hover:text-slate-700"
+                >
+                  {t('onboard.excel')}
+                </a>
+              )}
             </div>
           )}
 
@@ -167,52 +194,52 @@ export default function Onboarding() {
           {step === 2 && (
             <div className="space-y-6">
               <div className="text-center space-y-3">
-                <h2 className="text-2xl font-bold text-slate-900">Your company profile</h2>
+                <h2 className="text-2xl font-bold text-slate-900">{t('onboard.profileTitle')}</h2>
                 <p className="text-slate-500 max-w-md mx-auto">
-                  This personalizes your emission calculations and answer templates.
+                  {t('onboard.profileSub')}
                 </p>
               </div>
 
               <div className="space-y-2">
                 <Label className="text-slate-900 font-medium flex items-center gap-2">
-                  <Building2 className="w-4 h-4" /> Company Name
+                  <Building2 className="w-4 h-4" /> {t('onboard.companyName')}
                 </Label>
                 <Input
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="Enter your company name"
+                  placeholder={t('onboard.companyNamePlaceholder')}
                   className="h-12"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className="text-slate-900 font-medium flex items-center gap-2">
-                  <Mail className="w-4 h-4" /> Work Email
+                  <Mail className="w-4 h-4" /> {t('onboard.email')}
                 </Label>
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
+                  placeholder={t('onboard.emailPlaceholder')}
                   className="h-12"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className="text-slate-900 font-medium flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4" /> Industry
+                  <BarChart3 className="w-4 h-4" /> {t('onboard.industry')}
                 </Label>
                 <Select value={industry} onValueChange={(v) => { setIndustry(v); if (v !== 'Other') setCustomIndustry(''); }}>
-                  <SelectTrigger className="h-12"><SelectValue placeholder="Select your industry" /></SelectTrigger>
+                  <SelectTrigger className="h-12"><SelectValue placeholder={t('onboard.industryPlaceholder')} /></SelectTrigger>
                   <SelectContent>
-                    {INDUSTRIES.map((ind) => <SelectItem key={ind} value={ind}>{ind}</SelectItem>)}
+                    {INDUSTRIES.map((ind) => <SelectItem key={ind} value={ind}>{localizeIndustry(ind, lang)}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 {industry === 'Other' && (
                   <Input
                     value={customIndustry}
                     onChange={(e) => setCustomIndustry(e.target.value)}
-                    placeholder="Describe your industry, e.g. 'Digital Services'"
+                    placeholder={t('onboard.industryCustomPlaceholder')}
                     className="h-12 mt-2"
                   />
                 )}
@@ -221,25 +248,25 @@ export default function Onboarding() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-slate-900 font-medium flex items-center gap-2">
-                    <Globe className="w-4 h-4" /> Country
+                    <Globe className="w-4 h-4" /> {t('onboard.country')}
                   </Label>
                   <Select value={country} onValueChange={setCountry}>
-                    <SelectTrigger className="h-12"><SelectValue placeholder="Country" /></SelectTrigger>
+                    <SelectTrigger className="h-12"><SelectValue placeholder={t('onboard.countryPlaceholder')} /></SelectTrigger>
                     <SelectContent>
-                      {COUNTRIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                      {COUNTRIES.map((c) => <SelectItem key={c.code} value={c.code}>{localizeCountry(c.code, c.name, lang)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-slate-900 font-medium flex items-center gap-2">
-                    <Users className="w-4 h-4" /> Employees
+                    <Users className="w-4 h-4" /> {t('onboard.employees')}
                   </Label>
                   <Input
                     type="number"
                     min="1"
                     value={employeeCount}
                     onChange={(e) => setEmployeeCount(e.target.value)}
-                    placeholder="e.g. 150"
+                    placeholder={t('onboard.employeesPlaceholder')}
                     className="h-12"
                   />
                 </div>
@@ -250,7 +277,7 @@ export default function Onboarding() {
                 disabled={!canProceed()}
                 className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none"
               >
-                Continue
+                {t('onboard.continue')}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
 
@@ -258,7 +285,7 @@ export default function Onboarding() {
                 onClick={() => setStep(1)}
                 className="w-full text-center text-sm text-slate-500 hover:text-slate-700"
               >
-                Back
+                {t('btn.back')}
               </button>
             </div>
           )}
@@ -267,9 +294,9 @@ export default function Onboarding() {
           {step === 3 && (
             <div className="space-y-6">
               <div className="text-center space-y-3">
-                <h2 className="text-2xl font-bold text-slate-900">You're all set!</h2>
+                <h2 className="text-2xl font-bold text-slate-900">{t('onboard.allSet')}</h2>
                 <p className="text-slate-500 max-w-md mx-auto">
-                  Choose how to get started. You can always switch later.
+                  {t('onboard.allSetSub')}
                 </p>
               </div>
 
@@ -279,17 +306,17 @@ export default function Onboarding() {
                   className="p-6 border border-slate-200 rounded-none hover:border-slate-400 hover:bg-slate-50 transition-colors text-left"
                 >
                   <Database className="w-8 h-8 text-slate-700 mb-3" />
-                  <h3 className="text-base font-semibold text-slate-900 mb-1">Start Tracking Data</h3>
-                  <p className="text-sm text-slate-500">Enter your first month of sustainability metrics</p>
+                  <h3 className="text-base font-semibold text-slate-900 mb-1">{t('onboard.startTracking')}</h3>
+                  <p className="text-sm text-slate-500">{t('onboard.startTrackingSub')}</p>
                 </button>
 
                 <button
-                  onClick={() => handleComplete('/respond')}
+                  onClick={() => handleComplete('/demo')}
                   className="p-6 border border-slate-200 rounded-none hover:border-slate-400 hover:bg-slate-50 transition-colors text-left"
                 >
                   <Upload className="w-8 h-8 text-slate-700 mb-3" />
-                  <h3 className="text-base font-semibold text-slate-900 mb-1">See it in action</h3>
-                  <p className="text-sm text-slate-500">Upload a questionnaire or try a sample</p>
+                  <h3 className="text-base font-semibold text-slate-900 mb-1">{t('onboard.seeInAction')}</h3>
+                  <p className="text-sm text-slate-500">{t('onboard.seeInActionSub')}</p>
                 </button>
               </div>
 
@@ -297,14 +324,14 @@ export default function Onboarding() {
                 onClick={() => handleComplete('/')}
                 className="w-full text-center text-sm text-slate-500 hover:text-slate-700"
               >
-                Go to Dashboard
+                {t('onboard.goDashboard')}
               </button>
 
               <button
                 onClick={() => setStep(2)}
                 className="w-full text-center text-sm text-slate-500 hover:text-slate-700"
               >
-                Back to edit profile
+                {t('onboard.backToProfile')}
               </button>
             </div>
           )}

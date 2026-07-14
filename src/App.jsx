@@ -1,9 +1,12 @@
 import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LicenseProvider, useLicense } from '@/components/LicenseContext';
+import { LanguageProvider } from '@/components/LanguageContext';
 import UpgradeGate from '@/components/UpgradeGate';
 import { handleDemoQueryParam } from '@/lib/demoData';
 import { track, trackFirstVisit } from '@/lib/track';
+import { t } from '@/lib/i18n';
+import { getSettings } from '@/lib/store';
 
 // Run before any routing — if ?demo=load or ?demo=reset is in the URL,
 // seed/wipe localStorage and reload. This is for screen recording prep,
@@ -53,6 +56,14 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      // ErrorBoundary sits above LanguageProvider, so resolve the UI language directly
+      // from persisted settings (falling back to browser locale, then English).
+      let lang = 'en';
+      try {
+        const saved = getSettings()?.uiLanguage;
+        if (saved) lang = saved;
+        else if (typeof navigator !== 'undefined' && navigator.language?.startsWith('de')) lang = 'de';
+      } catch { /* store unavailable — stay on English */ }
       return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
           <div className="max-w-md text-center">
@@ -61,13 +72,13 @@ class ErrorBoundary extends React.Component {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
               </svg>
             </div>
-            <h1 className="text-xl font-semibold text-slate-900 mb-2">Something went wrong</h1>
-            <p className="text-slate-500 mb-6">An unexpected error occurred. Your data is safe — try refreshing the page.</p>
+            <h1 className="text-xl font-semibold text-slate-900 mb-2">{t('err.boundaryTitle', lang)}</h1>
+            <p className="text-slate-500 mb-6">{t('err.boundaryBody', lang)}</p>
             <button
               onClick={() => window.location.reload()}
               className="px-6 py-3 bg-indigo-600 text-white rounded-none font-medium hover:bg-indigo-700 transition-colors"
             >
-              Refresh Page
+              {t('err.refresh', lang)}
             </button>
           </div>
         </div>
@@ -84,6 +95,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+    <LanguageProvider>
     <LicenseProvider>
     <HashRouter>
       <Routes>
@@ -97,7 +109,8 @@ function App() {
           <Route path="/policies" element={<Policies />} />
           <Route path="/documents" element={<Documents />} />
           <Route path="/report" element={<PaidRoute feature="ESG Report"><Report /></PaidRoute>} />
-          <Route path="/respond" element={<Respond />} />
+          <Route path="/demo" element={<Respond demoOnly />} />
+          <Route path="/respond" element={<PaidRoute feature="Questionnaire Response"><Respond /></PaidRoute>} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/requests/:id" element={<RequestWorkspace />} />
           <Route path="/settings" element={<Settings />} />
@@ -118,6 +131,7 @@ function App() {
       </Routes>
     </HashRouter>
     </LicenseProvider>
+    </LanguageProvider>
     </ErrorBoundary>
   );
 }

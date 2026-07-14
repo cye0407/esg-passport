@@ -17,4 +17,8 @@ export { createAnswerGenerator, buildDataMap, val, has, num, str, fmt } from './
 export { createRewriter } from './defensiveRewriter';
 // Excel Exporter
 export { exportToExcel, exportToBuffer } from './excelExporter';
+// Playbook Registry
+export { registerPlaybook, getRegisteredPlaybooks, getDefaultPlaybooks, getPlaybookById, clearPlaybooks, resetPlaybooks, scorePlaybooks, detectPlaybook, } from './playbookRegistry';
+// Business Library
+export { findLibraryMatches } from './libraryMatcher';
 //# sourceMappingURL=index.js.map

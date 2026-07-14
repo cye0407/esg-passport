@@ -194,6 +194,8 @@ export function loadDemoData() {
   data.settings = {
     ...data.settings,
     setupCompleted: true,
+    setupSkipped: true,
+    demoLibrarySeeded: true,
     onboardingStep: 3,
     gridCountry: 'DE',
     language: 'en',

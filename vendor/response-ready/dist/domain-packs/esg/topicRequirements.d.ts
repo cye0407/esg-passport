@@ -5,8 +5,11 @@ export interface TopicRequirement {
     optionalFields?: string[];
     /** Human-readable description of what's missing when a required field is absent */
     gapDescriptions: Record<string, string>;
+    /** German gap descriptions, keyed by field. Derived from GAP_DESCRIPTIONS_DE below. */
+    gapDescriptionsDe?: Record<string, string>;
 }
 export declare const ESG_TOPIC_REQUIREMENTS: Record<string, TopicRequirement>;
+export declare const GAP_DESCRIPTIONS_DE: Record<string, string>;
 /**
  * Check which required fields are missing for a set of topics.
  * Returns gap descriptions for all missing required fields.
