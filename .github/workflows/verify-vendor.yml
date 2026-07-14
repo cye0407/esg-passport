@@ -14,38 +14,39 @@ on:
 jobs:
   verify-vendor-dist:
     runs-on: ubuntu-latest
+    # secrets can't be referenced in a step `if:` directly, so surface it as an env var and
+    # gate the enforcing steps on that. Absent secret => empty string => steps skipped.
+    env:
+      RESPONSE_READY_PAT: ${{ secrets.RESPONSE_READY_PAT }}
     steps:
       - name: Checkout esg-passport
         uses: actions/checkout@v4
         with:
           path: esg-passport
 
-      # Checks out the engine as a SIBLING dir (../response-ready relative to esg-passport),
-      # which is exactly where the drift script and vite.config.js expect it. Requires a PAT
-      # with read access to the private cye0407/response-ready repo, stored as the
-      # RESPONSE_READY_PAT secret. If the secret is absent this step is skipped and the drift
-      # check downstream self-skips (exit 0) — CI stays green, just unenforced.
+      # Checks out the engine as a SIBLING dir (../response-ready), where the drift script and
+      # vite.config.js expect it. Requires a PAT with read access to the private
+      # cye0407/response-ready repo, stored as the RESPONSE_READY_PAT secret. Without it this
+      # step is skipped and the drift check self-skips (exit 0) — CI stays green, unenforced.
       - name: Checkout response-ready (engine source)
-        if: ${{ secrets.RESPONSE_READY_PAT != '' }}
+        if: env.RESPONSE_READY_PAT != ''
         uses: actions/checkout@v4
         with:
           repository: cye0407/response-ready
-          token: ${{ secrets.RESPONSE_READY_PAT }}
+          token: ${{ env.RESPONSE_READY_PAT }}
           path: response-ready
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install engine deps (if present)
-        if: ${{ secrets.RESPONSE_READY_PAT != '' }}
+      # Only needed when enforcing — the engine build (tsc) requires its deps.
+      - name: Install engine deps
+        if: env.RESPONSE_READY_PAT != ''
         working-directory: response-ready
         run: npm ci
 
-      - name: Install passport deps
-        working-directory: esg-passport
-        run: npm ci
-
+      # The drift script itself uses only Node built-ins, so no passport install is needed.
       - name: Verify vendored dist matches source
         working-directory: esg-passport
         run: npm run verify:vendor
