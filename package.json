@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "release": "node scripts/release-passport.mjs",
+    "verify:vendor": "node scripts/verify-vendor-dist.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

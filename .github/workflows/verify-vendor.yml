@@ -1,0 +1,51 @@
+name: Verify vendored engine dist
+
+# Fails if the committed vendor/response-ready/dist has drifted from the response-ready
+# source (i.e. someone changed the engine but forgot to re-run scripts/release-passport.mjs).
+# The drift check self-skips when the sibling engine source isn't checked out, so this
+# workflow stays green even if the RESPONSE_READY_PAT secret is not configured — it only
+# ENFORCES once the sibling repo is available.
+
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+
+jobs:
+  verify-vendor-dist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout esg-passport
+        uses: actions/checkout@v4
+        with:
+          path: esg-passport
+
+      # Checks out the engine as a SIBLING dir (../response-ready relative to esg-passport),
+      # which is exactly where the drift script and vite.config.js expect it. Requires a PAT
+      # with read access to the private cye0407/response-ready repo, stored as the
+      # RESPONSE_READY_PAT secret. If the secret is absent this step is skipped and the drift
+      # check downstream self-skips (exit 0) — CI stays green, just unenforced.
+      - name: Checkout response-ready (engine source)
+        if: ${{ secrets.RESPONSE_READY_PAT != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: cye0407/response-ready
+          token: ${{ secrets.RESPONSE_READY_PAT }}
+          path: response-ready
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install engine deps (if present)
+        if: ${{ secrets.RESPONSE_READY_PAT != '' }}
+        working-directory: response-ready
+        run: npm ci
+
+      - name: Install passport deps
+        working-directory: esg-passport
+        run: npm ci
+
+      - name: Verify vendored dist matches source
+        working-directory: esg-passport
+        run: npm run verify:vendor
