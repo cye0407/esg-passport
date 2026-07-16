@@ -10,6 +10,8 @@ import {
 } from '@/lib/store';
 import { MONTHS } from '@/lib/constants';
 import { useLanguage } from '@/components/LanguageContext';
+import { useLicense } from '@/components/LicenseContext';
+import { track } from '@/lib/track';
 import { formatNumber } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -34,9 +36,14 @@ import {
   HardDrive,
   PenLine,
   FileSpreadsheet,
+  ExternalLink,
 } from 'lucide-react';
 
+// Same €499 Passport checkout used by UpgradeGate / Respond.
+const CHECKOUT_URL = 'https://catyeldi.lemonsqueezy.com/checkout/buy/d5cb1011-fdd1-4936-afe8-819f53073970';
+
 export default function Home() {
+  const { isPaid } = useLicense();
   const settings = getSettings();
   if (!settings.setupCompleted) {
     return <Navigate to="/onboarding" replace />;
@@ -223,6 +230,41 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Upgrade banner — free users only */}
+      {!isPaid && (
+        <div className="bg-slate-900 text-white rounded-none p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="w-10 h-10 bg-white/10 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-base font-semibold">{t('home.upgradeTitle')}</h2>
+              <p className="text-slate-300 text-sm">{t('home.upgradeBody')}</p>
+            </div>
+            <div className="flex flex-col sm:items-end gap-1.5">
+              <a
+                href={CHECKOUT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => track('upgrade_cta_click', { source: 'dashboard' })}
+                className="inline-flex items-center justify-center gap-2 px-5 h-10 bg-white text-slate-900 font-medium hover:bg-slate-100 transition-colors"
+              >
+                {t('home.upgradeCta')}
+                <ExternalLink className="w-4 h-4" />
+              </a>
+              <a
+                href="https://esgforsuppliers.com/passport"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-400 underline hover:text-slate-200"
+              >
+                {t('home.upgradeMore')}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Getting Started Guide */}
       {showGuide && (
