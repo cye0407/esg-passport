@@ -12,11 +12,15 @@
 // mid-sized industrial supplier that gets EcoVadis and buyer
 // questionnaires from automotive OEMs.
 //
-// Twelve months of 2025 operational data are seeded with plausible
-// seasonal variation so trend views, YoY comparison, and the
-// comprehensive questionnaire all look convincing.
+// Twelve months of operational data are seeded with plausible seasonal
+// variation so trend views, YoY comparison, and the comprehensive
+// questionnaire all look convincing. The month values are authored below as
+// 2025 periods but are re-stamped onto the current year at load time — see
+// loadDemoData(). Keep it that way: Data.jsx shows the current year by
+// default, so a hardcoded year makes the demo look empty.
 
 import { saveData, resetData, loadData } from './store';
+import { EMISSION_FACTORS } from './constants';
 
 const DEMO_PROFILE = {
   legalName: 'Hartmann Präzisionstechnik GmbH',
@@ -184,12 +188,41 @@ export function loadDemoData() {
   resetData();
   const data = loadData();
 
+  // Everything below is stamped onto the current year so the demo doesn't rot
+  // each January (Data.jsx and buildCompanyData both key off the current year).
+  const demoYear = new Date().getFullYear();
+
+  // baselineYear must track the year the records are stamped to (below), or
+  // buildCompanyData() — which prefers profile.baselineYear over auto-detect —
+  // aggregates an empty year and every data-driven answer comes back "not
+  // tracked", even though the grid is full.
   data.companyProfile = {
     ...DEMO_PROFILE,
+    baselineYear: String(demoYear),
     updatedAt: new Date().toISOString(),
   };
 
-  data.dataRecords = DEMO_MONTHLY_RECORDS.map(r => ({ ...r }));
+  // The Report/Bericht reads STORED scope1Tco2e/scope2Tco2e off each record
+  // (getAnnualTotals sums them) — it does not recompute from energy inputs the
+  // way Data.jsx does. The demo months only carry raw energy, so without this
+  // the Bericht's first block (Energie & Treibhausgase → Scope 1/2) is blank.
+  // Compute both here with the same factors Data.jsx uses, at the demo's DE grid.
+  const gridFactor = EMISSION_FACTORS.electricity.DE;
+  data.dataRecords = DEMO_MONTHLY_RECORDS.map(r => {
+    const e = r.energy || {};
+    const scope1 = (e.naturalGasKwh || 0) * EMISSION_FACTORS.naturalGas
+      + (e.vehicleFuelLiters || 0) * EMISSION_FACTORS.vehicleFuel;
+    const scope2 = (e.electricityKwh || 0) * gridFactor;
+    return {
+      ...r,
+      period: `${demoYear}-${r.period.slice(5)}`,
+      energy: {
+        ...e,
+        scope1Tco2e: Math.round(scope1 * 1000) / 1000,
+        scope2Tco2e: Math.round(scope2 * 1000) / 1000,
+      },
+    };
+  });
 
   data.settings = {
     ...data.settings,
