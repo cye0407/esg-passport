@@ -44,11 +44,11 @@ export async function enhanceAnswer({
   confidence,
 }) {
   const settings = getSettings();
-  const mode = settings.aiMode || 'direct'; // 'direct' — proxy mode removed (no serverless backend)
+  // Own-key (direct) is the only supported mode — the serverless proxy was removed.
   const apiKey = settings.aiApiKey || '';
   const provider = settings.aiProvider || 'claude';
 
-  if (mode === 'direct' && !apiKey) {
+  if (!apiKey) {
     return { enhanced: templateAnswer, error: 'No API key configured. Go to Settings → AI Enhancement.' };
   }
 
@@ -64,13 +64,10 @@ Template answer to rewrite:
 ${templateAnswer}`;
 
   try {
-    if (mode === 'direct' && provider === 'claude') {
-      return await callClaudeDirect(apiKey, userMessage);
-    } else if (mode === 'direct' && provider === 'openai') {
+    if (provider === 'openai') {
       return await callOpenAIDirect(apiKey, userMessage);
-    } else {
-      return await callProxy(userMessage);
     }
+    return await callClaudeDirect(apiKey, userMessage);
   } catch (err) {
     return { enhanced: templateAnswer, error: err.message };
   }
@@ -180,19 +177,3 @@ async function callOpenAIDirect(apiKey, userMessage) {
 
 // --- Proxy mode (browser → serverless function → API) ---
 
-async function callProxy(userMessage) {
-  const res = await fetch('/api/enhance', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: userMessage }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `Proxy error: ${res.status}`);
-  }
-
-  const data = await res.json();
-  if (!data.enhanced) throw new Error('Empty response from proxy');
-  return { enhanced: data.enhanced };
-}
