@@ -231,53 +231,33 @@ export default function Settings() {
                 {t('settings.aiIntro')}
               </p>
               <div className="space-y-2">
-                <Label>{t('settings.aiMode')}</Label>
-                <Select value={settings.aiMode || 'proxy'} onValueChange={(v) => handleSettingsUpdate('aiMode', v)}>
+                <Label>{t('settings.aiProvider')}</Label>
+                <Select value={settings.aiProvider || 'claude'} onValueChange={(v) => handleSettingsUpdate('aiProvider', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="proxy">{t('settings.aiProxy')}</SelectItem>
-                    <SelectItem value="direct">{t('settings.aiOwnKey')}</SelectItem>
+                    <SelectItem value="claude">Anthropic (Claude)</SelectItem>
+                    <SelectItem value="openai">OpenAI (GPT)</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-slate-400">
-                  {(settings.aiMode || 'proxy') === 'proxy'
-                    ? t('settings.aiProxyHint')
-                    : t('settings.aiDirectHint')}
-                </p>
               </div>
 
-              {settings.aiMode === 'direct' && (
-                <>
-                  <div className="space-y-2">
-                    <Label>{t('settings.aiProvider')}</Label>
-                    <Select value={settings.aiProvider || 'claude'} onValueChange={(v) => handleSettingsUpdate('aiProvider', v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="claude">Anthropic (Claude)</SelectItem>
-                        <SelectItem value="openai">OpenAI (GPT)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>{t('settings.apiKey')}</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type={showApiKey ? 'text' : 'password'}
-                        value={settings.aiApiKey || ''}
-                        onChange={(e) => handleSettingsUpdate('aiApiKey', e.target.value)}
-                        placeholder={settings.aiProvider === 'openai' ? 'sk-...' : 'sk-ant-...'}
-                      />
-                      <Button variant="ghost" size="sm" onClick={() => setShowApiKey(!showApiKey)} className="px-2">
-                        {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-slate-400">
-                      {t('settings.apiKeyHint')}
-                    </p>
-                  </div>
-                </>
-              )}
+              <div className="space-y-2">
+                <Label>{t('settings.apiKey')}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={settings.aiApiKey || ''}
+                    onChange={(e) => handleSettingsUpdate('aiApiKey', e.target.value)}
+                    placeholder={settings.aiProvider === 'openai' ? 'sk-...' : 'sk-ant-...'}
+                  />
+                  <Button variant="ghost" size="sm" onClick={() => setShowApiKey(!showApiKey)} className="px-2">
+                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-400">
+                  {t('settings.apiKeyHint')}
+                </p>
+              </div>
             </>
           ) : (
             <div className="rounded-none border border-slate-200 bg-slate-50 p-4">
