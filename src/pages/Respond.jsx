@@ -6,6 +6,7 @@ import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getD
 import { loadDemoData } from '@/lib/demoData';
 import { QUESTIONNAIRE_TEMPLATES, templateToParseResult } from '@/data/questionnaire-templates';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
+import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
 import { LANGUAGES, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
@@ -408,6 +409,13 @@ export default function Respond({ demoOnly = false }) {
       const engine = await getEngine();
 
       setGeneratingProgress({ step: t('respond.progMatching'), percent: 50 });
+      // The engine's German term aliases are language-gated and stay dormant until we declare
+      // the questionnaire German, so German questions would otherwise match nothing. The engine
+      // is a singleton, hence declaring it per run. Optional-chained like classifyQuestions
+      // below: vite.config falls back to the vendored response-ready bundle when the local
+      // source is absent, and that build predates this method — a hard call would take the
+      // whole upload down rather than degrade to English-only matching.
+      engine.setQuestionLanguage?.(detectQuestionnaireLanguage(questions));
       const matchResults = engine.matchQuestions(questions);
       const classifications = engine.classifyQuestions?.(questions) || [];
       const dataContexts = matchResults.map(mr => engine.retrieveData(mr, cd));
