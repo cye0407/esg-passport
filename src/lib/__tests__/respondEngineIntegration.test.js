@@ -4,6 +4,7 @@ import { esgDomainPack } from 'response-ready/domain-packs/esg';
 import { buildCompanyData, buildCompanyProfile } from '../dataBridge';
 import { loadData, resetData, saveCompanyProfile, saveData, saveDataRecord } from '../store';
 import { templateToParseResult } from '../../data/questionnaire-templates';
+import { translateAnswer } from '../translations';
 
 const engine = createResponseEngine(esgDomainPack);
 
@@ -34,7 +35,7 @@ function seedProfile(overrides = {}) {
   });
 }
 
-function generate(questions) {
+function generate(questions, configOverrides = {}) {
   const company = buildCompanyData('2025');
   const profile = buildCompanyProfile();
   const matches = engine.matchQuestions(questions);
@@ -42,7 +43,7 @@ function generate(questions) {
     questions.map(({ id, text, category }) => ({ id, text, category }))
   );
   const contexts = matches.map((match) => engine.retrieveData(match, company));
-  return engine.generateDrafts(questions, matches, contexts, CONFIG, profile, classifications);
+  return engine.generateDrafts(questions, matches, contexts, { ...CONFIG, ...configOverrides }, profile, classifications);
 }
 
 describe('Respond page engine integration', () => {
@@ -176,6 +177,37 @@ describe('Respond page engine integration', () => {
     expect(draft.answer).toMatch(/\b900\b/);
     expect(draft.answer.toLowerCase()).toContain('tailings');
     expect(draft.answer.toLowerCase()).not.toContain('manufactur');
+  });
+
+  // The answer-language switcher relies on two primitives: regenerating drafts natively for
+  // en/de by passing config.language (used for en/de switches), and translateAnswer() for the
+  // display-only locales (used when the source language is unchanged). Guard both so an engine
+  // change can't silently turn the switcher back into a no-op.
+  describe('answer-language switch primitives', () => {
+    it('regenerates the same question in German vs English via config.language', () => {
+      seedProfile({ totalEmployees: '128' });
+      saveDataRecord({ period: '2025-12', energy: { electricityKwh: 420000, renewablePercent: 48 } });
+      const questions = [
+        { id: 'energy', rowIndex: 0, text: 'What was your total electricity consumption in kWh?', category: 'Environment', rawRow: {} },
+      ];
+
+      const en = generate(questions, { language: 'en' })[0].answer;
+      const de = generate(questions, { language: 'de' })[0].answer;
+
+      // Same figure, different prose — the regeneration the en/de switch performs.
+      expect(en).toMatch(/420[,.]?000/);
+      expect(de).toMatch(/420[,.]?000/);
+      expect(de).not.toBe(en);
+      expect(de.toLowerCase()).toContain('stromverbrauch');
+      expect(en.toLowerCase()).toContain('electricity');
+    });
+
+    it('translateAnswer moves an English draft to a display-only locale', () => {
+      const english = 'A formal Code of Ethics and Anti-Corruption Policy has not yet been established.';
+      const french = translateAnswer(english, 'fr');
+      expect(french).not.toBe(english);
+      expect(french.toLowerCase()).toContain('éthique');
+    });
   });
 
   it('uses office and fleet metrics for service and logistics sectors', () => {

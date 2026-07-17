@@ -164,6 +164,15 @@ export default function Respond({ demoOnly = false }) {
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState('xlsx');
   const [batchExporting, setBatchExporting] = useState(false);
+  const [langSwitching, setLangSwitching] = useState(false);
+  // Everything generateDrafts needs to re-run for a different answer language, stashed after a
+  // successful pipeline so an answer-language switch doesn't re-parse or re-match. Matching uses
+  // the QUESTIONNAIRE's language (independent of answer language), so matchResults are stable.
+  const regenContextRef = useRef(null);
+  // The source language the current drafts were generated in ('en' | 'de'). The engine generates
+  // en/de natively; a switch that changes this regenerates, a switch that doesn't (e.g. en→fr,
+  // both sourced from 'en') is handled by the translateAnswer() display layer.
+  const draftSourceLangRef = useRef(null);
 
   const templates = Object.values(QUESTIONNAIRE_TEMPLATES);
 
@@ -438,18 +447,13 @@ export default function Respond({ demoOnly = false }) {
       const drafts = engine.generateDrafts(questions, matchResults, dataContexts, config, profile, classifications);
       const normalizedDrafts = drafts.map(normalizeDraft);
 
-      // Preserve user-edited answers on regenerate
-      setAnswerDrafts(prev => {
-        if (prev.length === 0) return normalizedDrafts;
-        const editedMap = new Map(prev.filter(d => d._edited).map(d => [d.questionId, d]));
-        return normalizedDrafts.map(d => editedMap.has(d.questionId) ? { ...editedMap.get(d.questionId) } : d);
-      });
+      applyGeneratedDrafts(normalizedDrafts, { name, fw, pr });
+
+      // Stash what an answer-language switch needs to regenerate without re-parsing/re-matching.
+      regenContextRef.current = { questions, matchResults, dataContexts, profile, classifications, name, fw, pr };
+      draftSourceLangRef.current = config.language;
 
       setGeneratingProgress({ step: t('respond.progSaving'), percent: 95 });
-      // Free users get current-session preview only — no history persistence
-      if (isPaid) {
-        saveResults(normalizedDrafts, name, fw, pr);
-      }
       track('respond_answers_generated', { count: normalizedDrafts.length, framework: fw || 'none' });
       setPhase('results');
     } catch (err) {
@@ -457,6 +461,54 @@ export default function Respond({ demoOnly = false }) {
       track('respond_generation_failed', { error: err?.name || 'unknown' });
       setPipelineError(t('respond.errFailed', { message: err.message }));
       setPhase('results');
+    }
+  }
+
+  // Merge freshly generated drafts into state, preserving user-edited answers by questionId,
+  // and persist for paid users. Shared by the initial pipeline run and answer-language switches.
+  function applyGeneratedDrafts(normalizedDrafts, { name, fw, pr }) {
+    setAnswerDrafts(prev => {
+      if (prev.length === 0) return normalizedDrafts;
+      const editedMap = new Map(prev.filter(d => d._edited).map(d => [d.questionId, d]));
+      return normalizedDrafts.map(d => editedMap.has(d.questionId) ? { ...editedMap.get(d.questionId) } : d);
+    });
+    if (isPaid) saveResults(normalizedDrafts, name, fw, pr);
+  }
+
+  // Answer-language switch. The engine generates en/de natively (highest quality), so a switch
+  // that changes the source language regenerates the drafts from the stashed match context; the
+  // translateAnswer() display layer then renders the selected locale. A switch that doesn't
+  // change the source language (e.g. en→fr, both sourced from 'en') needs no regeneration — the
+  // display layer alone handles it. Without this, switching off a German-source draft was a
+  // silent no-op: translateAnswer only translates English→X and can't move German back to English.
+  async function handleLanguageChange(newLang) {
+    setLanguage(newLang);
+    const ctx = regenContextRef.current;
+    const sourceLang = newLang === 'de' ? 'de' : 'en';
+    if (!ctx || answerDrafts.length === 0 || sourceLang === draftSourceLangRef.current) return;
+
+    setLangSwitching(true);
+    try {
+      const engine = await getEngine();
+      const config = {
+        useLLM: false,
+        includeMethodology: true,
+        includeAssumptions: true,
+        includeLimitations: true,
+        verbosity: 'standard',
+        aggregateSites: true,
+        language: sourceLang,
+      };
+      const drafts = engine.generateDrafts(
+        ctx.questions, ctx.matchResults, ctx.dataContexts, config, ctx.profile, ctx.classifications
+      );
+      applyGeneratedDrafts(drafts.map(normalizeDraft), { name: ctx.name, fw: ctx.fw, pr: ctx.pr });
+      draftSourceLangRef.current = sourceLang;
+      track('respond_answer_language_regenerated', { language: sourceLang });
+    } catch (err) {
+      console.error('Language switch regeneration error:', err);
+    } finally {
+      setLangSwitching(false);
     }
   }
 
@@ -1106,9 +1158,11 @@ export default function Respond({ demoOnly = false }) {
                 ))}
               </div>
               <div className="ml-auto flex items-center gap-2">
-                <Select value={language} onValueChange={setLanguage}>
+                <Select value={language} onValueChange={handleLanguageChange} disabled={langSwitching}>
                   <SelectTrigger className="h-8 w-[140px] text-xs">
-                    <Globe className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+                    {langSwitching
+                      ? <Loader2 className="w-3.5 h-3.5 mr-1.5 text-slate-400 animate-spin" />
+                      : <Globe className="w-3.5 h-3.5 mr-1.5 text-slate-400" />}
                     <SelectValue placeholder={t('respond.languagePlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
