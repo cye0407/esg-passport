@@ -409,14 +409,15 @@ export default function Respond({ demoOnly = false }) {
       const engine = await getEngine();
 
       setGeneratingProgress({ step: t('respond.progMatching'), percent: 50 });
-      // The engine's German term aliases are language-gated and stay dormant until we declare
-      // the questionnaire German, so German questions would otherwise match nothing. The engine
-      // is a singleton, hence declaring it per run. Optional-chained like classifyQuestions
-      // below: vite.config falls back to the vendored response-ready bundle when the local
-      // source is absent, and that build predates this method — a hard call would take the
-      // whole upload down rather than degrade to English-only matching.
-      engine.setQuestionLanguage?.(detectQuestionnaireLanguage(questions));
-      const matchResults = engine.matchQuestions(questions);
+      // The engine's German term aliases are language-gated, so German questions would match
+      // nothing unless the questionnaire's language reaches the matcher. Passed PER CALL, not
+      // via engine.setQuestionLanguage: the engine is a lazy singleton, and a declaration made
+      // for this upload would silently apply to any later matchQuestions call that omits its
+      // own language (the batch template export inherited a German upload's declaration and
+      // ran the English templates under the German lexicon). An engine build that predates
+      // per-call language ignores the extra argument and degrades to English-only matching —
+      // same fallback the vendored-bundle path has always had.
+      const matchResults = engine.matchQuestions(questions, { language: detectQuestionnaireLanguage(questions) });
       const classifications = engine.classifyQuestions?.(questions) || [];
       const dataContexts = matchResults.map(mr => engine.retrieveData(mr, cd));
 
@@ -774,7 +775,9 @@ export default function Respond({ demoOnly = false }) {
         if (!parsePayload?.questions?.length) continue;
 
         const questions = parsePayload.questions;
-        const matchResults = engine.matchQuestions(questions);
+        // The built-in templates are English — declared per call so this export can never
+        // inherit the language of whatever questionnaire was uploaded earlier in the session.
+        const matchResults = engine.matchQuestions(questions, { language: 'en' });
         const classifications = engine.classifyQuestions?.(questions) || [];
         const dataContexts = matchResults.map(mr => engine.retrieveData(mr, exportCompanyData));
         const drafts = engine.generateDrafts(questions, matchResults, dataContexts, {
