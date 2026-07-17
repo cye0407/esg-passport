@@ -408,6 +408,12 @@ export default function Respond({ demoOnly = false }) {
       const engine = await getEngine();
 
       setGeneratingProgress({ step: t('respond.progMatching'), percent: 50 });
+      // The engine's German term aliases are language-gated and stay dormant until we say the
+      // questionnaire is German — without this, German questions match nothing. The engine is
+      // a singleton, so declare it per run. We use the selected answer language as the stand-in
+      // for the questionnaire's own language: they match in practice (a German supplier answers
+      // a German questionnaire), and it's the only language signal the app has.
+      engine.setQuestionLanguage(language === 'de' ? 'de' : 'en');
       const matchResults = engine.matchQuestions(questions);
       const classifications = engine.classifyQuestions?.(questions) || [];
       const dataContexts = matchResults.map(mr => engine.retrieveData(mr, cd));
