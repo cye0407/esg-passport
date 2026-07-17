@@ -40,9 +40,20 @@ if (existsSync(path.join(localEsgExtractRoot, 'src/index.ts'))) {
   alias['@extract'] = bundledEsgExtractRoot
 }
 
+// The linked sibling sources above live outside this project root, so the dev server has to be
+// told it may serve them. Imports work without this because Vite lazily allows anything that
+// enters the module graph — but a Web Worker is fetched by the browser directly, never through
+// the graph, so it stays blocked. response-ready resolves pdfjs-dist from its OWN nested
+// node_modules, which puts its worker at /@fs/../response-ready/node_modules/… — a 403 without
+// this. Production builds are unaffected: there the worker is emitted as a hashed asset.
+const fsAllow = [__dirname, localResponseReadyRoot, localEsgExtractRoot].filter((p) => existsSync(p))
+
 // https://vitejs.dev/config/
 export default defineConfig({
   base: './',
+  server: {
+    fs: { allow: fsAllow },
+  },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __PASSPORT_SHA__: JSON.stringify(getPassportSha()),
