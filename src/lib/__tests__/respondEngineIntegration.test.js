@@ -122,6 +122,42 @@ describe('Respond page engine integration', () => {
     expect(drafts.every((draft) => draft.answer.trim().length > 0)).toBe(true);
   });
 
+  // A German visitor (e.g. from the DE marketing site) gets the German rendering of the
+  // built-in template. Guard that the hand-authored German questions still MATCH the engine's
+  // German aliases (grammatically-fine wording that misses keywords would silently produce
+  // "not tracked" answers) AND that generation stays German end-to-end.
+  it('runs the German buyer template with German matching and German answers', () => {
+    seedProfile({ totalEmployees: '128', numberOfFacilities: '2' });
+    saveDataRecord({
+      period: '2025-12',
+      energy: { electricityKwh: 420000, renewablePercent: 48 },
+      waste: { totalKg: 87000, recycledKg: 55680, hazardousKg: 0 },
+      workforce: { totalEmployees: 128, femaleEmployees: 52 },
+      healthSafety: { fatalities: 0, recordableIncidents: 1, hoursWorked: 256000 },
+    });
+
+    const result = templateToParseResult('basic_supplier', 'de');
+    const company = buildCompanyData('2025');
+    const profile = buildCompanyProfile();
+    const matches = engine.matchQuestions(result.questions, { language: 'de' });
+    const contexts = matches.map((match) => engine.retrieveData(match, company));
+    const drafts = engine.generateDrafts(result.questions, matches, contexts, { ...CONFIG, language: 'de' }, profile);
+
+    // Questions render in German.
+    expect(result.questions[1].text).toContain('Energieverbrauch');
+    expect(drafts).toHaveLength(result.questions.length);
+    expect(drafts.every((draft) => draft.answer.trim().length > 0)).toBe(true);
+
+    // Data-backed questions matched (figures present) — proves the German wording reaches the matcher.
+    const joined = drafts.map((draft) => draft.answer).join('\n');
+    expect(joined).toMatch(/420[,.]?000/);
+    expect(joined).toMatch(/\b48\b/);
+
+    // Answers are German prose, not English fallback.
+    expect(joined.toLowerCase()).toMatch(/verbrauch|emissionen|mitarbeit|strom|abfall/);
+    expect(joined.toLowerCase()).not.toContain('we are committed to');
+  });
+
   it('uses agriculture-specific metrics in generated answers', () => {
     seedProfile({ industrySector: 'Agriculture & Farming' });
     saveDataRecord({

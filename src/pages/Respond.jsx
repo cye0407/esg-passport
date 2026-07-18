@@ -4,7 +4,7 @@ import { useLicense } from '@/components/LicenseContext';
 import { useLanguage } from '@/components/LanguageContext';
 import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getDocuments, getDataRecords, getSettings } from '@/lib/store';
 import { loadDemoData } from '@/lib/demoData';
-import { QUESTIONNAIRE_TEMPLATES, templateToParseResult } from '@/data/questionnaire-templates';
+import { QUESTIONNAIRE_TEMPLATES, templateToParseResult, templateName, templateDescription } from '@/data/questionnaire-templates';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
 import { LANGUAGES, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
@@ -275,10 +275,10 @@ export default function Respond({ demoOnly = false }) {
   };
 
   const selectTemplate = (templateId) => {
-    const result = templateToParseResult(templateId);
+    const result = templateToParseResult(templateId, lang);
     if (result) {
       const template = QUESTIONNAIRE_TEMPLATES[templateId];
-      runPipeline(result, template.name);
+      runPipeline(result, templateName(template, lang));
     }
   };
 
@@ -2008,8 +2008,8 @@ export default function Respond({ demoOnly = false }) {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-slate-900">{tpl.name}</p>
-                  <p className="text-sm text-slate-500 mt-1">{tpl.description}</p>
+                  <p className="font-medium text-slate-900">{templateName(tpl, lang)}</p>
+                  <p className="text-sm text-slate-500 mt-1">{templateDescription(tpl, lang)}</p>
                   <p className="text-xs text-slate-400 mt-2">{t('respond.templateMeta', { count: tpl.questionCount, framework: tpl.framework })}</p>
                 </div>
                 <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-slate-600 group-hover:translate-x-1 transition-all flex-shrink-0 ml-4" />
