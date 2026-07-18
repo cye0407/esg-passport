@@ -185,6 +185,10 @@ const DEMO_MONTHLY_RECORDS = [
  * Seed localStorage with realistic demo data. Overwrites any existing data.
  */
 export function loadDemoData() {
+  // Preserve the visitor's UI language across the reset: a German visitor's
+  // sample answers must render in German (settings.language drives the answer/
+  // export language, kept separate from uiLanguage — see LanguageContext).
+  const preservedUiLang = loadData()?.settings?.uiLanguage;
   resetData();
   const data = loadData();
 
@@ -231,7 +235,10 @@ export function loadDemoData() {
     demoLibrarySeeded: true,
     onboardingStep: 3,
     gridCountry: 'DE',
-    language: 'en',
+    // Answer language follows the UI language the visitor arrived in
+    // (was hardcoded 'en' — German onboarding produced an English sample).
+    language: ['de', 'fr', 'es'].includes(preservedUiLang) ? preservedUiLang : 'en',
+    ...(preservedUiLang ? { uiLanguage: preservedUiLang } : {}),
   };
 
   // Mark relevant policies as available — gives the engine real policy
