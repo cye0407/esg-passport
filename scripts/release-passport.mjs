@@ -156,7 +156,13 @@ async function main() {
   npm('test', passportRoot);
   npm('build', passportRoot);
 
-  git(['add', 'vendor/esg-extract', 'vendor/response-ready', 'src/buildInfo.json'], passportRoot, false);
+  // -f is REQUIRED: the root .gitignore `dist` rule matches vendor/response-ready/dist/**, so a
+  // plain `git add` silently skips any NEW vendored file (already-tracked ones keep updating, but
+  // new modules from an engine wave never get staged). That ships a vendor tree that builds locally
+  // and passes the drift guard — both read from disk — yet breaks Vercel, whose Git checkout only
+  // has committed files (e.g. "Could not resolve ./exclusionRules", 2026-07-18). Force-add so the
+  // committed vendor always equals what was synced to disk.
+  git(['add', '-f', 'vendor/esg-extract', 'vendor/response-ready', 'src/buildInfo.json'], passportRoot, false);
 
   if (hasStagedChanges()) {
     const message = `chore(release): sync vendored deps
