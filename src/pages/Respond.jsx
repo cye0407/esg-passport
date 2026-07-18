@@ -1592,11 +1592,17 @@ export default function Respond({ demoOnly = false }) {
                 </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Link
+                  to="/onboarding"
+                  className="inline-flex h-10 items-center justify-center bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                >
+                  {t('onboard.startPreview')}
+                </Link>
                 <a
                   href={CHECKOUT_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex h-10 items-center justify-center bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                  className="inline-flex h-10 items-center justify-center border border-slate-300 px-4 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
                 >
                   {t('respond.buyPassport')}
                 </a>
