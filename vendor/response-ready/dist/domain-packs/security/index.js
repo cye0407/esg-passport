@@ -8,6 +8,10 @@ export const securityDomainPack = {
     name: 'security',
     version: '0.1.0',
     keywordRules: SECURITY_KEYWORD_RULES,
+    // This pack's rules top out at weight 10, below the default 'high' band (15), so it declares
+    // its own bands. (Previously the matcher auto-derived these from the max rule weight, which
+    // silently changed every pack's contract; the cut-offs are now explicit per pack.)
+    confidenceThresholds: { high: 10, medium: 8 },
     domainSuggestions: SECURITY_DOMAIN_SUGGESTIONS,
     questionTypes: [...SECURITY_QUESTION_TYPES],
     classifierSignals: SECURITY_CLASSIFIER_SIGNALS,

@@ -9,10 +9,24 @@
 // Matching notes:
 //  - `term` is compared as a normalized substring, so German compounds resolve from a stem:
 //    'abfall' hits 'Abfallaufkommen', 'strom' hits 'Stromverbrauch'.
-//  - Normalization turns ä/ö/ü/ß into spaces on both sides, so terms with umlauts are written
-//    naturally here (e.g. 'gefährlich', 'unfälle') and still match.
+//  - Normalization folds umlauts to their base letter on both sides ('gefährlich' and
+//    'gefährlicher' both become 'gefahrlich…'), so terms are written naturally here. ß has no
+//    decomposition and still folds to a space, again on both sides — so 'bußgeld' matches, it
+//    just does so as two tokens.
 //  - `add` values MUST be strings that appear in ESG_KEYWORD_RULES keywords.
-export const ESG_TERM_ALIASES = [
+//  - Every entry is tagged lang:'de' on export, so these fire only when the matcher is told
+//    the questionnaire is German (matcher.setLanguage('de')). Without the tag, substring
+//    matching would apply this lexicon to English text too — 'personal' (staff) hits the
+//    English word "personal", 'emission' sits inside "emissions".
+// 'gefährlich' alone must NOT inject 'hazardous waste': it is a bare adjective stem, so it
+// fires on hazardous *anything* — "Gibt es gefährliche Arbeitsplätze?" is a health & safety
+// question and was routing to waste at high confidence (high, so never flagged for review).
+// Alias terms are matched as plain substrings, so the hazard word is paired with each waste
+// noun explicitly; German adjectives decline, hence the ending set.
+const HAZARD_ADJECTIVES = ['gefährlicher', 'gefährlichen', 'gefährliche', 'gefährlichem', 'gefährliches'];
+const WASTE_NOUNS = ['abfall', 'abfalls', 'abfälle', 'abfällen'];
+const HAZARDOUS_WASTE_ALIASES = HAZARD_ADJECTIVES.flatMap(adj => WASTE_NOUNS.map(noun => ({ term: `${adj} ${noun}`, add: ['hazardous waste'] })));
+const GERMAN_ALIASES = [
     // --- Energy ---
     { term: 'strom', add: ['electricity'] },
     { term: 'elektrizität', add: ['electricity'] },
@@ -62,7 +76,7 @@ export const ESG_TERM_ALIASES = [
     { term: 'wiederverwertung', add: ['recycling'] },
     { term: 'verwertung', add: ['recycling'] },
     { term: 'recyclingquote', add: ['diversion rate'] },
-    { term: 'gefährlich', add: ['hazardous waste'] },
+    ...HAZARDOUS_WASTE_ALIASES,
     { term: 'sondermüll', add: ['hazardous waste'] },
     { term: 'entsorgung', add: ['disposal'] },
     { term: 'deponie', add: ['landfill'] },
@@ -82,8 +96,8 @@ export const ESG_TERM_ALIASES = [
     { term: 'vollzeitäquivalent', add: ['full-time equivalent'] },
     { term: 'frauenanteil', add: ['women'] },
     { term: 'weiblich', add: ['women'] },
-    // Women-in-leadership: route to leadership_diversity (weight 10) so it beats the
-    // spurious 'fte' token that umlaut-normalization leaves in "Führungskräfte" (→ "…kr fte").
+    // Women-in-leadership: route to leadership_diversity (weight 10) so it beats the plain
+    // workforce/employee_count rule that "Führungskräfte" also reaches.
     { term: 'führungskräfte', add: ['women in leadership'] },
     { term: 'führungsposition', add: ['women in leadership'] },
     { term: 'leitungsposition', add: ['women in leadership'] },
@@ -142,8 +156,7 @@ export const ESG_TERM_ALIASES = [
     { term: 'externe prüfung', add: ['external assurance'] },
     { term: 'extern geprüft', add: ['external assurance'] },
     { term: 'unabhängige prüfung', add: ['external assurance'] },
-    // Assurance stems on non-umlaut tokens (prüfung normalizes to 'pr fung', so no stem alias
-    // is possible for it). 'verifiziert'/'vermerk' catch verified/Prüfvermerk phrasings (M12).
+    // 'verifiziert'/'vermerk' catch verified/Prüfvermerk phrasings (M12).
     { term: 'verifiziert', add: ['external assurance'] },
     { term: 'vermerk', add: ['external assurance'] },
     { term: 'richtlinie', add: ['policy'] },
@@ -221,4 +234,5 @@ export const ESG_TERM_ALIASES = [
     { term: 'standort', add: ['site'] },
     { term: 'produktionsvolumen', add: ['production volume'] },
 ];
+export const ESG_TERM_ALIASES = GERMAN_ALIASES.map(a => ({ ...a, lang: 'de' }));
 //# sourceMappingURL=germanAliases.js.map

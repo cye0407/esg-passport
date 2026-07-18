@@ -10,6 +10,19 @@ export interface DomainPack<TData = Record<string, unknown>, TProfile = Record<s
     /** Optional multilingual term aliases: maps foreign/synonym terms to canonical English
      *  keywords so non-English questionnaires match the English keyword rules. */
     termAliases?: TermAlias[];
+    /** Optional confidence-band cut-offs over the summed rule weight of the top-scoring domain.
+     *  Defaults to 15 (high) / 8 (medium). Only set this if the pack's rule weights top out below
+     *  15 and it still needs to surface 'high' — the bands are a cross-pack contract that
+     *  downstream review workflows gate on, so they are not auto-derived from weights. */
+    confidenceThresholds?: {
+        high: number;
+        medium: number;
+    };
+    /** Optional patterns stripped from a question before keyword matching, to drop a scoped
+     *  exclusion the pack understands ("…Scope 1 only. Do not include Scope 2." → the Scope 2
+     *  token is removed so it does not pull the question into a combined answer). The concept
+     *  being excluded is domain knowledge — the engine only applies whatever the pack supplies. */
+    exclusionPatterns?: RegExp[];
     /** Question types this domain uses, e.g. ['POLICY', 'MEASURE', 'KPI'] */
     questionTypes?: string[];
     /** Signal rules for classifying questions by type */

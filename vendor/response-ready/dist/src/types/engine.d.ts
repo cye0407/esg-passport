@@ -53,6 +53,11 @@ export interface TermAlias {
     /** Canonical keyword(s) to inject when `term` is present. Must be strings the pack's
      *  KeywordRule[] already matches on, so the injected words route to the right domain. */
     add: string[];
+    /** Input language this alias belongs to. The matcher applies it only when set to the same
+     *  language (see KeywordMatcherInstance.setLanguage). Omit for language-neutral aliases,
+     *  which always apply. Tagging matters because substring matching is blind to language:
+     *  the German 'personal' (staff) would otherwise fire on the English word "personal". */
+    lang?: Lang;
 }
 export interface MatchResult {
     questionId: string;
@@ -191,6 +196,11 @@ export interface MappingRule {
 export interface ScrubRule {
     pattern: RegExp | string;
     replacement: string;
+    /** Output language this rule applies to. The rewriter runs a rule only when it is untagged
+     *  (language-neutral) or tagged with the answer's language. A scrub pattern is written for one
+     *  language's phrasing, and a replacement rule can inject its own language's words, so an
+     *  English rule must never run on a German answer. */
+    lang?: Lang;
 }
 export interface ExportSheetConfig {
     name: string;

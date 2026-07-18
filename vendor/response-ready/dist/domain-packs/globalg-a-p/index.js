@@ -25,6 +25,9 @@ export const gapDomainPack = {
     version: '1.0.0',
     // Keyword Matching
     keywordRules: GAP_KEYWORD_RULES,
+    // Rules top out at weight 11, below the default 'high' band (15); declare explicit bands so a
+    // top-weight hit reaches 'high' without the matcher auto-deriving bands for every pack.
+    confidenceThresholds: { high: 11, medium: 8 },
     domainSuggestions: GAP_DOMAIN_SUGGESTIONS,
     // Question Classification
     questionTypes: [...GAP_QUESTION_TYPES],

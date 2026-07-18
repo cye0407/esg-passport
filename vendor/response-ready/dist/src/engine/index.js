@@ -7,6 +7,8 @@ export { parseQuestionFile, reprocessWithMapping, parseQuestionsFromText } from 
 export { parseCSV, parseCSVLine, loadMappingRules, loadMetricKeys } from './configLoader';
 // Keyword Matcher
 export { createMatcher } from './keywordMatcher';
+// Questionnaire Language Detection
+export { detectQuestionnaireLanguage } from './questionnaireLanguage';
 // Question Classifier
 export { createClassifier } from './questionClassifier';
 // Data Retrieval

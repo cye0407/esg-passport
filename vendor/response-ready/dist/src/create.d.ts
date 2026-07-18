@@ -1,6 +1,6 @@
-import type { ParseResult, ParsedQuestion, MatchResult, DataContext, AnswerDraft, GenerationConfig, ClassificationResult, MappingRule } from './types';
+import type { ParseResult, ParsedQuestion, MatchResult, DataContext, AnswerDraft, GenerationConfig, ClassificationResult, MappingRule, Lang } from './types';
 import type { DomainPack } from './types/domain-pack';
-import type { KeywordMatcherInstance } from './engine/keywordMatcher';
+import type { KeywordMatcherInstance, MatchOptions } from './engine/keywordMatcher';
 import type { ClassifierInstance } from './engine/questionClassifier';
 import type { AnswerGeneratorInstance } from './engine/answerGenerator';
 import type { RewriterInstance } from './engine/defensiveRewriter';
@@ -19,8 +19,13 @@ export interface ResponseEngine<TData = Record<string, unknown>, TProfile = Reco
     }) => Promise<ParseResult>;
     parseText: (text: string) => ParsedQuestion[];
     matcher: KeywordMatcherInstance;
-    matchQuestion: (question: ParsedQuestion) => MatchResult;
-    matchQuestions: (questions: ParsedQuestion[]) => MatchResult[];
+    matchQuestion: (question: ParsedQuestion, options?: MatchOptions) => MatchResult;
+    matchQuestions: (questions: ParsedQuestion[], options?: MatchOptions) => MatchResult[];
+    /** Declare the language of the questionnaire being matched, for calls that don't pass one.
+     *  Prefer the per-call `options.language` on matchQuestion(s): this is engine-instance
+     *  state, so a declaration made for one questionnaire silently applies to the next batch
+     *  that omits its language. Batches with no declaration anywhere are auto-detected. */
+    setQuestionLanguage: (lang: Lang) => void;
     classifier: ClassifierInstance | null;
     classifyQuestion: ((questionId: string, text: string, category?: string) => ClassificationResult) | null;
     classifyQuestions: ((questions: Array<{
@@ -51,5 +56,7 @@ export interface ResponseEngine<TData = Record<string, unknown>, TProfile = Reco
  * const matches = engine.matchQuestions(result.questions);
  * ```
  */
-export declare function createResponseEngine<TData = Record<string, unknown>, TProfile = Record<string, unknown>>(pack: DomainPack<TData, TProfile>): ResponseEngine<TData, TProfile>;
+export declare function createResponseEngine<TData = Record<string, unknown>, TProfile = Record<string, unknown>>(pack: DomainPack<TData, TProfile>, options?: {
+    questionLanguage?: Lang;
+}): ResponseEngine<TData, TProfile>;
 //# sourceMappingURL=create.d.ts.map

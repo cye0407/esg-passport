@@ -109,7 +109,11 @@ function parseRequired(value) {
 // Question Detection Heuristics
 // ============================================
 const STRUCTURED_NUMBERING = /^\(\d+(?:\.\d+)+\)\s+/;
+// A contents line: dot leader, then usually a page number. "(1.1) In which language …..... 8"
 const TOC_LINE = /\.{4,}\s*\d*\s*$/;
+// The head of a contents entry — "(2.1)" or "C3." — used to tell a fresh entry from the
+// continuation of a wrapped one.
+const TOC_ENTRY_START = /^(?:\(\d+(?:\.\d+)*\)|[A-Z]\d+\.)\s/;
 const SKIP_PATTERNS = [
     /^(copyright|confidential|disclaimer|version\s*[\d\.]|page\s*\d|©)/i,
     /^\d+$/,
@@ -122,23 +126,46 @@ const SKIP_PATTERNS = [
     /^[☐☑✓✗✘●○■□▪▫►▶]\s/,
 ];
 const INTERROGATIVE_START = /^(what|how|does|do|is|are|has|have|which|who|where|when|why|can|will|would|should|could|may|might|shall)\b/i;
-const IMPERATIVE_START = /^(describe|explain|provide|list|report|disclose|specify|identify|outline|quantify|assess|evaluate|discuss|summarize|summarise)\b/i;
+const IMPERATIVE_START = /^(describe|explain|provide|list|report|disclose|specify|identify|outline|quantify|assess|evaluate|discuss|summarize|summarise|state|indicate|confirm|detail)\b/i;
+// A leading "Please " (optionally with a comma/colon) is a politeness prefix, not part of the
+// verb: "Please state your total headcount" is as much a questionnaire item as "State your
+// total headcount". Stripped before the verb tests so "Please state/provide/indicate/…" prompts
+// aren't dropped as non-questions.
+const PLEASE_PREFIX = /^please[,:]?\s+/i;
 const REFERENCE_ID = /^(C\d+[\.\-]\d|E\d[\.\-]|S\d[\.\-]|G\d[\.\-]|GRI\s*\d{3}|ESRS\s*[ESGO]\d|SASB|Q\d{1,3}[\.\-])/i;
 const ENDS_WITH_QUESTION = /\?\s*[)"\u201D]?\s*$/;
+// A source citation, not an instruction: "Report 2024, p. 44\u2026", "See 2023 Annual Report".
+// The imperative verb is immediately followed by a year, with no object ("Report your 2024
+// emissions" keeps its object and is a real question).
+const CITATION_START = /^(report|see|source)\s+(?:19|20)\d{2}\b/i;
+function wordCount(text) {
+    return text.trim().split(/\s+/).filter(Boolean).length;
+}
 function looksLikeQuestion(text) {
-    if (text.length < 10)
-        return ENDS_WITH_QUESTION.test(text);
     if (text.length > 300)
         return false;
     if (/^[a-z]/.test(text))
         return false;
+    if (CITATION_START.test(text))
+        return false;
     if (SKIP_PATTERNS.some(p => p.test(text)))
         return false;
-    if (ENDS_WITH_QUESTION.test(text))
+    // A single-word line ending in "?" ("impacts?", "targets?", "year?") is a wrapped-question
+    // tail, not a standalone question \u2014 unless it opens with an interrogative ("Why?"). Two-word
+    // checklist questions ("ISO 14001?", "Scope 1?") are real, so only single words are dropped.
+    if (ENDS_WITH_QUESTION.test(text)) {
+        if (wordCount(text) < 2 && !INTERROGATIVE_START.test(text))
+            return false;
         return true;
-    if (INTERROGATIVE_START.test(text))
+    }
+    if (text.length < 10)
+        return false;
+    // SKIP_PATTERNS above already caught instruction prefixes like "please select"; a remaining
+    // "Please …" is a politely-phrased question, so test the verb without the prefix.
+    const probe = text.replace(PLEASE_PREFIX, '');
+    if (INTERROGATIVE_START.test(probe))
         return true;
-    if (IMPERATIVE_START.test(text))
+    if (IMPERATIVE_START.test(probe))
         return true;
     if (REFERENCE_ID.test(text))
         return true;
@@ -146,6 +173,47 @@ function looksLikeQuestion(text) {
 }
 function countChar(text, char) {
     return text.split(char).length - 1;
+}
+// A question head that wraps ends on a connector ("…and/or", "…vulnerable to the", "…reporting
+// year,"), never on terminal punctuation. That is the signal used to pull its tail back on.
+const CONTINUATION_MARKER = /(?:\b(?:and|or|the|a|an|of|to|for|in|on|at|by|with|from|your|our|its|their|any|all|each|other|that|which|as)|,|\/|-|–)\s*$/i;
+// Whether a line can be the continuation (tail) of a wrapped question above it — i.e. it is not
+// itself the start of a new item. Rejects new numbered entries, contents lines, form scaffolding
+// ([Fixed row], ☑ options, "Select from"), boilerplate, and pure values/numbers.
+function isContinuationTail(line) {
+    const t = line.trim();
+    if (t.length === 0 || t.length > 60)
+        return false;
+    if (STRUCTURED_NUMBERING.test(t) || TOC_ENTRY_START.test(t) || TOC_LINE.test(t))
+        return false;
+    if (/^[[(☑☐✓✗✘●○■□▪▫►▶]/.test(t))
+        return false;
+    if (/^(select from|select all|select one|add row|fixed row|row\s*\d)/i.test(t))
+        return false;
+    if (SKIP_PATTERNS.some(p => p.test(t)))
+        return false;
+    if (/^[\d.,%€$£\s()–-]+$/.test(t))
+        return false;
+    return true;
+}
+// PDF/DOCX text arrives one visual line at a time, so a question that wraps is split across
+// lines: the head keeps a truncated text and the tail ("impacts?") is left as an orphan. Pull
+// the tail(s) back onto the head — but only while the head is still incomplete (ends on a
+// connector) and the next line is a real continuation, so complete questions and scaffolding are
+// never absorbed. Consumes the lines it merges, so it can only lower the question count.
+function absorbWrappedTail(lines, headIdx, headText) {
+    let text = headText;
+    let j = headIdx;
+    let absorbed = 0;
+    while (absorbed < 3 && CONTINUATION_MARKER.test(text) && j + 1 < lines.length) {
+        const cand = lines[j + 1].trim();
+        if (!isContinuationTail(cand))
+            break;
+        text = `${text} ${cand}`.replace(/\s+/g, ' ').trim();
+        j++;
+        absorbed++;
+    }
+    return { text, endIdx: j };
 }
 function normalizeExtractedQuestionText(text) {
     return text
@@ -210,6 +278,19 @@ function questionsFromText(text, fileName) {
         const line = lines[i];
         if (TOC_LINE.test(line))
             continue;
+        // A line carrying a URL is document body (a citation or footnote), never a question — in
+        // any format, so this is checked before the numbered-question branch that skips looksLikeQuestion.
+        if (/https?:\/\//.test(line))
+            continue;
+        // A contents entry that wraps carries its dot leader only on the LAST line, so the head
+        // line escapes TOC_LINE and reads exactly like a question — that is how a table of contents
+        // gets imported as a duplicate of every question in the document. Treat this line as such a
+        // head only if it breaks mid-sentence AND the next line is a dot leader that does not open
+        // an entry of its own; a complete question that merely happens to sit above a contents line
+        // ends in punctuation and stays.
+        const next = lines[i + 1];
+        if (!/[.?!]$/.test(line) && next && TOC_LINE.test(next) && !TOC_ENTRY_START.test(next))
+            continue;
         const tableQuestion = extractQuestionFromTableLine(line);
         if (tableQuestion) {
             questions.push({
@@ -240,12 +321,16 @@ function questionsFromText(text, fileName) {
                 || cleaned.length > 80;
             if (!isQuestion)
                 continue;
-            questions.push({ id: uuid(), rowIndex: i + 1, text: cleaned, category: currentCategory, rawRow: { text: line } });
+            const merged = absorbWrappedTail(lines, i, cleaned);
+            questions.push({ id: uuid(), rowIndex: i + 1, text: merged.text, category: currentCategory, rawRow: { text: line } });
+            i = merged.endIdx;
             continue;
         }
         if (!looksLikeQuestion(cleaned))
             continue;
-        questions.push({ id: uuid(), rowIndex: i + 1, text: cleaned, category: currentCategory, rawRow: { text: line } });
+        const merged = absorbWrappedTail(lines, i, cleaned);
+        questions.push({ id: uuid(), rowIndex: i + 1, text: merged.text, category: currentCategory, rawRow: { text: line } });
+        i = merged.endIdx;
     }
     const seen = new Set();
     const deduped = [];
@@ -274,13 +359,14 @@ async function parsePdfFile(file) {
         const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
         const arrayBuffer = await file.arrayBuffer();
         const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
-        const pdfInit = isBrowser
-            ? {
-                data: arrayBuffer,
-                workerSrc: new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString(),
-            }
-            : { data: arrayBuffer, disableWorker: true };
-        const pdf = await pdfjsLib.getDocument(pdfInit).promise;
+        // pdf.js reads the worker URL only from GlobalWorkerOptions; workerSrc/disableWorker passed
+        // in the getDocument() init object are silently dropped, leaving workerSrc empty and failing
+        // the load. Under Node pdf.js disables the worker and resolves its own path, so only the
+        // browser needs this. Worker build must match the main build imported above (legacy).
+        if (isBrowser) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
+        }
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const textParts = [];
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
             const page = await pdf.getPage(pageNum);
@@ -368,11 +454,31 @@ const SKIP_SHEET_PATTERN = /^(intro|guidance|instruction|definition|dropdown|opt
 function shouldSkipSheet(name) {
     return SKIP_SHEET_PATTERN.test(name.trim());
 }
+// Read a spreadsheet/CSV file into a workbook, decoding CSV text explicitly. A CSV carries no
+// encoding metadata, so SheetJS guesses a legacy codepage and mangles UTF-8 umlauts
+// ("beschäftigen" → "beschÃ¤ftigen"). Strip a UTF-8 BOM and decode as UTF-8, falling back to
+// Windows-1252 for legacy exports whose bytes aren't valid UTF-8 (German Excel's default "CSV"
+// on a German-locale machine). Binary formats (xlsx/xls) store their own encoding, so they are
+// read as bytes unchanged.
+async function readWorkbook(file) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (getFileExtension(file.name) !== 'csv') {
+        return XLSX.read(bytes, { type: 'array' });
+    }
+    const body = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? bytes.subarray(3) : bytes;
+    let text;
+    try {
+        text = new TextDecoder('utf-8', { fatal: true }).decode(body);
+    }
+    catch {
+        text = new TextDecoder('windows-1252').decode(body);
+    }
+    return XLSX.read(text, { type: 'string' });
+}
 async function parseSpreadsheetFile(file) {
     const errors = [];
     try {
-        const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const workbook = await readWorkbook(file);
         if (workbook.SheetNames.length === 0) {
             return { success: false, questions: [], errors: ['No sheets found in file'], metadata: { fileName: file.name, totalRows: 0, parsedRows: 0, columnMapping: { questionText: '' } } };
         }
@@ -452,8 +558,7 @@ async function parseSpreadsheetFile(file) {
 // ============================================
 export async function reprocessWithMapping(file, manualMapping) {
     try {
-        const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const workbook = await readWorkbook(file);
         const allQuestions = [];
         let totalRows = 0;
         for (const sheetName of workbook.SheetNames) {

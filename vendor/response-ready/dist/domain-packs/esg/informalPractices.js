@@ -14,6 +14,17 @@ const PRACTICE_TOPIC_TO_DOMAINS = {
     'ETHICS': ['regulatory', 'goals'],
     'SUPPLY_CHAIN': ['materials', 'transport'],
 };
+// German management-approach phrasing, per practice topic. industryContext.managementApproaches
+// is English-only and industry-specific; embedding it in a German sentence used to leak English
+// prose into a /de answer. These are hand-written (no machine translation), generic across
+// industries rather than per-industry — a smaller, less tailored set than the English source,
+// but German gets a real sentence instead of English text or none at all.
+const MANAGEMENT_APPROACH_DE = {
+    'ENVIRONMENT': 'betriebliche Umweltmaßnahmen unter Verantwortung der Standortleitung, darunter Abfalltrennung, Energieerfassung über Verbrauchsabrechnungen und die Einhaltung der geltenden Umweltauflagen',
+    'LABOR': 'Maßnahmen der Personalführung unter Verantwortung der Standortleitung, darunter regelmäßige Sicherheitsunterweisungen, die Bereitstellung persönlicher Schutzausrüstung und die Erfassung der Arbeitszeiten',
+    'ETHICS': 'Erwartungen an rechtskonformes Geschäftsverhalten, die über Einarbeitung und Führungskräfte vermittelt werden, mit einem vertraulichen Kanal zur Meldung von Hinweisen',
+    'SUPPLY_CHAIN': 'Verfahren zur Lieferantenqualifizierung, darunter Wareneingangsprüfung, regelmäßige Lieferantenbesuche und die bevorzugte Beschaffung aus regionalen Quellen, soweit möglich',
+};
 // ============================================
 // Handler Implementation
 // ============================================
@@ -58,7 +69,9 @@ export const esgInformalPracticeHandler = {
         }
         const topicsCovered = [...new Set(typedPractices.map(p => p.topic))];
         for (const topic of topicsCovered) {
-            const approach = ctx.managementApproaches[topic];
+            // English pulls the industry-specific approach; German uses its own hand-written phrasing
+            // so no English prose is embedded in the German sentence.
+            const approach = de ? MANAGEMENT_APPROACH_DE[topic] : ctx.managementApproaches[topic];
             if (approach) {
                 parts.push(de
                     ? `Unser Managementansatz umfasst ${approach}.`

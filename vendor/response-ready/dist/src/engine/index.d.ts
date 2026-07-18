@@ -1,7 +1,8 @@
 export { parseQuestionFile, reprocessWithMapping, parseQuestionsFromText } from './questionParser';
 export { parseCSV, parseCSVLine, loadMappingRules, loadMetricKeys } from './configLoader';
 export { createMatcher } from './keywordMatcher';
-export type { KeywordMatcherInstance } from './keywordMatcher';
+export type { KeywordMatcherInstance, MatchOptions } from './keywordMatcher';
+export { detectQuestionnaireLanguage } from './questionnaireLanguage';
 export { createClassifier } from './questionClassifier';
 export type { ClassifierInstance } from './questionClassifier';
 export { retrieveData, addIfPresent, deduplicatePoints, emptyDataContext } from './dataRetrieval';

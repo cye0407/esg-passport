@@ -26,9 +26,13 @@ import { loadMappingRules } from './engine/configLoader';
  * const matches = engine.matchQuestions(result.questions);
  * ```
  */
-export function createResponseEngine(pack) {
+export function createResponseEngine(pack, options = {}) {
     // Wire up matcher
-    const matcher = createMatcher(pack.keywordRules, pack.domainSuggestions, pack.termAliases);
+    const matcher = createMatcher(pack.keywordRules, pack.domainSuggestions, pack.termAliases, {
+        language: options.questionLanguage,
+        confidenceThresholds: pack.confidenceThresholds,
+        exclusionPatterns: pack.exclusionPatterns,
+    });
     // Wire up classifier (optional)
     const classifier = pack.classifierSignals && pack.questionTypes
         ? createClassifier(pack.classifierSignals, pack.questionTypes, pack.defaultQuestionType)
@@ -58,6 +62,7 @@ export function createResponseEngine(pack) {
         matcher,
         matchQuestion: matcher.matchQuestion,
         matchQuestions: matcher.matchQuestions,
+        setQuestionLanguage: matcher.setLanguage,
         // Classification
         classifier,
         classifyQuestion: classifier ? classifier.classifyQuestion : null,

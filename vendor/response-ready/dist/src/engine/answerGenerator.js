@@ -95,9 +95,14 @@ export function buildDataMap(context) {
 // ============================================
 // Defensive Rewriting (inline, single-answer)
 // ============================================
-function applyRewriteRules(text, rules) {
+function applyRewriteRules(text, rules, lang = 'en') {
     let result = text;
     for (const rule of rules) {
+        // A scrub rule runs only when it is language-neutral or matches the answer language: an
+        // English pattern must not run on a German answer, and a replacement rule must never inject
+        // its own language's words ("Additionally, ", "Regarding ") into the other language.
+        if (rule.lang && rule.lang !== lang)
+            continue;
         const pattern = typeof rule.pattern === 'string' ? new RegExp(rule.pattern, 'gi') : rule.pattern;
         result = result.replace(pattern, rule.replacement);
     }
@@ -377,7 +382,7 @@ export function createAnswerGenerator(deps) {
             finalAnswer = `${gs('unknownInput', lang)}${promptSuffix}`;
         }
         else if (scrubRules.length > 0) {
-            finalAnswer = applyRewriteRules(finalAnswer, scrubRules);
+            finalAnswer = applyRewriteRules(finalAnswer, scrubRules, lang);
         }
         // Append explicit gap declarations to drafted or incomplete answers
         if ((drafted || requiredGaps.length > 0) && !finalAnswer.toLowerCase().includes('unknown')) {

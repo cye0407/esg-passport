@@ -31,7 +31,14 @@ export const ESG_KEYWORD_RULES = [
     { keywords: ['scope 1', 'scope1', 'direct emission', 'direct ghg', 'stationary combustion', 'mobile combustion', 'fugitive'], domain: 'emissions', topics: ['ghg_emissions', 'scope_1'], weight: 10 },
     { keywords: ['scope 2', 'scope2', 'indirect emission', 'purchased electricity emission', 'purchased energy emission', 'market-based', 'location-based'], domain: 'emissions', topics: ['ghg_emissions', 'scope_2'], weight: 10 },
     { keywords: ['scope 3', 'scope3', 'value chain emission', 'upstream emission', 'downstream emission'], domain: 'emissions', topics: ['ghg_emissions', 'scope_3'], weight: 10 },
-    { keywords: ['greenhouse gas', 'ghg', 'carbon emission', 'co2', 'carbon dioxide', 'tco2e', 'carbon footprint', 'climate change'], domain: 'emissions', topics: ['ghg_emissions', 'climate_targets'], weight: 8 },
+    // Bare 'emission' carries a GHG reading by default ("total emissions", "power plant
+    // emissions"). It stays at weight 8 so the more specific air-pollution rule below (weight 10)
+    // still wins for NOx/SOx phrasings — 'air emissions' must read as pollution, not GHG.
+    { keywords: ['greenhouse gas', 'ghg', 'carbon emission', 'emission', 'co2', 'carbon dioxide', 'tco2e', 'carbon footprint', 'climate change'], domain: 'emissions', topics: ['ghg_emissions', 'climate_targets'], weight: 8 },
+    // Product-level emissions: these all name a product AND emissions, so the generic
+    // product/service rule (weight 8) would tie and win the tie-break on keyword count. Weight 11
+    // keeps them on emissions — a "life cycle emissions" question is about emissions, not products.
+    { keywords: ['life cycle emissions', 'lifecycle emissions', 'avoided emissions', 'product carbon footprint', 'life cycle assessment', 'life cycle analysis'], domain: 'emissions', topics: ['ghg_emissions', 'lifecycle'], weight: 11 },
     { keywords: ['carbon neutral', 'net zero', 'net-zero', 'climate target', 'sbti', 'science based target', 'emission reduction target'], domain: 'goals', topics: ['climate_targets', 'ghg_emissions'], weight: 8 },
     { keywords: ['refrigerant', 'hfc', 'f-gas', 'fluorinated'], domain: 'emissions', topics: ['ghg_emissions', 'scope_1'], weight: 9 },
     // === Energy ===
@@ -66,7 +73,11 @@ export const ESG_KEYWORD_RULES = [
     // Includes non-contiguous "assessment/audit … of your suppliers" phrasings (C): the matcher
     // has no keyword co-occurrence logic, so the natural EN word orders are enumerated here, and
     // the German "Audits/Bewertungen Ihrer Lieferanten" phrasings are bridged via germanAliases.
-    { keywords: ['supplier assessment', 'supplier audit', 'supplier screening', 'suppliers assessed', 'percentage of suppliers', 'percent of suppliers', '% of suppliers', 'audits of your suppliers', 'audit of your suppliers', 'audits of suppliers', 'audit of suppliers', 'assessments of your suppliers', 'assessment of your suppliers', 'assessments of suppliers', 'assessment of suppliers', 'audit your suppliers', 'assess your suppliers'], domain: 'buyer_requirements', topics: ['supply_chain_monitoring'], weight: 16 },
+    // "% of suppliers…" phrasings are covered by 'percent of suppliers': the matcher folds '%'
+    // to the word 'percent'. A literal '%' keyword must not be listed — '%' cannot survive
+    // normalization, so it would degenerate to the bare 'of suppliers' and pull ordinary
+    // "number of suppliers" questions into this weight-16 assessment rule at high confidence.
+    { keywords: ['supplier assessment', 'supplier audit', 'supplier screening', 'suppliers assessed', 'percentage of suppliers', 'percent of suppliers', 'percentage of your suppliers', 'percent of your suppliers', 'audits of your suppliers', 'audit of your suppliers', 'audits of suppliers', 'audit of suppliers', 'assessments of your suppliers', 'assessment of your suppliers', 'assessments of suppliers', 'assessment of suppliers', 'audit your suppliers', 'assess your suppliers'], domain: 'buyer_requirements', topics: ['supply_chain_monitoring'], weight: 16 },
     { keywords: ['supply chain esg', 'supply chain sustainability', 'supplier esg', 'esg performance supply'], domain: 'buyer_requirements', topics: ['supply_chain_monitoring'], weight: 10 },
     { keywords: ['conflict minerals', 'cmrt', 'conflict mineral reporting', '3tg', 'responsible minerals'], domain: 'materials', topics: ['conflict_minerals', 'compliance'], weight: 10 },
     { keywords: ['supplier', 'supply chain', 'vendor', 'procurement', 'sourcing'], domain: 'buyer_requirements', topics: ['supplier_management'], weight: 7 },
@@ -80,10 +91,7 @@ export const ESG_KEYWORD_RULES = [
     { keywords: ['fleet', 'vehicle', 'truck', 'delivery', 'fleet composition', 'km driven', 'kilometers driven', 'alternative fuel vehicles'], domain: 'transport', topics: ['fleet'], weight: 9 },
     { keywords: ['transport', 'transportation', 'logistics', 'shipping', 'freight', 'distribution'], domain: 'transport', topics: ['transport', 'logistics'], weight: 8 },
     // === Workforce (fine-grained topics) ===
-    // 'fte' as a bare token is dropped (M17 stopgap): German umlaut-folding turns '-kräfte'
-    // compounds (Fachkräfte, Pflegekräfte) into a stray 'fte' and spuriously hit employee_count.
-    // The 'vollzeitäquivalent' alias still injects 'full-time equivalent' (and 'fte') for real FTE questions.
-    { keywords: ['employee', 'headcount', 'full-time equivalent', 'workforce size', 'staff', 'personnel', 'how many employees', 'number of employees', 'total number of employees'], domain: 'workforce', topics: ['employee_count'], weight: 9 },
+    { keywords: ['employee', 'headcount', 'fte', 'full-time equivalent', 'workforce size', 'staff', 'personnel', 'how many employees', 'number of employees', 'total number of employees'], domain: 'workforce', topics: ['employee_count'], weight: 9 },
     { keywords: ['diversity', 'gender', 'female', 'male', 'women', 'minority', 'inclusion', 'gender breakdown'], domain: 'workforce', topics: ['diversity'], weight: 10 },
     { keywords: ['dei', 'diversity equity inclusion', 'diversity and inclusion', 'diversity policy', 'equal opportunity', 'non-discrimination'], domain: 'workforce', topics: ['dei_policy'], weight: 11 },
     { keywords: ['human rights', 'forced labor', 'child labor', 'modern slavery', 'labor rights'], domain: 'workforce', topics: ['human_rights'], weight: 10 },
@@ -104,7 +112,9 @@ export const ESG_KEYWORD_RULES = [
     // === Training ===
     // weight 11 (> workforce 'employee' 9) so a training question phrased "…per employee"
     // (DE: "…pro Mitarbeitendem") routes to training, not employee_count.
-    { keywords: ['training', 'learning', 'development', 'skill', 'capacity building', 'training hours', 'training programme'], domain: 'training', topics: ['training'], weight: 11 },
+    // 'development' alone matched "research and development" and "business development"; the
+    // training sense is always qualified ("learning and development", "professional development").
+    { keywords: ['training', 'learning', 'professional development', 'staff development', 'skills development', 'employee development', 'skill', 'capacity building', 'training hours', 'training programme'], domain: 'training', topics: ['training'], weight: 11 },
     // === Certifications & Compliance ===
     { keywords: ['certification', 'certified', 'iso certification', 'iso standard', 'accreditation'], domain: 'regulatory', topics: ['certifications'], weight: 8 },
     { keywords: ['iso 14001', 'emas', 'environmental management'], domain: 'regulatory', topics: ['certifications', 'policies'], weight: 9 },

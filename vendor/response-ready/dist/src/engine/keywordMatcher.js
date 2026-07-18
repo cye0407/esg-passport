@@ -3,6 +3,7 @@
 // ============================================
 // Matches questions to domains/topics using injectable keyword rules.
 // No hardcoded rules — all domain knowledge comes from the DomainPack.
+import { detectQuestionnaireLanguage } from './questionnaireLanguage';
 // Confidence bands over the summed rule weight of the top-scoring domain.
 // Named here rather than inlined so the ESG weight scale (overrides at 15/16/30) and
 // these cut-offs stay visibly in sync.
@@ -12,41 +13,58 @@ const MEDIUM_CONFIDENCE_THRESHOLD = 8;
 // Text Utilities
 // ============================================
 function normalizeText(text) {
-    // Fold hyphens (and all other punctuation) to spaces so hyphenated compounds match their
+    // Fold diacritics to their base letter (ä→a, é→e, ñ→n) BEFORE punctuation folding. \w is
+    // ASCII-only, so an accented letter would otherwise be punctuation and split its own word in
+    // two, stranding fragments as if they were words: "Führungskräfte" became "f hrungskr fte",
+    // whose stray "fte" then matched an FTE keyword and mis-routed every -kräfte compound to
+    // headcount. Generic Unicode folding, not a German rule.
+    //
+    // Then fold hyphens (and all other punctuation) to spaces so hyphenated compounds match their
     // space-separated keywords: "hazardous-waste"→"hazardous waste", "land-use-change"→
     // "land use change", "Scope-1"→"scope 1", "anti-corruption"→"anti corruption". Keeping
     // hyphens previously made every hyphenated questionnaire term miss its keyword.
-    return text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    //
+    // '%' folds to the word 'percent' BEFORE the punctuation pass, because it is semantic, not
+    // punctuation: stripping it degenerated the keyword '% of suppliers' to the bare substring
+    // 'of suppliers', which routed "total number of suppliers" questions to supplier ASSESSMENT
+    // at high confidence. Folding lets 'percent of suppliers' match "What % of suppliers…".
+    return text
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{Mn}/gu, '')
+        .replace(/%/g, ' percent ')
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
-function containsKeyword(text, keyword) {
-    const normalized = normalizeText(text);
-    const normalizedKeyword = normalizeText(keyword);
-    if (normalizedKeyword.includes(' '))
-        return normalized.includes(normalizedKeyword);
-    // Plural-tolerant whole-word match: a single-word keyword also matches its regular
-    // +s / +es plural (certification→certifications, grievance→grievances, supplier→suppliers).
-    return new RegExp(`\\b${normalizedKeyword}(?:s|es)?\\b`, 'i').test(normalized);
+function compileKeyword(keyword) {
+    // Normalized keywords contain only \w and spaces (normalizeText folds everything else),
+    // so the string can be embedded in a RegExp without escaping.
+    const normalized = normalizeText(keyword);
+    if (!normalized)
+        return null;
+    // Plural-tolerant whole-word match: a keyword also matches its regular +s / +es plural
+    // (certification→certifications, supply chain→supply chains). Multi-word phrases get the
+    // same boundaries as single words — matched against pre-normalized text they can never
+    // start or end inside a larger token.
+    return { keyword, re: new RegExp(`\\b${normalized}(?:s|es)?\\b`) };
 }
-// ============================================
-// CSV Rule Matching
-// ============================================
-function tryCsvRules(text, csvRules) {
-    for (const rule of csvRules) {
+function compileCsvRule(rule) {
+    if (rule.patternType === 'regex') {
         try {
-            if (rule.patternType === 'regex') {
-                const re = new RegExp(rule.pattern);
-                if (re.test(text)) {
-                    return { metricKeys: rule.metricKeys, category: rule.category, promptIfMissing: rule.promptIfMissing };
-                }
-            }
-            else {
-                if (normalizeText(text).includes(normalizeText(rule.pattern))) {
-                    return { metricKeys: rule.metricKeys, category: rule.category, promptIfMissing: rule.promptIfMissing };
-                }
-            }
+            return { rule, re: new RegExp(rule.pattern), normalizedPattern: null };
         }
         catch {
-            // Invalid regex — skip
+            return { rule, re: null, normalizedPattern: null };
+        }
+    }
+    return { rule, re: null, normalizedPattern: normalizeText(rule.pattern) };
+}
+function tryCsvRules(rawText, normalizedText, csvRules) {
+    for (const { rule, re, normalizedPattern } of csvRules) {
+        const hit = re ? re.test(rawText) : normalizedPattern !== null && normalizedText.includes(normalizedPattern);
+        if (hit) {
+            return { metricKeys: rule.metricKeys, category: rule.category, promptIfMissing: rule.promptIfMissing };
         }
     }
     return null;
@@ -55,59 +73,95 @@ function tryCsvRules(text, csvRules) {
  * Create a keyword matcher from domain-specific rules.
  * @param keywordRules - Keyword rules from the domain pack
  * @param domainSuggestions - Suggested data points per domain
+ * @param termAliases - Optional term aliases from the domain pack
+ * @param options.language - Declared language of the questions to match. Per-call
+ *   MatchOptions.language overrides it; undeclared batches are auto-detected, else 'en'.
+ * @param options.confidenceThresholds - Override the summed-weight cut-offs for high/medium
+ *   confidence. Defaults to the fixed 15/8 bands; a pack calibrates its own only by opting in.
  */
-export function createMatcher(keywordRules, domainSuggestions, termAliases = []) {
+export function createMatcher(keywordRules, domainSuggestions, termAliases = [], options = {}) {
     let csvMappingRules = [];
-    // Confidence bands are relative to the pack's own weight scale. The ESG pack has
-    // high-weight override rules (15/16/30), so 'high' means "hit a genuine override";
-    // packs whose rules top out at 10 (security, product-ops-rfp) would otherwise never
-    // reach 'high'. Cap at the absolute band so ESG keeps its calibrated 15/8, and floor
-    // it to the pack's ceiling so lighter packs can still surface a top-band match.
-    const maxRuleWeight = keywordRules.reduce((m, r) => Math.max(m, r.weight), 0);
-    const highThreshold = Math.min(HIGH_CONFIDENCE_THRESHOLD, maxRuleWeight);
-    const mediumThreshold = Math.min(MEDIUM_CONFIDENCE_THRESHOLD, highThreshold);
-    // Normalization for alias detection. Beyond normalizeText, hyphens are folded to spaces so
-    // a multi-word term matches hyphenated German compounds ('Lieferanten-Verhaltenskodex' →
-    // 'lieferanten verhaltenskodex'). Umlauts (ä/ö/ü/ß) become spaces on both sides, so terms
-    // with umlauts are matched consistently ('gefährlich' inside 'gefährlicher Abfall').
-    const normalizeForAlias = (t) => normalizeText(t).replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
-    // Pre-normalize alias terms once.
+    // Language of the INPUT questionnaire, not of the generated answer (a German questionnaire
+    // may be answered in English). Resolution order per call:
+    //   1. options.language on the call itself — always wins, cannot go stale;
+    //   2. the declared instance language (constructor option or setLanguage);
+    //   3. for batches with no declaration anywhere, auto-detection over the whole batch —
+    //      so a consumer built before languages existed still gets its foreign questionnaires
+    //      matched instead of silently losing every language-tagged alias;
+    //   4. 'en', rather than every pack's foreign lexicon applied to English text.
+    // Detection is per-batch, never per-question: a single terse cell ("Abfall gesamt (t)")
+    // carries no signal, so matchQuestion trusts only an explicit declaration.
+    let declaredLanguage = options.language ?? null;
+    // Confidence bands over the summed rule weight of the top-scoring domain. Fixed by default so
+    // every pack shares one contract — downstream consumers gate review workflows on 'confidence',
+    // so the band a question lands in must not depend on an unrelated pack's weight scale. A pack
+    // whose rules top out below 15 (and so can never reach 'high') opts into its own bands
+    // explicitly via confidenceThresholds rather than having them auto-derived.
+    const highThreshold = options.confidenceThresholds?.high ?? HIGH_CONFIDENCE_THRESHOLD;
+    const mediumThreshold = options.confidenceThresholds?.medium ?? MEDIUM_CONFIDENCE_THRESHOLD;
+    // Pack-supplied patterns stripped from a question before matching (see DomainPack.exclusionPatterns).
+    const exclusionPatterns = options.exclusionPatterns ?? [];
+    // Pre-normalize alias terms once. normalizeText folds hyphens and diacritics on both sides,
+    // so a multi-word term matches hyphenated German compounds ('Lieferanten-Verhaltenskodex' →
+    // 'lieferanten verhaltenskodex') and an accented term matches its accented text
+    // ('gefährlich' inside 'gefährlicher Abfall').
     const normalizedAliases = termAliases
-        .map(a => ({ term: normalizeForAlias(a.term), add: a.add }))
+        .map(a => ({ term: normalizeText(a.term), add: a.add, lang: a.lang }))
         .filter(a => a.term.length > 0);
+    // Pre-compile every rule keyword once — the match loop below runs rules × keywords per
+    // question and must only test ready-made regexes against ready-normalized text.
+    const compiledRules = keywordRules.map(rule => ({
+        rule,
+        keywords: rule.keywords.map(compileKeyword).filter((k) => k !== null),
+    }));
     // Append the canonical English keyword(s) for any alias term present in the question, so
-    // the English keyword rules can match a non-English questionnaire. Purely additive —
-    // English-only questions never contain the alias terms, so they are unaffected.
-    function expandWithAliases(text) {
+    // the English keyword rules can match a non-English questionnaire. Takes and returns
+    // NORMALIZED text; the appended keywords are normalized so the whole string stays in the
+    // form the compiled keyword regexes expect.
+    //
+    // Alias terms are matched as unbounded substrings — that is deliberate, because German
+    // compounds only resolve from a stem ('abfall' must hit 'Abfallaufkommen'), and no word
+    // boundary would allow that. The cost is that matching cannot tell languages apart: the
+    // German 'personal' (staff) is also an English word, and 'emission' sits inside "emissions".
+    // So an alias tagged with a `lang` applies only when that is the input language for this
+    // call; untagged aliases are language-neutral and always apply.
+    function expandWithAliases(normalizedText, language) {
         if (normalizedAliases.length === 0)
-            return text;
-        const normalized = normalizeForAlias(text);
+            return normalizedText;
         const additions = [];
         for (const alias of normalizedAliases) {
-            if (normalized.includes(alias.term))
+            if (alias.lang && alias.lang !== language)
+                continue;
+            if (normalizedText.includes(alias.term))
                 additions.push(...alias.add);
         }
-        return additions.length > 0 ? `${text} ${additions.join(' ')}` : text;
+        return additions.length > 0 ? `${normalizedText} ${normalizeText(additions.join(' '))}` : normalizedText;
     }
-    function matchQuestion(question) {
+    function matchQuestionForLanguage(question, language) {
         const rawText = `${question.text} ${question.category || ''} ${question.subcategory || ''}`;
-        // Honor an explicit GHG-scope EXCLUSION ("...Scope 1 only. Do not include Scope 2.") so a
-        // single-scope question isn't pulled into the combined Scope 1+2 template by the excluded
-        // scope's own token. Only strips a scope that is the direct object of an exclusion phrase —
-        // a plain "Scope 1 and Scope 2" question keeps both. EN + DE cues.
-        const baseText = rawText.replace(/\b(?:do(?:es)?\s+not\s+include|don'?t\s+include|not\s+including|excluding|without|except(?:\s+for)?|ohne|ausgenommen|exklusive|nicht\s+enthalten(?:d)?)\s+(?:the\s+|der\s+|die\s+|den\s+)?scope[\s-]?[123]\b/gi, ' ');
+        // Strip any pack-supplied exclusion patterns before matching (e.g. the ESG pack removes a
+        // scope token the question explicitly excludes). The engine holds no domain concepts here;
+        // what "exclusion" means is entirely the pack's.
+        let baseText = rawText;
+        for (const pattern of exclusionPatterns)
+            baseText = baseText.replace(pattern, ' ');
+        // Normalize the question text ONCE here — everything downstream (CSV keyword patterns,
+        // alias detection, keyword regexes) works on this string. Normalizing inside the rule
+        // loop previously re-ran the Unicode folding rules × keywords times per question, which
+        // visibly froze the browser main thread on large questionnaires.
+        const normalizedBase = normalizeText(baseText);
         // CSV rules match on the original text; keyword rules match on the alias-expanded text.
-        const csvMatch = tryCsvRules(baseText, csvMappingRules);
-        const text = expandWithAliases(baseText);
+        const csvMatch = tryCsvRules(baseText, normalizedBase, csvMappingRules);
+        const text = expandWithAliases(normalizedBase, language);
         const domainScores = new Map();
         const topicScores = {};
-        for (const rule of keywordRules) {
+        for (const { rule, keywords } of compiledRules) {
             // Collect every keyword this rule matched, then credit the domain ONCE per rule
             // (mirroring topicScores below). Crediting per-keyword would inflate a domain's
             // score by its synonym count and let wordy questions overtake more specific rules.
             const matchedKeywords = [];
-            for (const keyword of rule.keywords) {
-                if (containsKeyword(text, keyword))
+            for (const { keyword, re } of keywords) {
+                if (re.test(text))
                     matchedKeywords.push(keyword);
             }
             if (matchedKeywords.length > 0) {
@@ -168,8 +222,14 @@ export function createMatcher(keywordRules, domainSuggestions, termAliases = [])
             ...(csvMatch ? { csvMetricKeys: csvMatch.metricKeys, csvPromptIfMissing: csvMatch.promptIfMissing } : {}),
         };
     }
-    function matchQuestions(questions) {
-        return questions.map(matchQuestion);
+    function matchQuestion(question, matchOptions) {
+        return matchQuestionForLanguage(question, matchOptions?.language ?? declaredLanguage ?? 'en');
+    }
+    function matchQuestions(questions, matchOptions) {
+        // One language per batch (see the resolution order on declaredLanguage above). Detection
+        // runs only when nothing was declared anywhere, and only over the whole batch.
+        const language = matchOptions?.language ?? declaredLanguage ?? detectQuestionnaireLanguage(questions) ?? 'en';
+        return questions.map(q => matchQuestionForLanguage(q, language));
     }
     function getMatchStatistics(results) {
         const byConfidence = { high: 0, medium: 0, low: 0, none: 0 };
@@ -182,8 +242,14 @@ export function createMatcher(keywordRules, domainSuggestions, termAliases = [])
         return { total: results.length, byConfidence, byDomain, unmatchedCount: byConfidence.none };
     }
     function setCsvRules(rules) {
-        csvMappingRules = rules.sort((a, b) => a.priority - b.priority);
+        csvMappingRules = rules
+            .slice()
+            .sort((a, b) => a.priority - b.priority)
+            .map(compileCsvRule);
     }
-    return { matchQuestion, matchQuestions, getMatchStatistics, setCsvRules };
+    function setLanguage(lang) {
+        declaredLanguage = lang;
+    }
+    return { matchQuestion, matchQuestions, getMatchStatistics, setCsvRules, setLanguage };
 }
 //# sourceMappingURL=keywordMatcher.js.map
