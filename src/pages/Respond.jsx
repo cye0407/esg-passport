@@ -141,8 +141,14 @@ export default function Respond({ demoOnly = false }) {
   const [filterConfidence, setFilterConfidence] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [language, setLanguage] = useState(() => {
+    // In the read-only demo, follow the UI language the visitor arrived in
+    // (e.g. ?lang=de from the German marketing site) so the sample answers
+    // render in German instead of the navigator/English default. Outside the
+    // demo, honor the saved answer-language choice first.
+    if (demoOnly && ['en', 'de', 'fr', 'es'].includes(lang)) return lang;
     const saved = loadData()?.settings?.language;
     if (saved) return saved;
+    if (['en', 'de', 'fr', 'es'].includes(lang)) return lang;
     return (navigator.language || 'en').split('-')[0];
   });
   const [naJustifications, setNaJustifications] = useState({});
