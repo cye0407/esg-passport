@@ -1,6 +1,6 @@
 import React from 'react';
 import { ClipboardCheck } from 'lucide-react';
-import PoliciesSection from '@/components/settings/PoliciesSection';
+import PolicyBuilder from '@/components/PolicyBuilder';
 import { useLanguage } from '@/components/LanguageContext';
 
 export default function Policies() {
@@ -15,9 +15,7 @@ export default function Policies() {
         <p className="text-slate-500 text-sm mt-1">{t('pol.subtitle')}</p>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-none p-6">
-        <PoliciesSection />
-      </div>
+      <PolicyBuilder />
     </div>
   );
 }

@@ -278,6 +278,52 @@ export const deletePolicy = (id) => {
   saveData(data);
 };
 
+// ---- Guided policy builder state (answers + adopted, keyed by builder id) ----
+// Kept in its own slice so the 9 guided builders don't have to map 1:1 onto the
+// tracked-policy ids. The composed doc is not stored (recomposed from answers).
+export const getPolicyBuilderState = () => {
+  const data = loadData();
+  return data.policyBuilderState || {};
+};
+
+export const savePolicyBuilderState = (builderId, patch) => {
+  const data = loadData();
+  if (!data.policyBuilderState) data.policyBuilderState = {};
+  data.policyBuilderState[builderId] = {
+    ...(data.policyBuilderState[builderId] || {}),
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  saveData(data);
+  return data.policyBuilderState[builderId];
+};
+
+// Reflect an adopted/drafted policy onto a tracked policy so the Respond answer
+// composer (which reads policy status) picks it up. No-op if the id isn't tracked.
+export const updatePolicyStatus = (policyId, status) => {
+  const data = loadData();
+  if (!data.policies) return null;
+  const p = data.policies.find(x => x.id === policyId);
+  if (!p) return null;
+  p.status = status;
+  p.updatedAt = new Date().toISOString();
+  saveData(data);
+  return p;
+};
+
+// Record where the signed policy document lives, on the tracked policy — so the
+// builder fully replaces the old tracker's fileLocation field for covered ids.
+export const updatePolicyFileLocation = (policyId, fileLocation) => {
+  const data = loadData();
+  if (!data.policies) return null;
+  const p = data.policies.find(x => x.id === policyId);
+  if (!p) return null;
+  p.fileLocation = fileLocation;
+  p.updatedAt = new Date().toISOString();
+  saveData(data);
+  return p;
+};
+
 export const getRequests = () => {
   const data = loadData();
   return data.requests;

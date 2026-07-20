@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { getPolicies, savePolicy, addCustomPolicy, deletePolicy } from '@/lib/store';
 import { POLICY_STATUSES } from '@/lib/constants';
 import { useLanguage } from '@/components/LanguageContext';
@@ -31,17 +31,18 @@ const PRIORITIES = [
 
 const CATEGORY_KEYS = { governance: 'pol.catGovernance', environmental: 'pol.catEnvironmental', social: 'pol.catSocial' };
 
-export default function PoliciesSection() {
+export default function PoliciesSection({ excludeIds = [] }) {
   const { lang, t } = useLanguage();
-  const [policies, setPolicies] = useState([]);
+  // excludeIds lets a host (the PolicyBuilder library) hide the policies that
+  // already have a guided builder, so this list shows only the remainder.
+  const loadFiltered = () => getPolicies().filter((p) => !excludeIds.includes(p.id));
+  const [policies, setPolicies] = useState(loadFiltered);
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newPolicy, setNewPolicy] = useState({ name: '', category: 'governance', priority: 'medium', notes: '' });
 
-  useEffect(() => { loadPolicies(); }, []);
-
-  const loadPolicies = () => setPolicies(getPolicies());
+  const loadPolicies = () => setPolicies(loadFiltered());
 
   const handleUpdate = (policy) => { savePolicy(policy); loadPolicies(); };
 
