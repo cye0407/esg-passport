@@ -192,11 +192,11 @@ export default function PolicyBuilder() {
     const answers = { ...cur.answers, [key]: value };
     setState((prev) => ({
       ...prev,
-      [id]: { ...(prev[id] || cur), answers, ...(wasAdopted ? { adopted: false } : {}) },
+      [id]: { ...(prev[id] || cur), answers, ...(wasAdopted ? { adopted: false, effectiveDate: '' } : {}) },
     }));
     if (wasAdopted) {
       flushPending();
-      savePolicyBuilderState(id, { answers, adopted: false }); // honesty write — immediate
+      savePolicyBuilderState(id, { answers, adopted: false, effectiveDate: '' }); // honesty write — immediate
       mirrorStatus(id, false, true);
       track('policy_adoption_invalidated', { builder: id });
       flash('You edited an adopted policy — it’s back to draft. Re-tick “adopted” once the new version is signed.');
@@ -227,8 +227,10 @@ export default function PolicyBuilder() {
 
   function onAdopt(id, checked) {
     flushPending();
-    savePolicyBuilderState(id, { adopted: checked, saved: true });
-    setState((prev) => ({ ...prev, [id]: { ...(prev[id] || { answers: answersOf(id) }), adopted: checked, saved: true } }));
+    // Freeze the effective date at the moment of adoption; clear it when un-adopted.
+    const patch = { adopted: checked, saved: true, effectiveDate: checked ? today : '' };
+    savePolicyBuilderState(id, patch);
+    setState((prev) => ({ ...prev, [id]: { ...(prev[id] || { answers: answersOf(id) }), ...patch } }));
     mirrorStatus(id, checked, true);
   }
 
@@ -246,11 +248,11 @@ export default function PolicyBuilder() {
     const wasAdopted = !!state[id]?.adopted;
     setState((prev) => ({
       ...prev,
-      [id]: { ...(prev[id] || { answers: answersOf(id) }), editedText: text, ...(wasAdopted ? { adopted: false } : {}) },
+      [id]: { ...(prev[id] || { answers: answersOf(id) }), editedText: text, ...(wasAdopted ? { adopted: false, effectiveDate: '' } : {}) },
     }));
     if (wasAdopted) {
       flushPending();
-      savePolicyBuilderState(id, { editedText: text, adopted: false }); // honesty write — immediate
+      savePolicyBuilderState(id, { editedText: text, adopted: false, effectiveDate: '' }); // honesty write — immediate
       mirrorStatus(id, false, true);
       flash('Editing this policy set it back to draft — re-tick “adopted” once the edited version is signed.');
     } else {
@@ -263,19 +265,19 @@ export default function PolicyBuilder() {
   function revertEdit(id) {
     flushPending();
     const wasAdopted = !!state[id]?.adopted;
-    savePolicyBuilderState(id, { editedText: '', ...(wasAdopted ? { adopted: false } : {}) });
-    setState((prev) => ({
-      ...prev,
-      [id]: { ...(prev[id] || { answers: answersOf(id) }), editedText: '', ...(wasAdopted ? { adopted: false } : {}) },
-    }));
+    const patch = { editedText: '', ...(wasAdopted ? { adopted: false, effectiveDate: '' } : {}) };
+    savePolicyBuilderState(id, patch);
+    setState((prev) => ({ ...prev, [id]: { ...(prev[id] || { answers: answersOf(id) }), ...patch } }));
     if (wasAdopted) mirrorStatus(id, false, true);
     setEditingDoc(false);
   }
 
   function download(id) {
     flushPending();
+    const eff = state[id]?.effectiveDate || today;
+    const dctx = { company, today: eff };
     const edited = state[id]?.editedText;
-    const text = edited && edited.trim() ? edited : composePlainText(id, answersOf(id), ctx);
+    const text = edited && edited.trim() ? edited : composePlainText(id, answersOf(id), dctx);
     const blob = new Blob([text], { type: 'text/markdown' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -379,17 +381,18 @@ export default function PolicyBuilder() {
   }
 
   // ---------- live document ----------
-  function LiveDoc({ id, answers, adopted, showUnlock }) {
+  function LiveDoc({ id, answers, adopted, showUnlock, docCtx }) {
+    const cx = docCtx || ctx;
     const p = POLICY_BUILDERS[id];
-    const paras = composeParagraphs(id, answers, ctx);
-    const unlock = composeUnlock(id, answers, adopted, ctx);
+    const paras = composeParagraphs(id, answers, cx);
+    const unlock = composeUnlock(id, answers, adopted, cx);
     return (
       <>
         <h3 className="text-lg font-semibold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>
           {p.name}
         </h3>
         <div className="text-[11.5px] font-mono text-slate-500 mb-4">
-          {company} · v1.0 · effective {today}
+          {cx.company} · v1.0 · effective {cx.today}
         </div>
         {paras.map((pa) => (
           <p key={pa.id} className="mb-3 text-[13.5px] leading-relaxed">
@@ -622,22 +625,27 @@ export default function PolicyBuilder() {
   const a = answersOf(id);
   const adopted = !!state[id]?.adopted;
   const pct = completionPct(id, a);
-  // Can't attest "adopted" until the policy actually says something (its gate),
-  // or — if they've hand-edited — until there's manual text to attest to.
+  // Adoption ALWAYS requires the builder's substance gate — even with a manual
+  // text override — so a stray edit (e.g. a "TODO", or the pre-seeded [pending]
+  // scaffold) can't flip a tracked policy to "available".
   const gatePassed = POLICY_BUILDERS[id].gate(a);
+  const canAdopt = gatePassed;
   const docLocation = state[id]?.docLocation || '';
   const editedText = state[id]?.editedText || '';
   const override = editedText.trim() ? editedText : ''; // manual override active
-  const docSeed = editedText || composePlainText(id, a, ctx); // seed for the edit box
-  const canAdopt = override ? true : gatePassed;
+  // Effective date is frozen at adoption so the document, export, and claim
+  // don't drift with the render date; drafts show today until adopted.
+  const effectiveDate = state[id]?.effectiveDate || today;
+  const bctx = { company, today: effectiveDate };
+  const docSeed = editedText || composePlainText(id, a, bctx); // seed for the edit box
   // With a manual override we can't derive coverage from answers, so the
   // questionnaire claim is the plainer "maintains a <policy>" — still honest,
   // and only positive once adopted.
   const unlockText = override
     ? adopted
-      ? `Yes. ${company} maintains a ${p.name} (v1.0, effective ${today}).`
+      ? `Yes. ${company} maintains a ${p.name} (v1.0, effective ${effectiveDate}).`
       : `In development. ${company} is finalizing a ${p.name}; a signed version is expected shortly.`
-    : composeUnlock(id, a, adopted, ctx);
+    : composeUnlock(id, a, adopted, bctx);
 
   return (
     <div>
@@ -727,7 +735,7 @@ export default function PolicyBuilder() {
                 </div>
               </>
             ) : (
-              <LiveDoc id={id} answers={a} adopted={adopted} showUnlock />
+              <LiveDoc id={id} answers={a} adopted={adopted} showUnlock docCtx={bctx} />
             )}
           </div>
           <div className="border-t border-slate-200 p-4 space-y-3">
