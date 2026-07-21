@@ -99,6 +99,7 @@ export default function PolicyBuilder() {
   const [curId, setCurId] = useState(null);
   const [freeText, setFreeText] = useState(() => genericTemplate({ company, today }));
   const [toast, setToast] = useState('');
+  const [editingDoc, setEditingDoc] = useState(false); // manual text-edit mode in the builder
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Ensure the tracked policies exist so adopt/status/fileLocation mirroring
@@ -167,6 +168,7 @@ export default function PolicyBuilder() {
       savePolicyBuilderState(id, seeded);
       setState((p) => ({ ...p, [id]: seeded }));
     }
+    setEditingDoc(false);
     setCurId(id);
     setView('builder');
     window.scrollTo({ top: 0 });
@@ -174,6 +176,7 @@ export default function PolicyBuilder() {
 
   function toLibrary() {
     flushPending();
+    setEditingDoc(false);
     setCurId(null);
     setView('library');
     window.scrollTo({ top: 0 });
@@ -236,9 +239,43 @@ export default function PolicyBuilder() {
     if (pid) updatePolicyFileLocation(pid, url);
   }
 
+  // Manual text override: editing the composed document detaches it from the
+  // composer. Like editing an answer, it invalidates any adoption — the edited
+  // text isn't the signed version until it's re-adopted.
+  function setEditedText(id, text) {
+    const wasAdopted = !!state[id]?.adopted;
+    setState((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] || { answers: answersOf(id) }), editedText: text, ...(wasAdopted ? { adopted: false } : {}) },
+    }));
+    if (wasAdopted) {
+      flushPending();
+      savePolicyBuilderState(id, { editedText: text, adopted: false }); // honesty write — immediate
+      mirrorStatus(id, false, true);
+      flash('Editing this policy set it back to draft — re-tick “adopted” once the edited version is signed.');
+    } else {
+      scheduleWrite(id, { editedText: text });
+    }
+  }
+
+  // Drop the manual override and return to the guided/generated text. Reverting
+  // is itself a change, so an adopted policy drops back to draft.
+  function revertEdit(id) {
+    flushPending();
+    const wasAdopted = !!state[id]?.adopted;
+    savePolicyBuilderState(id, { editedText: '', ...(wasAdopted ? { adopted: false } : {}) });
+    setState((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] || { answers: answersOf(id) }), editedText: '', ...(wasAdopted ? { adopted: false } : {}) },
+    }));
+    if (wasAdopted) mirrorStatus(id, false, true);
+    setEditingDoc(false);
+  }
+
   function download(id) {
     flushPending();
-    const text = composePlainText(id, answersOf(id), ctx);
+    const edited = state[id]?.editedText;
+    const text = edited && edited.trim() ? edited : composePlainText(id, answersOf(id), ctx);
     const blob = new Blob([text], { type: 'text/markdown' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -585,9 +622,22 @@ export default function PolicyBuilder() {
   const a = answersOf(id);
   const adopted = !!state[id]?.adopted;
   const pct = completionPct(id, a);
-  // Can't attest "adopted" until the policy actually says something (its gate).
+  // Can't attest "adopted" until the policy actually says something (its gate),
+  // or — if they've hand-edited — until there's manual text to attest to.
   const gatePassed = POLICY_BUILDERS[id].gate(a);
   const docLocation = state[id]?.docLocation || '';
+  const editedText = state[id]?.editedText || '';
+  const override = editedText.trim() ? editedText : ''; // manual override active
+  const docSeed = editedText || composePlainText(id, a, ctx); // seed for the edit box
+  const canAdopt = override ? true : gatePassed;
+  // With a manual override we can't derive coverage from answers, so the
+  // questionnaire claim is the plainer "maintains a <policy>" — still honest,
+  // and only positive once adopted.
+  const unlockText = override
+    ? adopted
+      ? `Yes. ${company} maintains a ${p.name} (v1.0, effective ${today}).`
+      : `In development. ${company} is finalizing a ${p.name}; a signed version is expected shortly.`
+    : composeUnlock(id, a, adopted, ctx);
 
   return (
     <div>
@@ -636,25 +686,63 @@ export default function PolicyBuilder() {
         {/* live document */}
         <section className="bg-white border border-slate-200 rounded-sm shadow-sm lg:sticky lg:top-4">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-            <span className="text-[10.5px] uppercase tracking-wider text-slate-400">Your policy, so far</span>
-            <span className="text-[11px] font-mono text-emerald-700">writing live</span>
+            <span className="text-[10.5px] uppercase tracking-wider text-slate-400">
+              {override ? 'Your policy · edited' : 'Your policy, so far'}
+            </span>
+            <div className="flex items-center gap-3">
+              {override && !editingDoc && (
+                <button
+                  type="button"
+                  onClick={() => revertEdit(id)}
+                  className="text-[11px] text-slate-500 hover:text-emerald-700 underline"
+                >
+                  Revert to generated
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setEditingDoc((v) => !v)}
+                className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800"
+              >
+                {editingDoc ? 'Done editing' : 'Edit text'}
+              </button>
+            </div>
           </div>
           <div className="p-5 max-h-[54vh] overflow-auto">
-            <LiveDoc id={id} answers={a} adopted={adopted} showUnlock />
+            {editingDoc ? (
+              <textarea
+                value={docSeed}
+                onChange={(e) => setEditedText(id, e.target.value)}
+                spellCheck={false}
+                className="w-full h-[46vh] border border-slate-300 rounded-sm p-3 text-[13px] font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            ) : override ? (
+              <>
+                <div className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-slate-800">{override}</div>
+                <div className="mt-3 bg-slate-50 border border-slate-200 rounded-sm p-3">
+                  <div className="text-[10.5px] uppercase tracking-wider text-slate-400 mb-1">
+                    What this unlocks in your questionnaire
+                  </div>
+                  <div className="text-[13px] text-slate-700">{unlockText}</div>
+                </div>
+              </>
+            ) : (
+              <LiveDoc id={id} answers={a} adopted={adopted} showUnlock />
+            )}
           </div>
           <div className="border-t border-slate-200 p-4 space-y-3">
-            <label className={`flex items-start gap-2.5 text-[12px] text-slate-600 ${gatePassed ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'}`}>
+            <label className={`flex items-start gap-2.5 text-[12px] text-slate-600 ${canAdopt ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'}`}>
               <input
                 type="checkbox"
                 className="w-4 h-4 mt-0.5 accent-emerald-600 flex-shrink-0"
                 checked={adopted}
-                disabled={!gatePassed}
+                disabled={!canAdopt}
                 onChange={(e) => onAdopt(id, e.target.checked)}
               />
               <span>
                 It’s <b>adopted</b> — leadership has signed it. Until you tick this it saves as a draft, and your
                 questionnaire answer honestly says “in development.”
-                {!gatePassed && (
+                {!canAdopt && (
                   <span className="block mt-1 text-[11px] text-slate-400">Answer the core questions first.</span>
                 )}
               </span>
