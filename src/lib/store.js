@@ -438,7 +438,6 @@ export const getAnnualTotals = (year) => {
     fatalities: sum(r => r.healthSafety?.fatalities),
     hoursWorked: sum(r => r.healthSafety?.hoursWorked),
     trainingHours: sum(r => r.training?.trainingHours),
-    newHires: sum(r => r.workforce?.newHires),
     turnoverRate: avg(r => r.workforce?.turnoverRate),
     womenInLeadershipPercent: avg(r => r.workforce?.womenInLeadershipPercent),
     collectiveBargainingPercent: avg(r => r.workforce?.collectiveBargainingPercent),

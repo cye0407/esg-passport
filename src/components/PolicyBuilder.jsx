@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useLicense } from '@/components/LicenseContext';
 import { Button } from '@/components/ui/button';
 import { track } from '@/lib/track';
 import {
+  getPolicies,
   getCompanyProfile,
   getPolicyBuilderState,
   savePolicyBuilderState,
@@ -100,16 +101,39 @@ export default function PolicyBuilder() {
   const [toast, setToast] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Ensure the tracked policies exist so adopt/status/fileLocation mirroring
+  // always finds them — even on a direct ?build= deep-link where the library
+  // (and its PoliciesSection seeding) never mounts.
+  useEffect(() => { getPolicies(); }, []);
+
+  // Debounce per-keystroke answer persistence so we don't rewrite the whole
+  // store on every character. Honesty-critical writes (adopt/save/status) flush
+  // this first and persist immediately, so nothing lags behind a claim.
+  const pendingWrites = useRef({});
+  const flushTimer = useRef(null);
+  const flushPending = () => {
+    if (flushTimer.current) { clearTimeout(flushTimer.current); flushTimer.current = null; }
+    const w = pendingWrites.current;
+    pendingWrites.current = {};
+    Object.entries(w).forEach(([bid, patch]) => savePolicyBuilderState(bid, patch));
+  };
+  const scheduleWrite = (bid, patch) => {
+    pendingWrites.current[bid] = { ...(pendingWrites.current[bid] || {}), ...patch };
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = setTimeout(flushPending, 400);
+  };
+  useEffect(() => () => flushPending(), []); // flush pending writes on unmount // eslint-disable-line react-hooks/exhaustive-deps
+
   // Deep-link from a flagged gap in the Respond flow: /policies?build=<builderId>
   // opens that builder (paid) or the free template (free), then clears the param
-  // so a refresh/back doesn't re-trigger it. Waits until the license check has
-  // settled (isChecking) so a paid user on a hard load / bookmark isn't bounced
-  // to the free view while isPaid is still resolving.
+  // (valid OR invalid) so a refresh/back doesn't re-trigger it. Waits until the
+  // license check has settled (isChecking) so a paid user on a hard load isn't
+  // bounced to the free view while isPaid is still resolving.
   useEffect(() => {
     if (isChecking) return;
     const b = searchParams.get('build');
-    if (!b || !POLICY_BUILDERS[b]) return;
-    openBuilder(b);
+    if (!b) return;
+    if (POLICY_BUILDERS[b]) openBuilder(b);
     const next = new URLSearchParams(searchParams);
     next.delete('build');
     setSearchParams(next, { replace: true });
@@ -149,6 +173,7 @@ export default function PolicyBuilder() {
   }
 
   function toLibrary() {
+    flushPending();
     setCurId(null);
     setView('library');
     window.scrollTo({ top: 0 });
@@ -160,17 +185,20 @@ export default function PolicyBuilder() {
     // the adoption is invalidated — the policy drops back to draft and the
     // questionnaire answer reverts to "in development" until it's re-signed.
     const wasAdopted = !!state[id]?.adopted;
-    setState((prev) => {
-      const cur = prev[id] || { answers: { ...POLICY_BUILDERS[id].defaults }, adopted: false, saved: false };
-      const answers = { ...cur.answers, [key]: value };
-      const patch = wasAdopted ? { answers, adopted: false } : { answers };
-      savePolicyBuilderState(id, patch);
-      return { ...prev, [id]: { ...cur, ...patch } };
-    });
+    const cur = state[id] || { answers: { ...POLICY_BUILDERS[id].defaults }, adopted: false, saved: false };
+    const answers = { ...cur.answers, [key]: value };
+    setState((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] || cur), answers, ...(wasAdopted ? { adopted: false } : {}) },
+    }));
     if (wasAdopted) {
+      flushPending();
+      savePolicyBuilderState(id, { answers, adopted: false }); // honesty write — immediate
       mirrorStatus(id, false, true);
       track('policy_adoption_invalidated', { builder: id });
       flash('You edited an adopted policy — it’s back to draft. Re-tick “adopted” once the new version is signed.');
+    } else {
+      scheduleWrite(id, { answers }); // debounced
     }
   }
 
@@ -181,12 +209,10 @@ export default function PolicyBuilder() {
   }
 
   function onSave(id) {
+    flushPending();
     const adopted = !!state[id]?.adopted;
-    setState((prev) => {
-      const cur = prev[id] || { answers: answersOf(id) };
-      savePolicyBuilderState(id, { saved: true });
-      return { ...prev, [id]: { ...cur, saved: true } };
-    });
+    savePolicyBuilderState(id, { saved: true });
+    setState((prev) => ({ ...prev, [id]: { ...(prev[id] || { answers: answersOf(id) }), saved: true } }));
     mirrorStatus(id, adopted, true);
     track('policy_saved', { builder: id, adopted });
     flash(
@@ -197,25 +223,21 @@ export default function PolicyBuilder() {
   }
 
   function onAdopt(id, checked) {
-    setState((prev) => {
-      const cur = prev[id] || { answers: answersOf(id) };
-      savePolicyBuilderState(id, { adopted: checked, saved: true });
-      return { ...prev, [id]: { ...cur, adopted: checked, saved: true } };
-    });
+    flushPending();
+    savePolicyBuilderState(id, { adopted: checked, saved: true });
+    setState((prev) => ({ ...prev, [id]: { ...(prev[id] || { answers: answersOf(id) }), adopted: checked, saved: true } }));
     mirrorStatus(id, checked, true);
   }
 
   function setDocLocation(id, url) {
-    setState((prev) => {
-      const cur = prev[id] || { answers: answersOf(id) };
-      savePolicyBuilderState(id, { docLocation: url });
-      return { ...prev, [id]: { ...cur, docLocation: url } };
-    });
+    savePolicyBuilderState(id, { docLocation: url });
+    setState((prev) => ({ ...prev, [id]: { ...(prev[id] || { answers: answersOf(id) }), docLocation: url } }));
     const pid = BUILDER_TO_POLICY_ID[id];
     if (pid) updatePolicyFileLocation(pid, url);
   }
 
   function download(id) {
+    flushPending();
     const text = composePlainText(id, answersOf(id), ctx);
     const blob = new Blob([text], { type: 'text/markdown' });
     const a = document.createElement('a');
