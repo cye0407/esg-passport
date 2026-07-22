@@ -5,6 +5,7 @@ import { useLanguage } from '@/components/LanguageContext';
 import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getDocuments, getDataRecords, getSettings } from '@/lib/store';
 import { loadDemoData } from '@/lib/demoData';
 import { QUESTIONNAIRE_TEMPLATES, templateToParseResult, templateName, templateDescription } from '@/data/questionnaire-templates';
+import { matchBuilderId } from '@/data/policyBuilders';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
 import { LANGUAGES, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
@@ -1255,6 +1256,10 @@ export default function Respond({ demoOnly = false }) {
             const verifiedText = getDisplayedVerified(draft);
             const draftText = getDisplayedDraft(draft);
             const coverageLabel = getCoverageLabel(draft);
+            // Policy gap → deep-link into the matching guided builder on /policies.
+            const isPolicyGap = draft.questionType === 'POLICY' && draft.supportLevel === 'draft' && !draft._markedNA;
+            const matchedBuilder = isPolicyGap ? matchBuilderId(`${draft.questionText} ${draft.category || ''}`) : null;
+            const policyBuildTo = isPolicyGap ? (matchedBuilder ? `/policies?build=${matchedBuilder}` : '/policies') : null;
 
             return (
               <div
@@ -1311,6 +1316,14 @@ export default function Respond({ demoOnly = false }) {
                             <span className="block mt-1.5 text-[10px] text-violet-600 font-medium">{t('respond.notBackedReview')}</span>
                           )}
                         </p>
+                          {isPolicyGap && (
+                            <Link
+                              to={policyBuildTo}
+                              className="inline-flex items-center gap-1 mt-2 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800"
+                            >
+                              {t('respond.buildThisPolicy')} →
+                            </Link>
+                          )}
                           {draftText && !draft._markedNA && (
                             <span className="block mt-2 rounded bg-violet-50/70 border border-violet-100 px-3 py-2">
                               <span className="block text-[10px] font-semibold uppercase tracking-wide text-violet-700">{t('respond.suggestedDraft')}</span>
