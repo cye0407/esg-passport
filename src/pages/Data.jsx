@@ -78,6 +78,9 @@ export default function Data() {
   // CSV import preview (null when no import is pending confirmation)
   const [csvPreview, setCsvPreview] = useState(null);
   const [showClearYearDialog, setShowClearYearDialog] = useState(false);
+  // Bill extracted with a bare-year period, awaiting confirmation before we switch to
+  // annual mode and overwrite that year's values. { year, fields, extractedPeriod } or null.
+  const [pendingAnnualBill, setPendingAnnualBill] = useState(null);
 
   // Per-metric source notes — "where I find this number each month"
   // Keyed by `${section}.${field}`. One source per metric, edited inline.
@@ -252,30 +255,12 @@ export default function Data() {
   const handleBillExtracted = useCallback((fields, extractedPeriod) => {
     // Determine where extracted values belong.
     // YYYY-MM documents map to a monthly record.
-    // YYYY-only documents map to annual mode for that year instead of silently
-    // being written into January, which is misleading for annual bills.
+    // A YYYY-only period is an ambiguous guess: the extractor's bare-year fallback
+    // can pick up an invoice or account number rather than a real reporting period.
+    // Switching to annual mode and overwriting that year's values is destructive, so
+    // stage it for explicit confirmation instead of applying it silently.
     if (extractedPeriod && /^\d{4}$/.test(extractedPeriod)) {
-      setSelectedYear(parseInt(extractedPeriod, 10));
-      setEntryMode('annual');
-      setAnnualValues(prev => {
-        const next = { ...prev };
-        for (const f of fields) {
-          const mapping = EXTRACT_FIELD_MAP[f.field];
-          if (!mapping) continue;
-          const val = typeof f.value === 'number' ? f.value : parseFloat(f.value);
-          if (isNaN(val)) continue;
-          next[`${mapping.section}.${mapping.field}`] = String(val);
-        }
-        return next;
-      });
-      setHasChanges(true);
-      setSaved(false);
-      track('bill_extracted', {
-        fields: fields.length,
-        periodType: 'annual',
-        extractedPeriod,
-        documentType: fields[0]?.source?.rawText?.slice(0, 30) || 'unknown',
-      });
+      setPendingAnnualBill({ year: parseInt(extractedPeriod, 10), fields, extractedPeriod });
       return;
     }
 
@@ -301,6 +286,35 @@ export default function Data() {
       documentType: fields[0]?.source?.rawText?.slice(0, 30) || 'unknown',
     });
   }, [selectedYear, updateField]);
+
+  // User confirmed the bare-year annual interpretation → switch to annual mode for that
+  // year and write the extracted values (the previously-silent behavior, now gated).
+  const applyAnnualBill = useCallback(() => {
+    if (!pendingAnnualBill) return;
+    const { year, fields, extractedPeriod } = pendingAnnualBill;
+    setSelectedYear(year);
+    setEntryMode('annual');
+    setAnnualValues(prev => {
+      const next = { ...prev };
+      for (const f of fields) {
+        const mapping = EXTRACT_FIELD_MAP[f.field];
+        if (!mapping) continue;
+        const val = typeof f.value === 'number' ? f.value : parseFloat(f.value);
+        if (isNaN(val)) continue;
+        next[`${mapping.section}.${mapping.field}`] = String(val);
+      }
+      return next;
+    });
+    setHasChanges(true);
+    setSaved(false);
+    track('bill_extracted', {
+      fields: fields.length,
+      periodType: 'annual',
+      extractedPeriod,
+      documentType: fields[0]?.source?.rawText?.slice(0, 30) || 'unknown',
+    });
+    setPendingAnnualBill(null);
+  }, [pendingAnnualBill]);
 
   const getValue = (period, section, field) => {
     const record = records[period];
@@ -907,7 +921,7 @@ export default function Data() {
 
       {/* Document extraction — Pro+ only, upgrade card for Free/Pro */}
       {tier === 'pro-plus' ? (
-        <BillDrop onDataExtracted={handleBillExtracted} year={selectedYear} />
+        <BillDrop onDataExtracted={handleBillExtracted} />
       ) : (
         <ExtractorUpgradeCard tier={tier} />
       )}
@@ -1577,6 +1591,23 @@ export default function Data() {
             <Button variant="outline" onClick={() => setShowClearYearDialog(false)}>{t('csv.cancel')}</Button>
             <Button onClick={clearYearData} className="bg-red-700 hover:bg-red-800 text-white">
               {t('dataUi.clearYearData', { year: selectedYear })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!pendingAnnualBill} onOpenChange={(open) => { if (!open) setPendingAnnualBill(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('bill.annualConfirmTitle', { year: pendingAnnualBill?.year })}</DialogTitle>
+            <DialogDescription>
+              {t('bill.annualConfirmDesc', { year: pendingAnnualBill?.year })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingAnnualBill(null)}>{t('csv.cancel')}</Button>
+            <Button onClick={applyAnnualBill}>
+              {t('bill.annualConfirmApply', { year: pendingAnnualBill?.year })}
             </Button>
           </DialogFooter>
         </DialogContent>
