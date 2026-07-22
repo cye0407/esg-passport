@@ -3,7 +3,6 @@
 // ============================================
 
 import type { ExtractionResult, ExtractionConfig, DocumentType, DocumentTypeDetection, Issue } from '../types';
-import { parsePdf } from '../parsers/pdf';
 import { extractEnergy } from './energy';
 import { extractWaste } from './waste';
 import { extractWorkforce } from './workforce';
@@ -141,6 +140,9 @@ export async function extractFromPdf(
   buffer: Buffer,
   config?: ExtractionConfig,
 ): Promise<ExtractionResult> {
+  // Lazy-load the PDF parser so consumers that only use extractFromText
+  // (the pure-rules path) don't pull in pdf-parse and its native footprint.
+  const { parsePdf } = await import('../parsers/pdf');
   const doc = await parsePdf(buffer);
   const detection = config?.forceType
     ? { type: config.forceType, score: 999, runnerUp: undefined, runnerUpScore: undefined }

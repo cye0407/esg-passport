@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { extractFromText } from '@extract/extractors/registry';
+import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
 import { readPdfText } from '../../web-helpers/pdfReader';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -38,7 +39,13 @@ export default function BillDrop({ onDataExtracted, year }) {
 
     const result = extractFromText(text);
 
-    if (result.fields.length === 0) {
+    // Only surface fields we can actually write to the store. A field the
+    // extractor produces but that has no EXTRACT_FIELD_MAP entry (e.g.
+    // femalePercent, which is derived at bridge time) would be silently
+    // dropped on Apply — showing it as a checkbox is a fake door.
+    const applicable = result.fields.filter(f => EXTRACT_FIELD_MAP[f.field]);
+
+    if (applicable.length === 0) {
       return {
         fileName: file.name,
         result,
@@ -49,7 +56,7 @@ export default function BillDrop({ onDataExtracted, year }) {
     return {
       fileName: file.name,
       result,
-      fields: result.fields.map(f => ({ ...f, accepted: f.confidence !== 'low' })),
+      fields: applicable.map(f => ({ ...f, accepted: f.confidence !== 'low' })),
       error: null,
     };
   }, [t]);
@@ -143,7 +150,7 @@ export default function BillDrop({ onDataExtracted, year }) {
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".pdf,.txt,.csv,.jpg,.jpeg,.png"
+          accept=".pdf,.txt,.csv"
           onChange={handleFileSelect}
           className="hidden"
         />

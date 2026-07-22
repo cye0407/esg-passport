@@ -12,6 +12,7 @@ import { getIndustryMetrics } from '@/data/industry-metrics';
 import { FIELD_UNITS, getAlternativeUnits, convert } from '@/lib/units';
 import { useLanguage } from '@/components/LanguageContext';
 import { track, trackOnce } from '@/lib/track';
+import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
 import { detectNumberFormat, parseNumber, parsePeriod, buildColumnMap } from '@/lib/csvImport';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
@@ -246,28 +247,6 @@ export default function Data() {
     });
     setHasChanges(true);
     setSaved(false);
-  };
-
-  // Bill extraction → data grid mapping
-  const EXTRACT_FIELD_MAP = {
-    electricityKwh: { section: 'energy', field: 'electricityKwh' },
-    naturalGasKwh: { section: 'energy', field: 'naturalGasKwh' },
-    dieselLiters: { section: 'energy', field: 'vehicleFuelLiters' },
-    petrolLiters: { section: 'energy', field: 'vehicleFuelLiters' },
-    waterM3: { section: 'water', field: 'consumptionM3' },
-    totalWasteKg: { section: 'waste', field: 'totalKg' },
-    hazardousWasteKg: { section: 'waste', field: 'hazardousKg' },
-    recycledWasteKg: { section: 'waste', field: 'recycledKg' },
-    totalEmployees: { section: 'workforce', field: 'totalEmployees' },
-    femaleEmployees: { section: 'workforce', field: 'femaleEmployees' },
-    maleEmployees: { section: 'workforce', field: 'maleEmployees' },
-    newHires: { section: 'workforce', field: 'newHires' },
-    turnoverRate: { section: 'workforce', field: 'turnoverRate' },
-    trainingHours: { section: 'training', field: 'trainingHours' },
-    recordableIncidents: { section: 'healthSafety', field: 'recordableIncidents' },
-    lostTimeIncidents: { section: 'healthSafety', field: 'lostTimeIncidents' },
-    hoursWorked: { section: 'healthSafety', field: 'hoursWorked' },
-    departures: { section: 'workforce', field: 'departures' },
   };
 
   const handleBillExtracted = useCallback((fields, extractedPeriod) => {
