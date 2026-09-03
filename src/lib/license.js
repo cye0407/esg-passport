@@ -9,10 +9,9 @@ import { isRecognizedTier } from './entitlements';
 const LICENSE_STORAGE_KEY = 'esg_passport_license';
 const LICENSE_INSTANCE_NAME_KEY = 'esg_passport_license_instance_name';
 
-// LemonSqueezy product names, mapped to internal tiers. We match loosely so a
-// product rename (e.g. "ESG Passport Pro Plus") still resolves correctly.
-// Missing/unknown names default to 'pro' — existing paid customers don't
-// accidentally lose access if a product gets renamed.
+// Questionnaire Pass uses an exact configured variant ID. Full Passport uses
+// a short allowlist of historical product names so unrelated Lemon Squeezy
+// licenses cannot inherit paid access.
 const QUESTIONNAIRE_PASS_VARIANT_ID = import.meta.env.VITE_QUESTIONNAIRE_PASS_VARIANT_ID || '';
 const KNOWN_PASSPORT_PRODUCT_NAMES = new Map([
   ['esg passport', 'pro'],
@@ -278,9 +277,8 @@ export function storeLicense(key, instance_id, metadata = {}) {
     activated_at: metadata.activated_at || now,
     last_validated: metadata.last_validated || now,
     license_key_id: metadata.license_key_id ?? existing?.license_key_id ?? null,
-    // tier: 'pro' | 'pro-plus' — prefer freshly-returned tier, fall back to
-    // whatever we had stored so a renamed product doesn't wipe an existing
-    // paying customer's tier on revalidation.
+    // Prefer a freshly returned recognized tier, then retain an existing tier
+    // so a validated full Passport customer keeps offline/downloaded access.
     tier: isRecognizedTier(metadata.tier) ? metadata.tier : (existing?.tier || null),
   }));
 }

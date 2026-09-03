@@ -508,6 +508,7 @@ export function templateToParseResult(templateId, lang = 'en') {
     })),
     errors: [],
     metadata: {
+      source: 'built-in-sample',
       fileName: `${templateName(template, lang)} (Template)`,
       totalRows: template.questions.length,
       parsedRows: template.questions.length,
