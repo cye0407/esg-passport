@@ -36,4 +36,3 @@ export function getEntitlements(tier = 'free') {
 export function isRecognizedTier(tier) {
   return Object.hasOwn(ENTITLEMENTS_BY_TIER, tier);
 }
-

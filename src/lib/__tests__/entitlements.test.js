@@ -36,4 +36,3 @@ describe('license entitlements', () => {
     expect(getEntitlements('mystery')).toEqual(getEntitlements('free'));
   });
 });
-
