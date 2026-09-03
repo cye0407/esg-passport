@@ -18,6 +18,47 @@ describe('license flow', () => {
     });
   });
 
+  it('resolves Questionnaire Pass only from its configured variant ID', async () => {
+    const { tierFromResponse } = await import('../license');
+    expect(tierFromResponse({
+      meta: { product_name: 'Questionnaire Pass', variant_id: 98765 },
+    }, '98765')).toBe('questionnaire-pass');
+    expect(tierFromResponse({
+      meta: { product_name: 'Questionnaire Pass', variant_id: 11111 },
+    }, '98765')).toBeNull();
+  });
+
+  it.each([
+    ['ESG Passport', 'pro'],
+    ['ESG Passport Pro', 'pro'],
+    ['ESG Passport Pro+', 'pro-plus'],
+    ['ESG Passport Pro Plus', 'pro-plus'],
+  ])('keeps the known paid product %s mapped to %s', async (productName, expectedTier) => {
+    const { tierFromResponse } = await import('../license');
+    expect(tierFromResponse({ meta: { product_name: productName } }, '98765')).toBe(expectedTier);
+  });
+
+  it('does not grant access to an unfamiliar Lemon Squeezy product', async () => {
+    const { tierFromResponse, validateLicenseKey } = await import('../license');
+    expect(tierFromResponse({ meta: { product_name: 'Unrelated Product', variant_id: 123 } }, '98765')).toBeNull();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => ({
+        valid: true,
+        meta: { product_name: 'Unrelated Product', variant_id: 123 },
+        license_key: { id: 77 },
+        instance: { id: 'unknown-instance' },
+      }),
+    });
+
+    await expect(validateLicenseKey('abcd-1234')).resolves.toMatchObject({
+      valid: false,
+      code: 'unrecognized_product',
+    });
+  });
+
   it('keeps local license state when remote deactivation fails', async () => {
     const { storeLicense, deactivateLicense, getStoredLicense } = await import('../license');
     storeLicense('abcd-1234', 'remote-instance');
@@ -45,7 +86,12 @@ describe('license flow', () => {
       .mockResolvedValueOnce({
         ok: true,
         headers: { get: () => 'application/json' },
-        json: async () => ({ valid: true, instance: { id: 'resolved-instance' } }),
+        json: async () => ({
+          valid: true,
+          meta: { product_name: 'ESG Passport' },
+          license_key: { id: 42 },
+          instance: { id: 'resolved-instance' },
+        }),
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -148,7 +194,12 @@ describe('license flow', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       headers: { get: () => 'application/json' },
-      json: async () => ({ valid: true, instance: { id: 'existing-instance' } }),
+      json: async () => ({
+        valid: true,
+        meta: { product_name: 'ESG Passport' },
+        license_key: { id: 42 },
+        instance: { id: 'existing-instance' },
+      }),
     });
 
     const result = await revalidateStoredLicense();
@@ -158,6 +209,19 @@ describe('license flow', () => {
       activated_at: '2026-01-01T00:00:00.000Z',
       instance_id: 'existing-instance',
       instance_name: 'web-test-instance-id',
+      license_key_id: 42,
     });
+  });
+
+  it('fails closed for an unfamiliar tier stored locally', async () => {
+    localStorage.setItem('esg_passport_license', JSON.stringify({
+      key: 'abcd-1234',
+      activated_at: '2026-01-01T00:00:00.000Z',
+      last_validated: new Date().toISOString(),
+      tier: 'unknown-product',
+    }));
+    const { getLicenseTier, hasActiveLicense } = await import('../license');
+    expect(getLicenseTier()).toBe('free');
+    expect(hasActiveLicense()).toBe(false);
   });
 });

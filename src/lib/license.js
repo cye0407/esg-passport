@@ -4,6 +4,8 @@
 // Browser can't call LemonSqueezy API directly (CORS).
 // Calls /api/validate-license and /api/deactivate-license instead.
 
+import { isRecognizedTier } from './entitlements';
+
 const LICENSE_STORAGE_KEY = 'esg_passport_license';
 const LICENSE_INSTANCE_NAME_KEY = 'esg_passport_license_instance_name';
 
@@ -11,13 +13,35 @@ const LICENSE_INSTANCE_NAME_KEY = 'esg_passport_license_instance_name';
 // product rename (e.g. "ESG Passport Pro Plus") still resolves correctly.
 // Missing/unknown names default to 'pro' — existing paid customers don't
 // accidentally lose access if a product gets renamed.
-function tierFromResponse(data) {
-  const name = (data?.meta?.product_name || data?.license_key?.product_name || '').toLowerCase();
-  if (name.includes('pro+') || name.includes('pro plus') || name.includes('pro-plus') || name.includes('plus')) {
-    return 'pro-plus';
+const QUESTIONNAIRE_PASS_VARIANT_ID = import.meta.env.VITE_QUESTIONNAIRE_PASS_VARIANT_ID || '';
+const KNOWN_PASSPORT_PRODUCT_NAMES = new Map([
+  ['esg passport', 'pro'],
+  ['esg passport pro', 'pro'],
+  ['esg passport pro plus', 'pro-plus'],
+]);
+
+function normalizeProductName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\+/g, ' plus ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+// Questionnaire Pass is recognized only by its configured variant. Full
+// Passport keeps explicit historical product mappings; unrelated products
+// must not inherit full access merely because their license is valid.
+export function tierFromResponse(data, questionnairePassVariantId = QUESTIONNAIRE_PASS_VARIANT_ID) {
+  const variantId = data?.meta?.variant_id ?? data?.license_key?.variant_id;
+  if (questionnairePassVariantId && String(variantId) === String(questionnairePassVariantId)) {
+    return 'questionnaire-pass';
   }
-  if (name) return 'pro';
-  return null;
+
+  const name = normalizeProductName(
+    data?.meta?.product_name || data?.license_key?.product_name,
+  );
+  return KNOWN_PASSPORT_PRODUCT_NAMES.get(name) || null;
 }
 // The API routes only exist on the Passport's own Vercel deployment.
 // esgforsuppliers.com proxies /app/* to here but NOT /api/*, so when the
@@ -95,7 +119,9 @@ async function requestLicenseValidation(key, {
 
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
-    if (allowLocalDevFallback && isLocalDev()) return { valid: true, instance_id: null, fallback: true };
+    if (allowLocalDevFallback && isLocalDev()) {
+      return { valid: true, instance_id: null, license_key_id: null, tier: 'pro', fallback: true };
+    }
     return { valid: false, error: 'License validation failed. Please try again.' };
   }
 
@@ -103,7 +129,7 @@ async function requestLicenseValidation(key, {
 
   if (!response.ok) {
     if (allowLocalDevFallback && isLocalDev() && (response.status >= 500 || data.error === 'Could not reach license server' || data.error === 'License server not configured')) {
-      return { valid: true, instance_id: null, fallback: true };
+      return { valid: true, instance_id: null, license_key_id: null, tier: 'pro', fallback: true };
     }
     return {
       valid: false,
@@ -115,10 +141,20 @@ async function requestLicenseValidation(key, {
 
   // /activate returns { activated: true, ... }, /validate returns { valid: true, ... }
   if (data.activated || data.valid) {
+    const tier = tierFromResponse(data);
+    if (!tier) {
+      return {
+        valid: false,
+        error: 'This license is valid, but it is not recognized as an ESG Passport product.',
+        code: 'unrecognized_product',
+        status: response.status,
+      };
+    }
     return {
       valid: true,
       instance_id: data.instance?.id || null,
-      tier: tierFromResponse(data),
+      license_key_id: data.license_key?.id ?? null,
+      tier,
     };
   }
 
@@ -155,7 +191,7 @@ export async function validateLicenseKey(key, { instanceId = null } = {}) {
     // Server unreachable. Only downloaded zip builds are allowed to fall back
     // to a local format-only activation path.
     if (isDownloadedBuild() || isLocalDev()) {
-      return { valid: true, instance_id: null, fallback: true };
+      return { valid: true, instance_id: null, license_key_id: null, tier: 'pro', fallback: true };
     }
     return { valid: false, error: 'Could not reach the license server. Please try again.' };
   }
@@ -183,6 +219,8 @@ export async function deactivateLicense() {
         storeLicense(stored.key, instanceId, {
           activated_at: stored.activated_at,
           instance_name: stored.instance_name,
+          license_key_id: refreshed.license_key_id,
+          tier: refreshed.tier,
         });
       } else if (!refreshed.valid && isAlreadyDeactivatedResponse(refreshed.status, refreshed.code)) {
         // Server confirms the license is gone (disabled / expired / not_found).
@@ -239,10 +277,11 @@ export function storeLicense(key, instance_id, metadata = {}) {
     instance_name: metadata.instance_name || getInstanceName(),
     activated_at: metadata.activated_at || now,
     last_validated: metadata.last_validated || now,
+    license_key_id: metadata.license_key_id ?? existing?.license_key_id ?? null,
     // tier: 'pro' | 'pro-plus' — prefer freshly-returned tier, fall back to
     // whatever we had stored so a renamed product doesn't wipe an existing
     // paying customer's tier on revalidation.
-    tier: metadata.tier || existing?.tier || null,
+    tier: isRecognizedTier(metadata.tier) ? metadata.tier : (existing?.tier || null),
   }));
 }
 
@@ -263,7 +302,7 @@ export function getStoredLicense() {
  */
 export function hasActiveLicense() {
   const stored = getStoredLicense();
-  return stored?.key && stored?.activated_at ? true : false;
+  return !!(stored?.key && stored?.activated_at && getLicenseTier() !== 'free');
 }
 
 /**
@@ -276,14 +315,17 @@ export function isPaidUser() {
 }
 
 /**
- * Returns 'free' | 'pro' | 'pro-plus'. Existing paid licenses that predate
+ * Returns 'free' | 'questionnaire-pass' | 'pro' | 'pro-plus'. Existing paid licenses that predate
  * tier tracking fall back to 'pro' (safe default — they already paid).
  */
 export function getLicenseTier() {
   const stored = getStoredLicense();
   if (!stored?.key) return 'free';
-  if (stored.tier === 'pro-plus') return 'pro-plus';
-  return 'pro';
+  if (stored.tier == null) return 'pro';
+  if (stored.tier === 'questionnaire-pass' || stored.tier === 'pro' || stored.tier === 'pro-plus') {
+    return stored.tier;
+  }
+  return 'free';
 }
 
 /**
@@ -300,7 +342,7 @@ export async function revalidateStoredLicense() {
   // the right tier-aware UX on this launch.
   const lastValidated = stored.last_validated ? new Date(stored.last_validated) : new Date(0);
   const daysSinceValidation = (Date.now() - lastValidated.getTime()) / (1000 * 60 * 60 * 24);
-  if (daysSinceValidation < 7 && stored.tier) return true;
+  if (daysSinceValidation < 7 && getLicenseTier() !== 'free' && stored.tier) return true;
 
   try {
     const result = await validateLicenseKey(stored.key, { instanceId: stored.instance_id });
@@ -308,7 +350,21 @@ export async function revalidateStoredLicense() {
       storeLicense(stored.key, result.instance_id || stored.instance_id, {
         activated_at: stored.activated_at,
         instance_name: stored.instance_name,
+        license_key_id: result.license_key_id,
         tier: result.tier,
+      });
+      return true;
+    }
+
+    // Keep a license that this device already verified as a known full
+    // Passport tier if Lemon Squeezy metadata later changes. Fresh and legacy
+    // unclassified licenses do not receive this compatibility exception.
+    if (result.code === 'unrecognized_product' && (stored.tier === 'pro' || stored.tier === 'pro-plus')) {
+      storeLicense(stored.key, stored.instance_id, {
+        activated_at: stored.activated_at,
+        instance_name: stored.instance_name,
+        license_key_id: stored.license_key_id,
+        tier: stored.tier,
       });
       return true;
     }
