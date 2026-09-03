@@ -1,5 +1,20 @@
 # React + Vite
 
+## License configuration
+
+The local-first Questionnaire Pass is identified from the Lemon Squeezy
+`variant_id`. After creating the real Questionnaire Pass variant, set its
+numeric ID in both local development and the production Vercel project:
+
+```dotenv
+VITE_QUESTIONNAIRE_PASS_VARIANT_ID=<real Lemon Squeezy variant ID>
+```
+
+Copy `.env.example` to `.env.local` for local development. Do not invent a
+placeholder ID or commit `.env.local`. Because this is a Vite variable, rebuild
+and redeploy the app after changing it. Existing full ESG Passport products
+continue to be recognized by their established product names.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

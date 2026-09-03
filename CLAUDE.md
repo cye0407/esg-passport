@@ -29,15 +29,20 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - Multi-language answer rendering (EN/DE/FR/ES phrase-based translation)
 - Optional AI enhancement (bring your own Claude or OpenAI API key)
 - License deactivation in Settings (for device transfer)
+- Local-first Questionnaire Pass tier with a persistent one-questionnaire allowance
 - Build passes successfully
 
 ## License System
 - Gate wraps entire app in App.jsx via `<LicenseGate>`
 - Validates keys via LemonSqueezy API: `POST /v1/licenses/validate`
 - Stores validated key + instance_id in localStorage (`esg_passport_license`)
+- Recognizes `questionnaire-pass` from `VITE_QUESTIONNAIRE_PASS_VARIANT_ID`
+- Stores Questionnaire Pass claims separately from saved questionnaire results
 - Re-validates once per 7 days (background check on app launch)
 - Deactivate via Settings → calls LemonSqueezy `/v1/licenses/deactivate`
-- **To set up:** Create a license-key product in LemonSqueezy, price at €99/year
+- **Questionnaire Pass setup:** add the real Lemon Squeezy variant ID to
+  `VITE_QUESTIONNAIRE_PASS_VARIANT_ID` in `.env.local` and the Vercel project,
+  then rebuild/redeploy. Never commit a made-up ID.
 
 ## Relationship to Other Projects
 - Consumes response-ready (../response-ready) via file: dependency + Vite alias
@@ -47,6 +52,8 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 ## Architecture
 - src/components/LicenseGate.jsx — License key activation screen (wraps entire app)
 - src/lib/license.js — LemonSqueezy license validation, storage, deactivation
+- src/lib/entitlements.js — tier-to-capability mapping
+- src/lib/questionnairePass.js — local fingerprinting and persistent pass claims
 - src/pages/ — React page components (Home, Data, Respond, Requests, RequestWorkspace, Settings, Onboarding)
 - src/lib/store.js — localStorage CRUD layer
 - src/lib/dataBridge.js — translates Passport store data to engine CompanyData format
