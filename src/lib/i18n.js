@@ -496,6 +496,7 @@ const translations = {
     'ext.upgradeRatePost': 'for the upgrade-only rate.',
     // BillDrop (Pro+ document extraction)
     'bill.noData': 'No ESG data found. Try an electricity bill, gas invoice, water bill, waste manifest, or payroll report.',
+    'bill.scannedPdf': 'This PDF looks like a scan or photo, so there is no text to read. Download the original PDF from your supplier’s portal, or enter the figures manually.',
     'bill.reading': 'Reading {name} ({index}/{total})...',
     'bill.failed': 'Failed: {message}',
     'bill.readingDocs': 'Reading documents...',
@@ -1307,6 +1308,7 @@ const translations = {
     'ext.upgradeRatePre': 'Sie haben bereits eine Lizenz? Schreiben Sie an',
     'ext.upgradeRatePost': 'für den Upgrade-Tarif.',
     'bill.noData': 'Keine ESG-Daten gefunden. Versuchen Sie eine Stromrechnung, Gasrechnung, Wasserrechnung, einen Abfallnachweis oder eine Lohnabrechnung.',
+    'bill.scannedPdf': 'Diese PDF ist offenbar ein Scan oder Foto und enthält keinen lesbaren Text. Laden Sie das Original-PDF im Portal Ihres Anbieters herunter oder erfassen Sie die Werte manuell.',
     'bill.reading': '{name} wird gelesen ({index}/{total})...',
     'bill.failed': 'Fehlgeschlagen: {message}',
     'bill.readingDocs': 'Dokumente werden gelesen...',

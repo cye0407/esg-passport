@@ -24,3 +24,15 @@ export async function readPdfText(file) {
 
   return pages.join('\n\n');
 }
+
+/**
+ * True when a PDF yielded no usable text layer — i.e. it is a scan or a photo.
+ * Two shapes to catch: readPdfText succeeded but the pages held almost nothing,
+ * or it threw and a file.text() fallback handed back raw PDF bytes.
+ */
+export function isUnreadablePdfText(text) {
+  const trimmed = (text || '').replace(/\s+/g, ' ').trim();
+  if (trimmed.startsWith('%PDF')) return true;
+  const letters = trimmed.replace(/[^\p{L}\p{N}]/gu, '');
+  return letters.length < 60;
+}
