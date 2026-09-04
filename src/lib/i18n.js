@@ -858,7 +858,7 @@ const translations = {
     'layout.updateAvailable': 'Version {version} ist verfügbar.',
     'layout.download': 'Herunterladen',
     'layout.dismiss': 'Schließen',
-    'layout.footer': 'ESG Passport v{version} · VSME-konform · Ihre Nachhaltigkeitsdaten bleiben auf Ihrem Gerät',
+    'layout.footer': 'ESG Passport v{version} · an VSME orientiert · Ihre Nachhaltigkeitsdaten bleiben auf Ihrem Gerät',
     'data.title.monthly': 'Monatsdaten',
     'data.title.annual': 'Jahresdaten',
     'data.subtitle': '{mode} Daten f\u00FCr {year} eingeben',
@@ -1478,7 +1478,7 @@ const translations = {
     'rep.medConf': '{count} mittlere Zuverlässigkeit',
     'rep.lowConf': '{count} niedrige Zuverlässigkeit',
     'rep.preparedWith': 'Erstellt mit ESG Passport — {date}',
-    'rep.vsmeAligned': 'VSME-Basismodul-konform',
+    'rep.vsmeAligned': 'Am VSME-Basismodul orientiert',
     'rep.companyFallback': 'Unternehmen',
     // Request workspace
     'rw.loading': 'Wird geladen...',

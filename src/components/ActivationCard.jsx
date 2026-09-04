@@ -21,15 +21,23 @@ function normalizeWelcomeType(raw) {
 export default function ActivationCard() {
   const { isPaid, activate, isChecking } = useLicense();
   const { lang, t } = useLanguage();
-  const [dismissed, setDismissed] = useState(() => !!localStorage.getItem(DISMISS_KEY));
-  const [licenseKey, setLicenseKey] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const welcomeType = typeof window !== 'undefined'
     ? normalizeWelcomeType(new URLSearchParams(window.location.search).get('welcome'))
     : null;
   const justPurchased = welcomeType !== null;
+
+  // A purchase is a new context. If ?activate= fails (stale variant ID, API
+  // outage, unrecognized product) this card is the only retry form the buyer
+  // gets, so a dismissal from some earlier visit must not hide it. Within the
+  // purchase itself the close button still works — it just does not persist
+  // across the redirect.
+  const [dismissed, setDismissed] = useState(
+    () => !justPurchased && !!localStorage.getItem(DISMISS_KEY),
+  );
+  const [licenseKey, setLicenseKey] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // Don't pop up while the license context is still deciding — otherwise
   // buyers with the ?activate= auto-flow would briefly see the modal before
