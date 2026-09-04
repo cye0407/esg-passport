@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getEntitlements } from '../entitlements';
+import { canActivateAnotherKey, getEntitlements } from '../entitlements';
 
 describe('license entitlements', () => {
   it('keeps free users restricted to the sample workflow', () => {
@@ -49,5 +49,15 @@ describe('license entitlements', () => {
     const free = getEntitlements('free');
     expect(free.canBuildPolicies).toBe(false);
     expect(free.canGenerateReport).toBe(false);
+  });
+
+  it('keeps the activation form reachable for tiers that can still upgrade', () => {
+    // A Questionnaire Pass holder who buys the full Passport has to be able to
+    // enter the new key without first deactivating the licence they rely on.
+    expect(canActivateAnotherKey('questionnaire-pass')).toBe(true);
+    expect(canActivateAnotherKey('free')).toBe(true);
+    // Nothing left to buy — no form.
+    expect(canActivateAnotherKey('pro')).toBe(false);
+    expect(canActivateAnotherKey('pro-plus')).toBe(false);
   });
 });

@@ -13,6 +13,7 @@ import {
   Sparkles, Eye, EyeOff, ChevronDown, ChevronRight, KeyRound, Mail, Loader2, Globe,
 } from 'lucide-react';
 import { deactivateLicense, getStoredLicense } from '@/lib/license';
+import { canActivateAnotherKey } from '@/lib/entitlements';
 import { useLicense } from '@/components/LicenseContext';
 
 function CollapsibleSection({ icon: Icon, title, children, defaultOpen = false }) {
@@ -305,7 +306,10 @@ export default function Settings() {
             : t('settings.noLicense')}
           {' '}{t('settings.licenseHint')}
         </p>
-        {!isPaid && (
+        {isPaid && canActivateAnotherKey(tier) && (
+          <p className="text-sm text-slate-600 mb-4">{t('settings.upgradeHint')}</p>
+        )}
+        {canActivateAnotherKey(tier) && (
           <form onSubmit={handleLicenseActivate} className="space-y-3 mb-4">
             <div className="space-y-2">
               <Label htmlFor="license-key">{t('settings.licenseKey')}</Label>

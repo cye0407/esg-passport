@@ -44,6 +44,16 @@ export function getEntitlements(tier = 'free') {
   return ENTITLEMENTS_BY_TIER[tier] || ENTITLEMENTS_BY_TIER.free;
 }
 
+// Tiers with nothing left to buy. Anyone below this can still enter a different
+// licence key, so the activation form must stay reachable for them even though
+// they are already paid — a Questionnaire Pass holder who upgrades to the full
+// Passport has to be able to type the new key in somewhere.
+const TOP_TIERS = new Set(['pro', 'pro-plus']);
+
+export function canActivateAnotherKey(tier) {
+  return !TOP_TIERS.has(tier);
+}
+
 export function isRecognizedTier(tier) {
   return Object.hasOwn(ENTITLEMENTS_BY_TIER, tier);
 }
