@@ -13,11 +13,15 @@ const LICENSE_INSTANCE_NAME_KEY = 'esg_passport_license_instance_name';
 // a short allowlist of historical product names so unrelated Lemon Squeezy
 // licenses cannot inherit paid access.
 const QUESTIONNAIRE_PASS_VARIANT_ID = import.meta.env.VITE_QUESTIONNAIRE_PASS_VARIANT_ID || '';
+const PASSPORT_VARIANT_ID = import.meta.env.VITE_PASSPORT_VARIANT_ID || '';
 const KNOWN_PASSPORT_PRODUCT_NAMES = new Map([
   ['esg passport', 'pro'],
   ['esg passport pro', 'pro'],
   ['esg passport pro plus', 'pro-plus'],
 ]);
+
+// Tiers this device may retain if Lemon Squeezy metadata stops resolving.
+const GRANDFATHERED_TIERS = new Set(['pro', 'pro-plus', 'questionnaire-pass']);
 
 function normalizeProductName(name) {
   return String(name || '')
@@ -31,10 +35,21 @@ function normalizeProductName(name) {
 // Questionnaire Pass is recognized only by its configured variant. Full
 // Passport keeps explicit historical product mappings; unrelated products
 // must not inherit full access merely because their license is valid.
-export function tierFromResponse(data, questionnairePassVariantId = QUESTIONNAIRE_PASS_VARIANT_ID) {
+export function tierFromResponse(
+  data,
+  questionnairePassVariantId = QUESTIONNAIRE_PASS_VARIANT_ID,
+  passportVariantId = PASSPORT_VARIANT_ID,
+) {
   const variantId = data?.meta?.variant_id ?? data?.license_key?.variant_id;
   if (questionnairePassVariantId && String(variantId) === String(questionnairePassVariantId)) {
     return 'questionnaire-pass';
+  }
+  // Variant IDs are immutable; product names are editable in the Lemon Squeezy
+  // dashboard. Match the current Passport by ID so a rename cannot silently
+  // block new buyers, and keep the name map below as a legacy-only fallback for
+  // historical products whose variant IDs we no longer have.
+  if (passportVariantId && String(variantId) === String(passportVariantId)) {
+    return 'pro';
   }
 
   const name = normalizeProductName(
@@ -354,10 +369,12 @@ export async function revalidateStoredLicense() {
       return true;
     }
 
-    // Keep a license that this device already verified as a known full
-    // Passport tier if Lemon Squeezy metadata later changes. Fresh and legacy
-    // unclassified licenses do not receive this compatibility exception.
-    if (result.code === 'unrecognized_product' && (stored.tier === 'pro' || stored.tier === 'pro-plus')) {
+    // Keep a license this device already verified if Lemon Squeezy metadata
+    // later changes (a product rename, or a missing variant-ID env var on a
+    // rebuild). Reaching here still requires a key the API accepts as valid, so
+    // this cannot manufacture access — it only stops a paying customer being
+    // revoked mid-use. Fresh and legacy unclassified licenses are not covered.
+    if (result.code === 'unrecognized_product' && GRANDFATHERED_TIERS.has(stored.tier)) {
       storeLicense(stored.key, stored.instance_id, {
         activated_at: stored.activated_at,
         instance_name: stored.instance_name,

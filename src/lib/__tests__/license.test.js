@@ -38,6 +38,34 @@ describe('license flow', () => {
     expect(tierFromResponse({ meta: { product_name: productName } }, '98765')).toBe(expectedTier);
   });
 
+  // The real Lemon Squeezy product is named "ESG Passport Questionnaire Pass".
+  // The name fallback must NOT resolve it to a full Passport tier: if the variant
+  // ID is ever missing or wrong, a EUR 99 buyer must be blocked, never silently
+  // handed the EUR 499 product.
+  it('never maps the real Questionnaire Pass product name to a full Passport tier', async () => {
+    const { tierFromResponse } = await import('../license');
+    expect(tierFromResponse({ meta: { product_name: 'ESG Passport Questionnaire Pass' } }, '')).toBeNull();
+    expect(tierFromResponse({
+      meta: { product_name: 'ESG Passport Questionnaire Pass', variant_id: 2090065 },
+    }, '2090065')).toBe('questionnaire-pass');
+  });
+
+  it('matches the full Passport by variant ID, ahead of the product-name fallback', async () => {
+    const { tierFromResponse } = await import('../license');
+    // Renamed product, but the immutable variant ID still resolves it.
+    expect(tierFromResponse({
+      meta: { product_name: 'ESG Passport 2026 Edition', variant_id: 1532536 },
+    }, '2090065', '1532536')).toBe('pro');
+    // Legacy products with no configured variant still fall back to the name map.
+    expect(tierFromResponse({
+      meta: { product_name: 'ESG Passport Pro Plus', variant_id: 999 },
+    }, '2090065', '1532536')).toBe('pro-plus');
+    // The Pass variant wins over the Passport variant, never the other way round.
+    expect(tierFromResponse({
+      meta: { product_name: 'ESG Passport Questionnaire Pass', variant_id: 2090065 },
+    }, '2090065', '1532536')).toBe('questionnaire-pass');
+  });
+
   it('does not grant access to an unfamiliar Lemon Squeezy product', async () => {
     const { tierFromResponse, validateLicenseKey } = await import('../license');
     expect(tierFromResponse({ meta: { product_name: 'Unrelated Product', variant_id: 123 } }, '98765')).toBeNull();

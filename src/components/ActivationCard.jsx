@@ -14,6 +14,7 @@ function normalizeWelcomeType(raw) {
   if (!raw) return null;
   const v = raw.toLowerCase();
   if (v === 'pro-plus' || v === 'proplus' || v === 'pro+') return 'proplus';
+  if (v === 'questionnaire-pass' || v === 'questionnairepass') return 'questionnairepass';
   return 'default';
 }
 
@@ -62,8 +63,12 @@ export default function ActivationCard() {
   }
 
   const headline = justPurchased ? t('act.welcomeHeadline') : t('act.haveKey');
+  const WELCOME_SUB_KEYS = {
+    proplus: 'act.subProPlus',
+    questionnairepass: 'act.subQuestionnairePass',
+  };
   const subheadline = justPurchased
-    ? (welcomeType === 'proplus' ? t('act.subProPlus') : t('act.subDefault'))
+    ? t(WELCOME_SUB_KEYS[welcomeType] || 'act.subDefault')
     : t('act.subGeneric');
   const paidPlanUrl = lang === 'de'
     ? 'https://esgforsuppliers.com/de/passport'

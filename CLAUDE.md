@@ -37,6 +37,9 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - Validates keys via LemonSqueezy API: `POST /v1/licenses/validate`
 - Stores validated key + instance_id in localStorage (`esg_passport_license`)
 - Recognizes `questionnaire-pass` from `VITE_QUESTIONNAIRE_PASS_VARIANT_ID`
+- Recognizes full Passport (`pro`) from `VITE_PASSPORT_VARIANT_ID`; the
+  `KNOWN_PASSPORT_PRODUCT_NAMES` map is now a legacy-only fallback
+- Both variant IDs are NUMERIC, not the checkout-link UUID
 - Stores Questionnaire Pass claims separately from saved questionnaire results
 - Re-validates once per 7 days (background check on app launch)
 - Deactivate via Settings → calls LemonSqueezy `/v1/licenses/deactivate`
