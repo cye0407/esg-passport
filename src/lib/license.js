@@ -118,7 +118,20 @@ const DEFINITIVE_INVALID_CODES = new Set([
   'invalid',
 ]);
 
+// Lemon Squeezy's `error` is human-readable prose ("license_key not found.") and its wording is
+// not part of any contract. `license_key.status` is the stable machine-readable value, so a
+// revoked key is recognised by status when the API sent one, and only falls back to reading the
+// prose when it did not.
+//
+// Only 'expired' and 'disabled' revoke. 'inactive' is a real key with no activated instance —
+// awaiting activation, not withdrawn — so it must never be treated as definitively invalid here,
+// even though the same word appearing in the error prose does mean a rejection.
+const REVOKED_LICENSE_STATUSES = new Set(['expired', 'disabled']);
+
 export function isDefinitivelyInvalid(result) {
+  const status = String(result?.licenseStatus || '').trim().toLowerCase();
+  if (status) return REVOKED_LICENSE_STATUSES.has(status);
+
   const code = String(result?.code || '').trim().toLowerCase();
   if (!code) return false;
   if (code === 'unrecognized_product') return false;
@@ -189,6 +202,7 @@ async function requestLicenseValidation(key, {
       valid: false,
       error: data.error || 'License validation failed.',
       code: data.error || null,
+      licenseStatus: data.license_key?.status ?? null,
       status: response.status,
     };
   }
@@ -223,6 +237,7 @@ async function requestLicenseValidation(key, {
     valid: false,
     error: errorMessages[data.error] || data.error || 'Invalid license key.',
     code: data.error || null,
+    licenseStatus: data.license_key?.status ?? null,
     status: response.status,
   };
 }

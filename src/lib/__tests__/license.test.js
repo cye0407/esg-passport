@@ -177,6 +177,55 @@ describe('license flow', () => {
     expect(getStoredLicense()).toBeNull();
   });
 
+  // Lemon Squeezy returns human-readable prose in `error` ("license_key not found.") and the
+  // machine-readable state in license_key.status. Revocation is classified on the status, so
+  // these use the real response shape rather than a code word in the error field.
+  describe('revocation is read from license_key.status', () => {
+    it('treats a disabled license as definitively invalid', async () => {
+      const { isDefinitivelyInvalid } = await import('../license');
+      expect(isDefinitivelyInvalid({
+        valid: false,
+        error: 'license_key is disabled.',
+        code: 'license_key is disabled.',
+        licenseStatus: 'disabled',
+      })).toBe(true);
+    });
+
+    it('treats an expired license as definitively invalid', async () => {
+      const { isDefinitivelyInvalid } = await import('../license');
+      expect(isDefinitivelyInvalid({
+        valid: false,
+        error: 'license_key has expired.',
+        code: 'license_key has expired.',
+        licenseStatus: 'expired',
+      })).toBe(true);
+    });
+
+    it('does not revoke an inactive license, which is awaiting activation rather than withdrawn', async () => {
+      const { isDefinitivelyInvalid } = await import('../license');
+      expect(isDefinitivelyInvalid({
+        valid: false,
+        error: 'license_key has not been activated.',
+        licenseStatus: 'inactive',
+      })).toBe(false);
+    });
+
+    it('still recognises a missing key from the error prose when no status is returned', async () => {
+      const { isDefinitivelyInvalid } = await import('../license');
+      expect(isDefinitivelyInvalid({
+        valid: false,
+        error: 'license_key not found.',
+        code: 'license_key not found.',
+        licenseStatus: null,
+      })).toBe(true);
+    });
+
+    it('does not revoke on a transport failure, which carries neither status nor code', async () => {
+      const { isDefinitivelyInvalid } = await import('../license');
+      expect(isDefinitivelyInvalid({ valid: false, error: 'Could not reach license server' })).toBe(false);
+    });
+  });
+
   it('reconciles local state when the license is expired on the server', async () => {
     const { storeLicense, deactivateLicense, getStoredLicense } = await import('../license');
     storeLicense('abcd-1234', 'remote-instance');

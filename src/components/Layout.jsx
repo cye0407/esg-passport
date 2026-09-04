@@ -31,16 +31,21 @@ const navigation = [
   { name: 'Data', labelKey: 'nav.data', href: '/data', icon: Database, paid: false },
   { name: 'Policies', labelKey: 'nav.policies', href: '/policies', icon: ClipboardCheck, paid: false },
   { name: 'Documents', labelKey: 'nav.documents', href: '/documents', icon: FolderOpen, paid: false },
-  { name: 'Report', labelKey: 'nav.report', href: '/report', icon: FileText, paid: true },
+  { name: 'Report', labelKey: 'nav.report', href: '/report', icon: FileText, paid: true, capability: 'canGenerateReport' },
   { name: 'Respond', labelKey: 'nav.respond', href: '/demo', icon: Sparkles, paid: false, preview: true, hideWhenPaid: true },
-  { name: 'Respond', labelKey: 'nav.respond', href: '/respond', icon: Upload, paid: true, hideWhenFree: true },
+  { name: 'Respond', labelKey: 'nav.respond', href: '/respond', icon: Upload, paid: true, capability: 'canUploadQuestionnaire', hideWhenFree: true },
   { name: 'Requests', labelKey: 'nav.requests', href: '/requests', icon: Inbox, paid: false },
   { name: 'Settings', labelKey: 'nav.settings', href: '/settings', icon: Settings, paid: false },
 ];
 
 export default function Layout() {
   const location = useLocation();
-  const { isPaid } = useLicense();
+  const { isPaid, entitlements } = useLicense();
+  // Lock on the capability the route itself enforces, not on "has paid something". A
+  // Questionnaire Pass holder is paid but cannot generate a report, and showing that link
+  // unlocked walked them into a EUR 499 paywall carrying an activation form their key
+  // cannot satisfy.
+  const hasAccess = (item) => !item.capability || entitlements?.[item.capability] === true;
   const t = useT();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [updateInfo, setUpdateInfo] = React.useState(null);
@@ -105,7 +110,7 @@ export default function Layout() {
                 const isActive =
                   location.pathname === item.href ||
                   (item.href !== '/' && location.pathname.startsWith(item.href));
-                const showLock = item.paid && !isPaid;
+                const showLock = item.paid && !hasAccess(item);
                 const showPreview = item.preview && !isPaid;
                 const label = t(item.labelKey);
                 return (
@@ -148,7 +153,7 @@ export default function Layout() {
                 const isActive =
                   location.pathname === item.href ||
                   (item.href !== '/' && location.pathname.startsWith(item.href));
-                const showLock = item.paid && !isPaid;
+                const showLock = item.paid && !hasAccess(item);
                 const showPreview = item.preview && !isPaid;
                 const label = t(item.labelKey);
                 return (
