@@ -125,6 +125,18 @@ export function isDefinitivelyInvalid(result) {
   return DEFINITIVE_INVALID_CODES.has(code) || code.includes('not found');
 }
 
+// When validation cannot reach the server (local dev, or a downloaded file:
+// build), we cannot ask Lemon Squeezy what was bought. Never assume the top
+// tier for someone we already know: a Questionnaire Pass holder who activated
+// online and later opens the downloaded build must stay on their own tier
+// rather than being silently upgraded to the full Passport. A device with no
+// prior activation still falls back to 'pro', which is the existing behaviour
+// of the downloadable build.
+function offlineFallbackTier() {
+  const stored = getStoredLicense();
+  return isRecognizedTier(stored?.tier) ? stored.tier : 'pro';
+}
+
 function isAlreadyDeactivatedResponse(status, error) {
   const normalized = String(error || '').toLowerCase();
   if (status === 404 || status === 410) return true;
@@ -162,7 +174,7 @@ async function requestLicenseValidation(key, {
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
     if (allowLocalDevFallback && isLocalDev()) {
-      return { valid: true, instance_id: null, license_key_id: null, tier: 'pro', fallback: true };
+      return { valid: true, instance_id: null, license_key_id: null, tier: offlineFallbackTier(), fallback: true };
     }
     return { valid: false, error: 'License validation failed. Please try again.' };
   }
@@ -171,7 +183,7 @@ async function requestLicenseValidation(key, {
 
   if (!response.ok) {
     if (allowLocalDevFallback && isLocalDev() && (response.status >= 500 || data.error === 'Could not reach license server' || data.error === 'License server not configured')) {
-      return { valid: true, instance_id: null, license_key_id: null, tier: 'pro', fallback: true };
+      return { valid: true, instance_id: null, license_key_id: null, tier: offlineFallbackTier(), fallback: true };
     }
     return {
       valid: false,
@@ -233,7 +245,7 @@ export async function validateLicenseKey(key, { instanceId = null } = {}) {
     // Server unreachable. Only downloaded zip builds are allowed to fall back
     // to a local format-only activation path.
     if (isDownloadedBuild() || isLocalDev()) {
-      return { valid: true, instance_id: null, license_key_id: null, tier: 'pro', fallback: true };
+      return { valid: true, instance_id: null, license_key_id: null, tier: offlineFallbackTier(), fallback: true };
     }
     return { valid: false, error: 'Could not reach the license server. Please try again.' };
   }

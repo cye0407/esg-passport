@@ -12,6 +12,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // jsdom defaults to http://localhost, which makes isLocalDev() true and
+    // routes license validation through the local-dev fallback — so the suite
+    // silently exercised a path no customer runs. Pin the deployed origin;
+    // tests that specifically want dev behaviour must opt in.
+    environmentOptions: { jsdom: { url: 'https://esgforsuppliers.com/app/' } },
     include: ['src/**/__tests__/**/*.test.{js,ts}'],
   },
 });

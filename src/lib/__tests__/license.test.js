@@ -1,33 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockFetch = vi.fn();
 
 vi.stubGlobal('fetch', mockFetch);
 
-const originalLocation = Object.getOwnPropertyDescriptor(window, 'location');
-
-// jsdom serves pages from http://localhost, which makes isLocalDev() true and
-// silently routes every request through the local-dev fallback. Tests that care
-// about real behaviour must pretend to be on the deployed origin.
-function useProductionOrigin() {
-  Object.defineProperty(window, 'location', {
-    value: {
-      hostname: 'esgforsuppliers.com',
-      protocol: 'https:',
-      pathname: '/app/',
-      search: '',
-      hash: '',
-    },
-    writable: true,
-    configurable: true,
-  });
-}
-
 describe('license flow', () => {
-  afterEach(() => {
-    if (originalLocation) Object.defineProperty(window, 'location', originalLocation);
-  });
-
   beforeEach(async () => {
     localStorage.clear();
     mockFetch.mockReset();
@@ -297,7 +274,6 @@ describe('license flow', () => {
       json: async () => { throw new SyntaxError('Unexpected token'); },
     })],
   ])('keeps a paid license when revalidation hits %s', async (_label, arrange) => {
-    useProductionOrigin();
     localStorage.setItem('esg_passport_license', storedPro());
     arrange();
     const { revalidateStoredLicense } = await import('../license');
@@ -308,7 +284,6 @@ describe('license flow', () => {
   });
 
   it('revokes only when Lemon Squeezy definitively rejects the key', async () => {
-    useProductionOrigin();
     localStorage.setItem('esg_passport_license', storedPro());
     mockFetch.mockResolvedValueOnce({
       ok: false,
@@ -335,6 +310,32 @@ describe('license flow', () => {
     // Configured build: the same response resolves to the Pass, never to pro.
     expect(tierFromResponse(passSoldUnderPassportProduct, '2090065', '1532536'))
       .toBe('questionnaire-pass');
+  });
+
+  it('does not upgrade a known tier when validation falls back offline', async () => {
+    // A Questionnaire Pass holder opening the downloaded (file:) build must not
+    // be silently promoted to the full Passport.
+    localStorage.setItem('esg_passport_license', JSON.stringify({
+      key: 'abcd-1234',
+      instance_id: 'existing-instance',
+      activated_at: '2026-01-01T00:00:00.000Z',
+      last_validated: '2026-01-01T00:00:00.000Z',
+      tier: 'questionnaire-pass',
+    }));
+    Object.defineProperty(window, 'location', {
+      value: { hostname: '', protocol: 'file:', pathname: '/index.html', search: '', hash: '' },
+      writable: true,
+      configurable: true,
+    });
+    mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const { validateLicenseKey } = await import('../license');
+
+    const result = await validateLicenseKey('abcd-1234');
+
+    expect(result.valid).toBe(true);
+    expect(result.fallback).toBe(true);
+    expect(result.tier).toBe('questionnaire-pass');
+    expect(result.tier).not.toBe('pro');
   });
 
   it('fails closed for an unfamiliar tier stored locally', async () => {
