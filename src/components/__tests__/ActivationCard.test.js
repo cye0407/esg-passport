@@ -52,6 +52,27 @@ describe('ActivationCard', () => {
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  // A buyer whose ?activate= failed has this card as their only retry form.
+  // A dismissal from an earlier visit must not hide it.
+  it('still shows the retry form post-purchase when the card was dismissed earlier', async () => {
+    localStorage.setItem('esg_passport_activation_card_dismissed', '1');
+    window.history.replaceState({}, '', '/?welcome=questionnaire-pass');
+
+    await renderCard();
+
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(container.textContent).toContain('Activate License');
+  });
+
+  it('keeps honouring an earlier dismissal when there is no purchase context', async () => {
+    localStorage.setItem('esg_passport_activation_card_dismissed', '1');
+    window.history.replaceState({}, '', '/');
+
+    await renderCard();
+
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
   it('shows the activation modal after purchase redirect welcome state', async () => {
     window.history.replaceState({}, '', '/?welcome=pro');
 

@@ -4,20 +4,66 @@
 // Browser can't call LemonSqueezy API directly (CORS).
 // Calls /api/validate-license and /api/deactivate-license instead.
 
+import { isRecognizedTier } from './entitlements';
+
 const LICENSE_STORAGE_KEY = 'esg_passport_license';
 const LICENSE_INSTANCE_NAME_KEY = 'esg_passport_license_instance_name';
 
-// LemonSqueezy product names, mapped to internal tiers. We match loosely so a
-// product rename (e.g. "ESG Passport Pro Plus") still resolves correctly.
-// Missing/unknown names default to 'pro' — existing paid customers don't
-// accidentally lose access if a product gets renamed.
-function tierFromResponse(data) {
-  const name = (data?.meta?.product_name || data?.license_key?.product_name || '').toLowerCase();
-  if (name.includes('pro+') || name.includes('pro plus') || name.includes('pro-plus') || name.includes('plus')) {
-    return 'pro-plus';
+// Questionnaire Pass uses an exact configured variant ID. Full Passport uses
+// a short allowlist of historical product names so unrelated Lemon Squeezy
+// licenses cannot inherit paid access.
+const QUESTIONNAIRE_PASS_VARIANT_ID = import.meta.env.VITE_QUESTIONNAIRE_PASS_VARIANT_ID || '';
+const PASSPORT_VARIANT_ID = import.meta.env.VITE_PASSPORT_VARIANT_ID || '';
+const KNOWN_PASSPORT_PRODUCT_NAMES = new Map([
+  ['esg passport', 'pro'],
+  ['esg passport pro', 'pro'],
+  ['esg passport pro plus', 'pro-plus'],
+]);
+
+// Tiers this device may retain if Lemon Squeezy metadata stops resolving.
+const GRANDFATHERED_TIERS = new Set(['pro', 'pro-plus', 'questionnaire-pass']);
+
+function normalizeProductName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\+/g, ' plus ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+// Questionnaire Pass is recognized only by its configured variant. Full
+// Passport keeps explicit historical product mappings; unrelated products
+// must not inherit full access merely because their license is valid.
+export function tierFromResponse(
+  data,
+  questionnairePassVariantId = QUESTIONNAIRE_PASS_VARIANT_ID,
+  passportVariantId = PASSPORT_VARIANT_ID,
+) {
+  const variantId = data?.meta?.variant_id ?? data?.license_key?.variant_id;
+  if (questionnairePassVariantId && String(variantId) === String(questionnairePassVariantId)) {
+    return 'questionnaire-pass';
   }
-  if (name) return 'pro';
-  return null;
+  // Variant IDs are immutable; product names are editable in the Lemon Squeezy
+  // dashboard. Match the current Passport by ID so a rename cannot silently
+  // block new buyers, and keep the name map below as a legacy-only fallback for
+  // historical products whose variant IDs we no longer have.
+  if (passportVariantId && String(variantId) === String(passportVariantId)) {
+    return 'pro';
+  }
+
+  // The name map cannot tell a Pass from a Passport. If the Pass variant ID is
+  // not configured in this build, a Pass sold as a variant of the "ESG Passport"
+  // product would fall through to 'pro' and hand a EUR 99 buyer the EUR 499
+  // product, silently. Refuse the fallback instead: a blocked buyer complains
+  // and we fix it; a leaked one never tells us. Customers who already activated
+  // are unaffected — they are covered by GRANDFATHERED_TIERS on revalidation.
+  if (!questionnairePassVariantId) return null;
+
+  const name = normalizeProductName(
+    data?.meta?.product_name || data?.license_key?.product_name,
+  );
+  return KNOWN_PASSPORT_PRODUCT_NAMES.get(name) || null;
 }
 // The API routes only exist on the Passport's own Vercel deployment.
 // esgforsuppliers.com proxies /app/* to here but NOT /api/*, so when the
@@ -59,6 +105,51 @@ function getInstanceName() {
   return generated;
 }
 
+// A license is revoked locally only when Lemon Squeezy actually said it is bad.
+// `code` is populated solely from a parsed API body, so any transport or parse
+// failure arrives here with no code and is treated as "unknown", not "invalid".
+// unrecognized_product is excluded on purpose: it is metadata drift, handled by
+// the GRANDFATHERED_TIERS branch above.
+const DEFINITIVE_INVALID_CODES = new Set([
+  'not_found',
+  'disabled',
+  'expired',
+  'inactive',
+  'invalid',
+]);
+
+// Lemon Squeezy's `error` is human-readable prose ("license_key not found.") and its wording is
+// not part of any contract. `license_key.status` is the stable machine-readable value, so a
+// revoked key is recognised by status when the API sent one, and only falls back to reading the
+// prose when it did not.
+//
+// Only 'expired' and 'disabled' revoke. 'inactive' is a real key with no activated instance —
+// awaiting activation, not withdrawn — so it must never be treated as definitively invalid here,
+// even though the same word appearing in the error prose does mean a rejection.
+const REVOKED_LICENSE_STATUSES = new Set(['expired', 'disabled']);
+
+export function isDefinitivelyInvalid(result) {
+  const status = String(result?.licenseStatus || '').trim().toLowerCase();
+  if (status) return REVOKED_LICENSE_STATUSES.has(status);
+
+  const code = String(result?.code || '').trim().toLowerCase();
+  if (!code) return false;
+  if (code === 'unrecognized_product') return false;
+  return DEFINITIVE_INVALID_CODES.has(code) || code.includes('not found');
+}
+
+// When validation cannot reach the server (local dev, or a downloaded file:
+// build), we cannot ask Lemon Squeezy what was bought. Never assume the top
+// tier for someone we already know: a Questionnaire Pass holder who activated
+// online and later opens the downloaded build must stay on their own tier
+// rather than being silently upgraded to the full Passport. A device with no
+// prior activation still falls back to 'pro', which is the existing behaviour
+// of the downloadable build.
+function offlineFallbackTier() {
+  const stored = getStoredLicense();
+  return isRecognizedTier(stored?.tier) ? stored.tier : 'pro';
+}
+
 function isAlreadyDeactivatedResponse(status, error) {
   const normalized = String(error || '').toLowerCase();
   if (status === 404 || status === 410) return true;
@@ -95,7 +186,9 @@ async function requestLicenseValidation(key, {
 
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('application/json')) {
-    if (allowLocalDevFallback && isLocalDev()) return { valid: true, instance_id: null, fallback: true };
+    if (allowLocalDevFallback && isLocalDev()) {
+      return { valid: true, instance_id: null, license_key_id: null, tier: offlineFallbackTier(), fallback: true };
+    }
     return { valid: false, error: 'License validation failed. Please try again.' };
   }
 
@@ -103,22 +196,33 @@ async function requestLicenseValidation(key, {
 
   if (!response.ok) {
     if (allowLocalDevFallback && isLocalDev() && (response.status >= 500 || data.error === 'Could not reach license server' || data.error === 'License server not configured')) {
-      return { valid: true, instance_id: null, fallback: true };
+      return { valid: true, instance_id: null, license_key_id: null, tier: offlineFallbackTier(), fallback: true };
     }
     return {
       valid: false,
       error: data.error || 'License validation failed.',
       code: data.error || null,
+      licenseStatus: data.license_key?.status ?? null,
       status: response.status,
     };
   }
 
   // /activate returns { activated: true, ... }, /validate returns { valid: true, ... }
   if (data.activated || data.valid) {
+    const tier = tierFromResponse(data);
+    if (!tier) {
+      return {
+        valid: false,
+        error: 'This license is valid, but it is not recognized as an ESG Passport product.',
+        code: 'unrecognized_product',
+        status: response.status,
+      };
+    }
     return {
       valid: true,
       instance_id: data.instance?.id || null,
-      tier: tierFromResponse(data),
+      license_key_id: data.license_key?.id ?? null,
+      tier,
     };
   }
 
@@ -133,6 +237,7 @@ async function requestLicenseValidation(key, {
     valid: false,
     error: errorMessages[data.error] || data.error || 'Invalid license key.',
     code: data.error || null,
+    licenseStatus: data.license_key?.status ?? null,
     status: response.status,
   };
 }
@@ -155,7 +260,7 @@ export async function validateLicenseKey(key, { instanceId = null } = {}) {
     // Server unreachable. Only downloaded zip builds are allowed to fall back
     // to a local format-only activation path.
     if (isDownloadedBuild() || isLocalDev()) {
-      return { valid: true, instance_id: null, fallback: true };
+      return { valid: true, instance_id: null, license_key_id: null, tier: offlineFallbackTier(), fallback: true };
     }
     return { valid: false, error: 'Could not reach the license server. Please try again.' };
   }
@@ -183,6 +288,8 @@ export async function deactivateLicense() {
         storeLicense(stored.key, instanceId, {
           activated_at: stored.activated_at,
           instance_name: stored.instance_name,
+          license_key_id: refreshed.license_key_id,
+          tier: refreshed.tier,
         });
       } else if (!refreshed.valid && isAlreadyDeactivatedResponse(refreshed.status, refreshed.code)) {
         // Server confirms the license is gone (disabled / expired / not_found).
@@ -239,10 +346,10 @@ export function storeLicense(key, instance_id, metadata = {}) {
     instance_name: metadata.instance_name || getInstanceName(),
     activated_at: metadata.activated_at || now,
     last_validated: metadata.last_validated || now,
-    // tier: 'pro' | 'pro-plus' — prefer freshly-returned tier, fall back to
-    // whatever we had stored so a renamed product doesn't wipe an existing
-    // paying customer's tier on revalidation.
-    tier: metadata.tier || existing?.tier || null,
+    license_key_id: metadata.license_key_id ?? existing?.license_key_id ?? null,
+    // Prefer a freshly returned recognized tier, then retain an existing tier
+    // so a validated full Passport customer keeps offline/downloaded access.
+    tier: isRecognizedTier(metadata.tier) ? metadata.tier : (existing?.tier || null),
   }));
 }
 
@@ -263,7 +370,7 @@ export function getStoredLicense() {
  */
 export function hasActiveLicense() {
   const stored = getStoredLicense();
-  return stored?.key && stored?.activated_at ? true : false;
+  return !!(stored?.key && stored?.activated_at && getLicenseTier() !== 'free');
 }
 
 /**
@@ -276,14 +383,17 @@ export function isPaidUser() {
 }
 
 /**
- * Returns 'free' | 'pro' | 'pro-plus'. Existing paid licenses that predate
+ * Returns 'free' | 'questionnaire-pass' | 'pro' | 'pro-plus'. Existing paid licenses that predate
  * tier tracking fall back to 'pro' (safe default — they already paid).
  */
 export function getLicenseTier() {
   const stored = getStoredLicense();
   if (!stored?.key) return 'free';
-  if (stored.tier === 'pro-plus') return 'pro-plus';
-  return 'pro';
+  if (stored.tier == null) return 'pro';
+  if (stored.tier === 'questionnaire-pass' || stored.tier === 'pro' || stored.tier === 'pro-plus') {
+    return stored.tier;
+  }
+  return 'free';
 }
 
 /**
@@ -300,7 +410,7 @@ export async function revalidateStoredLicense() {
   // the right tier-aware UX on this launch.
   const lastValidated = stored.last_validated ? new Date(stored.last_validated) : new Date(0);
   const daysSinceValidation = (Date.now() - lastValidated.getTime()) / (1000 * 60 * 60 * 24);
-  if (daysSinceValidation < 7 && stored.tier) return true;
+  if (daysSinceValidation < 7 && getLicenseTier() !== 'free' && stored.tier) return true;
 
   try {
     const result = await validateLicenseKey(stored.key, { instanceId: stored.instance_id });
@@ -308,13 +418,32 @@ export async function revalidateStoredLicense() {
       storeLicense(stored.key, result.instance_id || stored.instance_id, {
         activated_at: stored.activated_at,
         instance_name: stored.instance_name,
+        license_key_id: result.license_key_id,
         tier: result.tier,
       });
       return true;
     }
 
-    // Only revoke if we got a definitive "invalid" from the API
-    if (result.error && !result.error.includes('internet connection')) {
+    // Keep a license this device already verified if Lemon Squeezy metadata
+    // later changes (a product rename, or a missing variant-ID env var on a
+    // rebuild). Reaching here still requires a key the API accepts as valid, so
+    // this cannot manufacture access — it only stops a paying customer being
+    // revoked mid-use. Fresh and legacy unclassified licenses are not covered.
+    if (result.code === 'unrecognized_product' && GRANDFATHERED_TIERS.has(stored.tier)) {
+      storeLicense(stored.key, stored.instance_id, {
+        activated_at: stored.activated_at,
+        instance_name: stored.instance_name,
+        license_key_id: stored.license_key_id,
+        tier: stored.tier,
+      });
+      return true;
+    }
+
+    // Revoke ONLY on a definitive verdict from the API. Transport failures
+    // (5xx, non-JSON, CORS, offline) must never delete a paid license: the
+    // Lemon Squeezy instance stays activated remotely, so a customer wrongly
+    // revoked here can be permanently locked out of a product they own.
+    if (isDefinitivelyInvalid(result)) {
       localStorage.removeItem(LICENSE_STORAGE_KEY);
       return false;
     }

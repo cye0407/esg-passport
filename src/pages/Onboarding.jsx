@@ -25,7 +25,6 @@ import {
   Upload,
   Database,
   ClipboardCheck,
-  Mail,
   ArrowLeft,
 } from 'lucide-react';
 
@@ -39,7 +38,6 @@ export default function Onboarding() {
   const setupCompleted = getSettings()?.setupCompleted;
 
   const [companyName, setCompanyName] = useState('');
-  const [email, setEmail] = useState('');
   const [industry, setIndustry] = useState('');
   const [customIndustry, setCustomIndustry] = useState('');
   const [country, setCountry] = useState('');
@@ -53,10 +51,8 @@ export default function Onboarding() {
     if (setupCompleted) navigate('/', { replace: true });
   }, [navigate, setupCompleted]);
 
-  const isValidEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-
   const canProceed = () => {
-    if (step === 2) return companyName.trim().length > 0 && isValidEmail(email) && industry && country;
+    if (step === 2) return companyName.trim().length > 0 && industry && country;
     return true;
   };
 
@@ -64,7 +60,7 @@ export default function Onboarding() {
     saveCompanyProfile({
       legalName: companyName.trim(),
       tradingName: companyName.trim(),
-      esgContactEmail: email.trim(),
+      esgContactEmail: '',
       industrySector: industry === 'Other' && customIndustry.trim() ? customIndustry.trim() : industry,
       countryOfIncorporation: country,
       totalEmployees: employeeCount || '',
@@ -80,19 +76,6 @@ export default function Onboarding() {
       selectedQuestionnaires: [],
       gridCountry: EMISSION_FACTORS.electricity[country] ? country : 'EU_AVERAGE',
     });
-
-    // Fire-and-forget lead capture — never blocks onboarding
-    fetch('/api/register-lead', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        company_name: companyName.trim(),
-        industry,
-        country,
-        employees: employeeCount || null,
-      }),
-    }).catch(() => {});
 
     track('onboarding_completed', { destination });
     navigate(destination);
@@ -208,19 +191,6 @@ export default function Onboarding() {
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder={t('onboard.companyNamePlaceholder')}
-                  className="h-12"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-slate-900 font-medium flex items-center gap-2">
-                  <Mail className="w-4 h-4" /> {t('onboard.email')}
-                </Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t('onboard.emailPlaceholder')}
                   className="h-12"
                 />
               </div>

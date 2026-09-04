@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { extractFromText } from '@extract/extractors/registry';
 import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
-import { readPdfText } from '../../web-helpers/pdfReader';
+import { readPdfText, isUnreadablePdfText } from '../../web-helpers/pdfReader';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Upload, FileText, Check, X, AlertTriangle } from 'lucide-react';
@@ -34,6 +34,19 @@ export default function BillDrop({ onDataExtracted }) {
       }
     } else {
       text = await file.text();
+    }
+
+    // A scanned or photographed PDF has no text layer, so readPdfText returns
+    // almost nothing and the file.text() fallback returns raw PDF bytes. Say so
+    // instead of reporting "no ESG data found", which sends the user looking for
+    // a better bill when the problem is the file format.
+    if (isPdf && isUnreadablePdfText(text)) {
+      return {
+        fileName: file.name,
+        result: null,
+        fields: [],
+        error: t('bill.scannedPdf'),
+      };
     }
 
     const result = extractFromText(text);

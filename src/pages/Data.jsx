@@ -45,7 +45,7 @@ import {
 } from 'lucide-react';
 
 export default function Data() {
-  const { tier, isPaid } = useLicense();
+  const { tier, entitlements } = useLicense();
   const { lang, t } = useLanguage();
   // Honor ?period=YYYY-MM query param from deep links on Respond answer cards
   const initialYear = (() => {
@@ -923,7 +923,7 @@ export default function Data() {
           see the upgrade card. The old `tier === 'pro-plus'` gate stranded every
           buyer once the Pro/Pro+ split was retired — a €499 license resolves to
           'pro', so extraction was locked for the people who paid for it. */}
-      {isPaid ? (
+      {entitlements.canExtractDocuments ? (
         <BillDrop onDataExtracted={handleBillExtracted} />
       ) : (
         <ExtractorUpgradeCard tier={tier} />

@@ -30,14 +30,15 @@ import Report from '@/pages/Report';
  * Route wrapper that shows an upgrade prompt for free users.
  * Paid users see the child component as normal.
  */
-function PaidRoute({ feature, children }) {
-  const { isPaid } = useLicense();
+function PaidRoute({ feature, capability, children }) {
+  const { isPaid, entitlements } = useLicense();
+  const hasAccess = capability ? entitlements[capability] : isPaid;
 
   useEffect(() => {
-    if (!isPaid) track('paywall_hit', { feature });
-  }, [isPaid, feature]);
+    if (!hasAccess) track('paywall_hit', { feature });
+  }, [hasAccess, feature]);
 
-  if (!isPaid) {
+  if (!hasAccess) {
     return <UpgradeGate feature={feature} />;
   }
 
@@ -108,9 +109,9 @@ function App() {
           <Route path="/data" element={<Data />} />
           <Route path="/policies" element={<Policies />} />
           <Route path="/documents" element={<Documents />} />
-          <Route path="/report" element={<PaidRoute feature="ESG Report"><Report /></PaidRoute>} />
+          <Route path="/report" element={<PaidRoute feature="ESG Report" capability="canGenerateReport"><Report /></PaidRoute>} />
           <Route path="/demo" element={<Respond demoOnly />} />
-          <Route path="/respond" element={<PaidRoute feature="Questionnaire Response"><Respond /></PaidRoute>} />
+          <Route path="/respond" element={<PaidRoute feature="Questionnaire Response" capability="canUploadQuestionnaire"><Respond /></PaidRoute>} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/requests/:id" element={<RequestWorkspace />} />
           <Route path="/settings" element={<Settings />} />

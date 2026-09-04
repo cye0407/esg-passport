@@ -5,7 +5,9 @@ import {
   storeLicense,
   revalidateStoredLicense,
   getLicenseTier,
+  getStoredLicense,
 } from '@/lib/license';
+import { getEntitlements } from '@/lib/entitlements';
 import { track } from '@/lib/track';
 import ActivationCard from '@/components/ActivationCard';
 import { useLanguage } from '@/components/LanguageContext';
@@ -13,6 +15,8 @@ import { useLanguage } from '@/components/LanguageContext';
 const LicenseContext = createContext({
   isPaid: false,
   tier: 'free',
+  entitlements: getEntitlements('free'),
+  licenseKeyId: null,
   isChecking: true,
   activate: async () => ({ valid: false, error: '' }),
 });
@@ -35,7 +39,10 @@ export function LicenseProvider({ children }) {
   const activate = useCallback(async (key, { source = 'manual' } = {}) => {
     const result = await validateLicenseKey(key);
     if (result.valid) {
-      storeLicense(key, result.instance_id, { tier: result.tier });
+      storeLicense(key, result.instance_id, {
+        license_key_id: result.license_key_id,
+        tier: result.tier,
+      });
       setIsPaid(true);
       setTier(getLicenseTier());
       track('license_activated', { fallback: result.fallback ? 'true' : 'false', source, tier: result.tier || 'pro' });
@@ -71,8 +78,11 @@ export function LicenseProvider({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const entitlements = getEntitlements(tier);
+  const licenseKeyId = getStoredLicense()?.license_key_id ?? null;
+
   return (
-    <LicenseContext.Provider value={{ isPaid, tier, isChecking, activate, autoActivation }}>
+    <LicenseContext.Provider value={{ isPaid, tier, entitlements, licenseKeyId, isChecking, activate, autoActivation }}>
       {autoActivation && (
         <AutoActivationBanner
           result={autoActivation}
@@ -88,7 +98,7 @@ export function LicenseProvider({ children }) {
 function AutoActivationBanner({ result, onDismiss }) {
   const { t } = useLanguage();
   const success = result.ok;
-  const tierLabel = 'ESG Passport';
+  const tierLabel = result.tier === 'questionnaire-pass' ? 'Questionnaire Pass' : 'ESG Passport';
   return (
     <div
       className={`fixed top-0 inset-x-0 z-50 px-4 py-3 text-sm text-white flex items-center justify-center gap-4 ${success ? 'bg-emerald-600' : 'bg-red-600'}`}

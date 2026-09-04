@@ -298,7 +298,10 @@ export default function Settings() {
         </h2>
         <p className="text-sm text-slate-500 mb-4">
           {getStoredLicense()
-            ? t('settings.licenseActive', { date: new Date(getStoredLicense().activated_at).toLocaleDateString(lang === 'de' ? 'de-DE' : undefined) })
+            ? t('settings.licenseActive', {
+              tier: tier === 'questionnaire-pass' ? 'Questionnaire Pass' : 'ESG Passport',
+              date: new Date(getStoredLicense().activated_at).toLocaleDateString(lang === 'de' ? 'de-DE' : undefined),
+            })
             : t('settings.noLicense')}
           {' '}{t('settings.licenseHint')}
         </p>

@@ -12,6 +12,11 @@ import { LANGUAGES, localizeAnswerDrafts, translateAnswer } from '@/lib/translat
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { track } from '@/lib/track';
+import {
+  claimQuestionnaire,
+  getQuestionnairePassClaim,
+  getQuestionnairePassDecision,
+} from '@/lib/questionnairePass';
 import { saveAs } from 'file-saver';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -80,10 +85,11 @@ const SUPPORT_CONFIG = {
 };
 
 export default function Respond({ demoOnly = false }) {
-  const { isPaid } = useLicense();
+  const { tier, entitlements, licenseKeyId } = useLicense();
   const { t, lang } = useLanguage();
   const dateLocale = lang === 'de' ? 'de-DE' : 'en-GB';
-  const canRespond = isPaid && !demoOnly;
+  const canRespond = entitlements.canUploadQuestionnaire && !demoOnly;
+  const canExport = entitlements.canExportResponses && !demoOnly;
   const isDemo = !canRespond;
   const [searchParams] = useSearchParams();
   const requestId = searchParams.get('requestId');
@@ -109,6 +115,9 @@ export default function Respond({ demoOnly = false }) {
   const [showMapping, setShowMapping] = useState(false);
   const [columnMapping, setColumnMapping] = useState({ questionText: '', category: '', subcategory: '', referenceId: '' });
   const [mappingColumns, setMappingColumns] = useState(null);
+  const [passClaim, setPassClaim] = useState(() => getQuestionnairePassClaim(licenseKeyId));
+  const [pendingPassClaim, setPendingPassClaim] = useState(null);
+  const [passBlock, setPassBlock] = useState(null);
 
   const requests = getRequests().filter(r => r.status !== 'closed' && r.status !== 'sent');
   const [selectedRequestId, setSelectedRequestId] = useState(requestId || '');
@@ -121,6 +130,10 @@ export default function Respond({ demoOnly = false }) {
     const data = loadData();
     setSavedResults(data.savedResults || []);
   }, []);
+
+  useEffect(() => {
+    setPassClaim(getQuestionnairePassClaim(licenseKeyId));
+  }, [licenseKeyId]);
 
   // Auto-resume sample after user returns from entering data via the nudge
   useEffect(() => {
@@ -182,6 +195,9 @@ export default function Respond({ demoOnly = false }) {
   const draftSourceLangRef = useRef(null);
 
   const templates = Object.values(QUESTIONNAIRE_TEMPLATES);
+  const claimedSavedResult = passClaim
+    ? savedResults.find(result => result.questionnaireFingerprint === passClaim.fingerprint)
+    : null;
 
   useEffect(() => {
     track('respond_page_viewed');
@@ -235,6 +251,7 @@ export default function Respond({ demoOnly = false }) {
     track('respond_upload_started', { ext });
     setFile(f);
     setParseError(null);
+    setPassBlock(null);
     setShowMapping(false);
     setMappingColumns(null);
   };
@@ -242,10 +259,66 @@ export default function Respond({ demoOnly = false }) {
   const removeFile = () => {
     setFile(null);
     setParseError(null);
+    setPassBlock(null);
     setShowMapping(false);
     setMappingColumns(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  function beginQuestionnaireProcessing(pr, name, { isBuiltInSample = false } = {}) {
+    const builtInSample = isBuiltInSample || pr?.metadata?.source === 'built-in-sample';
+    const decision = getQuestionnairePassDecision({
+      tier,
+      licenseKeyId,
+      questions: pr?.questions,
+      isBuiltInSample: builtInSample,
+    });
+
+    if (decision.status === 'unusable') {
+      setParseError(t('respond.errNoQuestions'));
+      return;
+    }
+    if (decision.status === 'claim-required') {
+      setPassBlock(null);
+      setPendingPassClaim({
+        parseResult: pr,
+        name,
+        fingerprint: decision.fingerprint,
+        questionCount: pr.questions.length,
+      });
+      return;
+    }
+    if (decision.status === 'blocked') {
+      setPassClaim(decision.claim);
+      setPassBlock({ claim: decision.claim });
+      track('questionnaire_pass_second_questionnaire_blocked', {
+        tier: 'questionnaire-pass',
+        source: 'upload',
+        question_count: pr.questions.length,
+      });
+      return;
+    }
+
+    setPassBlock(null);
+    runPipeline(pr, name, {
+      questionnaireFingerprint: builtInSample ? null : decision.fingerprint,
+    });
+  }
+
+  async function confirmQuestionnairePassClaim() {
+    const pending = pendingPassClaim;
+    if (!pending) return;
+    setPendingPassClaim(null);
+    track('questionnaire_pass_claim_started', {
+      tier: 'questionnaire-pass',
+      source: 'upload',
+      question_count: pending.questionCount,
+    });
+    await runPipeline(pending.parseResult, pending.name, {
+      questionnaireFingerprint: pending.fingerprint,
+      shouldClaimPass: true,
+    });
+  }
 
   const parseFile = async () => {
     if (!file) return;
@@ -258,7 +331,7 @@ export default function Respond({ demoOnly = false }) {
         : await engine.parseFile(file);
 
       if (result.success && result.questions.length > 0) {
-        runPipeline(result, file.name);
+        beginQuestionnaireProcessing(result, file.name);
       } else if (result.questions.length === 0) {
         setParseError(result.errors?.length ? result.errors.join('. ') : t('respond.errNoQuestions'));
         setShowMapping(true);
@@ -279,7 +352,7 @@ export default function Respond({ demoOnly = false }) {
     const result = templateToParseResult(templateId, lang);
     if (result) {
       const template = QUESTIONNAIRE_TEMPLATES[templateId];
-      runPipeline(result, templateName(template, lang));
+      beginQuestionnaireProcessing(result, templateName(template, lang), { isBuiltInSample: true });
     }
   };
 
@@ -346,7 +419,7 @@ export default function Respond({ demoOnly = false }) {
 
   // ============ PIPELINE ============
 
-  function saveResults(drafts, name, fw, pr) {
+  function saveResults(drafts, name, fw, pr, questionnaireFingerprint = null) {
     const data = loadData();
     if (!data.savedResults) data.savedResults = [];
     const total = drafts.length;
@@ -355,7 +428,11 @@ export default function Respond({ demoOnly = false }) {
     const score = total > 0 ? Math.round(((bySource.provided * 1.0 + bySource.estimated * 0.5) / total) * 100) : 0;
     const answered = drafts.filter(d => d.answerConfidence !== 'none').length;
 
-    data.savedResults = data.savedResults.filter(r => r.name !== name);
+    data.savedResults = data.savedResults.filter(r => (
+      questionnaireFingerprint
+        ? r.questionnaireFingerprint !== questionnaireFingerprint
+        : r.name !== name
+    ));
     data.savedResults.unshift({
       id: `res_${Date.now()}`,
       name,
@@ -364,6 +441,7 @@ export default function Respond({ demoOnly = false }) {
       answeredCount: answered,
       score,
       createdAt: new Date().toISOString(),
+      questionnaireFingerprint,
       parseResult: pr,
       answers: drafts.map(d => ({
         questionId: d.questionId, questionText: d.questionText, category: d.category,
@@ -384,7 +462,10 @@ export default function Respond({ demoOnly = false }) {
     setSavedResults(data.savedResults);
   }
 
-  async function runPipeline(pr, name) {
+  async function runPipeline(pr, name, {
+    questionnaireFingerprint = null,
+    shouldClaimPass = false,
+  } = {}) {
     setPhase('generating');
     setPipelineError(null);
     setQuestionnaireName(name);
@@ -454,10 +535,30 @@ export default function Respond({ demoOnly = false }) {
       const drafts = engine.generateDrafts(questions, matchResults, dataContexts, config, profile, classifications);
       const normalizedDrafts = drafts.map(normalizeDraft);
 
-      applyGeneratedDrafts(normalizedDrafts, { name, fw, pr });
+      // Persist the entitlement synchronously before exposing successful
+      // results. A storage failure therefore cannot leave generated answers
+      // usable while the one-questionnaire allowance remains unrecorded.
+      if (shouldClaimPass) {
+        const claim = claimQuestionnaire({
+          licenseKeyId,
+          fingerprint: questionnaireFingerprint,
+          displayName: name,
+        });
+        setPassClaim(claim);
+        track('questionnaire_pass_claimed', {
+          tier: 'questionnaire-pass',
+          source: 'upload',
+          question_count: questions.length,
+        });
+      }
+
+      applyGeneratedDrafts(normalizedDrafts, { name, fw, pr, questionnaireFingerprint });
 
       // Stash what an answer-language switch needs to regenerate without re-parsing/re-matching.
-      regenContextRef.current = { questions, matchResults, dataContexts, profile, classifications, name, fw, pr };
+      regenContextRef.current = {
+        questions, matchResults, dataContexts, profile, classifications, name, fw, pr,
+        questionnaireFingerprint,
+      };
       draftSourceLangRef.current = config.language;
 
       setGeneratingProgress({ step: t('respond.progSaving'), percent: 95 });
@@ -473,13 +574,13 @@ export default function Respond({ demoOnly = false }) {
 
   // Merge freshly generated drafts into state, preserving user-edited answers by questionId,
   // and persist for paid users. Shared by the initial pipeline run and answer-language switches.
-  function applyGeneratedDrafts(normalizedDrafts, { name, fw, pr }) {
+  function applyGeneratedDrafts(normalizedDrafts, { name, fw, pr, questionnaireFingerprint = null }) {
     setAnswerDrafts(prev => {
       if (prev.length === 0) return normalizedDrafts;
       const editedMap = new Map(prev.filter(d => d._edited).map(d => [d.questionId, d]));
       return normalizedDrafts.map(d => editedMap.has(d.questionId) ? { ...editedMap.get(d.questionId) } : d);
     });
-    if (isPaid) saveResults(normalizedDrafts, name, fw, pr);
+    if (canExport) saveResults(normalizedDrafts, name, fw, pr, questionnaireFingerprint);
   }
 
   // Answer-language switch. The engine generates en/de natively (highest quality), so a switch
@@ -509,7 +610,12 @@ export default function Respond({ demoOnly = false }) {
       const drafts = engine.generateDrafts(
         ctx.questions, ctx.matchResults, ctx.dataContexts, config, ctx.profile, ctx.classifications
       );
-      applyGeneratedDrafts(drafts.map(normalizeDraft), { name: ctx.name, fw: ctx.fw, pr: ctx.pr });
+      applyGeneratedDrafts(drafts.map(normalizeDraft), {
+        name: ctx.name,
+        fw: ctx.fw,
+        pr: ctx.pr,
+        questionnaireFingerprint: ctx.questionnaireFingerprint,
+      });
       draftSourceLangRef.current = sourceLang;
       track('respond_answer_language_regenerated', { language: sourceLang });
     } catch (err) {
@@ -736,7 +842,7 @@ export default function Respond({ demoOnly = false }) {
       return;
     }
     setPipelineError(null);
-    runPipeline(repreparePayload, questionnaireName);
+    beginQuestionnaireProcessing(repreparePayload, questionnaireName);
   };
 
   const buildExportMetadata = (data, exportLanguage, exportFramework, creator = 'ESG Passport') => {
@@ -1118,12 +1224,12 @@ export default function Respond({ demoOnly = false }) {
               )}
               <Button
                 size="sm"
-                onClick={canRespond ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
+                onClick={canExport ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
                 className="bg-slate-900 hover:bg-slate-800 text-white"
-                title={canRespond ? t('respond.titleExport') : t('respond.titleUnlockExport')}
+                title={canExport ? t('respond.titleExport') : t('respond.titleUnlockExport')}
               >
-                {canRespond ? <Download className="w-4 h-4 mr-1.5" /> : <Shield className="w-4 h-4 mr-1.5" />}
-                {canRespond ? t('respond.export') : responseUpgradeLabel}
+                {canExport ? <Download className="w-4 h-4 mr-1.5" /> : <Shield className="w-4 h-4 mr-1.5" />}
+                {canExport ? t('respond.export') : responseUpgradeLabel}
               </Button>
             </div>
           </div>
@@ -1578,12 +1684,12 @@ export default function Respond({ demoOnly = false }) {
               {t('respond.bottomSummary', { supported: stats?.supported, total: stats?.total, drafts: stats?.drafted, readiness: stats?.readinessPercent })}
             </p>
             <Button
-              onClick={canRespond ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
+              onClick={canExport ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
               className="bg-slate-900 hover:bg-slate-800 text-white"
-              title={canRespond ? '' : t('respond.titleUnlockExportBottom')}
+              title={canExport ? '' : t('respond.titleUnlockExportBottom')}
             >
-              {canRespond ? <Download className="w-4 h-4 mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
-              {canRespond ? t('respond.export') : responseUpgradeLabel}
+              {canExport ? <Download className="w-4 h-4 mr-2" /> : <Shield className="w-4 h-4 mr-2" />}
+              {canExport ? t('respond.export') : responseUpgradeLabel}
             </Button>
           </div>
         )}
@@ -1779,7 +1885,7 @@ export default function Respond({ demoOnly = false }) {
           )}
         </div>
         <p className="text-slate-500 mt-1">
-          {isPaid
+          {canRespond
             ? t('respond.subtitlePaid')
             : t('respond.subtitleDemo')}
         </p>
@@ -1862,7 +1968,7 @@ export default function Respond({ demoOnly = false }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-900">{canRespond ? t('respond.noQHandy') : t('respond.tryExample')}</p>
                   <p className="text-xs text-slate-600 mt-0.5">
-                    {isPaid
+                    {canRespond
                       ? t('respond.samplePaid', { count: sample.questionCount, framework: sample.framework })
                       : t('respond.sampleDemo', { count: sample.questionCount, framework: sample.framework, limit: FREE_PREVIEW_LIMIT })}
                   </p>
@@ -1878,6 +1984,47 @@ export default function Respond({ demoOnly = false }) {
               </div>
             );
           })()}
+
+          {passBlock && (
+            <div className="bg-amber-50 border border-amber-300 rounded-none p-5">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-900">
+                    {t('respond.passAssigned', { name: passBlock.claim.displayName })}
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {claimedSavedResult && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setPassBlock(null);
+                          loadSavedResult(claimedSavedResult);
+                        }}
+                        className="border-amber-400 bg-white text-slate-800 hover:bg-amber-100"
+                      >
+                        <Clock className="w-4 h-4 mr-1.5" />
+                        {t('respond.passReopen')}
+                      </Button>
+                    )}
+                    <a
+                      href={CHECKOUT_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => track('questionnaire_pass_upgrade_clicked', {
+                        tier: 'questionnaire-pass',
+                        source: 'second_questionnaire_block',
+                      })}
+                      className="inline-flex items-center justify-center h-9 px-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-none"
+                    >
+                      {t('respond.passUpgrade')}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {canRespond ? (
             <div
@@ -2070,6 +2217,30 @@ export default function Respond({ demoOnly = false }) {
           )}
         </div>
       )}
+      <Dialog
+        open={!!pendingPassClaim}
+        onOpenChange={(open) => { if (!open) setPendingPassClaim(null); }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('respond.passConfirmTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('respond.passConfirmBody')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPendingPassClaim(null)}>
+              {t('respond.cancel')}
+            </Button>
+            <Button
+              onClick={confirmQuestionnairePassClaim}
+              className="bg-slate-900 hover:bg-slate-800 text-white"
+            >
+              {t('respond.passConfirmButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Export validation dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
         <DialogContent className="max-w-3xl max-h-[88vh] flex flex-col">

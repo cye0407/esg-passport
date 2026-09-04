@@ -13,9 +13,30 @@
  */
 import { track as vercelTrack } from '@vercel/analytics';
 
+const QUESTIONNAIRE_PASS_EVENTS = new Set([
+  'questionnaire_pass_claim_started',
+  'questionnaire_pass_claimed',
+  'questionnaire_pass_second_questionnaire_blocked',
+  'questionnaire_pass_upgrade_clicked',
+]);
+const SAFE_PASS_SOURCES = new Set(['upload', 'second_questionnaire_block']);
+const SAFE_TIERS = new Set(['free', 'questionnaire-pass', 'pro', 'pro-plus']);
+
+export function sanitizeAnalyticsProperties(event, props = {}) {
+  if (!QUESTIONNAIRE_PASS_EVENTS.has(event)) return props;
+
+  const sanitized = {};
+  if (SAFE_TIERS.has(props.tier)) sanitized.tier = props.tier;
+  if (SAFE_PASS_SOURCES.has(props.source)) sanitized.source = props.source;
+  if (Number.isFinite(props.question_count)) {
+    sanitized.question_count = Math.max(0, Math.trunc(props.question_count));
+  }
+  return sanitized;
+}
+
 export function track(event, props) {
   try {
-    vercelTrack(event, props);
+    vercelTrack(event, sanitizeAnalyticsProperties(event, props));
   } catch {
     // Analytics must never break the app.
   }

@@ -14,21 +14,30 @@ function normalizeWelcomeType(raw) {
   if (!raw) return null;
   const v = raw.toLowerCase();
   if (v === 'pro-plus' || v === 'proplus' || v === 'pro+') return 'proplus';
+  if (v === 'questionnaire-pass' || v === 'questionnairepass') return 'questionnairepass';
   return 'default';
 }
 
 export default function ActivationCard() {
   const { isPaid, activate, isChecking } = useLicense();
   const { lang, t } = useLanguage();
-  const [dismissed, setDismissed] = useState(() => !!localStorage.getItem(DISMISS_KEY));
-  const [licenseKey, setLicenseKey] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const welcomeType = typeof window !== 'undefined'
     ? normalizeWelcomeType(new URLSearchParams(window.location.search).get('welcome'))
     : null;
   const justPurchased = welcomeType !== null;
+
+  // A purchase is a new context. If ?activate= fails (stale variant ID, API
+  // outage, unrecognized product) this card is the only retry form the buyer
+  // gets, so a dismissal from some earlier visit must not hide it. Within the
+  // purchase itself the close button still works — it just does not persist
+  // across the redirect.
+  const [dismissed, setDismissed] = useState(
+    () => !justPurchased && !!localStorage.getItem(DISMISS_KEY),
+  );
+  const [licenseKey, setLicenseKey] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // Don't pop up while the license context is still deciding — otherwise
   // buyers with the ?activate= auto-flow would briefly see the modal before
@@ -62,8 +71,12 @@ export default function ActivationCard() {
   }
 
   const headline = justPurchased ? t('act.welcomeHeadline') : t('act.haveKey');
+  const WELCOME_SUB_KEYS = {
+    proplus: 'act.subProPlus',
+    questionnairepass: 'act.subQuestionnairePass',
+  };
   const subheadline = justPurchased
-    ? (welcomeType === 'proplus' ? t('act.subProPlus') : t('act.subDefault'))
+    ? t(WELCOME_SUB_KEYS[welcomeType] || 'act.subDefault')
     : t('act.subGeneric');
   const paidPlanUrl = lang === 'de'
     ? 'https://esgforsuppliers.com/de/passport'
