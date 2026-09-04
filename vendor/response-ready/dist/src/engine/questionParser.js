@@ -177,12 +177,63 @@ function countChar(text, char) {
 // A question head that wraps ends on a connector ("…and/or", "…vulnerable to the", "…reporting
 // year,"), never on terminal punctuation. That is the signal used to pull its tail back on.
 const CONTINUATION_MARKER = /(?:\b(?:and|or|the|a|an|of|to|for|in|on|at|by|with|from|your|our|its|their|any|all|each|other|that|which|as)|,|\/|-|–)\s*$/i;
+/** A line that is only an answer option — the line after a question, never part of it. */
+const ANSWER_TOKEN = /^(?:yes|no|n\/?a|not applicable|true|false|ja|nein|oui|non)[.\s]*$/i;
+/**
+ * A head ending mid-sentence on an ordinary word: lowercase ("…in place to manage") or
+ * title-case, which is where a wrap lands on a proper noun ("…the International Material",
+ * "…CSR/Sustainability Requirements"). ALL-CAPS is excluded so a section heading
+ * ("C. BUSINESS ETHICS") is never read as an unfinished question.
+ */
+const WRAPS_ON_WORD = /\b(?:[a-zà-ÿ]{2,}|[A-ZÀ-Þ][a-zà-ÿ]{2,})\s*$/;
+/** A wrap landing on an acronym: "…a social audit or ESG", "…reported under the GRI". */
+const WRAPS_ON_ACRONYM = /\b[A-ZÀ-Þ]{2,6}\s*$/;
+/** No lowercase anywhere — a section heading ("C. BUSINESS ETHICS"), not a wrapped question. */
+const ALL_CAPS_LINE = /^[^a-zà-ÿ]*$/;
+/** "9. Requested evidence checklist" — a numbered heading, which opens a section, never a tail. */
+const NUMBERED_HEADING = /^\d{1,2}[.)]\s+\S/;
+const HEADING_MINOR_WORD = /^(?:and|or|of|for|the|in|on|to|a|an|&)$/i;
+/**
+ * A short line of capitalised words with no sentence punctuation — "Governance and Ethics".
+ * A wrapped tail runs mid-sentence and reads as prose, so it fails at least one of these.
+ */
+function looksLikeSectionHeading(text) {
+    if (text.length > 60 || /[?.!,;:]\s*$/.test(text))
+        return false;
+    const words = text.split(/\s+/).filter(Boolean);
+    if (words.length === 0 || words.length > 5)
+        return false;
+    return words.every(w => HEADING_MINOR_WORD.test(w) || /^[A-Z0-9][\w&/-]*$/.test(w));
+}
+/**
+ * Whether a question head is still unfinished and should pull in the line below.
+ *
+ * Terminal punctuation ends it. Otherwise a head qualifies either by closing on a connector
+ * (CONTINUATION_MARKER — "…policy in") or by closing mid-sentence on a lowercase content word
+ * ("…in place to manage"). The connector list alone missed the second shape, which is how a
+ * question wrapping across three lines lost its tail and reached the matcher truncated.
+ */
+function headIsIncomplete(text) {
+    if (/[?.!]\s*$/.test(text))
+        return false;
+    if (CONTINUATION_MARKER.test(text) || WRAPS_ON_WORD.test(text))
+        return true;
+    // A trailing acronym is a wrap only when the line has lowercase elsewhere, so an all-caps
+    // section heading is never read as an unfinished question.
+    return WRAPS_ON_ACRONYM.test(text) && !ALL_CAPS_LINE.test(text);
+}
 // Whether a line can be the continuation (tail) of a wrapped question above it — i.e. it is not
 // itself the start of a new item. Rejects new numbered entries, contents lines, form scaffolding
 // ([Fixed row], ☑ options, "Select from"), boilerplate, and pure values/numbers.
 function isContinuationTail(line) {
     const t = line.trim();
-    if (t.length === 0 || t.length > 60)
+    // A full-measure body line in an A4 questionnaire runs past 60 characters — the SAQ wraps at
+    // 63 — so a 60-char cap rejects exactly the mid-question lines this is meant to reabsorb.
+    if (t.length === 0 || t.length > 90)
+        return false;
+    // A bare answer option is the line after a question, never part of it. Cheap to test and it
+    // is the one thing a looser head test could otherwise swallow.
+    if (ANSWER_TOKEN.test(t))
         return false;
     if (STRUCTURED_NUMBERING.test(t) || TOC_ENTRY_START.test(t) || TOC_LINE.test(t))
         return false;
@@ -193,6 +244,24 @@ function isContinuationTail(line) {
     if (SKIP_PATTERNS.some(p => p.test(t)))
         return false;
     if (/^[\d.,%€$£\s()–-]+$/.test(t))
+        return false;
+    // A line that opens something new is never the tail of the line above it. Without these three
+    // an unpunctuated question absorbed the next question, and a section heading disappeared into
+    // the question before it, taking the following question with it.
+    if (NUMBERED_HEADING.test(t))
+        return false;
+    // Only a line that OPENS a question disqualifies itself as a tail. Testing looksLikeQuestion
+    // instead is too broad: it accepts any two-word line ending in "?", which is the exact shape of
+    // a capitalised wrapped tail ("Data System (IMDS)?"), and refusing those reintroduced the
+    // truncation this whole change set exists to remove.
+    // Case carries the signal: a new question is capitalised, a wrapped tail continues mid-sentence
+    // in lowercase. Without that condition "which includes a commitment to legal compliance," is read
+    // as an interrogative opening rather than the relative clause it is.
+    const probe = t.replace(PLEASE_PREFIX, '');
+    const opensNewItem = INTERROGATIVE_START.test(probe) || IMPERATIVE_START.test(probe) || REFERENCE_ID.test(t);
+    if (opensNewItem && /^[A-ZÀ-Þ]/.test(t))
+        return false;
+    if (looksLikeSectionHeading(t))
         return false;
     return true;
 }
@@ -205,7 +274,7 @@ function absorbWrappedTail(lines, headIdx, headText) {
     let text = headText;
     let j = headIdx;
     let absorbed = 0;
-    while (absorbed < 3 && CONTINUATION_MARKER.test(text) && j + 1 < lines.length) {
+    while (absorbed < 5 && headIsIncomplete(text) && j + 1 < lines.length) {
         const cand = lines[j + 1].trim();
         if (!isContinuationTail(cand))
             break;
@@ -214,6 +283,33 @@ function absorbWrappedTail(lines, headIdx, headText) {
         absorbed++;
     }
     return { text, endIdx: j };
+}
+// A trailing run of answer options — "[ ] Yes [ ] No", "☐ All ☐ Most ☐ None" — optionally
+// carrying the next item's reference, which a wrapped form row drags along ("… [ ] N/A HR-04").
+// Each option label is capped so a real clause after the options ("[ ] No. If no, identify
+// excluded sites and the reason.") cannot be consumed.
+// A run of answer options — "[ ] Yes [ ] No", "☐ All ☐ Most ☐ None". Only empty checkboxes and
+// checkbox glyphs count: "●" and "○" are bullets, and "Describe governance responsibilities:
+// ● Board oversight" is asking about the bullet, not offering it as an answer.
+//
+// A label is one or two short words. A word ending in a full stop closes the label, so the
+// clause after the options survives: in "[ ] Yes [ ] No. If no, explain." the run ends at "No."
+// and "If no, explain." is part of the question.
+//
+// Matched anywhere, not just at the end — a form question carries its options mid-line.
+const OPTION_RUN = /(?:(?:\[\s*\]|☐|☑|✓)\s*(?:[A-Za-z][\w/]{0,11}\.|[A-Za-z][\w/]{0,11}(?:\s+[A-Za-z][\w/]{0,11})?)?\s*)+/g;
+/**
+ * Drop answer scaffolding from a question. Form questionnaires put the options on the same
+ * visual line as the question, so without this the matcher scores "Yes No N/A" as part of the
+ * question and the UI shows the checkbox labels back to the user.
+ */
+function stripAnswerScaffolding(text) {
+    const stripped = text
+        .replace(OPTION_RUN, ' ')
+        .replace(/\s+([?.!,;:])/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return stripped.length >= 15 ? stripped : text;
 }
 function normalizeExtractedQuestionText(text) {
     return text
@@ -248,6 +344,49 @@ function extractQuestionFromTableLine(line) {
         return null;
     const referenceId = cells[0] && cells[0].length <= 30 ? cells[0] : undefined;
     return { text: cells[questionIndex], referenceId };
+}
+// A questionnaire reference opening a table row: "PRO-01", "ENV-P01", "LAB-COV01", "C2.1", "Q12".
+// Real assessments prefix by domain AND question type, so a single letter segment is not enough —
+// requiring only PREFIX-NN matched 14 of the 83 references in the EcoVadis-style fixture.
+//
+// A letter segment is required, which is also what keeps an ordinary section number out: "1.2
+// Environmental management systems" is a heading, not a question, and must not acquire a
+// reference id. Long serials like a document number ("NCP-SSA-2026-118") fail the digit bound.
+const ROW_REFERENCE = /^[A-Z]{1,6}(?:[-–][A-Z]{0,4})?[-–]?\d{1,3}(?:\.\d{1,2})*$/;
+/**
+ * A table row whose columns arrive as runs of whitespace rather than pipes:
+ *
+ *   PRO-01   Confirm the registered legal entity, company number …   Free text / see evidence
+ *
+ * PDF and DOCX questionnaires are built this way — EcoVadis-style assessments, SAQ forms and
+ * buyer due-diligence questionnaires all use Ref / Question / Response / Evidence columns. Without
+ * this the whole row is discarded: it opens on a reference token, so neither the interrogative nor
+ * the imperative test ever sees the question sitting behind it.
+ *
+ * The reference column is itself the evidence that a question follows, so the bar for the question
+ * cell is lower than in prose — a bare noun phrase ("Primary industrial activity and material
+ * product groups supplied to Northstar.") is a real item here. Response-type columns are excluded
+ * by the shared skip patterns, which already cover "free text", "select from" and similar.
+ */
+function extractQuestionFromSpacedRow(line) {
+    if (line.trim().startsWith('|'))
+        return null;
+    const cells = line.split(/\s{3,}/).map(c => normalizeExtractedQuestionText(c)).filter(Boolean);
+    if (cells.length < 2)
+        return null;
+    const [reference, ...rest] = cells;
+    if (!ROW_REFERENCE.test(reference))
+        return null;
+    const candidates = rest.filter(cell => cell.length >= 10 && !ANSWER_TOKEN.test(cell) && !SKIP_PATTERNS.some(p => p.test(cell)));
+    if (candidates.length === 0)
+        return null;
+    // The column beside the reference is the question; everything right of it is the response type
+    // and the evidence note. Preferring the longest cell instead picked the evidence column, which
+    // is routinely the longest thing on the row.
+    const text = candidates[0];
+    if (!looksLikeQuestion(text) && text.length < 25)
+        return null;
+    return { text, referenceId: reference };
 }
 function mergeSplitTableRows(lines) {
     const merged = [];
@@ -296,11 +435,26 @@ function questionsFromText(text, fileName) {
             questions.push({
                 id: uuid(),
                 rowIndex: i + 1,
-                text: tableQuestion.text,
+                text: stripAnswerScaffolding(tableQuestion.text),
                 category: currentCategory,
                 referenceId: tableQuestion.referenceId,
                 rawRow: { text: line },
             });
+            continue;
+        }
+        // A PDF/DOCX table row wraps across lines, unlike a markdown row, so its tail is reabsorbed.
+        const spacedQuestion = extractQuestionFromSpacedRow(line);
+        if (spacedQuestion) {
+            const merged = absorbWrappedTail(lines, i, spacedQuestion.text);
+            questions.push({
+                id: uuid(),
+                rowIndex: i + 1,
+                text: stripAnswerScaffolding(merged.text),
+                category: currentCategory,
+                referenceId: spacedQuestion.referenceId,
+                rawRow: { text: line },
+            });
+            i = merged.endIdx;
             continue;
         }
         if (line.length < 50 && !line.includes('?') && !line.match(/^\d+[\.\)]/) && !STRUCTURED_NUMBERING.test(line)) {
@@ -322,14 +476,14 @@ function questionsFromText(text, fileName) {
             if (!isQuestion)
                 continue;
             const merged = absorbWrappedTail(lines, i, cleaned);
-            questions.push({ id: uuid(), rowIndex: i + 1, text: merged.text, category: currentCategory, rawRow: { text: line } });
+            questions.push({ id: uuid(), rowIndex: i + 1, text: stripAnswerScaffolding(merged.text), category: currentCategory, rawRow: { text: line } });
             i = merged.endIdx;
             continue;
         }
         if (!looksLikeQuestion(cleaned))
             continue;
         const merged = absorbWrappedTail(lines, i, cleaned);
-        questions.push({ id: uuid(), rowIndex: i + 1, text: merged.text, category: currentCategory, rawRow: { text: line } });
+        questions.push({ id: uuid(), rowIndex: i + 1, text: stripAnswerScaffolding(merged.text), category: currentCategory, rawRow: { text: line } });
         i = merged.endIdx;
     }
     const seen = new Set();
@@ -412,7 +566,18 @@ async function parseDocxFile(file) {
     try {
         const mammoth = await import('mammoth');
         const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
+        // mammoth's browser build reads { arrayBuffer }; its Node build reads { buffer } and rejects
+        // the other with "Could not find file in options". Try the browser shape first, then fall back,
+        // so the DOCX path works in the app and in Node consumers of the engine alike.
+        let result;
+        try {
+            result = await mammoth.extractRawText({ arrayBuffer });
+        }
+        catch (browserShapeError) {
+            if (typeof Buffer === 'undefined')
+                throw browserShapeError;
+            result = await mammoth.extractRawText({ buffer: Buffer.from(arrayBuffer) });
+        }
         return questionsFromText(result.value, file.name);
     }
     catch (error) {

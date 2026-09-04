@@ -31,7 +31,10 @@ const MANAGEMENT_APPROACH_DE = {
 export const esgInformalPracticeHandler = {
     findRelevant(profile, matchResult) {
         const allDomains = [matchResult.primaryDomain, ...matchResult.secondaryDomains].filter(Boolean);
-        return profile.informalPractices.filter(p => {
+        // informalPractices is optional on the profile, and generateAnswerDrafts maps over questions
+        // with no error handling — so one profile missing it threw partway through and took the whole
+        // questionnaire down rather than losing a single answer.
+        return (profile.informalPractices ?? []).filter(p => {
             const practiceDomains = PRACTICE_TOPIC_TO_DOMAINS[p.topic] || [];
             return practiceDomains.some(d => allDomains.includes(d));
         });

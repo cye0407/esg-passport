@@ -66,8 +66,10 @@ export function deCountries(list, lang) {
 // Generator-level boilerplate strings (not template-specific). Keyed by language.
 const GEN_STRINGS = {
     insufficient: {
-        en: 'This data is not currently tracked. We do not have sufficient information to answer this disclosure.',
-        de: 'Diese Daten werden derzeit nicht erfasst. Uns liegen nicht genügend Informationen vor, um diese Angabe zu beantworten.',
+        // Describes the record, not the company. "This data is not currently tracked" asserted a fact
+        // about the supplier's practices that nothing in the data map supports.
+        en: 'We do not have this data on record for this question, so there is not enough information here to answer this disclosure.',
+        de: 'Für diese Frage haben wir diese Daten nicht hinterlegt; uns liegen nicht genügend Informationen vor, um diese Angabe zu beantworten.',
     },
     unknownInput: {
         en: 'Unknown — input required.',
@@ -418,7 +420,29 @@ export function createAnswerGenerator(deps) {
         };
     }
     function generateAnswerDrafts(questions, matchResults, dataContexts, config, profile, classifications) {
-        return questions.map((q, i) => generateAnswerDraft(q, matchResults[i], dataContexts[i], config, profile, classifications?.[i]));
+        // One question must not cost the questionnaire. A template or pack hook that throws used to
+        // abort the whole batch, losing every draft already produced — and a supplier with an eighty
+        // question form got nothing back. A failure is isolated to its own question and reported in
+        // the draft, so it stays visible rather than being silently swallowed.
+        return questions.map((q, i) => {
+            try {
+                return generateAnswerDraft(q, matchResults[i], dataContexts[i], config, profile, classifications?.[i]);
+            }
+            catch (error) {
+                const lang = config.language === 'de' ? 'de' : 'en';
+                return {
+                    questionId: q.id,
+                    questionText: q.text,
+                    category: q.category,
+                    matchResult: matchResults[i],
+                    dataContext: dataContexts[i],
+                    answer: GEN_STRINGS.unknownInput[lang],
+                    answerConfidence: 'none',
+                    confidenceSource: 'unknown',
+                    methodology: `Draft generation failed for this question: ${error instanceof Error ? error.message : String(error)}`,
+                };
+            }
+        });
     }
     return { generateAnswerDraft, generateAnswerDrafts };
 }

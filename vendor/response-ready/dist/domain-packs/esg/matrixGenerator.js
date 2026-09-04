@@ -18,7 +18,7 @@ export const esgMaturityResolver = {
         const topic = domainToTopic(domain);
         if (!topic)
             return hasData ? 'formal' : 'none';
-        const relevantPractices = profile.informalPractices.filter(p => p.topic === topic);
+        const relevantPractices = (profile.informalPractices ?? []).filter(p => p.topic === topic);
         const hasFormal = relevantPractices.some(p => p.isFormalized);
         const hasInformal = relevantPractices.length > 0;
         if (hasFormal || hasData)
@@ -56,7 +56,7 @@ export const esgMatrixGenerator = {
                     : 'Relevant data has not been tracked for this disclosure.');
                 return parts.join(' ');
             }
-            const relevantPractices = profile.informalPractices.filter(p => p.topic === topic);
+            const relevantPractices = (profile.informalPractices ?? []).filter(p => p.topic === topic);
             if (relevantPractices.length > 0) {
                 const descs = relevantPractices.slice(0, 3).map(p => p.description).join('; ');
                 parts.push(de
@@ -96,7 +96,7 @@ export const esgMatrixGenerator = {
                     : 'Relevant data has not been tracked for this disclosure.');
                 return parts.join(' ');
             }
-            const relevantPractices = profile.informalPractices.filter(p => p.topic === topic);
+            const relevantPractices = (profile.informalPractices ?? []).filter(p => p.topic === topic);
             if (relevantPractices.length > 0) {
                 parts.push(de
                     ? `${companyName} wendet in diesem Bereich folgende Maßnahmen an:`

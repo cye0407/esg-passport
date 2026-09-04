@@ -771,7 +771,10 @@ export const ESG_ANSWER_TEMPLATES = [
                     parts.push(de
                         ? `Gesamtzahl der geleisteten Arbeitsstunden: ${fmt(hoursWorked, lang)}.`
                         : `Total hours worked: ${fmt(hoursWorked)}.`);
-                if (fat === 0 && lti === 0) {
+                // Both figures must have been ENTERED as zero. num() returns 0 for an absent field, so
+                // testing the values alone let a supplier who supplied only a TRIR claim a clean safety
+                // record — zero lost-time incidents and zero fatalities — that they never stated.
+                if (has(dm, 'fatalities') && has(dm, 'lostTimeIncidents') && fat === 0 && lti === 0) {
                     parts.push(de
                         ? 'Wir haben keine Ausfallzeit-Unfälle und keine Todesfälle verzeichnet.'
                         : 'We recorded zero lost time incidents and zero fatalities.');
@@ -804,10 +807,18 @@ export const ESG_ANSWER_TEMPLATES = [
                 parts.push(de
                     ? 'Unser Arbeitssicherheits-Managementsystem ist nach ISO 45001 zertifiziert.'
                     : 'Our occupational health and safety management system is certified to ISO 45001.');
-            if (hasData)
+            // List only the metrics actually supplied. Naming both always meant a supplier who entered
+            // one of them reported a zero for the other that they never gave.
+            if (hasData) {
+                const metrics = [];
+                if (has(dm, 'trir'))
+                    metrics.push(`TRIR ${fmt(trir, lang)}`);
+                if (has(dm, 'lostTimeIncidents'))
+                    metrics.push(de ? `Ausfallzeit-Unfälle ${lti}` : `lost time incidents ${lti}`);
                 parts.push(de
-                    ? `Erfasste Arbeitssicherheitsleistung: TRIR ${fmt(trir, lang)}, Ausfallzeit-Unfälle ${lti}.`
-                    : `Recorded H&S performance: TRIR ${fmt(trir, lang)}, lost time incidents ${lti}.`);
+                    ? `Erfasste Arbeitssicherheitsleistung: ${metrics.join(', ')}.`
+                    : `Recorded H&S performance: ${metrics.join(', ')}.`);
+            }
             if (!has45001 && !hasData) {
                 return { answer: de
                         ? 'Unseren Ansatz zum Management der Arbeitssicherheit haben wir für diese Frage nicht gesondert dokumentiert.'
@@ -951,10 +962,19 @@ export const ESG_ANSWER_TEMPLATES = [
                         : ` This represents ${fmt(haz / waste * 100)}% of our total waste of ${fmt(waste)} kg.`;
                 return answer;
             }
-            if (has(dm, 'totalWaste')) {
+            // num() returns 0 for an absent field, so "no hazardous waste" and "the user recorded zero"
+            // are indistinguishable unless has() is asked. Without this, a supplier who entered only a
+            // total was told they generate no hazardous waste and that every kilo of it is non-hazardous
+            // — a fabricated environmental claim sent to their customer.
+            if (has(dm, 'hazardousWaste')) {
                 return de
                     ? `Wir haben${periodStr} keinen gefährlichen Abfall erzeugt. Unser gesamter Abfall von ${fmt(waste, lang)} kg besteht ausschließlich aus nicht gefährlichen Materialien.`
                     : `We did not generate any hazardous waste${periodStr}. Our total waste of ${fmt(waste)} kg consists entirely of non-hazardous materials.`;
+            }
+            if (has(dm, 'totalWaste')) {
+                return { answer: de
+                        ? `Unser gesamtes Abfallaufkommen${periodStr} betrug ${fmt(waste, lang)} kg. Für diese Frage haben wir keine Aufschlüsselung nach gefährlichem Abfall hinterlegt.`
+                        : `Our total waste${periodStr} was ${fmt(waste)} kg. We do not have a hazardous-waste breakdown on record for this question.`, drafted: true };
             }
             return null;
         },
@@ -973,15 +993,19 @@ export const ESG_ANSWER_TEMPLATES = [
             const periodStr = de
                 ? (period ? ` für den Zeitraum ${period}` : ' im Berichtszeitraum')
                 : (period ? ` during ${period}` : ' during the reporting period');
-            const parts = [];
-            parts.push(de
-                ? 'Gefährliche Abfälle werden getrennt von nicht gefährlichen Stoffen erfasst, entsprechend gekennzeichnet und ausschließlich über zugelassene, konzessionierte Entsorgungsunternehmen entsorgt. Für jede Abholung werden Entsorgungsnachweise bzw. Begleitscheine geführt, um eine lückenlose Rückverfolgbarkeit bis zur genehmigten Behandlungs- oder Beseitigungsanlage sicherzustellen.'
-                : 'Hazardous waste is segregated from non-hazardous streams, labelled accordingly, and removed only by licensed, authorised waste carriers. Documented consignment notes (manifests) are retained for every collection to maintain full traceability through to a permitted treatment or disposal facility.');
-            if (haz > 0)
-                parts.push(de
-                    ? `Im Rahmen dieses Prozesses wurden${periodStr} ${fmt(haz, lang)} kg als gefährlicher Abfall eingestuft und entsprechend gehandhabt.`
-                    : `Under this process,${periodStr} ${fmt(haz)} kg was classified and handled as hazardous waste.`);
-            return { answer: parts.join(' '), drafted: true };
+            // Segregation, licensed carriers and retained consignment notes are things a supplier
+            // either does or does not do. Nothing in the data map says which, so they cannot be
+            // asserted — report the figure if there is one, and say what is missing.
+            // has(), not haz > 0: a recorded zero IS a figure, and denying it tells a supplier who
+            // entered 0 kg that we hold no figures for them.
+            if (has(dm, 'hazardousWaste')) {
+                return { answer: de
+                        ? `Als gefährlicher Abfall wurden${periodStr} ${fmt(haz, lang)} kg erfasst. Für diese Frage haben wir keine Beschreibung des Entsorgungswegs hinterlegt.`
+                        : `We recorded ${fmt(haz)} kg of hazardous waste${periodStr}. We do not have a description of its handling process on record for this question.`, drafted: true };
+            }
+            return { answer: de
+                    ? 'Für diese Frage haben wir weder Mengen zu gefährlichen Abfällen noch einen dokumentierten Entsorgungsprozess hinterlegt.'
+                    : 'We do not have hazardous waste figures or a documented handling process on record for this question.', drafted: true };
         },
     },
     // MEASURE: Circular economy initiatives
@@ -1235,7 +1259,10 @@ export const ESG_ANSWER_TEMPLATES = [
                 parts.push(de ? `Ja, ${orgDe} ist eine Tochtergesellschaft von ${parent}.` : `Yes, ${name || 'our organization'} is a subsidiary of ${parent}.`);
             }
             else {
-                parts.push(de ? `Nein, ${orgDe} ist keine Tochtergesellschaft eines größeren Konzerns.` : `No, ${name || 'our organization'} is not a subsidiary of a larger group.`);
+                // No parent on file is not the same as having no parent.
+                parts.push(de
+                    ? 'Für diese Frage haben wir keine Angaben zur Konzernzugehörigkeit hinterlegt.'
+                    : 'We do not have parent company or group structure details on record for this question.');
                 if (ownership)
                     parts.push(de ? `Das Unternehmen agiert als eigenständiges ${ownership.toLowerCase()}-Unternehmen.` : `The company operates as an independent ${ownership.toLowerCase()} business.`);
             }
@@ -1424,8 +1451,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 return parts.join(' ');
             }
             return { answer: de
-                    ? 'Unsere Organisation verfügt derzeit über keine Umwelt- oder Qualitätsmanagement-Zertifizierungen durch Dritte.'
-                    : 'Our organization does not currently hold third-party environmental or quality management certifications.', drafted: true };
+                    ? 'Für diese Frage haben wir keine Umwelt- oder Qualitätsmanagement-Zertifizierungen durch Dritte hinterlegt.'
+                    : 'We do not have third-party environmental or quality management certifications on record for this question.', drafted: true };
         },
     },
     // ISO 45001 specific (H&S certification)
@@ -1443,8 +1470,8 @@ export const ESG_ANSWER_TEMPLATES = [
                     : 'Yes, our organization holds ISO 45001 certification for our occupational health and safety management system.';
             }
             return { answer: de
-                    ? 'Unsere Organisation verfügt derzeit über keine ISO-45001- oder gleichwertige Arbeitssicherheitszertifizierung.'
-                    : 'Our organization does not currently hold ISO 45001 or equivalent health and safety certification.', drafted: true };
+                    ? 'Für diese Frage haben wir keine ISO-45001- oder gleichwertige Arbeitssicherheitszertifizierung hinterlegt.'
+                    : 'We do not have ISO 45001 or an equivalent health and safety certification on record for this question.', drafted: true };
         },
     },
     // ===================================================================
@@ -1508,8 +1535,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 return de ? `Unser erklärtes Nachhaltigkeitsziel lautet: ${goal}.` : `Our stated sustainability goal is: ${goal}.`;
             }
             return { answer: de
-                    ? 'Wir haben für diese Frage keine dokumentierten Nachhaltigkeitsziele oder -vorgaben formalisiert.'
-                    : 'We have not formalized documented sustainability goals or targets for this question.', drafted: true };
+                    ? 'Für diese Frage haben wir keine dokumentierten Nachhaltigkeitsziele oder -vorgaben hinterlegt.'
+                    : 'We do not have documented sustainability goals or targets on record for this question.', drafted: true };
         },
     },
     // POLICY: Climate targets / SBTi / net-zero
@@ -1533,8 +1560,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 return parts.join(' ');
             }
             parts.push(de
-                ? 'Wir haben kein formelles wissenschaftsbasiertes Ziel (SBTi) oder keine Netto-Null-Verpflichtung gesetzt und verfolgen für diese Frage keinen dokumentierten Dekarbonisierungsfahrplan.'
-                : 'We have not set a formal science-based target (SBTi) or net-zero commitment, and do not track a documented decarbonization roadmap for this question.');
+                ? 'Für diese Frage haben wir kein wissenschaftsbasiertes Ziel (SBTi), keine Netto-Null-Verpflichtung und keinen Dekarbonisierungsfahrplan hinterlegt.'
+                : 'We do not have a science-based target (SBTi), a net-zero commitment or a decarbonisation roadmap on record for this question.');
             if (total > 0)
                 parts.push(de
                     ? `Unsere aktuellen Scope-1- und Scope-2-Emissionen betragen insgesamt ${fmt(total, lang)} tCO2e.`
@@ -1756,10 +1783,17 @@ export const ESG_ANSWER_TEMPLATES = [
                     ? 'Das Vorfallmanagement erfolgt innerhalb unseres nach ISO 45001 zertifizierten Arbeitssicherheits-Managementsystems.'
                     : 'Incident management is conducted within our ISO 45001-certified occupational health and safety management system.');
             }
+            // TRIR was printed unconditionally, so supplying only lost-time incidents reported a TRIR of
+            // zero the supplier never gave. Name only what was entered.
             if (has(dm, 'trir') || has(dm, 'lostTimeIncidents')) {
+                const metrics = [];
+                if (has(dm, 'trir'))
+                    metrics.push(`TRIR ${fmt(trir, lang)}`);
+                if (has(dm, 'lostTimeIncidents'))
+                    metrics.push(de ? `Ausfallzeit-Unfälle: ${lti}` : `lost time incidents: ${lti}`);
                 parts.push(de
-                    ? `Erfasste Sicherheitsleistung: TRIR ${fmt(trir, lang)}${has(dm, 'lostTimeIncidents') ? `, Ausfallzeit-Unfälle: ${lti}` : ''}.`
-                    : `Recorded safety performance: TRIR ${fmt(trir, lang)}${has(dm, 'lostTimeIncidents') ? `, lost time incidents: ${lti}` : ''}.`);
+                    ? `Erfasste Sicherheitsleistung: ${metrics.join(', ')}.`
+                    : `Recorded safety performance: ${metrics.join(', ')}.`);
             }
             parts.push(de
                 ? 'Unseren Prozess zur Untersuchung von Vorfällen und zu Korrekturmaßnahmen haben wir für diese Frage nicht gesondert dokumentiert.'
