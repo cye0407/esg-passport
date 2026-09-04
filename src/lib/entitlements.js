@@ -3,6 +3,8 @@ const ENTITLEMENTS_BY_TIER = Object.freeze({
     canUploadQuestionnaire: false,
     canExtractDocuments: false,
     canExportResponses: false,
+    canBuildPolicies: false,
+    canGenerateReport: false,
     maxQuestionnaires: 0,
     hasUnlimitedQuestionnaires: false,
   }),
@@ -10,6 +12,11 @@ const ENTITLEMENTS_BY_TIER = Object.freeze({
     canUploadQuestionnaire: true,
     canExtractDocuments: true,
     canExportResponses: true,
+    // The Pass buys finishing ONE questionnaire. The guided policy builder and
+    // the standalone ESG Report are the ongoing system, which is the Passport.
+    // COVERAGE-REPORT-SPEC.md requires canBuildPolicies false for this tier.
+    canBuildPolicies: false,
+    canGenerateReport: false,
     maxQuestionnaires: 1,
     hasUnlimitedQuestionnaires: false,
   }),
@@ -17,6 +24,8 @@ const ENTITLEMENTS_BY_TIER = Object.freeze({
     canUploadQuestionnaire: true,
     canExtractDocuments: true,
     canExportResponses: true,
+    canBuildPolicies: true,
+    canGenerateReport: true,
     maxQuestionnaires: null,
     hasUnlimitedQuestionnaires: true,
   }),
@@ -24,6 +33,8 @@ const ENTITLEMENTS_BY_TIER = Object.freeze({
     canUploadQuestionnaire: true,
     canExtractDocuments: true,
     canExportResponses: true,
+    canBuildPolicies: true,
+    canGenerateReport: true,
     maxQuestionnaires: null,
     hasUnlimitedQuestionnaires: true,
   }),

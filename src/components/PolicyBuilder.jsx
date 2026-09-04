@@ -88,7 +88,10 @@ function StatusPill({ status }) {
 }
 
 export default function PolicyBuilder() {
-  const { isPaid, isChecking } = useLicense();
+  // Gate on the capability, not on "is any tier paid": a EUR 99 Questionnaire
+  // Pass must not unlock the EUR 499 guided builders. COVERAGE-REPORT-SPEC.md.
+  const { entitlements, isChecking } = useLicense();
+  const canBuildPolicies = entitlements.canBuildPolicies;
   const profile = getCompanyProfile();
   const company = (profile && (profile.tradingName || profile.legalName)) || 'Your company';
   const today = todayStr();
@@ -129,7 +132,7 @@ export default function PolicyBuilder() {
   // opens that builder (paid) or the free template (free), then clears the param
   // (valid OR invalid) so a refresh/back doesn't re-trigger it. Waits until the
   // license check has settled (isChecking) so a paid user on a hard load isn't
-  // bounced to the free view while isPaid is still resolving.
+  // bounced to the free view while canBuildPolicies is still resolving.
   useEffect(() => {
     if (isChecking) return;
     const b = searchParams.get('build');
@@ -157,7 +160,7 @@ export default function PolicyBuilder() {
   };
 
   function openBuilder(id) {
-    if (!isPaid) {
+    if (!canBuildPolicies) {
       track('policy_builder_locked_click', { builder: id });
       setView('free');
       window.scrollTo({ top: 0 });
@@ -428,7 +431,7 @@ export default function PolicyBuilder() {
   function LibraryCard({ id }) {
     const m = builderMeta(id);
     const st = statusOf(id);
-    const locked = !isPaid;
+    const locked = !canBuildPolicies;
     return (
       <button
         type="button"
@@ -513,16 +516,16 @@ export default function PolicyBuilder() {
         <div className="mb-4">
           <h2 className="text-xl font-bold text-slate-900 mb-1">Your policy library</h2>
           <p className="text-slate-500 text-[13.5px] max-w-2xl">
-            The policies your customers’ ESG forms ask about. {isPaid
+            The policies your customers’ ESG forms ask about. {canBuildPolicies
               ? 'Pick one — we walk you through plain questions and write the policy for you. No blank templates.'
               : 'Use the free template below to write your own, or unlock the guided builder to have each one written for you.'}
           </p>
         </div>
 
-        {!isPaid && <UpgradeBanner />}
-        {isPaid && <Summary />}
+        {!canBuildPolicies && <UpgradeBanner />}
+        {canBuildPolicies && <Summary />}
 
-        {!isPaid && (
+        {!canBuildPolicies && (
           <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               type="button"
@@ -541,7 +544,7 @@ export default function PolicyBuilder() {
         )}
 
         <div className="text-[11px] uppercase tracking-wider text-slate-400 mb-2">
-          {isPaid ? 'Guided builders' : 'Included with ESG Passport'}
+          {canBuildPolicies ? 'Guided builders' : 'Included with ESG Passport'}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {BUILDER_ORDER.map((id) => (

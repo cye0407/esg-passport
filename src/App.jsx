@@ -109,7 +109,7 @@ function App() {
           <Route path="/data" element={<Data />} />
           <Route path="/policies" element={<Policies />} />
           <Route path="/documents" element={<Documents />} />
-          <Route path="/report" element={<PaidRoute feature="ESG Report"><Report /></PaidRoute>} />
+          <Route path="/report" element={<PaidRoute feature="ESG Report" capability="canGenerateReport"><Report /></PaidRoute>} />
           <Route path="/demo" element={<Respond demoOnly />} />
           <Route path="/respond" element={<PaidRoute feature="Questionnaire Response" capability="canUploadQuestionnaire"><Respond /></PaidRoute>} />
           <Route path="/requests" element={<Requests />} />

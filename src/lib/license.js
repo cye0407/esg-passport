@@ -52,6 +52,14 @@ export function tierFromResponse(
     return 'pro';
   }
 
+  // The name map cannot tell a Pass from a Passport. If the Pass variant ID is
+  // not configured in this build, a Pass sold as a variant of the "ESG Passport"
+  // product would fall through to 'pro' and hand a EUR 99 buyer the EUR 499
+  // product, silently. Refuse the fallback instead: a blocked buyer complains
+  // and we fix it; a leaked one never tells us. Customers who already activated
+  // are unaffected — they are covered by GRANDFATHERED_TIERS on revalidation.
+  if (!questionnairePassVariantId) return null;
+
   const name = normalizeProductName(
     data?.meta?.product_name || data?.license_key?.product_name,
   );
@@ -95,6 +103,26 @@ function getInstanceName() {
   const generated = generateInstanceName();
   localStorage.setItem(LICENSE_INSTANCE_NAME_KEY, generated);
   return generated;
+}
+
+// A license is revoked locally only when Lemon Squeezy actually said it is bad.
+// `code` is populated solely from a parsed API body, so any transport or parse
+// failure arrives here with no code and is treated as "unknown", not "invalid".
+// unrecognized_product is excluded on purpose: it is metadata drift, handled by
+// the GRANDFATHERED_TIERS branch above.
+const DEFINITIVE_INVALID_CODES = new Set([
+  'not_found',
+  'disabled',
+  'expired',
+  'inactive',
+  'invalid',
+]);
+
+export function isDefinitivelyInvalid(result) {
+  const code = String(result?.code || '').trim().toLowerCase();
+  if (!code) return false;
+  if (code === 'unrecognized_product') return false;
+  return DEFINITIVE_INVALID_CODES.has(code) || code.includes('not found');
 }
 
 function isAlreadyDeactivatedResponse(status, error) {
@@ -384,8 +412,11 @@ export async function revalidateStoredLicense() {
       return true;
     }
 
-    // Only revoke if we got a definitive "invalid" from the API
-    if (result.error && !result.error.includes('internet connection')) {
+    // Revoke ONLY on a definitive verdict from the API. Transport failures
+    // (5xx, non-JSON, CORS, offline) must never delete a paid license: the
+    // Lemon Squeezy instance stays activated remotely, so a customer wrongly
+    // revoked here can be permanently locked out of a product they own.
+    if (isDefinitivelyInvalid(result)) {
       localStorage.removeItem(LICENSE_STORAGE_KEY);
       return false;
     }

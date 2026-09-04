@@ -1,10 +1,33 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockFetch = vi.fn();
 
 vi.stubGlobal('fetch', mockFetch);
 
+const originalLocation = Object.getOwnPropertyDescriptor(window, 'location');
+
+// jsdom serves pages from http://localhost, which makes isLocalDev() true and
+// silently routes every request through the local-dev fallback. Tests that care
+// about real behaviour must pretend to be on the deployed origin.
+function useProductionOrigin() {
+  Object.defineProperty(window, 'location', {
+    value: {
+      hostname: 'esgforsuppliers.com',
+      protocol: 'https:',
+      pathname: '/app/',
+      search: '',
+      hash: '',
+    },
+    writable: true,
+    configurable: true,
+  });
+}
+
 describe('license flow', () => {
+  afterEach(() => {
+    if (originalLocation) Object.defineProperty(window, 'location', originalLocation);
+  });
+
   beforeEach(async () => {
     localStorage.clear();
     mockFetch.mockReset();
@@ -239,6 +262,79 @@ describe('license flow', () => {
       instance_name: 'web-test-instance-id',
       license_key_id: 42,
     });
+  });
+
+
+  // --- Revocation must require a definitive verdict from Lemon Squeezy -------
+  // A wrongly revoked license cannot always be reactivated: the remote instance
+  // stays active, so an activation-limited key locks the customer out for good.
+  const storedPro = () => JSON.stringify({
+    key: 'abcd-1234',
+    instance_id: 'existing-instance',
+    activated_at: '2026-01-01T00:00:00.000Z',
+    last_validated: '2026-01-01T00:00:00.000Z',
+    tier: 'pro',
+  });
+
+  it.each([
+    ['a 5xx from the license API', () => mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 502,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ error: 'Could not reach license server' }),
+    })],
+    ['a non-JSON response (HTML error page)', () => mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      headers: { get: () => 'text/html' },
+      json: async () => ({}),
+    })],
+    ['a network-level throw', () => mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'))],
+    ['a malformed JSON body', () => mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => { throw new SyntaxError('Unexpected token'); },
+    })],
+  ])('keeps a paid license when revalidation hits %s', async (_label, arrange) => {
+    useProductionOrigin();
+    localStorage.setItem('esg_passport_license', storedPro());
+    arrange();
+    const { revalidateStoredLicense } = await import('../license');
+
+    await revalidateStoredLicense();
+
+    expect(localStorage.getItem('esg_passport_license')).not.toBeNull();
+  });
+
+  it('revokes only when Lemon Squeezy definitively rejects the key', async () => {
+    useProductionOrigin();
+    localStorage.setItem('esg_passport_license', storedPro());
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ error: 'expired' }),
+    });
+    const { revalidateStoredLicense } = await import('../license');
+
+    expect(await revalidateStoredLicense()).toBe(false);
+    expect(localStorage.getItem('esg_passport_license')).toBeNull();
+  });
+
+  // --- The name fallback must not be able to promote a Pass to full access ---
+  it('refuses the product-name fallback when the Pass variant ID is unconfigured', async () => {
+    const { tierFromResponse } = await import('../license');
+    // The exact shape Lemon Squeezy returns if the Pass is sold as a variant of
+    // the existing "ESG Passport" product and the build lost its Pass variant ID.
+    const passSoldUnderPassportProduct = {
+      meta: { product_name: 'ESG Passport', variant_id: 2090065 },
+    };
+    expect(tierFromResponse(passSoldUnderPassportProduct, '', '')).toBeNull();
+    expect(tierFromResponse(passSoldUnderPassportProduct, '', '')).not.toBe('pro');
+    // Configured build: the same response resolves to the Pass, never to pro.
+    expect(tierFromResponse(passSoldUnderPassportProduct, '2090065', '1532536'))
+      .toBe('questionnaire-pass');
   });
 
   it('fails closed for an unfamiliar tier stored locally', async () => {
