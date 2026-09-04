@@ -55,60 +55,71 @@ Already built:
 To build: **the join.** `dataRetrieval` records what is present and never emits
 "this question needed something absent." Coverage is that inverse, aggregated.
 
-## The coverage model
+## What the report says
 
-**Coverage means "what Passport can draft", not "what extraction found."**
-Extraction is one source of several, and the smallest. Measuring only extraction
-understates the product by more than half and makes the headline number look
-like a failure when it isn't.
+Three groups. The wording below is what the user reads — keep it in these words,
+not in engine terms.
 
-Every parsed question resolves to the best available draft source:
+> **Your questionnaire: 81 questions**
+>
+> **8 answered from your documents**
+> We found these in the bills and records you uploaded. Each one shows the
+> number and the page it came from.
+>
+> **61 written for you to check**
+> We've written these from what you've told us about your business. Read them
+> before you send — they're a starting point, not a finished answer.
+>
+> **12 we can't answer**
+> These need something only you have.
 
-**1. Drafted from your documents.**
-Question maps to a field present in the extracted set. Show value, unit,
-confidence and `source.page` — provenance is the point, not the count.
+Behind those three lines: the first is `answerConfidence: 'high'`, the second
+`'medium'`, the third `'none'`.
 
-**2. Drafted from a guided policy.**
-`matchBuilderId(text)` maps the question to one of nine builders — Code of
-Conduct, Anti-Corruption & Anti-Bribery, Whistleblowing, Data Privacy, Supplier
-Code of Conduct, Health & Safety, Equal Opportunity, Environmental, Training &
-Development. The user answers the mad-libs prompts and gets a real policy
-document, so the questionnaire answer becomes true rather than merely written.
+### Measured end to end, 2026-09-04
 
-**3. Drafted from your answers and practices.**
-`answerTemplates`, `matrixGenerator` (QuestionType × Maturity) and
-`informalPracticeHandler` — the "we do this but haven't written it down" path.
-Not yet measured; measure before the report ships.
+`createResponseEngine(esgDomainPack)` over three real questionnaires, at three
+levels of user input.
 
-**4. Needs a document you haven't added.**
-Maps to an extractable field that wasn't found. Name the document that would
-supply it — "your waste manifest would answer 6 of these." The most motivating
-item on the page: a concrete step that visibly moves questions into bucket 1.
+| | A · 17 q | B · 81 q | C · 51 q |
+|---|---|---|---|
+| Gets some answer | 100% | 100% | 100% |
+| Answered or written (high + medium) | 13 | 69 | 44 |
+| **Answered from their own documents (high)** | **0** | **8** | **5** |
 
-**5. Only you can decide this.**
-Targets, commitments, judgement. Honest residue, and it should stay visible.
+How it moves as the user adds data, fixture B: **65 → 67 → 69** written, and
+**0 → 8** answered from documents.
 
-### Measured, 91-question questionnaire
+**This is the finding that shapes the page.** Someone who uploads nothing at all
+already gets 65 of 81 written, because the templates carry most of it. Adding
+their bills and policies moves that to 69. So "we filled in 85% of your
+questionnaire" is true and misleading at once — it measures the template
+library, not their documents, and a supplier who forwards 69 unchecked answers
+to a buyer has not been well served.
 
-| Source | Questions | Note |
-|---|---|---|
-| Extraction (numeric fields) | ~20 | from domain overlap with the 20 extractable fields |
-| Policy builder (`matchBuilderId`) | 15 | measured directly; overlap with extraction ≈ 0 |
-| Templates / maturity / informal | ? | **unmeasured — do this next** |
+What their documents actually buy is the first group going from 0 to 8: answers
+with their own numbers and a page reference. Small, true, and the only part no
+one else can do. Say that, and don't inflate it with the rest.
 
-~35 of 91 before templates are counted. The earlier "15–25%" figure counted
-extraction alone and was the wrong denominator for the product.
+### Sources behind the second group
 
-`matchBuilderId` looks conservative: Code of Conduct and Supplier Code of
-Conduct scored zero on a questionnaire with 31 `buyer_requirements` items.
-Worth widening its rules before trusting the bucket-2 count.
+- `answerTemplates`, `matrixGenerator` (question type × maturity) and
+  `informalPracticeHandler` — the bulk of it.
+- the nine guided policy builders, reachable via `matchBuilderId(text)`: Code of
+  Conduct, Anti-Corruption & Anti-Bribery, Whistleblowing, Data Privacy,
+  Supplier Code of Conduct, Health & Safety, Equal Opportunity, Environmental,
+  Training & Development. These matter more than their share suggests: the user
+  ends up holding a real policy document, so the answer becomes true rather than
+  just written. Measured at 15/91 on the earlier fixture, 19/81 on B.
 
-### The right way to measure this
+`matchBuilderId` is conservative — Code of Conduct and Supplier Code of Conduct
+score zero on a questionnaire with 31 `buyer_requirements` items. Widen it.
 
-Run the assembled engine (`createResponseEngine(pack)`) over the parsed
-questions against a representative company data set and count how many produce a
-non-empty draft. That is the real number, and it is the number the page should
-quote. Everything above is component-level estimation.
+### Also worth showing
+
+Which document would move questions into the first group — "your waste manifest
+would answer 6 of these." A concrete next step the user can act on today, and
+the strongest reason to come back.
 
 ### Measured, 2026-09-03 — `testing/tough-esg-questionnaires-2026-07-13.xlsx`
 
@@ -119,14 +130,13 @@ quote. Everything above is component-level estimation.
   regulatory 8, effluents 4, materials 4, products 4, waste 3,
   financial_context 2, swot 2, site 1
 
-Extraction alone reaches ~20 of these. Adding the policy builder's measured 15
-takes it to ~35 before templates and the maturity matrix are counted — see
-"The coverage model" above for why extraction alone is the wrong denominator.
+Component-level estimate, kept for the domain breakdown only: extraction alone
+reaches ~20 of these, the policy builder a further 15. Superseded by the
+end-to-end measurement above, which is the number to quote.
 
-The residue that no source can serve — targets, commitments, judgement — stays
-visible in the report rather than being padded out. The value is *knowing*, and
-bucket 4 ("add this document and 6 more answers appear") is where the momentum
-lives.
+Questions nothing can answer — targets, commitments, judgement calls — stay
+visible rather than being padded out. The value is *knowing*, and "add this
+document and 6 more answers appear" is what makes someone act.
 
 ### The join is a mapping table, not an engine
 
@@ -145,10 +155,11 @@ puts a value against the wrong question, which is worse than no coverage at all.
 ## What free shows vs. questionnaire-pass
 
 **Free:**
-- full bucket counts across the whole questionnaire
-- every bucket-2 item named, with the document that would resolve it
-- **three** bucket-1 answers shown complete, with value, unit and page reference
-- the remaining bucket-1 answers counted but not rendered
+- all three counts across the whole questionnaire
+- every missing document named, with how many answers it would unlock
+- **three** answers from their documents shown in full, with the value, the unit
+  and the page it came from
+- the rest counted, not shown
 
 **questionnaire-pass (€99):** all answers for one questionnaire, plus export.
 
@@ -248,8 +259,8 @@ suppliers. PDF stays supported but reviewed, never trusted silently.
 
 1. **Partial recall on PDFs** — see above. Mitigated by the confirmation step,
    not solved by it.
-2. **A low coverage number may read as failure.** Framing has to make bucket 2
-   the call to action rather than the disappointment.
+2. **A low count may read as failure.** The missing-document prompt has to be
+   the thing people act on, not the thing that disappoints them.
 3. **Free extraction raises support burden** — more users hitting unreadable
    documents, with no paid relationship.
 
