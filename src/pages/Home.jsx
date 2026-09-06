@@ -39,11 +39,11 @@ import {
   ExternalLink,
 } from 'lucide-react';
 
-// Same €499 Passport checkout used by UpgradeGate / Respond.
-const CHECKOUT_URL = 'https://catyeldi.lemonsqueezy.com/checkout/buy/d5cb1011-fdd1-4936-afe8-819f53073970';
+import { PASSPORT_CHECKOUT_URL, marketingUrl } from '@/lib/checkout';
+import { canActivateAnotherKey } from '@/lib/entitlements';
 
 export default function Home() {
-  const { isPaid } = useLicense();
+  const { tier } = useLicense();
   const settings = getSettings();
   if (!settings.setupCompleted) {
     return <Navigate to="/onboarding" replace />;
@@ -231,8 +231,10 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Upgrade banner — free users only */}
-      {!isPaid && (
+      {/* Upgrade banner — anyone who still has something to buy. Keyed off the
+          capability, not isPaid: isPaid is true for the €99 Questionnaire Pass too,
+          so the €499 upgrade was invisible to exactly the people closest to it. */}
+      {canActivateAnotherKey(tier) && (
         <div className="bg-slate-900 text-white rounded-none p-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="w-10 h-10 bg-white/10 flex items-center justify-center flex-shrink-0">
@@ -240,21 +242,23 @@ export default function Home() {
             </div>
             <div className="flex-1">
               <h2 className="text-base font-semibold">{t('home.upgradeTitle')}</h2>
-              <p className="text-slate-300 text-sm">{t('home.upgradeBody')}</p>
+              <p className="text-slate-300 text-sm">
+                {tier === 'questionnaire-pass' ? t('home.upgradeBodyPass') : t('home.upgradeBody')}
+              </p>
             </div>
             <div className="flex flex-col sm:items-end gap-1.5">
               <a
-                href={CHECKOUT_URL}
+                href={PASSPORT_CHECKOUT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => track('upgrade_cta_click', { source: 'dashboard' })}
+                onClick={() => track('upgrade_cta_click', { source: 'dashboard', from_tier: tier })}
                 className="inline-flex items-center justify-center gap-2 px-5 h-10 bg-white text-slate-900 font-medium hover:bg-slate-100 transition-colors"
               >
                 {t('home.upgradeCta')}
                 <ExternalLink className="w-4 h-4" />
               </a>
               <a
-                href="https://esgforsuppliers.com/passport"
+                href={marketingUrl('/passport', lang)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-slate-400 underline hover:text-slate-200"

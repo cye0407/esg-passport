@@ -10,6 +10,7 @@ import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
 import { LANGUAGES, isOfferedAnswerLanguage, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
 import { localizeEngineMessages } from '@/lib/engineMessages';
+import { PASSPORT_CHECKOUT_URL } from '@/lib/checkout';
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { track } from '@/lib/track';
@@ -48,7 +49,6 @@ async function getEngine() {
 
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
 const FREE_PREVIEW_LIMIT = 5;
-const CHECKOUT_URL = 'https://catyeldi.lemonsqueezy.com/checkout/buy/d5cb1011-fdd1-4936-afe8-819f53073970';
 const DATA_SECTIONS = ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training'];
 const PASSPORT_DATA_KEY = 'esg_passport_data';
 
@@ -1231,7 +1231,7 @@ export default function Respond({ demoOnly = false }) {
               )}
               <Button
                 size="sm"
-                onClick={canExport ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
+                onClick={canExport ? handleExport : () => window.open(PASSPORT_CHECKOUT_URL, '_blank')}
                 className="bg-slate-900 hover:bg-slate-800 text-white"
                 title={canExport ? t('respond.titleExport') : t('respond.titleUnlockExport')}
               >
@@ -1295,7 +1295,7 @@ export default function Respond({ demoOnly = false }) {
                 </Select>
                 {/* AI Enhance All */}
                 <Button
-                  onClick={canRespond ? handleEnhanceAll : () => window.open(CHECKOUT_URL, '_blank')}
+                  onClick={canRespond ? handleEnhanceAll : () => window.open(PASSPORT_CHECKOUT_URL, '_blank')}
                   disabled={enhancingAll}
                   variant="outline"
                   size="sm"
@@ -1691,7 +1691,7 @@ export default function Respond({ demoOnly = false }) {
               {t('respond.bottomSummary', { supported: stats?.supported, total: stats?.total, drafts: stats?.drafted, readiness: stats?.readinessPercent })}
             </p>
             <Button
-              onClick={canExport ? handleExport : () => window.open(CHECKOUT_URL, '_blank')}
+              onClick={canExport ? handleExport : () => window.open(PASSPORT_CHECKOUT_URL, '_blank')}
               className="bg-slate-900 hover:bg-slate-800 text-white"
               title={canExport ? '' : t('respond.titleUnlockExportBottom')}
             >
@@ -1725,7 +1725,7 @@ export default function Respond({ demoOnly = false }) {
                   {t('onboard.startPreview')}
                 </Link>
                 <a
-                  href={CHECKOUT_URL}
+                  href={PASSPORT_CHECKOUT_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex h-10 items-center justify-center border border-slate-300 px-4 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
@@ -2016,7 +2016,7 @@ export default function Respond({ demoOnly = false }) {
                       </Button>
                     )}
                     <a
-                      href={CHECKOUT_URL}
+                      href={PASSPORT_CHECKOUT_URL}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => track('questionnaire_pass_upgrade_clicked', {
@@ -2074,7 +2074,7 @@ export default function Respond({ demoOnly = false }) {
                 {t('respond.ownNeedsBody')}
               </p>
               <a
-                href={CHECKOUT_URL}
+                href={PASSPORT_CHECKOUT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 inline-flex items-center justify-center h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-none"

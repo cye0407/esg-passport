@@ -27,11 +27,11 @@ describe('translations', () => {
   it('localizes current renewable electricity template phrasing', () => {
     const source = 'Our total electricity consumption was 2,321,000 kWh during the reporting period. Of this, 52% (approximately 1,206,920 kWh) was sourced from renewable energy. We continue to prioritize the transition to renewable electricity across our operations.';
 
-    const translated = translateAnswer(source, 'fr');
+    const translated = translateAnswer(source, 'de');
 
-    expect(translated).toContain("Notre consommation totale d'électricité");
-    expect(translated).toContain('environ 1,206,920 kWh');
-    expect(translated).toContain('transition vers une électricité renouvelable');
+    expect(translated).toContain('Unser gesamter Stromverbrauch betrug im Berichtszeitraum');
+    expect(translated).toContain('rund 1,206,920 kWh');
+    expect(translated).toContain('Umstieg auf erneuerbaren Strom');
     expect(translated).not.toContain('approximately');
     expect(translated).not.toContain('We continue to prioritize');
   });
@@ -39,11 +39,11 @@ describe('translations', () => {
   it('does not code-switch untouched freeform text via term replacement', () => {
     const source = 'Our renewable energy mix is evolving across the supply chain and supports our human rights commitments.';
 
-    const translated = translateAnswer(source, 'fr');
+    const translated = translateAnswer(source, 'de');
 
     expect(translated).toBe(source);
-    expect(translated).not.toContain('énergie renouvelable mix');
-    expect(translated).not.toContain("chaîne d'approvisionnement");
+    expect(translated).not.toContain('erneuerbare Energie mix');
+    expect(translated).not.toContain('Lieferkette');
   });
 
   it('localizes answer, verifiedAnswer, and draftAnswer independently', () => {
@@ -63,7 +63,7 @@ describe('translations', () => {
 
   it('localizes export titles, uses verified answers, and formats timestamps for the selected locale', () => {
     const generatedAt = '2026-04-21T10:15:00.000Z';
-    const expectedFrTimestamp = new Intl.DateTimeFormat('fr-FR', DATE_FORMAT).format(new Date(generatedAt));
+    const expectedDeTimestamp = new Intl.DateTimeFormat('de-DE', DATE_FORMAT).format(new Date(generatedAt));
     const html = buildHtmlDocument([
       {
         questionText: 'Energy summary',
@@ -78,7 +78,7 @@ describe('translations', () => {
       framework: 'VSME',
       reportingPeriod: '2025',
       generatedAt,
-      language: 'fr',
+      language: 'de',
     });
 
     const word = buildHtmlDocument([
@@ -92,8 +92,8 @@ describe('translations', () => {
     ], {
       companyName: 'Acme',
       generatedAt,
-      language: 'fr',
-    }, 'Réponses au questionnaire (Word)');
+      language: 'de',
+    }, 'Fragebogenantworten (Word)');
 
     exportAnswersAsHtml([
       {
@@ -108,7 +108,7 @@ describe('translations', () => {
       framework: 'VSME',
       reportingPeriod: '2025',
       generatedAt,
-      language: 'fr',
+      language: 'de',
     });
 
     exportAnswersAsWord([
@@ -122,22 +122,22 @@ describe('translations', () => {
     ], {
       companyName: 'Acme',
       generatedAt,
-      language: 'fr',
+      language: 'de',
     });
 
     expect(saveAs).toHaveBeenCalledTimes(2);
     expect(saveAs.mock.calls[0][1]).toBe('acme-esg-responses.html');
 
-    expect(html).toContain('<title>Acme - Réponses au questionnaire</title>');
-    expect(html).not.toContain('Réponses au questionnaire (Word)');
-    expect(html).not.toContain('Réponses au questionnaire (impression/PDF)');
-    expect(html).toContain(`<p><strong>Généré:</strong> ${expectedFrTimestamp}</p>`);
-    expect(html).toContain('Couverture');
-    expect(html).toContain('Sur une consommation totale de 2,321,000 kWh');
-    expect(html).not.toContain("Cette information n'est actuellement ni suivie ni publiée.");
+    expect(html).toContain('<title>Acme - Fragebogenantworten</title>');
+    expect(html).not.toContain('Fragebogenantworten (Word)');
+    expect(html).not.toContain('Fragebogenantworten (Druck/PDF)');
+    expect(html).toContain(`<p><strong>Erstellt:</strong> ${expectedDeTimestamp}</p>`);
+    expect(html).toContain('Abdeckung');
+    expect(html).toContain('Von insgesamt 2,321,000 kWh Verbrauch');
+    expect(html).not.toContain('Diese Information wird derzeit nicht erfasst oder berichtet.');
     expect(html).not.toContain('Questionnaire Responses');
 
-    expect(word).toContain('<title>Acme - Réponses au questionnaire (Word)</title>');
+    expect(word).toContain('<title>Acme - Fragebogenantworten (Word)</title>');
     expect(word).not.toContain('Questionnaire Responses (Word)');
   });
 

@@ -238,11 +238,13 @@ describe('Respond page engine integration', () => {
       expect(en.toLowerCase()).toContain('electricity');
     });
 
-    it('translateAnswer moves an English draft to a display-only locale', () => {
+    it('leaves a dropped locale in English rather than half-translating it', () => {
+      // fr/es/pl/it/nl were display-only locales patched onto English output, and
+      // about three sentences in four came out English anyway. They are gone: norm()
+      // now falls to 'en', so the text is returned untouched instead of mixed.
       const english = 'A formal Code of Ethics and Anti-Corruption Policy has not yet been established.';
-      const french = translateAnswer(english, 'fr');
-      expect(french).not.toBe(english);
-      expect(french.toLowerCase()).toContain('éthique');
+      expect(translateAnswer(english, 'fr')).toBe(english);
+      expect(translateAnswer(english, 'es')).toBe(english);
     });
   });
 

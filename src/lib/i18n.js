@@ -491,11 +491,8 @@ const translations = {
     'gate.validating': 'Validating…',
     'gate.questions': 'Questions?',
     'ext.headline': 'Want to skip typing bill data manually?',
-    'ext.bodyPro': 'Upgrade to ESG Passport to drop a bill, manifest, or HR report and have the extractor fill this page for you. Electricity, gas, water, waste, and workforce data are pulled automatically.',
     'ext.bodyDefault': 'Document extraction is included in ESG Passport. Upgrade to drop a bill, manifest, or HR report and have the extractor fill this page for you instead of entering values manually.',
     'ext.cta': 'Upgrade to ESG Passport - €499',
-    'ext.upgradeRatePre': 'Already have a license? Email',
-    'ext.upgradeRatePost': 'for the upgrade-only rate.',
     // Messages that arrive as data, not as UI strings: the engine's parse errors
     // and Lemon Squeezy's license codes are English at the API boundary, and both
     // land in front of the user verbatim. See engineMessages.js / license.js.
@@ -805,6 +802,7 @@ const translations = {
     'home.guide3Body': 'Answers are drafts based on templates and your data. Always review and edit before sending to a customer.',
     'home.upgradeTitle': 'Unlock the full ESG Passport',
     'home.upgradeBody': 'Document extraction, full answer generation, exports, and reports. €499 one-time — no subscription.',
+    'home.upgradeBodyPass': 'Your Questionnaire Pass covers one questionnaire. The Passport covers every one that comes in, plus the guided policy builder and the ESG report. €499 one-time — no subscription.',
     'home.upgradeCta': 'Get ESG Passport',
     'home.upgradeMore': "See what's included",
     'home.monthsTracked': 'Months tracked',
@@ -1330,11 +1328,8 @@ const translations = {
     'gate.validating': 'Wird geprüft…',
     'gate.questions': 'Fragen?',
     'ext.headline': 'Möchten Sie das manuelle Abtippen von Rechnungsdaten überspringen?',
-    'ext.bodyPro': 'Schalten Sie ESG Passport frei, um eine Rechnung, einen Nachweis oder HR-Bericht abzulegen und diese Seite vom Extraktor ausfüllen zu lassen. Strom-, Gas-, Wasser-, Abfall- und Belegschaftsdaten werden automatisch übernommen.',
     'ext.bodyDefault': 'Die Dokumentenextraktion ist in ESG Passport enthalten. Schalten Sie frei, um eine Rechnung, einen Nachweis oder HR-Bericht abzulegen und diese Seite vom Extraktor ausfüllen zu lassen, statt Werte manuell einzugeben.',
     'ext.cta': 'ESG Passport freischalten - 499 €',
-    'ext.upgradeRatePre': 'Sie haben bereits eine Lizenz? Schreiben Sie an',
-    'ext.upgradeRatePost': 'für den Upgrade-Tarif.',
     // Siehe engineMessages.js / license.js — Meldungen, die als Daten ankommen.
     'engine.legacyDoc': 'Das ältere .doc-Format kann nicht gelesen werden. Speichern Sie die Datei als .docx und laden Sie sie erneut hoch.',
     'engine.unsupportedFormat': '.{ext}-Dateien können nicht gelesen werden. Laden Sie eine Excel- (.xlsx), CSV-, PDF- oder Word-Datei (.docx) hoch.',
@@ -1634,6 +1629,7 @@ const translations = {
     'home.guide3Body': 'Antworten sind Entw\u00FCrfe auf Basis von Vorlagen und Ihren Daten. Immer pr\u00FCfen und bearbeiten, bevor Sie sie an einen Kunden senden.',
     'home.upgradeTitle': 'Schalten Sie den vollst\u00E4ndigen ESG Passport frei',
     'home.upgradeBody': 'Dokumenten-Extraktion, vollst\u00E4ndige Antwortentw\u00FCrfe, Exporte und Berichte. 499 \u20AC einmalig \u2014 kein Abo.',
+    'home.upgradeBodyPass': 'Ihr Questionnaire Pass gilt für einen Fragebogen. Der Passport gilt für jeden weiteren — dazu der geführte Richtlinien-Generator und der ESG-Bericht. 499 € einmalig — kein Abo.',
     'home.upgradeCta': 'ESG Passport kaufen',
     'home.upgradeMore': 'Was enthalten ist',
     'home.monthsTracked': 'Erfasste Monate',
@@ -1690,138 +1686,6 @@ const translations = {
     'results.na': 'Nicht zutreffend',
     'results.naHint': 'Als N/A mit Begr\u00FCndung markieren',
     'results.masterSave': 'Als Standardantwort speichern',
-  },
-  // ---- Inactive blocks -------------------------------------------------
-  // fr, es and pt are NOT listed in UI_LANGUAGES and cannot be selected. They
-  // stop at 40, 40 and 102 keys against en/de's 821, so t() would resolve the
-  // remaining ~95% from English and the app would read as half-translated.
-  // Kept as a starting point: finish a block, then add its code to
-  // UI_LANGUAGES. Nothing else has to change.
-  fr: {
-    'nav.home': 'Accueil',
-    'nav.data': 'Donn\u00E9es',
-    'nav.confidence': 'Qualit\u00E9',
-    'nav.policies': 'Politiques',
-    'nav.requests': 'Demandes',
-    'nav.respond': 'R\u00E9pondre',
-    'nav.export': 'Export',
-    'nav.settings': 'Param\u00E8tres',
-    'nav.guide': 'Guide',
-    'nav.documents': 'Documents',
-    'nav.answers': 'Biblioth\u00E8que',
-    'data.title.monthly': 'Donn\u00E9es mensuelles',
-    'data.title.annual': 'Donn\u00E9es annuelles',
-    'data.electricity': '\u00C9lectricit\u00E9 (kWh)',
-    'data.naturalGas': 'Gaz naturel (kWh)',
-    'data.vehicleFuel': 'Carburant (L)',
-    'data.renewablePercent': 'Renouvelable %',
-    'data.water': 'Eau (m\u00B3)',
-    'data.totalWaste': 'D\u00E9chets totaux (kg)',
-    'data.recycled': 'Recycl\u00E9 (kg)',
-    'data.hazardous': 'Dangereux (kg)',
-    'data.employees': 'Employ\u00E9s (ETP)',
-    'data.female': 'Femmes',
-    'data.male': 'Hommes',
-    'data.trainingHours': 'Formation (h)',
-    'data.workAccidents': 'Accidents du travail',
-    'data.emissions': 'CO\u2082e (tonnes)',
-    'btn.save': 'Enregistrer',
-    'btn.saving': 'Enregistrement...',
-    'btn.import': 'Importer CSV',
-    'btn.template': 'Mod\u00E8le CSV',
-    'btn.monthly': 'Mensuel',
-    'btn.annual': 'Annuel',
-    'btn.back': 'Retour',
-    'btn.next': 'Suivant',
-    'btn.finish': 'Terminer',
-    'btn.skip': 'Passer',
-    'results.na': 'Non applicable',
-    'results.naHint': 'Marquer comme N/A avec justification',
-    'results.masterSave': 'Enregistrer comme r\u00E9ponse type',
-  },
-  es: {
-    'nav.home': 'Inicio',
-    'nav.data': 'Datos',
-    'nav.confidence': 'Calidad',
-    'nav.policies': 'Pol\u00EDticas',
-    'nav.requests': 'Solicitudes',
-    'nav.respond': 'Responder',
-    'nav.export': 'Exportar',
-    'nav.settings': 'Ajustes',
-    'nav.guide': 'Gu\u00EDa',
-    'nav.documents': 'Documentos',
-    'nav.answers': 'Biblioteca',
-    'data.title.monthly': 'Datos mensuales',
-    'data.title.annual': 'Datos anuales',
-    'data.electricity': 'Electricidad (kWh)',
-    'data.naturalGas': 'Gas natural (kWh)',
-    'data.vehicleFuel': 'Combustible (L)',
-    'data.renewablePercent': 'Renovable %',
-    'data.water': 'Agua (m\u00B3)',
-    'data.totalWaste': 'Residuos totales (kg)',
-    'data.recycled': 'Reciclado (kg)',
-    'data.hazardous': 'Peligrosos (kg)',
-    'data.employees': 'Empleados (ETC)',
-    'data.female': 'Mujeres',
-    'data.male': 'Hombres',
-    'data.trainingHours': 'Formaci\u00F3n (h)',
-    'data.workAccidents': 'Accidentes laborales',
-    'data.emissions': 'CO\u2082e (toneladas)',
-    'btn.save': 'Guardar',
-    'btn.saving': 'Guardando...',
-    'btn.import': 'Importar CSV',
-    'btn.template': 'Plantilla CSV',
-    'btn.monthly': 'Mensual',
-    'btn.annual': 'Anual',
-    'btn.back': 'Atr\u00E1s',
-    'btn.next': 'Siguiente',
-    'btn.finish': 'Finalizar',
-    'btn.skip': 'Omitir',
-    'results.na': 'No aplicable',
-    'results.naHint': 'Marcar como N/A con justificaci\u00F3n',
-    'results.masterSave': 'Guardar como respuesta maestra',
-  },
-  pt: {
-    'nav.home': 'In\u00EDcio',
-    'nav.data': 'Dados',
-    'nav.confidence': 'Qualidade',
-    'nav.policies': 'Pol\u00EDticas',
-    'nav.requests': 'Pedidos',
-    'nav.respond': 'Responder',
-    'nav.export': 'Exportar',
-    'nav.settings': 'Configura\u00E7\u00F5es',
-    'nav.guide': 'Guia',
-    'nav.documents': 'Documentos',
-    'nav.answers': 'Biblioteca',
-    'data.title.monthly': 'Dados mensais',
-    'data.title.annual': 'Dados anuais',
-    'data.electricity': 'Eletricidade (kWh)',
-    'data.naturalGas': 'G\u00E1s natural (kWh)',
-    'data.vehicleFuel': 'Combust\u00EDvel (L)',
-    'data.renewablePercent': 'Renov\u00E1vel %',
-    'data.water': '\u00C1gua (m\u00B3)',
-    'data.totalWaste': 'Res\u00EDduos totais (kg)',
-    'data.recycled': 'Reciclado (kg)',
-    'data.hazardous': 'Perigosos (kg)',
-    'data.employees': 'Funcion\u00E1rios (ETC)',
-    'data.female': 'Mulheres',
-    'data.male': 'Homens',
-    'data.trainingHours': 'Forma\u00E7\u00E3o (h)',
-    'data.workAccidents': 'Acidentes de trabalho',
-    'data.emissions': 'CO\u2082e (toneladas)',
-    'btn.save': 'Guardar',
-    'btn.saving': 'A guardar...',
-    'btn.import': 'Importar CSV',
-    'btn.template': 'Modelo CSV',
-    'btn.monthly': 'Mensal',
-    'btn.annual': 'Anual',
-    'btn.back': 'Voltar',
-    'btn.next': 'Seguinte',
-    'btn.finish': 'Concluir',
-    'btn.skip': 'Saltar',
-    'results.na': 'N\u00E3o aplic\u00E1vel',
-    'results.naHint': 'Marcar como N/A com justifica\u00E7\u00E3o',
-    'results.masterSave': 'Guardar como resposta padr\u00E3o',
   },
 };
 
@@ -1888,15 +1752,15 @@ export function licenseErrorMessage(result, t) {
 /**
  * Get all available UI languages.
  */
-// The languages the interface is actually offered in. This list is the single
-// source of truth: LanguageContext accepts a ?lang= param, a persisted setting
-// and a browser locale ONLY if the code appears here.
+// The languages the interface is offered in, and the only ones it holds strings
+// for. This list is the single source of truth: LanguageContext accepts a ?lang=
+// param, a persisted setting and a browser locale ONLY if the code appears here.
 //
-// fr/es/pt are deliberately absent. Their key blocks below hold 40, 40 and 102
-// keys against en/de's 821, so selecting one translated the navigation and left
-// roughly 95% of the app in English through t()'s fallback - which reads as
-// broken rather than as localized. Add a code back here when its block reaches
-// parity, not before.
+// There were partial fr/es/pt blocks here once, at 40, 40 and 102 keys against
+// en/de's 821. Selecting one translated the navigation and left ~95% of the app
+// in English through t()'s fallback, which reads as broken rather than as
+// localized, so they are gone (git history has them). A language belongs here
+// when it is translated properly, not before.
 export const UI_LANGUAGES = [
   { code: 'en', label: 'English' },
   { code: 'de', label: 'Deutsch' },

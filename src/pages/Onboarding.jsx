@@ -5,6 +5,7 @@ import { track, trackOnce } from '@/lib/track';
 import { INDUSTRIES, COUNTRIES, EMISSION_FACTORS } from '@/lib/constants';
 import { useLanguage } from '@/components/LanguageContext';
 import { localizeIndustry, localizeCountry } from '@/lib/i18n';
+import { marketingUrl } from '@/lib/checkout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,9 +32,9 @@ import {
 export default function Onboarding() {
   const navigate = useNavigate();
   const { lang, t } = useLanguage();
-  // Cross-links to the marketing site should stay in-language.
-  const marketingBase = 'https://esgforsuppliers.com';
-  const passportUrl = lang === 'de' ? `${marketingBase}/de/passport` : `${marketingBase}/passport`;
+  // Cross-links to the marketing site stay in-language — see checkout.js, which
+  // knows that the German pages have German slugs, not just a /de prefix.
+  const passportUrl = marketingUrl('/passport', lang);
   const [step, setStep] = useState(1);
   const setupCompleted = getSettings()?.setupCompleted;
 
@@ -161,15 +162,14 @@ export default function Onboarding() {
                 {t('onboard.skip')}
               </button>
 
-              {/* Excel Toolkit is English-only (out of scope for DE) — hide it from the German flow. */}
-              {lang !== 'de' && (
-                <a
-                  href="https://esgforsuppliers.com/esg-response-toolkit"
-                  className="block w-full text-center text-sm text-slate-500 hover:text-slate-700"
-                >
-                  {t('onboard.excel')}
-                </a>
-              )}
+              {/* The Excel Toolkit shipped in German in July 2026 (/de/esg-antwort-toolkit,
+                  its own Lemon Squeezy product), so the German flow no longer hides it. */}
+              <a
+                href={marketingUrl('/esg-response-toolkit', lang)}
+                className="block w-full text-center text-sm text-slate-500 hover:text-slate-700"
+              >
+                {t('onboard.excel')}
+              </a>
             </div>
           )}
 

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useLicense } from '@/components/LicenseContext';
 import { Button } from '@/components/ui/button';
 import { track } from '@/lib/track';
+import { PASSPORT_CHECKOUT_URL } from '@/lib/checkout';
 import {
   getPolicies,
   getCompanyProfile,
@@ -28,7 +29,6 @@ import {
 } from 'lucide-react';
 
 // €499 Passport checkout — same URL used by Home / UpgradeGate / Respond.
-const CHECKOUT_URL = 'https://catyeldi.lemonsqueezy.com/checkout/buy/d5cb1011-fdd1-4936-afe8-819f53073970';
 
 // Map a guided builder onto the tracked policy id so the adopted/draft status
 // flows to the Respond answer composer (which reads policy status). null = no
@@ -498,7 +498,7 @@ export default function PolicyBuilder() {
           </div>
         </div>
         <a
-          href={CHECKOUT_URL}
+          href={PASSPORT_CHECKOUT_URL}
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => track('upgrade_cta_click', { source: 'policy_builder' })}
@@ -607,7 +607,7 @@ export default function PolicyBuilder() {
             <LiveDoc id={WORKED_EXAMPLE_ID} answers={WORKED_EXAMPLE_ANSWERS} adopted showUnlock />
           </div>
           <a
-            href={CHECKOUT_URL}
+            href={PASSPORT_CHECKOUT_URL}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => track('upgrade_cta_click', { source: 'policy_builder_example' })}
