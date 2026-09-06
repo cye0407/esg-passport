@@ -175,8 +175,13 @@ response-ready: ${engineSha}`;
   }
 
   run('git', ['push', 'origin', 'main'], passportRoot);
-  console.log('Vercel: check the latest production deployment for main.');
-  console.log('vercel --prod  # auto-deploy is off, run this manually');
+  // The push IS the release: Vercel is Git-connected and builds main server-side
+  // (verified 2026-07-22 and again 2026-08-10 — the live bundle carries
+  // VITE_VERCEL_GIT_COMMIT_SHA, REF=main, PROVIDER=github, which only a Git
+  // deployment produces). This line used to say auto-deploy was off and to run
+  // `vercel --prod` by hand; that was true before the vendored-dist model and is
+  // long stale — following it now just uploads a local build over a good one.
+  console.log('Pushed. Vercel builds main automatically — check the latest production deployment.');
 }
 
 main().catch((error) => {
