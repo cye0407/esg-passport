@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useLicense } from '@/components/LicenseContext';
+import { useLanguage } from '@/components/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { track } from '@/lib/track';
 import { PASSPORT_CHECKOUT_URL } from '@/lib/checkout';
@@ -21,8 +22,15 @@ import {
   composeUnlock,
   composePlainText,
   completionPct,
+  builderName,
+  deForms,
+  optionLabel,
+  questionAsk,
+  questionOpt,
+  questionPlaceholder,
+  sectionEyebrow,
 } from '@/data/policyBuilders';
-import { genericTemplate, WORKED_EXAMPLE_ID, WORKED_EXAMPLE_ANSWERS } from '@/data/policyFreeTemplate';
+import { genericTemplate, WORKED_EXAMPLE_ID, workedExampleAnswers } from '@/data/policyFreeTemplate';
 import PoliciesSection from '@/components/settings/PoliciesSection';
 import {
   ChevronLeft, Lock, Download, FileText, Sparkles, Info, ExternalLink,
@@ -50,10 +58,11 @@ const BUILDER_TO_POLICY_ID = {
 // "other policies" tracker so the two lists don't overlap.
 const COVERED_POLICY_IDS = Object.values(BUILDER_TO_POLICY_ID).filter(Boolean);
 
+// Label keys, not labels: the pill has to read in the user's language.
 const STATUS_META = {
-  ready: { label: 'Ready', cls: 'text-emerald-700 bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
-  drafting: { label: 'Drafting', cls: 'text-amber-700 bg-amber-50 border-amber-200', dot: 'bg-amber-500' },
-  needed: { label: 'Needed', cls: 'text-rose-700 bg-rose-50 border-rose-200', dot: 'bg-rose-500' },
+  ready: { key: 'pb.status.ready', cls: 'text-emerald-700 bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
+  drafting: { key: 'pb.status.drafting', cls: 'text-amber-700 bg-amber-50 border-amber-200', dot: 'bg-amber-500' },
+  needed: { key: 'pb.status.needed', cls: 'text-rose-700 bg-rose-50 border-rose-200', dot: 'bg-rose-500' },
 };
 const CAT_CLS = {
   governance: 'text-violet-700 border-violet-300',
@@ -80,10 +89,10 @@ function Chip({ on, children, onClick }) {
   );
 }
 
-function StatusPill({ status }) {
+function StatusPill({ status, t }) {
   const m = STATUS_META[status];
   return (
-    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${m.cls}`}>{m.label}</span>
+    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${m.cls}`}>{t(m.key)}</span>
   );
 }
 
@@ -91,16 +100,27 @@ export default function PolicyBuilder() {
   // Gate on the capability, not on "is any tier paid": a EUR 99 Questionnaire
   // Pass must not unlock the EUR 499 guided builders. COVERAGE-REPORT-SPEC.md.
   const { entitlements, isChecking } = useLicense();
+  const { lang, t } = useLanguage();
   const canBuildPolicies = entitlements.canBuildPolicies;
   const profile = getCompanyProfile();
-  const company = (profile && (profile.tradingName || profile.legalName)) || 'Your company';
+  const company = (profile && (profile.tradingName || profile.legalName)) || t('pb.yourCompany');
   const today = todayStr();
-  const ctx = useMemo(() => ({ company, today }), [company, today]);
+  // lang travels with the document context: everything the composers write —
+  // headings, prose, the unlocked questionnaire answer — is chosen from it.
+  const ctx = useMemo(() => ({ company, today, lang }), [company, today, lang]);
 
   const [state, setState] = useState(() => getPolicyBuilderState());
   const [view, setView] = useState('library'); // 'library' | 'builder' | 'free'
   const [curId, setCurId] = useState(null);
-  const [freeText, setFreeText] = useState(() => genericTemplate({ company, today }));
+  const [freeText, setFreeText] = useState(() => genericTemplate({ company, today, lang }));
+  // A language switch has to reach the free template too, but only while it is
+  // still the untouched original — never overwrite what someone has typed.
+  const pristineFreeText = useRef(genericTemplate({ company, today, lang }));
+  useEffect(() => {
+    const next = genericTemplate({ company, today, lang });
+    setFreeText((cur) => (cur === pristineFreeText.current ? next : cur));
+    pristineFreeText.current = next;
+  }, [company, today, lang]);
   const [toast, setToast] = useState('');
   const [editingDoc, setEditingDoc] = useState(false); // manual text-edit mode in the builder
   const [searchParams, setSearchParams] = useSearchParams();
@@ -202,7 +222,7 @@ export default function PolicyBuilder() {
       savePolicyBuilderState(id, { answers, adopted: false, effectiveDate: '' }); // honesty write — immediate
       mirrorStatus(id, false, true);
       track('policy_adoption_invalidated', { builder: id });
-      flash('You edited an adopted policy — it’s back to draft. Re-tick “adopted” once the new version is signed.');
+      flash(t('pb.flash.editedAdopted'));
     } else {
       scheduleWrite(id, { answers }); // debounced
     }
@@ -221,11 +241,7 @@ export default function PolicyBuilder() {
     setState((prev) => ({ ...prev, [id]: { ...(prev[id] || { answers: answersOf(id) }), saved: true } }));
     mirrorStatus(id, adopted, true);
     track('policy_saved', { builder: id, adopted });
-    flash(
-      adopted
-        ? 'Saved & adopted — your answer is now live in your record'
-        : 'Saved as a draft — download it, get it signed, then tick “adopted”'
-    );
+    flash(adopted ? t('pb.flash.savedAdopted') : t('pb.flash.savedDraft'));
   }
 
   function onAdopt(id, checked) {
@@ -257,7 +273,7 @@ export default function PolicyBuilder() {
       flushPending();
       savePolicyBuilderState(id, { editedText: text, adopted: false, effectiveDate: '' }); // honesty write — immediate
       mirrorStatus(id, false, true);
-      flash('Editing this policy set it back to draft — re-tick “adopted” once the edited version is signed.');
+      flash(t('pb.flash.editedText'));
     } else {
       scheduleWrite(id, { editedText: text });
     }
@@ -278,26 +294,26 @@ export default function PolicyBuilder() {
   function download(id) {
     flushPending();
     const eff = state[id]?.effectiveDate || today;
-    const dctx = { company, today: eff };
+    const dctx = { company, today: eff, lang };
     const edited = state[id]?.editedText;
     const text = edited && edited.trim() ? edited : composePlainText(id, answersOf(id), dctx);
     const blob = new Blob([text], { type: 'text/markdown' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${POLICY_BUILDERS[id].name.replace(/[^a-z0-9]+/gi, '-')}-${company.split(' ')[0]}.md`;
+    a.download = `${builderName(POLICY_BUILDERS[id], lang).replace(/[^a-z0-9äöüß]+/gi, '-')}-${company.split(' ')[0]}.md`;
     a.click();
     track('policy_downloaded', { builder: id, adopted: !!state[id]?.adopted });
-    flash('Downloaded — attach it to the questionnaire, or publish it');
+    flash(t('pb.flash.downloaded'));
   }
 
   function downloadFree() {
     const blob = new Blob([freeText], { type: 'text/markdown' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `Policy-Template-${company.split(' ')[0]}.md`;
+    a.download = `${t('pb.freeFileName')}-${company.split(' ')[0]}.md`;
     a.click();
     track('policy_free_template_download', {});
-    flash('Downloaded — edit it, get it signed, and attach it');
+    flash(t('pb.flash.downloadedFree'));
   }
 
   // ---------- question renderer ----------
@@ -307,11 +323,11 @@ export default function PolicyBuilder() {
       return (
         <div className="mb-4" key={q.key}>
           <div className="text-[13.5px] font-semibold mb-2 text-slate-800">
-            {q.ask} {q.opt && <span className="font-normal text-slate-400">{q.opt}</span>}
+            {questionAsk(q, lang)} {q.opt && <span className="font-normal text-slate-400">{questionOpt(q, lang)}</span>}
           </div>
           <input
             className="w-full border border-slate-300 rounded-sm px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            placeholder={q.ph || ''}
+            placeholder={questionPlaceholder(q, lang)}
             value={a[q.key] || ''}
             onChange={(e) => setAnswer(id, q.key, e.target.value)}
           />
@@ -321,13 +337,13 @@ export default function PolicyBuilder() {
     if (q.type === 'twin') {
       return (
         <div className="mb-4" key={q.items.map((i) => i.key).join('-')}>
-          <div className="text-[13.5px] font-semibold mb-2 text-slate-800">{q.ask}</div>
+          <div className="text-[13.5px] font-semibold mb-2 text-slate-800">{questionAsk(q, lang)}</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {q.items.map((i) => (
               <input
                 key={i.key}
                 className="w-full border border-slate-300 rounded-sm px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder={i.ph}
+                placeholder={questionPlaceholder(i, lang)}
                 value={a[i.key] || ''}
                 onChange={(e) => setAnswer(id, i.key, e.target.value)}
               />
@@ -340,10 +356,10 @@ export default function PolicyBuilder() {
       return (
         <div className="mb-4" key={q.key}>
           <div className="text-[13.5px] font-semibold mb-2 text-slate-800">
-            {q.ask} {q.opt && <span className="font-normal text-slate-400">{q.opt}</span>}
+            {questionAsk(q, lang)} {q.opt && <span className="font-normal text-slate-400">{questionOpt(q, lang)}</span>}
           </div>
           <Chip on={!!a[q.key]} onClick={() => setAnswer(id, q.key, !a[q.key])}>
-            Yes, include it
+            {t('pb.yesInclude')}
           </Chip>
         </div>
       );
@@ -353,7 +369,7 @@ export default function PolicyBuilder() {
     return (
       <div className="mb-4" key={q.key}>
         <div className="text-[13.5px] font-semibold mb-2 text-slate-800">
-          {q.ask} {q.opt && <span className="font-normal text-slate-400">{q.opt}</span>}
+          {questionAsk(q, lang)} {q.opt && <span className="font-normal text-slate-400">{questionOpt(q, lang)}</span>}
         </div>
         <div className="flex flex-wrap gap-2">
           {q.options.map((o) => {
@@ -374,7 +390,7 @@ export default function PolicyBuilder() {
                   }
                 }}
               >
-                {o.label}
+                {optionLabel(o, lang)}
               </Chip>
             );
           })}
@@ -392,10 +408,10 @@ export default function PolicyBuilder() {
     return (
       <>
         <h3 className="text-lg font-semibold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>
-          {p.name}
+          {builderName(p, lang)}
         </h3>
         <div className="text-[11.5px] font-mono text-slate-500 mb-4">
-          {cx.company} · v1.0 · effective {cx.today}
+          {cx.company} · v1.0 · {t('pb.effective')} {cx.today}
         </div>
         {paras.map((pa) => (
           <p key={pa.id} className="mb-3 text-[13.5px] leading-relaxed">
@@ -412,13 +428,13 @@ export default function PolicyBuilder() {
         {showUnlock && (
           <div className="mt-2 bg-slate-50 border border-slate-200 rounded-sm p-3">
             <div className="text-[10.5px] uppercase tracking-wider text-slate-400 mb-1">
-              What this unlocks in your questionnaire
+              {t('pb.unlocks')}
             </div>
             {unlock ? (
               <div className="text-[13px] text-slate-700">{unlock}</div>
             ) : (
               <div className="text-[13px] text-slate-400 italic">
-                Answer the core questions to see your drafted questionnaire answer.
+                {t('pb.unlocksPending')}
               </div>
             )}
           </div>
@@ -429,7 +445,7 @@ export default function PolicyBuilder() {
 
   // ---------- views ----------
   function LibraryCard({ id }) {
-    const m = builderMeta(id);
+    const m = builderMeta(id, lang);
     const st = statusOf(id);
     const locked = !canBuildPolicies;
     return (
@@ -443,17 +459,17 @@ export default function PolicyBuilder() {
           {locked ? (
             <Lock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
           ) : (
-            <StatusPill status={st} />
+            <StatusPill status={st} t={t} />
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm border ${CAT_CLS[m.cat]}`}>
-            {m.cat}
+            {t(`pb.cat.${m.cat}`)}
           </span>
           {m.flag && <span className="text-[11px] font-mono text-rose-600">{m.flag}</span>}
         </div>
         <span className="text-[12px] text-emerald-700 font-semibold">
-          {locked ? 'Included with ESG Passport →' : st === 'ready' ? 'Review / edit →' : st === 'drafting' ? 'Continue building →' : 'Start guided build →'}
+          {locked ? t('pb.card.locked') : st === 'ready' ? t('pb.card.review') : st === 'drafting' ? t('pb.card.continue') : t('pb.card.start')}
         </span>
       </button>
     );
@@ -476,11 +492,11 @@ export default function PolicyBuilder() {
     return (
       <div className="flex gap-2.5 flex-wrap mb-4">
         <span className="inline-flex items-center gap-1.5 text-[12.5px] text-slate-500 bg-white border border-slate-200 rounded-sm px-3 py-1.5">
-          <b className="text-slate-900 tabular-nums">{BUILDER_ORDER.length}</b> policies
+          <b className="text-slate-900 tabular-nums">{BUILDER_ORDER.length}</b> {t('pb.summary.policies')}
         </span>
-        {chip('bg-emerald-500', ready, 'ready')}
-        {chip('bg-amber-500', drafting, 'drafting')}
-        {chip('bg-rose-500', needed, 'flagged')}
+        {chip('bg-emerald-500', ready, t('pb.summary.ready'))}
+        {chip('bg-amber-500', drafting, t('pb.summary.drafting'))}
+        {chip('bg-rose-500', needed, t('pb.summary.flagged'))}
       </div>
     );
   }
@@ -491,9 +507,9 @@ export default function PolicyBuilder() {
         <div className="flex items-start gap-3">
           <Sparkles className="w-5 h-5 text-emerald-300 flex-shrink-0 mt-0.5" />
           <div>
-            <div className="font-semibold text-[15px]">The guided policy builder is a Passport feature</div>
+            <div className="font-semibold text-[15px]">{t('pb.upgrade.title')}</div>
             <div className="text-slate-300 text-[13px]">
-              Answer a few plain questions and each policy writes itself in your own specifics — no blank templates. Below is a free editable template and a worked example so you can see exactly what it produces.
+              {t('pb.upgrade.body')}
             </div>
           </div>
         </div>
@@ -504,7 +520,7 @@ export default function PolicyBuilder() {
           onClick={() => track('upgrade_cta_click', { source: 'policy_builder' })}
           className="flex-shrink-0 inline-flex items-center justify-center gap-2 h-10 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold rounded-sm transition text-[13.5px]"
         >
-          Unlock the builder <ExternalLink className="w-4 h-4" />
+          {t('pb.upgrade.cta')} <ExternalLink className="w-4 h-4" />
         </a>
       </div>
     );
@@ -514,11 +530,9 @@ export default function PolicyBuilder() {
     return (
       <div>
         <div className="mb-4">
-          <h2 className="text-xl font-bold text-slate-900 mb-1">Your policy library</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-1">{t('pb.library.title')}</h2>
           <p className="text-slate-500 text-[13.5px] max-w-2xl">
-            The policies your customers’ ESG forms ask about. {canBuildPolicies
-              ? 'Pick one — we walk you through plain questions and write the policy for you. No blank templates.'
-              : 'Use the free template below to write your own, or unlock the guided builder to have each one written for you.'}
+            {t('pb.library.lead')} {canBuildPolicies ? t('pb.library.leadPaid') : t('pb.library.leadFree')}
           </p>
         </div>
 
@@ -534,17 +548,17 @@ export default function PolicyBuilder() {
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-slate-700" />
-                <span className="font-semibold text-[15px] text-slate-900">Generic policy template</span>
-                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm border text-emerald-700 border-emerald-300">Free</span>
+                <span className="font-semibold text-[15px] text-slate-900">{t('pb.free.cardTitle')}</span>
+                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm border text-emerald-700 border-emerald-300">{t('pb.free.badge')}</span>
               </div>
-              <span className="text-[12.5px] text-slate-500">An editable template with a worked example — write your own policy and download it.</span>
-              <span className="text-[12px] text-emerald-700 font-semibold">Open template →</span>
+              <span className="text-[12.5px] text-slate-500">{t('pb.free.cardDesc')}</span>
+              <span className="text-[12px] text-emerald-700 font-semibold">{t('pb.free.cardCta')}</span>
             </button>
           </div>
         )}
 
         <div className="text-[11px] uppercase tracking-wider text-slate-400 mb-2">
-          {canBuildPolicies ? 'Guided builders' : 'Included with ESG Passport'}
+          {canBuildPolicies ? t('pb.guidedBuilders') : t('pb.includedWithPassport')}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {BUILDER_ORDER.map((id) => (
@@ -555,9 +569,9 @@ export default function PolicyBuilder() {
         {/* Other tracked policies — the ones the guided builder doesn't cover yet.
             Preserves the old tracker (status + document location + add custom). */}
         <div className="mt-8 border-t border-slate-200 pt-6">
-          <div className="text-[11px] uppercase tracking-wider text-slate-400 mb-1">Other policies you track</div>
+          <div className="text-[11px] uppercase tracking-wider text-slate-400 mb-1">{t('pb.other.title')}</div>
           <p className="text-[13px] text-slate-500 mb-3 max-w-2xl">
-            Policies the guided builder doesn’t write yet — track their status and where the document lives.
+            {t('pb.other.desc')}
           </p>
           <PoliciesSection excludeIds={COVERED_POLICY_IDS} />
         </div>
@@ -575,12 +589,12 @@ export default function PolicyBuilder() {
           onClick={toLibrary}
           className="inline-flex items-center gap-1 text-[12.5px] text-slate-500 border border-slate-300 rounded-sm px-2.5 py-1.5 mb-4 hover:border-emerald-500 hover:text-emerald-700"
         >
-          <ChevronLeft className="w-4 h-4" /> All policies
+          <ChevronLeft className="w-4 h-4" /> {t('pb.allPolicies')}
         </button>
 
-        <h2 className="text-xl font-bold text-slate-900 mb-1">Generic policy template</h2>
+        <h2 className="text-xl font-bold text-slate-900 mb-1">{t('pb.free.cardTitle')}</h2>
         <p className="text-slate-500 text-[13.5px] mb-4 max-w-2xl">
-          Edit this to create a policy for any topic. Your company name and date are filled in — replace the bracketed parts with your own specifics, then download it.
+          {t('pb.free.lead')}
         </p>
 
         <textarea
@@ -591,20 +605,20 @@ export default function PolicyBuilder() {
         />
         <div className="flex gap-2 mt-3">
           <Button onClick={downloadFree} className="gap-2">
-            <Download className="w-4 h-4" /> Download template
+            <Download className="w-4 h-4" /> {t('pb.free.download')}
           </Button>
         </div>
 
         <div className="mt-8 border-t border-slate-200 pt-6">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="w-4 h-4 text-emerald-600" />
-            <h3 className="text-[15px] font-semibold text-slate-900">A worked example — what the guided builder writes for you</h3>
+            <h3 className="text-[15px] font-semibold text-slate-900">{t('pb.example.title')}</h3>
           </div>
           <p className="text-[13px] text-slate-500 mb-4 max-w-2xl">
-            With the guided builder you answer plain questions and this composes automatically in your own specifics. Here’s a finished example.
+            {t('pb.example.lead')}
           </p>
           <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-2xl">
-            <LiveDoc id={WORKED_EXAMPLE_ID} answers={WORKED_EXAMPLE_ANSWERS} adopted showUnlock />
+            <LiveDoc id={WORKED_EXAMPLE_ID} answers={workedExampleAnswers(lang)} adopted showUnlock />
           </div>
           <a
             href={PASSPORT_CHECKOUT_URL}
@@ -613,7 +627,7 @@ export default function PolicyBuilder() {
             onClick={() => track('upgrade_cta_click', { source: 'policy_builder_example' })}
             className="mt-4 inline-flex items-center justify-center gap-2 h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-sm transition text-[13.5px]"
           >
-            Unlock the guided builder <ExternalLink className="w-4 h-4" />
+            {t('pb.example.cta')} <ExternalLink className="w-4 h-4" />
           </a>
         </div>
 
@@ -639,15 +653,20 @@ export default function PolicyBuilder() {
   // Effective date is frozen at adoption so the document, export, and claim
   // don't drift with the render date; drafts show today until adopted.
   const effectiveDate = state[id]?.effectiveDate || today;
-  const bctx = { company, today: effectiveDate };
+  const bctx = { company, today: effectiveDate, lang };
   const docSeed = editedText || composePlainText(id, a, bctx); // seed for the edit box
   // With a manual override we can't derive coverage from answers, so the
   // questionnaire claim is the plainer "maintains a <policy>" — still honest,
   // and only positive once adopted.
+  const overrideName = builderName(p, lang);
   const unlockText = override
-    ? adopted
-      ? `Yes. ${company} maintains a ${p.name} (v1.0, effective ${effectiveDate}).`
-      : `In development. ${company} is finalizing a ${p.name}; a signed version is expected shortly.`
+    ? t(adopted ? 'pb.override.adopted' : 'pb.override.draft', {
+      company,
+      // German needs the accusative article that matches the policy's own gender.
+      article: deForms(p).einen,
+      policy: overrideName,
+      date: effectiveDate,
+    })
     : composeUnlock(id, a, adopted, bctx);
 
   return (
@@ -658,16 +677,16 @@ export default function PolicyBuilder() {
           onClick={toLibrary}
           className="inline-flex items-center gap-1 text-[12.5px] text-slate-500 border border-slate-300 rounded-sm px-2.5 py-1.5 hover:border-emerald-500 hover:text-emerald-700"
         >
-          <ChevronLeft className="w-4 h-4" /> All policies
+          <ChevronLeft className="w-4 h-4" /> {t('pb.allPolicies')}
         </button>
-        <span className="text-[13px] text-slate-600 font-medium">{p.name}</span>
-        {p.flag && <span className="text-[11px] font-mono text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm">flagged · {p.flag}</span>}
+        <span className="text-[13px] text-slate-600 font-medium">{builderName(p, lang)}</span>
+        {p.flag && <span className="text-[11px] font-mono text-rose-600 bg-rose-50 px-2 py-0.5 rounded-sm">{t('pb.flaggedBy')} · {p.flag}</span>}
       </div>
 
       <div className="bg-emerald-50 border border-emerald-100 rounded-sm p-3 mb-4 flex items-start gap-2.5">
         <Info className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" />
         <p className="text-[13px] text-emerald-900">
-          Answer a few plain questions — no legal drafting. The document assembles on the right in your own specifics. Save it to your record, then download it to send.
+          {t('pb.builder.hint')}
         </p>
       </div>
 
@@ -683,12 +702,12 @@ export default function PolicyBuilder() {
           <div className="p-4">
             {p.sections.map((sec, si) => (
               <div key={si} className={si > 0 ? 'border-t border-slate-100 pt-4 mt-2' : ''}>
-                <div className="text-[10.5px] uppercase tracking-wider text-emerald-800 font-bold mb-3">{sec.eyebrow}</div>
+                <div className="text-[10.5px] uppercase tracking-wider text-emerald-800 font-bold mb-3">{sectionEyebrow(sec, lang)}</div>
                 {sec.questions.map((q) => renderQuestion(q, id))}
               </div>
             ))}
             <div className="border-t border-slate-100 pt-4 mt-2">
-              <div className="text-[10.5px] uppercase tracking-wider text-emerald-800 font-bold mb-3">{SIGN_SECTION.eyebrow}</div>
+              <div className="text-[10.5px] uppercase tracking-wider text-emerald-800 font-bold mb-3">{sectionEyebrow(SIGN_SECTION, lang)}</div>
               {SIGN_SECTION.questions.map((q) => renderQuestion(q, id))}
             </div>
           </div>
@@ -698,7 +717,7 @@ export default function PolicyBuilder() {
         <section className="bg-white border border-slate-200 rounded-sm shadow-sm lg:sticky lg:top-4">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
             <span className="text-[10.5px] uppercase tracking-wider text-slate-400">
-              {override ? 'Your policy · edited' : 'Your policy, so far'}
+              {override ? t('pb.doc.edited') : t('pb.doc.soFar')}
             </span>
             <div className="flex items-center gap-3">
               {override && !editingDoc && (
@@ -707,7 +726,7 @@ export default function PolicyBuilder() {
                   onClick={() => revertEdit(id)}
                   className="text-[11px] text-slate-500 hover:text-emerald-700 underline"
                 >
-                  Revert to generated
+                  {t('pb.doc.revert')}
                 </button>
               )}
               <button
@@ -715,7 +734,7 @@ export default function PolicyBuilder() {
                 onClick={() => setEditingDoc((v) => !v)}
                 className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800"
               >
-                {editingDoc ? 'Done editing' : 'Edit text'}
+                {editingDoc ? t('pb.doc.doneEditing') : t('pb.doc.editText')}
               </button>
             </div>
           </div>
@@ -732,7 +751,7 @@ export default function PolicyBuilder() {
                 <div className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-slate-800">{override}</div>
                 <div className="mt-3 bg-slate-50 border border-slate-200 rounded-sm p-3">
                   <div className="text-[10.5px] uppercase tracking-wider text-slate-400 mb-1">
-                    What this unlocks in your questionnaire
+                    {t('pb.unlocks')}
                   </div>
                   <div className="text-[13px] text-slate-700">{unlockText}</div>
                 </div>
@@ -751,29 +770,28 @@ export default function PolicyBuilder() {
                 onChange={(e) => onAdopt(id, e.target.checked)}
               />
               <span>
-                It’s <b>adopted</b> — leadership has signed it. Until you tick this it saves as a draft, and your
-                questionnaire answer honestly says “in development.”
+                {t('pb.adopt.pre')} <b>{t('pb.adopt.word')}</b> {t('pb.adopt.post')}
                 {!canAdopt && (
-                  <span className="block mt-1 text-[11px] text-slate-400">Answer the core questions first.</span>
+                  <span className="block mt-1 text-[11px] text-slate-400">{t('pb.adopt.needAnswers')}</span>
                 )}
               </span>
             </label>
             <div>
-              <label className="block text-[11px] text-slate-500 mb-1">Link to the signed document (optional)</label>
+              <label className="block text-[11px] text-slate-500 mb-1">{t('pb.docLink.label')}</label>
               <input
                 type="text"
                 value={docLocation}
                 onChange={(e) => setDocLocation(id, e.target.value)}
-                placeholder="e.g. https://drive… or where the signed PDF lives"
+                placeholder={t('pb.docLink.ph')}
                 className="w-full border border-slate-300 rounded-sm px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1 gap-2" onClick={() => download(id)}>
-                <Download className="w-4 h-4" /> Download
+                <Download className="w-4 h-4" /> {t('pb.download')}
               </Button>
               <Button className="flex-1" onClick={() => onSave(id)}>
-                Save to my record
+                {t('pb.save')}
               </Button>
             </div>
           </div>
