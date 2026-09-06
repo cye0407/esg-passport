@@ -115,16 +115,16 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (kwh > 0) {
                 parts.push(de
-                    ? `Unser Stromverbrauch beträgt ${fmt(kwh, lang)} kWh${period ? ` (${period})` : ''}${renPct > 0 ? `, davon ${fmt(renPct, lang)}% aus erneuerbaren Quellen` : ''}.`
-                    : `Our electricity consumption is ${fmt(kwh)} kWh${period ? ` (${period})` : ''}${renPct > 0 ? `, with ${fmt(renPct)}% from renewable sources` : ''}.`);
+                    ? `Als Stromverbrauch sind ${fmt(kwh, lang)} kWh${period ? ` (${period})` : ''}${renPct > 0 ? `, davon ${fmt(renPct, lang)}% aus erneuerbaren Quellen` : ''} hinterlegt.`
+                    : `Our recorded electricity consumption is ${fmt(kwh)} kWh${period ? ` (${period})` : ''}${renPct > 0 ? `, with ${fmt(renPct)}% from renewable sources` : ''}.`);
                 parts.push(de
-                    ? 'Konkrete Energieeffizienzmaßnahmen haben wir für diese Frage nicht gesondert dokumentiert.'
-                    : 'We have not separately documented specific energy-efficiency measures for this question.');
+                    ? 'Für diese Frage haben wir keine konkreten Energieeffizienzmaßnahmen hinterlegt.'
+                    : 'We do not have specific energy-efficiency measures on record for this question.');
                 return { answer: parts.join(' '), drafted: true };
             }
             return { answer: de
-                    ? 'Wir erfassen derzeit weder den Energieverbrauch noch dokumentierte Energieeffizienzmaßnahmen für diese Frage.'
-                    : 'We do not currently track energy consumption or documented energy-efficiency measures for this question.', drafted: true };
+                    ? 'Für diese Frage haben wir weder Angaben zum Energieverbrauch noch dokumentierte Energieeffizienzmaßnahmen hinterlegt.'
+                    : 'We do not have energy-consumption figures or documented energy-efficiency measures on record for this question.', drafted: true };
         },
     },
     // Fallback: energy consumption (any question type)
@@ -178,16 +178,21 @@ export const ESG_ANSWER_TEMPLATES = [
                 : `Our greenhouse gas (GHG) emissions${periodStr} are as follows:`);
             if (dm.has('scope1Estimate'))
                 parts.push(de
-                    ? `Scope-1-Emissionen (direkt): ${fmt(s1, lang)} tCO2e, einschließlich stationärer Verbrennung, mobiler Quellen und etwaiger diffuser Emissionen.`
-                    : `Scope 1 (direct) emissions: ${fmt(s1)} tCO2e, covering stationary combustion, mobile sources, and any fugitive emissions.`);
-            if (s2) {
+                    ? `Scope-1-Emissionen (direkt): ${fmt(s1, lang)} tCO2e.`
+                    : `Scope 1 (direct) emissions: ${fmt(s1)} tCO2e.`);
+            if (dm.has('scope2Location')) {
                 parts.push(de
                     ? `Scope-2-Emissionen (indirekt, standortbasiert): ${fmt(s2, lang)} tCO2e aus eingekauftem Strom.`
                     : `Scope 2 (indirect, location-based) emissions: ${fmt(s2)} tCO2e from purchased electricity.`);
-                if (s2m)
+                if (dm.has('scope2Market'))
                     parts.push(de
-                        ? `Scope-2-Emissionen (marktbasiert): ${fmt(s2m, lang)} tCO2e und spiegeln unsere Beschaffung erneuerbarer Energie wider.`
-                        : `Scope 2 (market-based) emissions: ${fmt(s2m)} tCO2e, reflecting our renewable energy procurement.`);
+                        ? `Scope-2-Emissionen (marktbasiert): ${fmt(s2m, lang)} tCO2e.`
+                        : `Scope 2 (market-based) emissions: ${fmt(s2m)} tCO2e.`);
+            }
+            else {
+                parts.push(de
+                    ? 'Für diese Frage haben wir keine Scope-2-Emissionen hinterlegt.'
+                    : 'We do not have Scope 2 emissions on record for this question.');
             }
             const s1Point = dm.get('scope1Estimate');
             const s2Point = dm.get('scope2Location');
@@ -199,7 +204,7 @@ export const ESG_ANSWER_TEMPLATES = [
                     : 'Note: Some figures are estimates derived from activity data (fuel consumption, electricity use) and standard emission factors.');
             }
             const total = s1 + s2;
-            if (total > 0)
+            if (dm.has('scope1Estimate') && dm.has('scope2Location'))
                 parts.push(de
                     ? `Summe Scope 1 + Scope 2 (standortbasiert): ${fmt(total, lang)} tCO2e.`
                     : `Total Scope 1 + Scope 2 (location-based): ${fmt(total)} tCO2e.`);
@@ -222,8 +227,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 : (period ? ` for ${period}` : ' for the reporting period');
             const parts = [];
             parts.push(de
-                ? `Unsere Scope-1-Treibhausgasemissionen (direkt)${periodStr} betragen ${fmt(s1, lang)} tCO2e und umfassen stationäre Verbrennung, mobile Quellen und etwaige diffuse Emissionen.`
-                : `Our Scope 1 (direct) greenhouse gas emissions${periodStr} are ${fmt(s1)} tCO2e, covering stationary combustion, mobile sources, and any fugitive emissions.`);
+                ? `Unsere direkten Scope-1-Treibhausgasemissionen${periodStr} betragen ${fmt(s1, lang)} tCO2e.`
+                : `Our Scope 1 (direct) greenhouse gas emissions${periodStr} are ${fmt(s1)} tCO2e.`);
             const isEstimate = dm.get('scope1Estimate')?.confidence === 'medium' ||
                 dm.get('scope1Estimate')?.label?.toLowerCase().includes('auto-calculated');
             if (isEstimate)
@@ -296,8 +301,8 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             else {
                 parts.push(de
-                    ? 'Scope-3-Emissionen sind noch nicht quantifiziert, und wir erfassen für diese Frage derzeit keine Scope-3-Kategorien.'
-                    : 'Scope 3 emissions are not yet quantified, and we do not currently track Scope 3 categories for this question.');
+                    ? 'Für diese Frage haben wir weder quantifizierte Scope-3-Emissionen noch eine Aufschlüsselung nach Kategorien hinterlegt.'
+                    : 'We do not have quantified Scope 3 emissions or a category breakdown on record for this question.');
             }
             if (travel)
                 parts.push(de ? `Geschäftsreisen: ${fmt(travel, lang)} km.` : `Business travel: ${fmt(travel)} km.`);
@@ -344,10 +349,9 @@ export const ESG_ANSWER_TEMPLATES = [
             const de = lang === 'de';
             const fte = num(dm, 'totalFte');
             const fem = num(dm, 'femalePercent');
-            const male = 100 - fem;
             const answer = de
-                ? `Unsere Belegschaft von ${fmt(fte, lang)} VZÄ besteht zu ${fmt(fem, lang)}% aus Frauen und zu ${fmt(male, lang)}% aus Männern.`
-                : `Our workforce of ${fmt(fte)} FTE employees comprises ${fmt(fem)}% female and ${fmt(male)}% male employees.`;
+                ? `Unsere Belegschaft umfasst ${fmt(fte, lang)} VZÄ; der Frauenanteil beträgt ${fmt(fem, lang)}%.`
+                : `Our workforce comprises ${fmt(fte)} FTE employees; women account for ${fmt(fem)}%.`;
             return answer;
         },
     },
@@ -368,24 +372,21 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (humanRightsPolicies.length > 0) {
                 parts.push(de
-                    ? `Ja, unsere Menschenrechtsverpflichtungen sind in den folgenden Richtlinien formalisiert: ${humanRightsPolicies.join(', ')}.`
-                    : `Yes, our human rights commitments are formalized in the following policies: ${humanRightsPolicies.join(', ')}.`);
+                    ? `Folgende Menschenrechtsrichtlinie ist hinterlegt: ${humanRightsPolicies.join(', ')}.`
+                    : `The following human-rights policy is on record: ${humanRightsPolicies.join(', ')}.`);
                 parts.push(de
-                    ? 'Den Geltungsbereich, die Kommunikation und den Sorgfaltspflichtprozess hinter diesen Richtlinien haben wir für diese Frage nicht gesondert dokumentiert.'
-                    : 'We have not separately documented the scope, communication, or due-diligence process behind these policies for this question.');
+                    ? 'Für diese Frage haben wir weder ihren Geltungsbereich noch Angaben zu Kommunikation oder Sorgfaltsprozess hinterlegt.'
+                    : 'Its scope, communication and due-diligence process are not on record for this question.');
             }
             else {
                 parts.push(de
-                    ? 'Eine formelle, eigenständige Menschenrechtsrichtlinie wurde bislang nicht eingeführt.'
-                    : 'A formal, standalone Human Rights Policy has not yet been established.');
-                parts.push(de
-                    ? 'Wir verfügen derzeit nicht über dokumentierte Nachweise eines Menschenrechts-Sorgfaltsprozesses, der Zwangsarbeit, Kinderarbeit, moderne Sklaverei, Vereinigungsfreiheit und die Risikobewertung der Wertschöpfungskette abdeckt.'
-                    : 'We do not currently have documented evidence of a human rights due-diligence process covering forced labor, child labor, modern slavery, freedom of association, and value-chain risk assessment.');
+                    ? 'Für diese Frage haben wir weder eine eigenständige Menschenrechtsrichtlinie noch dokumentierte Nachweise eines Prozesses zur menschenrechtlichen Sorgfalt hinterlegt.'
+                    : 'We do not have a standalone human-rights policy or documented evidence of a human-rights due-diligence process on record for this question.');
             }
-            if (humanRightsPolicies.length > 0 && fte)
+            if (humanRightsPolicies.length > 0 && (fte || country))
                 parts.push(de
-                    ? `Diese Verpflichtungen gelten für alle ${fmt(fte, lang)} Mitarbeitenden${country ? ` an unseren Standorten in ${deCountry(country, lang)}` : ''}.`
-                    : `These commitments apply to all ${fmt(fte)} employees${country ? ` across our operations in ${deCountry(country, lang)}` : ''}.`);
+                    ? 'Für diese Frage haben wir den Geltungsbereich innerhalb der Belegschaft nicht hinterlegt.'
+                    : 'We do not have its workforce coverage on record for this question.');
             const answer = parts.join(' ');
             return policies ? answer : { answer, drafted: true };
         },
@@ -413,13 +414,13 @@ export const ESG_ANSWER_TEMPLATES = [
                         ? `${fmt(leaderPct, lang)}% der Management- und Führungspositionen werden von Frauen besetzt.`
                         : `${fmt(leaderPct)}% of management and leadership positions are held by women.`);
                 parts.push(de
-                    ? 'Eine eigenständige DEI-Richtlinie mit dokumentierten Verpflichtungen und messbaren Zielen wurde bislang nicht formalisiert.'
-                    : 'A standalone DEI policy with documented commitments and measurable targets has not yet been formalized.');
+                    ? 'Für diese Frage haben wir weder eine eigenständige DEI-Richtlinie noch messbare Ziele hinterlegt.'
+                    : 'We do not have a standalone DEI policy or measurable targets on record for this question.');
             }
             else {
                 parts.push(de
-                    ? 'Wir verfügen noch nicht über eine eigenständige DEI-Richtlinie. Formalisierte Verpflichtungen, messbare Diversitätsziele und Berichtsprozesse wurden nicht eingeführt.'
-                    : 'We do not yet have a standalone DEI policy. Formalized commitments, measurable diversity targets, and reporting processes have not been established.');
+                    ? 'Für diese Frage haben wir weder eine eigenständige DEI-Richtlinie noch messbare Diversitätsziele oder einen Berichtsprozess hinterlegt.'
+                    : 'We do not have a standalone DEI policy, measurable diversity targets or a reporting process on record for this question.');
             }
             return { answer: parts.join(' '), drafted: !hasMetrics };
         },
@@ -446,8 +447,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 return parts.join(' ');
             }
             parts.push(de
-                ? 'Unseren Ansatz zur Vereinigungsfreiheit und zu Tarifverhandlungen haben wir für diese Frage nicht gesondert dokumentiert.'
-                : 'We have not separately documented our approach to freedom of association and collective bargaining for this question.');
+                ? 'Für diese Frage haben wir keinen dokumentierten Ansatz zur Vereinigungsfreiheit oder zu Tarifverhandlungen hinterlegt.'
+                : 'We do not have a documented approach to freedom of association or collective bargaining on record for this question.');
             if (country)
                 parts.push(de
                     ? `Unsere Betriebe unterliegen dem geltenden Arbeitsrecht in ${deCountry(country, lang)}.`
@@ -466,16 +467,17 @@ export const ESG_ANSWER_TEMPLATES = [
             const country = str(dm, 'headquartersCountry');
             const cbaPct = num(dm, 'collectiveBargainingPercent');
             const parts = [];
-            parts.push(de
-                ? `Die Arbeitsbedingungen an unseren Standorten${country ? ` in ${deCountry(country, lang)}` : ''} werden durch Arbeitsverträge und das geltende Arbeitsrecht geregelt.`
-                : `Working conditions at our facilities${country ? ` in ${deCountry(country, lang)}` : ''} are governed by employment contracts and applicable labour law.`);
+            if (fte > 0 || country || cbaPct > 0)
+                parts.push(de
+                    ? `Für diese Frage sind folgende Angaben zur Belegschaft hinterlegt:${fte > 0 ? ` ${fmt(fte, lang)} VZÄ.` : ''}${country ? ` Land des Hauptsitzes: ${deCountry(country, lang)}.` : ''}`
+                    : `The following workforce details are on record for this question:${fte > 0 ? ` ${fmt(fte)} FTE employees.` : ''}${country ? ` Headquarters country: ${deCountry(country, lang)}.` : ''}`);
             if (cbaPct > 0)
                 parts.push(de
                     ? `${fmt(cbaPct, lang)}% unserer Belegschaft sind von Tarifverträgen erfasst${fte > 0 ? ` (rund ${fmt(Math.round(fte * cbaPct / 100), lang)} von ${fmt(fte, lang)} VZÄ)` : ''}.`
                     : `${fmt(cbaPct)}% of our workforce is covered by collective bargaining agreements${fte > 0 ? ` (approximately ${fmt(Math.round(fte * cbaPct / 100))} of ${fmt(fte)} FTE employees)` : ''}.`);
             parts.push(de
-                ? 'Konkrete Regelungen zu Arbeitszeit, Überstunden, Ruhezeiten und Urlaub haben wir für diese Frage nicht gesondert dokumentiert.'
-                : 'Specific working-hour, overtime, rest-period, and leave practices have not been separately documented for this question.');
+                ? 'Für diese Frage haben wir keine Angaben zu Arbeitszeit, Überstunden, Ruhezeiten oder Urlaub hinterlegt.'
+                : 'We do not have details of working-hour, overtime, rest-period or leave practices on record for this question.');
             return { answer: parts.join(' '), drafted: true };
         },
     },
@@ -511,8 +513,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 }
                 else if (departures > 0) {
                     parts.push(de
-                        ? `Unsere Fluktuationsquote${periodStr} betrug ${fmt(turnover, lang)}%, was rund ${departures} Abgängen entspricht. Zahlen zu Neueinstellungen werden für die künftige Berichterstattung konsolidiert.`
-                        : `Our employee turnover rate${periodStr} was ${fmt(turnover)}%, corresponding to approximately ${departures} departures. New hire figures are being consolidated for future reporting.`);
+                        ? `Unsere Fluktuationsquote${periodStr} betrug ${fmt(turnover, lang)}%, was rund ${departures} Abgängen entspricht. Für diese Frage haben wir keine Zahlen zu Neueinstellungen hinterlegt.`
+                        : `Our employee turnover rate${periodStr} was ${fmt(turnover)}%, corresponding to approximately ${departures} departures. We do not have new-hire figures on record for this question.`);
                 }
                 return parts.join(' ');
             }
@@ -542,11 +544,13 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             else {
                 parts.push(de
-                    ? 'Wir haben die Vergütung für diese Frage nicht formell mit den geltenden Mindestlohn- oder existenzsichernden Lohn-Benchmarks abgeglichen.'
-                    : 'We have not formally verified compensation against applicable minimum-wage or living-wage benchmarks for this question.');
+                    ? 'Für diese Frage haben wir keinen Abgleich der Vergütung mit dem gesetzlichen Mindestlohn oder mit Referenzwerten für existenzsichernde Löhne hinterlegt.'
+                    : 'We do not have a comparison of compensation against minimum-wage or living-wage benchmarks on record for this question.');
             }
-            if (fte > 0 && lwCompliant !== 'Not applicable')
+            if (fte > 0 && lwCompliant === 'Yes')
                 parts.push(de ? `Dies gilt für alle ${fmt(fte, lang)} VZÄ.` : `This applies to all ${fmt(fte)} FTE employees.`);
+            else if (fte > 0)
+                parts.push(de ? `Als Belegschaftsgröße sind ${fmt(fte, lang)} VZÄ hinterlegt.` : `The workforce count on record is ${fmt(fte)} FTE.`);
             return { answer: parts.join(' '), drafted: lwCompliant !== 'Yes' && lwCompliant !== 'Not applicable' };
         },
     },
@@ -641,8 +645,8 @@ export const ESG_ANSWER_TEMPLATES = [
         questionTypes: ['KPI'],
         generate: (dm, fw, lang) => ({
             answer: lang === 'de'
-                ? 'Standardisierte Sozialkennzahlen wie Fehlzeiten bzw. Krankenstand, Elternzeit, das geschlechtsspezifische Lohngefälle und Mitarbeiterzufriedenheit erfassen wir für diese Frage derzeit nicht.'
-                : 'We do not currently track standardized social metrics such as absenteeism/sick leave, parental leave, the gender pay gap, and employee satisfaction for this question.',
+                ? 'Für diese Frage haben wir keine standardisierten Sozialkennzahlen wie Fehlzeiten, Elternzeit, geschlechtsspezifisches Lohngefälle oder Mitarbeiterzufriedenheit hinterlegt.'
+                : 'We do not have standardized social metrics such as absenteeism, parental leave, gender pay gap or employee satisfaction on record for this question.',
             drafted: true,
         }),
     },
@@ -669,12 +673,17 @@ export const ESG_ANSWER_TEMPLATES = [
                     ? 'Ein Abgleich mit existenzsichernden Löhnen ist für unsere Organisation als nicht zutreffend gekennzeichnet.'
                     : 'Living-wage benchmarking is marked as not applicable to our organization.');
             }
+            else if (compliant === 'No') {
+                parts.push(de
+                    ? 'Die Einhaltung existenzsichernder Löhne ist mit „Nein“ hinterlegt. Für diese Frage haben wir weder Angaben zum Referenzwert noch zum Geltungsbereich innerhalb der Belegschaft hinterlegt.'
+                    : 'The record marks living-wage compliance as No. We do not have benchmark or workforce-coverage details on record for this question.');
+            }
             else {
                 parts.push(de
-                    ? 'Wir haben die Vergütung für diese Frage nicht formell mit den geltenden Mindestlohn- oder existenzsichernden Lohn-Benchmarks abgeglichen.'
-                    : 'We have not formally verified compensation against applicable minimum-wage or living-wage benchmarks for this question.');
+                    ? 'Für diese Frage haben wir keinen formellen Abgleich der Vergütung mit den geltenden Mindestlohn- oder existenzsichernden Lohn-Benchmarks hinterlegt.'
+                    : 'We do not have a formal comparison of compensation against applicable minimum-wage or living-wage benchmarks on record for this question.');
             }
-            if (fte > 0 && compliant !== 'Not applicable')
+            if (fte > 0 && compliant === 'Yes')
                 parts.push(de ? `Dies gilt für alle ${fmt(fte, lang)} VZÄ.` : `This applies to all ${fmt(fte)} FTE employees.`);
             return { answer: parts.join(' '), drafted: compliant !== 'Yes' && compliant !== 'Not applicable' };
         },
@@ -693,8 +702,8 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (exists === 'Yes') {
                 parts.push(de
-                    ? 'Ja, wir unterhalten einen formellen Beschwerdemechanismus, der allen Mitarbeitenden und externen Stakeholdern zur Verfügung steht.'
-                    : 'Yes, we maintain a formal grievance mechanism available to all employees and external stakeholders.');
+                    ? 'Ja, ein formeller Beschwerdemechanismus ist als vorhanden hinterlegt. Für diese Frage haben wir keine Angaben zum berechtigten Personenkreis hinterlegt.'
+                    : 'Yes, a formal grievance mechanism is recorded as being in place. We do not have details of its eligible users on record for this question.');
                 if (has(dm, 'grievancesReported')) {
                     parts.push(de
                         ? `${period ? `Im Zeitraum ${period} ` : ''}${count === 1 ? (period ? 'wurde eine Beschwerde' : 'Es wurde eine Beschwerde') : (period ? `wurden ${count} Beschwerden` : `Es wurden ${count} Beschwerden`)} über diesen Mechanismus gemeldet.`
@@ -784,8 +793,8 @@ export const ESG_ANSWER_TEMPLATES = [
             // No H&S metrics entered — honest gap, no fabricated safety process or "no incidents" claim.
             return {
                 answer: de
-                    ? 'Wir erfassen derzeit keine standardisierten Kennzahlen zur Unfallrate im Bereich Arbeitssicherheit (TRIR, LTIR) oder die zugrunde liegenden Daten zu geleisteten Arbeitsstunden für diese Frage.'
-                    : 'We do not currently track standardized occupational health and safety incident-rate metrics (TRIR, LTIR) or the underlying hours-worked data for this question.',
+                    ? 'Für diese Frage haben wir weder TRIR- oder LTIR-Kennzahlen noch Daten zu geleisteten Arbeitsstunden hinterlegt.'
+                    : 'We do not have TRIR, LTIR or hours-worked data on record for this question.',
                 drafted: true,
             };
         },
@@ -821,8 +830,8 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             if (!has45001 && !hasData) {
                 return { answer: de
-                        ? 'Unseren Ansatz zum Management der Arbeitssicherheit haben wir für diese Frage nicht gesondert dokumentiert.'
-                        : 'We have not separately documented our occupational health and safety management approach for this question.', drafted: true };
+                        ? 'Für diese Frage haben wir keinen Ansatz zum Management von Sicherheit und Gesundheit bei der Arbeit hinterlegt.'
+                        : 'We do not have an occupational health and safety management approach on record for this question.', drafted: true };
             }
             if (!has45001)
                 parts.push(de
@@ -1020,14 +1029,14 @@ export const ESG_ANSWER_TEMPLATES = [
             if (waste > 0 && div > 0) {
                 return {
                     answer: de
-                        ? `Wir erreichen eine Abfallverwertungsquote von ${fmt(div, lang)}% bei einem Gesamtabfall von ${fmt(waste, lang)} kg. Konkrete Kreislaufwirtschaftsinitiativen haben wir für diese Frage nicht gesondert dokumentiert.`
-                        : `We achieve a ${fmt(div)}% waste diversion rate from ${fmt(waste)} kg total waste. Specific circular-economy initiatives have not been separately documented for this question.`,
+                        ? `Erfasst sind ${fmt(waste, lang)} kg Gesamtabfall und eine Verwertungsquote von ${fmt(div, lang)}%. Für diese Frage haben wir keine konkreten Kreislaufwirtschaftsinitiativen hinterlegt.`
+                        : `We recorded ${fmt(waste)} kg of total waste and a ${fmt(div)}% diversion rate. We do not have specific circular-economy initiatives on record for this question.`,
                     drafted: true,
                 };
             }
             return { answer: de
-                    ? 'Wir haben keine Kreislaufwirtschaftsinitiativen dokumentiert und erfassen dies für diese Frage nicht.'
-                    : 'We have not documented circular-economy initiatives, and do not track this for this question.', drafted: true };
+                    ? 'Für diese Frage haben wir keine dokumentierten Kreislaufwirtschaftsinitiativen hinterlegt.'
+                    : 'We do not have documented circular-economy initiatives on record for this question.', drafted: true };
         },
     },
     // Fallback: general waste (any type not matched above)
@@ -1110,8 +1119,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 : `Our total water withdrawal${periodStr} was ${fmt(water)} m\u00B3.`;
             if (munPct > 0) {
                 answer += de
-                    ? ` ${fmt(munPct, lang)}% stammten aus der kommunalen/\u00F6ffentlichen Versorgung${munPct >= 90 ? '. Wir entnehmen derzeit kein Wasser direkt aus Grundwasser- oder Oberfl\u00E4chenwasserquellen.' : ', der Rest aus anderen Quellen.'}`
-                    : ` ${fmt(munPct)}% was sourced from municipal/public supply${munPct >= 90 ? '. We do not currently withdraw water directly from groundwater or surface water sources.' : ', with the remainder from other sources.'}`;
+                    ? ` ${fmt(munPct, lang)}% stammten aus der kommunalen bzw. \u00F6ffentlichen Versorgung, die \u00FCbrigen ${fmt(100 - munPct, lang)}% aus anderen Quellen.`
+                    : ` ${fmt(munPct)}% was sourced from municipal/public supply, with the remaining ${fmt(100 - munPct)}% from other sources.`;
             }
             if (fte > 0)
                 answer += de
@@ -1137,8 +1146,8 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             else {
                 parts.push(de
-                    ? 'Wir haben unsere Abwassermengen, deren Behandlung oder \u00DCberwachung f\u00FCr diese Frage nicht gesondert dokumentiert.'
-                    : 'We have not separately documented our wastewater discharge volumes, treatment, or monitoring practices for this question.');
+                    ? 'F\u00FCr diese Frage haben wir weder Abwassermengen noch Angaben zu Behandlung oder \u00DCberwachung hinterlegt.'
+                    : 'We do not have wastewater-discharge volumes, treatment details or monitoring practices on record for this question.');
             }
             if (water)
                 parts.push(de
@@ -1157,10 +1166,10 @@ export const ESG_ANSWER_TEMPLATES = [
             const country = str(dm, 'headquartersCountry');
             const parts = [];
             if (country)
-                parts.push(de ? `Unsere Betriebe befinden sich in ${deCountry(country, lang)}.` : `Our operations are based in ${deCountry(country, lang)}.`);
+                parts.push(de ? `Als Land des Hauptsitzes ist ${deCountry(country, lang)} hinterlegt.` : `Our headquarters country is ${deCountry(country, lang)}.`);
             parts.push(de
-                ? 'Wir haben unsere Exposition gegen\u00FCber Regionen mit Wasserstress (z. B. mithilfe des WRI-Aqueduct-Tools) f\u00FCr diese Frage nicht bewertet oder dokumentiert.'
-                : 'We have not assessed or documented our exposure to water-stressed regions (e.g. via the WRI Aqueduct tool) for this question.');
+                ? 'F\u00FCr diese Frage haben wir keine Bewertung der Exposition gegen\u00FCber Regionen mit Wasserstress hinterlegt.'
+                : 'We do not have an assessment of exposure to water-stressed regions on record for this question.');
             if (water)
                 parts.push(de
                     ? `Unsere gesamte Wasserentnahme betr\u00E4gt ${fmt(water, lang)} m\u00B3 pro Jahr.`
@@ -1189,10 +1198,10 @@ export const ESG_ANSWER_TEMPLATES = [
                 ? `Der rechtliche Name unserer Organisation lautet ${name}.`
                 : `The legal name of our organization is ${name}.`;
             const addr = str(dm, 'registeredAddress');
-            if (country && addr)
-                answer += de ? ` Das Unternehmen ist in ${deCountry(country, lang)} eingetragen. Eingetragene Anschrift: ${addr}.` : ` The company is incorporated in ${deCountry(country, lang)}. Registered address: ${addr}.`;
-            else if (country)
-                answer += de ? ` Das Unternehmen ist in ${deCountry(country, lang)} eingetragen.` : ` The company is incorporated in ${deCountry(country, lang)}.`;
+            if (country)
+                answer += de ? ` Der Hauptsitz befindet sich in ${deCountry(country, lang)}.` : ` Its headquarters country is ${deCountry(country, lang)}.`;
+            if (addr)
+                answer += de ? ` Eingetragene Anschrift: ${addr}.` : ` Registered address: ${addr}.`;
             if (ind && ind.toLowerCase() !== 'other')
                 answer += de ? ` Wir sind im Sektor ${ind} tätig.` : ` We operate in the ${ind} sector.`;
             if (fte > 0)
@@ -1233,8 +1242,12 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             else {
                 parts.push(de
-                    ? `${orgDe} hat seinen Hauptsitz${country ? ` in ${deCountry(country, lang)}` : ''}.`
-                    : `${name || 'Our organization'} is headquartered${country ? ` in ${deCountry(country, lang)}` : ''}.`);
+                    ? (country
+                        ? `${orgDe} hat seinen Hauptsitz in ${deCountry(country, lang)}. Für diese Frage haben wir keine Standortanzahl hinterlegt.`
+                        : `Für ${name || 'unsere Organisation'} haben wir weder eine Standortanzahl noch Angaben zum Hauptsitz hinterlegt.`)
+                    : (country
+                        ? `${name || 'Our organization'} has its headquarters in ${deCountry(country, lang)}. We do not have a site count on record for this question.`
+                        : `We do not have site-count or headquarters details on record for ${name || 'our organization'}.`));
             }
             if (fte > 0)
                 parts.push(de
@@ -1260,11 +1273,11 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             else {
                 // No parent on file is not the same as having no parent.
-                parts.push(de
-                    ? 'Für diese Frage haben wir keine Angaben zur Konzernzugehörigkeit hinterlegt.'
-                    : 'We do not have parent company or group structure details on record for this question.');
                 if (ownership)
-                    parts.push(de ? `Das Unternehmen agiert als eigenständiges ${ownership.toLowerCase()}-Unternehmen.` : `The company operates as an independent ${ownership.toLowerCase()} business.`);
+                    parts.push(de ? `Hinterlegte Eigentümerstruktur: ${ownership}.` : `Ownership structure on record: ${ownership}.`);
+                parts.push(de
+                    ? 'Für diese Frage haben wir keine Angaben zur Muttergesellschaft oder Konzernzugehörigkeit hinterlegt.'
+                    : 'We do not have parent-company or group-structure details on record for this question.');
             }
             if (subs)
                 parts.push(de ? `Wir verfügen über die folgenden Tochtergesellschaften: ${subs}.` : `We have the following subsidiary operations: ${subs}.`);
@@ -1443,11 +1456,11 @@ export const ESG_ANSWER_TEMPLATES = [
                 const uniqueCerts = dedupeCerts(allCerts);
                 const parts = [];
                 parts.push(de
-                    ? `Unsere Organisation verfügt über die folgenden Zertifizierungen: ${uniqueCerts.join('; ')}.`
-                    : `Our organization holds the following certifications: ${uniqueCerts.join('; ')}.`);
+                    ? `Für diese Frage ist folgende Zertifizierung unserer Organisation hinterlegt: ${uniqueCerts.join('; ')}.`
+                    : `Our organization holds the following certification recorded for this question: ${uniqueCerts.join('; ')}.`);
                 parts.push(de
-                    ? 'Zertifikatsnummern und Gültigkeitsdaten sind auf Anfrage erhältlich.'
-                    : 'Certificate numbers and validity dates are available on request.');
+                    ? 'Zertifikatsnummern und Gültigkeitsdaten sind nicht hinterlegt.'
+                    : 'We do not have certificate numbers or validity dates on record.');
                 return parts.join(' ');
             }
             return { answer: de
@@ -1553,7 +1566,7 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (goal && (goal.toLowerCase().includes('net zero') || goal.toLowerCase().includes('sbti') || goal.toLowerCase().includes('carbon'))) {
                 parts.push(de ? `Ja, unsere Organisation hat das folgende Klimaziel gesetzt: ${goal}.` : `Yes, our organization has set the following climate target: ${goal}.`);
-                if (total > 0)
+                if (dm.has('scope1Estimate') && dm.has('scope2Location'))
                     parts.push(de
                         ? `Unsere aktuellen Scope-1- und Scope-2-Emissionen betragen insgesamt ${fmt(total, lang)} tCO2e.`
                         : `Our current Scope 1 + Scope 2 emissions total ${fmt(total)} tCO2e.`);
@@ -1562,10 +1575,18 @@ export const ESG_ANSWER_TEMPLATES = [
             parts.push(de
                 ? 'Für diese Frage haben wir kein wissenschaftsbasiertes Ziel (SBTi), keine Netto-Null-Verpflichtung und keinen Dekarbonisierungsfahrplan hinterlegt.'
                 : 'We do not have a science-based target (SBTi), a net-zero commitment or a decarbonisation roadmap on record for this question.');
-            if (total > 0)
+            if (dm.has('scope1Estimate'))
                 parts.push(de
-                    ? `Unsere aktuellen Scope-1- und Scope-2-Emissionen betragen insgesamt ${fmt(total, lang)} tCO2e.`
-                    : `Our current Scope 1 + Scope 2 emissions total ${fmt(total)} tCO2e.`);
+                    ? `Als Scope-1-Emissionen sind ${fmt(s1, lang)} tCO2e erfasst.`
+                    : `Recorded Scope 1 emissions are ${fmt(s1)} tCO2e.`);
+            if (dm.has('scope2Location'))
+                parts.push(de
+                    ? `Als standortbasierte Scope-2-Emissionen sind ${fmt(s2, lang)} tCO2e erfasst.`
+                    : `Recorded location-based Scope 2 emissions are ${fmt(s2)} tCO2e.`);
+            else if (dm.has('scope1Estimate'))
+                parts.push(de
+                    ? 'Scope-2-Emissionen sind nicht hinterlegt.'
+                    : 'Scope 2 emissions are not on record.');
             return { answer: parts.join(' '), drafted: true };
         },
     },
@@ -1610,12 +1631,12 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             else {
                 parts.push(de
-                    ? 'Ein formeller Ethikkodex und eine Antikorruptionsrichtlinie wurden bislang nicht eingeführt.'
-                    : 'A formal Code of Ethics and Anti-Corruption Policy has not yet been established.');
+                    ? 'Für diese Frage haben wir weder einen Ethikkodex noch eine Antikorruptionsrichtlinie hinterlegt.'
+                    : 'We do not have a Code of Ethics or an Anti-Corruption Policy on record for this question.');
             }
             parts.push(de
-                ? 'Gesonderte Kontrollen zu Interessenkonflikten, Geldwäscheprävention, Lobbyarbeit und Steuertransparenz haben wir für diese Frage nicht eigens dokumentiert.'
-                : 'Specific controls for conflict of interest, anti-money-laundering, lobbying, and tax transparency have not been separately documented for this question.');
+                ? 'Für diese Frage haben wir keine Angaben zu Kontrollen für Interessenkonflikte, Geldwäscheprävention, Lobbyarbeit oder Steuertransparenz hinterlegt.'
+                : 'We do not have control details for conflict of interest, anti-money-laundering, lobbying or tax transparency on record for this question.');
             return { answer: parts.join(' '), drafted: inPlace.length === 0 && !policies };
         },
     },
@@ -1641,8 +1662,8 @@ export const ESG_ANSWER_TEMPLATES = [
                     ? `Wir verfügen über die folgenden Managementsystem-Zertifizierungen: ${certs}.`
                     : `We hold the following management-system certifications: ${certs}.`);
             parts.push(de
-                ? 'Eine formalisierte ESG-Governance-Struktur mit expliziter Verantwortlichkeit und Berichtswegen sowie eine dokumentierte (doppelte) Wesentlichkeitsanalyse haben wir für diese Frage nicht gesondert dokumentiert.'
-                : 'A formalized ESG governance structure with explicit accountability and reporting lines, and a documented (double) materiality assessment, have not been separately established for this question.');
+                ? 'Für diese Frage haben wir weder eine ESG-Governance-Struktur mit Verantwortlichkeiten und Berichtswegen noch eine Wesentlichkeitsanalyse hinterlegt.'
+                : 'We do not have an ESG governance structure, accountability and reporting lines, or a materiality assessment on record for this question.');
             return { answer: parts.join(' '), drafted: true };
         },
     },
@@ -1656,17 +1677,17 @@ export const ESG_ANSWER_TEMPLATES = [
             const status = str(dm, 'noSignificantFines');
             if (status === 'none') {
                 return de
-                    ? `Nach unserem besten Wissen war ${name || 'unsere Organisation'} in den letzten drei Jahren keinen wesentlichen umwelt-, sozial- oder governancebezogenen Bußgeldern, Sanktionen oder Gerichtsverfahren ausgesetzt.`
-                    : `To the best of our knowledge, ${name || 'our organization'} has not been subject to any significant environmental, social, or governance-related fines, sanctions, or legal proceedings in the past three years.`;
+                    ? 'Für diese Frage sind keine wesentlichen Bußgelder, Sanktionen oder Gerichtsverfahren hinterlegt.'
+                    : 'No significant fines, sanctions or legal proceedings are recorded for this question.';
             }
             if (status === 'yes') {
                 return de
-                    ? `${name || 'Unsere Organisation'} hat relevante Bußgelder, Sanktionen oder Gerichtsverfahren offengelegt. Einzelheiten sind in unseren Compliance-Unterlagen verfügbar und können auf Anfrage bereitgestellt werden.`
-                    : `${name || 'Our organization'} has disclosed relevant fines, sanctions, or legal proceedings. Details are available in our compliance records and can be provided upon request.`;
+                    ? 'Relevante Bußgelder, Sanktionen oder Gerichtsverfahren sind als offengelegt hinterlegt. Für diese Frage haben wir keine Einzelheiten dazu hinterlegt.'
+                    : 'Relevant fines, sanctions or legal proceedings are recorded as having been disclosed. We do not have their details on record for this question.';
             }
             return { answer: de
-                    ? `${name || 'Unsere Organisation'} hat ihren Status zu Bußgeldern, Sanktionen oder Gerichtsverfahren für diese Frage nicht erfasst.`
-                    : `${name || 'Our organization'} has not recorded its fines, sanctions, or legal-proceedings status for this question.`, drafted: true };
+                    ? 'Für diese Frage haben wir keinen Status zu Bußgeldern, Sanktionen oder Gerichtsverfahren hinterlegt.'
+                    : 'We do not have fines, sanctions or legal-proceedings status on record for this question.', drafted: true };
         },
     },
     // POLICY: Data protection / GDPR (Q46)
@@ -1677,23 +1698,21 @@ export const ESG_ANSWER_TEMPLATES = [
         generate: (dm, fw, lang) => {
             const de = lang === 'de';
             const name = str(dm, 'legalEntityName');
-            const country = str(dm, 'headquartersCountry');
             const hasPolicy = str(dm, 'dataProtectionPolicy');
-            const isEU = country && ['Germany', 'France', 'Poland', 'Italy', 'Spain', 'Netherlands', 'Belgium', 'Austria', 'Sweden', 'Czech Republic', 'Denmark', 'Finland', 'Portugal', 'Ireland', 'Greece', 'Romania', 'Hungary', 'Croatia', 'Slovakia', 'Slovenia', 'Bulgaria', 'Lithuania', 'Latvia', 'Estonia', 'Luxembourg', 'EU Average'].includes(country);
             const parts = [];
             if (hasPolicy === 'Yes') {
                 parts.push(de
-                    ? `Ja, ${name || 'unsere Organisation'} verfügt über eine Datenschutzrichtlinie${isEU ? ', die mit der EU-Datenschutz-Grundverordnung (DSGVO) im Einklang steht' : ', die den geltenden Datenschutzvorschriften entspricht'}.`
-                    : `Yes, ${name || 'our organization'} has a data protection and privacy policy${isEU ? ' aligned with the EU General Data Protection Regulation (GDPR)' : ' in accordance with applicable data protection legislation'}.`);
+                    ? 'Ja, eine Datenschutzrichtlinie ist als vorhanden hinterlegt.'
+                    : 'Yes, a data protection and privacy policy is recorded as being in place.');
                 parts.push(de
-                    ? 'Die konkreten Schutzmaßnahmen hinter dieser Richtlinie haben wir für diese Frage nicht gesondert dokumentiert.'
-                    : 'We have not separately documented the specific safeguards behind this policy for this question.');
+                    ? 'Für diese Frage haben wir weder Angaben zu ihrer rechtlichen Ausrichtung noch zu den konkreten Schutzmaßnahmen hinterlegt.'
+                    : 'We do not have its legal alignment or specific safeguards on record for this question.');
                 return parts.join(' ');
             }
             if (hasPolicy === 'No') {
                 return { answer: de
-                        ? `${name || 'Unsere Organisation'} verfügt derzeit über keine formelle Datenschutzrichtlinie${isEU ? ', die mit der DSGVO im Einklang steht' : ''} und erfasst dies für diese Frage nicht.`
-                        : `${name || 'Our organization'} does not currently have a formal data protection and privacy policy${isEU ? ' aligned with GDPR' : ''}, and does not track this for this question.`, drafted: true };
+                        ? `Nein, laut den hinterlegten Angaben verfügt ${name || 'unsere Organisation'} derzeit über keine formelle Datenschutzrichtlinie.`
+                        : `No, the record states that ${name || 'our organization'} does not currently have a formal data protection and privacy policy.`, drafted: true };
             }
             if (hasPolicy === 'Not applicable') {
                 return { answer: de
@@ -1701,8 +1720,8 @@ export const ESG_ANSWER_TEMPLATES = [
                         : `A data protection and privacy policy is marked as not applicable to ${name || 'our organization'}.` };
             }
             return { answer: de
-                    ? `${name || 'Unsere Organisation'} hat für diese Frage nicht erfasst, ob eine Datenschutzrichtlinie vorhanden ist.`
-                    : `${name || 'Our organization'} has not recorded whether a data protection and privacy policy is in place for this question.`, drafted: true };
+                    ? 'Für diese Frage haben wir den Status einer Datenschutzrichtlinie nicht hinterlegt.'
+                    : 'We do not have the status of a data protection and privacy policy on record for this question.', drafted: true };
         },
     },
     // POLICY: ESG-linked executive compensation (Q48)
@@ -1715,8 +1734,8 @@ export const ESG_ANSWER_TEMPLATES = [
             const name = str(dm, 'legalEntityName');
             return {
                 answer: de
-                    ? `${name || 'Unsere Organisation'} betreibt derzeit keine formellen ESG-gebundenen Vergütungs- oder Anreizstrukturen für Führungskräfte und erfasst dies für diese Frage nicht.`
-                    : `${name || 'Our organization'} does not currently operate formal ESG-linked executive compensation or incentive structures, and does not track this for this question.`,
+                    ? 'Für diese Frage haben wir keine Angaben zu ESG-gebundenen Vergütungs- oder Anreizstrukturen für Führungskräfte hinterlegt.'
+                    : 'We do not have details of ESG-linked executive compensation or incentive structures on record for this question.',
                 drafted: true,
             };
         },
@@ -1742,8 +1761,8 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             else if (csrd === 'no') {
                 parts.push(de
-                    ? `${name || 'Unsere Organisation'} unterliegt derzeit aufgrund ihrer aktuellen Größe und Rechtsstruktur nicht den CSRD-Berichtspflichten.`
-                    : `${name || 'Our organization'} is not currently subject to CSRD reporting obligations based on current size and legal structure.`);
+                    ? `${name || 'Unsere Organisation'} ist als derzeit nicht CSRD-berichtspflichtig hinterlegt.`
+                    : `${name || 'Our organization'} is recorded as not currently subject to CSRD reporting obligations.`);
                 if (fte > 0 || rev) {
                     const details = buildDetails();
                     parts.push(de ? `Aktuelles Profil: ${details}.` : `Current profile: ${details}.`);
@@ -1751,13 +1770,13 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             else if (csrd === 'assessing') {
                 parts.push(de
-                    ? `${name || 'Unsere Organisation'} prüft derzeit ihre Anwendbarkeit unter der CSRD auf Basis von Unternehmensgröße, Rechtsstruktur und Konzernberichtskontext.`
-                    : `${name || 'Our organization'} is currently assessing its applicability under CSRD based on entity size, legal structure, and group-reporting context.`);
+                    ? `Laut den hinterlegten Angaben prüft ${name || 'unsere Organisation'} derzeit, ob sie der CSRD-Berichtspflicht unterliegt.`
+                    : `${name || 'Our organization'} is recorded as currently assessing its applicability under CSRD.`);
                 if (fte > 0 || rev) {
                     const details = buildDetails();
                     parts.push(de
-                        ? `Auf Basis unseres aktuellen Profils (${details}) wird die Anwendbarkeit derzeit ermittelt.`
-                        : `Based on our current profile (${details}), applicability is being determined.`);
+                        ? `Hinterlegtes Unternehmensprofil: ${details}.`
+                        : `Company profile on record: ${details}.`);
                 }
             }
             else {
@@ -1796,8 +1815,8 @@ export const ESG_ANSWER_TEMPLATES = [
                     : `Recorded safety performance: ${metrics.join(', ')}.`);
             }
             parts.push(de
-                ? 'Unseren Prozess zur Untersuchung von Vorfällen und zu Korrekturmaßnahmen haben wir für diese Frage nicht gesondert dokumentiert.'
-                : 'We have not separately documented our incident investigation and corrective-action process for this question.');
+                ? 'Für diese Frage haben wir keinen Prozess für Vorfalluntersuchungen und Korrekturmaßnahmen hinterlegt.'
+                : 'We do not have an incident-investigation and corrective-action process on record for this question.');
             return { answer: parts.join(' '), drafted: true };
         },
     },
@@ -1837,8 +1856,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 return parts.join(' ');
             }
             return { answer: de
-                    ? 'Wir erfassen den Kraftstoffverbrauch f\u00FCr diese Frage derzeit nicht nach Art.'
-                    : 'We do not currently track fuel consumption by type for this question.', drafted: true };
+                    ? 'F\u00FCr diese Frage haben wir keine nach Kraftstoffart aufgeschl\u00FCsselten Verbrauchsdaten hinterlegt.'
+                    : 'We do not have fuel-consumption figures by fuel type on record for this question.', drafted: true };
         },
     },
     // ===================================================================
@@ -1874,8 +1893,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 return { answer: parts.join(' '), drafted: !composition && !has(dm, 'fleetSize') && !has(dm, 'totalKmDriven') };
             }
             return { answer: de
-                    ? 'Unsere Fuhrparkzusammensetzung oder fuhrparkbezogene Daten haben wir für diese Frage nicht gesondert dokumentiert.'
-                    : 'We have not separately documented our fleet composition or fleet-related data for this question.', drafted: true };
+                    ? 'Für diese Frage haben wir keine Angaben zur Fuhrparkzusammensetzung oder fuhrparkbezogene Daten hinterlegt.'
+                    : 'We do not have fleet-composition or fleet-related data on record for this question.', drafted: true };
         },
     },
     // Transport / logistics environmental impact (catches questions that don't match fleet/business_travel).
@@ -1892,8 +1911,8 @@ export const ESG_ANSWER_TEMPLATES = [
                         : `To reduce the environmental impact of transportation and logistics, we implement the following measures: ${measures}.` };
             }
             return { answer: de
-                    ? 'Wir haben die Umweltauswirkungen unseres Transports und unserer Logistik nicht gesondert dokumentiert und erfassen dies für diese Frage nicht.'
-                    : 'We have not separately documented the environmental impact of our transportation and logistics, and do not track this for this question.',
+                    ? 'Für diese Frage haben wir keine Bewertung der Umweltauswirkungen von Transport und Logistik hinterlegt.'
+                    : 'We do not have an assessment of the environmental impact of transportation and logistics on record for this question.',
                 drafted: true };
         },
     },
@@ -1918,8 +1937,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 parts.push(de ? `Anteil Homeoffice: ${fmt(wfh, lang)}%.` : `Remote work coverage: ${fmt(wfh)}%.`);
             if (parts.length === 0) {
                 return { answer: de
-                        ? 'Wir erfassen für diese Frage derzeit keine Scope-3-Emissionen aus Geschäftsreisen oder Arbeitswegen der Mitarbeitenden.'
-                        : 'We do not currently track Scope 3 emissions from business travel or employee commuting for this question.', drafted: true };
+                        ? 'Für diese Frage haben wir keine Scope-3-Daten zu Geschäftsreisen oder Arbeitswegen der Mitarbeitenden hinterlegt.'
+                        : 'We do not have Scope 3 figures for business travel or employee commuting on record for this question.', drafted: true };
             }
             return { answer: parts.join(' '), drafted: !s3 };
         },
@@ -2014,8 +2033,8 @@ export const ESG_ANSWER_TEMPLATES = [
                     : `${name || 'Our organization'} recorded material input of ${fmt(material)} tonnes for the reporting period.`;
             }
             return { answer: de
-                    ? `${name || 'Unsere Organisation'} hat ihren Rohstoffverbrauch nach Art oder den Anteil aus recycelten oder sekundären Materialien für diese Frage nicht dokumentiert.`
-                    : `${name || 'Our organization'} has not documented its raw-material consumption by type or the share sourced from recycled or secondary materials for this question.`, drafted: true };
+                    ? 'Für diese Frage haben wir weder den Rohstoffverbrauch nach Art noch den Anteil recycelter oder sekundärer Materialien hinterlegt.'
+                    : 'We do not have raw-material consumption by type or the recycled or secondary-material share on record for this question.', drafted: true };
         },
     },
     // Supplier code of conduct
@@ -2036,8 +2055,8 @@ export const ESG_ANSWER_TEMPLATES = [
                     : `Yes, ${name || 'our organization'} maintains a Supplier Code of Conduct.`;
             }
             return { answer: de
-                    ? 'Ein formeller Lieferanten-Verhaltenskodex wurde bislang nicht eingeführt.'
-                    : 'A formal Supplier Code of Conduct has not yet been established.', drafted: true };
+                    ? 'Für diese Frage haben wir keinen Lieferanten-Verhaltenskodex hinterlegt.'
+                    : 'We do not have a Supplier Code of Conduct on record for this question.', drafted: true };
         },
     },
     // Supply chain ESG monitoring
@@ -2054,15 +2073,15 @@ export const ESG_ANSWER_TEMPLATES = [
             if (assessed) {
                 return {
                     answer: de
-                        ? `${assessed}% unserer Lieferanten wurden anhand von ESG-Kriterien bewertet. Die strukturierten Maßnahmen zur ESG-Überwachung von Lieferanten hinter dieser Kennzahl haben wir für diese Frage nicht gesondert dokumentiert.`
-                        : `${assessed}% of our suppliers have been assessed on ESG criteria. We have not separately documented the structured supplier ESG monitoring measures behind this figure for this question.`,
+                        ? `${assessed}% unserer Lieferanten wurden anhand von ESG-Kriterien bewertet. Für diese Frage haben wir die Überwachungsmethode nicht hinterlegt.`
+                        : `${assessed}% of our suppliers have been assessed on ESG criteria. We do not have the monitoring method on record for this question.`,
                     drafted: true,
                 };
             }
             return {
                 answer: de
-                    ? `${name || 'Unsere Organisation'} hat kein dokumentiertes Programm zur ESG-Überwachung oder -Bewertung von Lieferanten eingeführt und erfasst dies derzeit für diese Frage nicht.`
-                    : `${name || 'Our organization'} has not established a documented supplier ESG monitoring or assessment programme, and does not currently track this for this question.`,
+                    ? 'Für diese Frage haben wir kein Programm zur ESG-Überwachung oder -Bewertung von Lieferanten hinterlegt.'
+                    : 'We do not have a supplier ESG monitoring or assessment programme on record for this question.',
                 drafted: true,
             };
         },
@@ -2083,13 +2102,13 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (hrdd === 'available') {
                 parts.push(de
-                    ? `Ja, ${name || 'unsere Organisation'} führt einen Prozess zur menschenrechtlichen Sorgfaltspflicht in der Lieferkette durch (u. a. im Sinne des LkSG bzw. der CSDDD).`
-                    : `Yes, ${name || 'our organization'} operates a human-rights due-diligence process across its supply chain (e.g. in line with the LkSG / CSDDD).`);
+                    ? 'Ja, ein Prozess zur menschenrechtlichen Sorgfaltspflicht in der Lieferkette ist als vorhanden hinterlegt. Angaben zur Ausrichtung am LkSG oder an der CSDDD sind für diese Frage nicht hinterlegt.'
+                    : 'Yes, a supply-chain human-rights due-diligence process is recorded as being in place. Its alignment with the LkSG or CSDDD is not on record for this question.');
             }
             else if (hrdd === 'in_progress') {
                 parts.push(de
-                    ? `${name || 'Unsere Organisation'} baut derzeit einen Prozess zur menschenrechtlichen Sorgfaltspflicht in der Lieferkette auf (u. a. im Sinne des LkSG bzw. der CSDDD).`
-                    : `${name || 'Our organization'} is currently establishing a human-rights due-diligence process across its supply chain (e.g. in line with the LkSG / CSDDD).`);
+                    ? 'Ein Prozess zur menschenrechtlichen Sorgfaltspflicht in der Lieferkette ist als im Aufbau befindlich hinterlegt. Angaben zur Ausrichtung am LkSG oder an der CSDDD sind für diese Frage nicht hinterlegt.'
+                    : 'A supply-chain human-rights due-diligence process is recorded as being in progress. Its alignment with the LkSG or CSDDD is not on record for this question.');
             }
             else if (hrdd === 'na') {
                 parts.push(de
@@ -2098,13 +2117,13 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             else {
                 parts.push(de
-                    ? `${name || 'Unsere Organisation'} hat keinen formellen Prozess zur menschenrechtlichen Sorgfaltspflicht in der Lieferkette (z. B. nach LkSG, CSDDD oder EUDR) dokumentiert.`
-                    : `${name || 'Our organization'} has not documented a formal supply-chain human-rights due-diligence process (e.g. under the LkSG, CSDDD, or EUDR).`);
+                    ? 'Für diese Frage haben wir keinen formellen Prozess zur menschenrechtlichen Sorgfaltspflicht in der Lieferkette hinterlegt.'
+                    : 'We do not have a formal supply-chain human-rights due-diligence process on record for this question.');
             }
             if (hasCode)
                 parts.push(de
-                    ? 'Ein Lieferanten-Verhaltenskodex bildet die Grundlage unserer Erwartungen an Lieferanten.'
-                    : 'A Supplier Code of Conduct underpins our expectations of suppliers.');
+                    ? 'Ein Lieferanten-Verhaltenskodex ist als vorhanden hinterlegt.'
+                    : 'A Supplier Code of Conduct is recorded as being in place.');
             if (assessed)
                 parts.push(de
                     ? `${assessed}% unserer Lieferanten wurden anhand von ESG-Kriterien bewertet.`
@@ -2152,8 +2171,8 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             return {
                 answer: de
-                    ? `${name || 'Unsere Organisation'} führt derzeit keine Sorgfaltspflicht zu Konfliktmineralien (3TG: Zinn, Tantal, Wolfram, Gold) durch und erfasst diese für diese Frage nicht — einschließlich Identifizierung von Schmelzen/Raffinerien, Bestimmung des Herkunftslands oder CMRT/EMRT-Erklärungen.`
-                    : `${name || 'Our organization'} does not currently conduct or track conflict-minerals (3TG: tin, tantalum, tungsten, gold) due diligence — including smelter/refiner identification, country-of-origin determination, or CMRT/EMRT declarations — for this question.`,
+                    ? 'Für diese Frage haben wir keine Angaben zu einem Sorgfaltsprozess für Konfliktmineralien hinterlegt.'
+                    : 'We do not have details of a conflict-minerals due-diligence process on record for this question.',
                 drafted: true,
             };
         },
@@ -2175,23 +2194,23 @@ export const ESG_ANSWER_TEMPLATES = [
             const parts = [];
             if (labourPolicies.length > 0) {
                 parts.push(de
-                    ? `Unser Verbot von Kinderarbeit sowie von Zwangs-, Schuldknechtschafts- oder Pflichtarbeit ist in den folgenden Richtlinien geregelt: ${labourPolicies.join(', ')}.`
-                    : `Our prohibition of child labour and of forced, bonded, or compulsory labour is addressed within the following policies: ${labourPolicies.join(', ')}.`);
+                    ? `Folgende möglicherweise einschlägige Richtlinie ist hinterlegt: ${labourPolicies.join(', ')}.`
+                    : `The following potentially relevant policy is on record: ${labourPolicies.join(', ')}.`);
                 parts.push(de
-                    ? 'Wir führen derzeit keine gesonderten dokumentierten Sorgfaltspflichtnachweise (wie Altersverifizierung oder Arbeitsaudits bei Lieferanten) speziell zu dieser Frage.'
-                    : 'We do not currently maintain separate documented due-diligence records (such as age verification or supplier labour audits) specific to this question.');
+                    ? 'Für diese Frage haben wir ihre Regelungen zu Kinder- oder Zwangsarbeit nicht hinterlegt.'
+                    : 'We do not have its provisions on child labour or forced labour on record for this question.');
             }
             else {
                 parts.push(de
-                    ? 'Wir haben keine eigenständige Richtlinie oder keinen dokumentierten Sorgfaltspflichtprozess eingeführt, der Kinderarbeit sowie Zwangs-, Schuldknechtschafts- oder Pflichtarbeit ausdrücklich verbietet.'
-                    : 'We have not established a standalone policy or documented due-diligence process specifically prohibiting child labour and forced, bonded, or compulsory labour.');
+                    ? 'Für diese Frage haben wir weder eine eigenständige Richtlinie noch einen Sorgfaltspflichtprozess zu Kinder- und Zwangsarbeit hinterlegt.'
+                    : 'We do not have a standalone policy or due-diligence process addressing child labour and forced labour on record for this question.');
             }
             if (country)
                 parts.push(de
-                    ? `Als Arbeitgeber mit Sitz in ${deCountry(country, lang)} unterliegen unsere Beschäftigungspraktiken dem geltenden nationalen Arbeitsrecht.`
-                    : `As an employer based in ${deCountry(country, lang)}, our employment practices are subject to applicable national labour law.`);
+                    ? `Als Land des Hauptsitzes ist ${deCountry(country, lang)} hinterlegt.`
+                    : `The headquarters country on record is ${deCountry(country, lang)}.`);
             if (fte)
-                parts.push(de ? `Dies gilt für unsere ${fmt(fte, lang)} Mitarbeitenden.` : `This applies to our ${fmt(fte)} employees.`);
+                parts.push(de ? `Als Belegschaftsgröße sind ${fmt(fte, lang)} VZÄ hinterlegt.` : `The workforce count on record is ${fmt(fte)} FTE.`);
             return { answer: parts.join(' '), drafted: true };
         },
     },
@@ -2202,8 +2221,8 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['chemical_management'],
         generate: (dm, fw, lang) => ({
             answer: lang === 'de'
-                ? 'Wir erfassen derzeit weder die Konformität mit Rahmenwerken zu chemischen Verbotsstoffen (wie ZDHC MRSL oder REACH SVHC) noch führen wir ein dokumentiertes Chemikalieninventar für diese Frage.'
-                : 'We do not currently track conformance to chemical restricted-substance frameworks (such as ZDHC MRSL or REACH SVHC) or maintain a documented chemical inventory for this question.',
+                ? 'Für diese Frage haben wir weder Angaben zur Konformität mit Vorgaben für beschränkte Stoffe noch ein Chemikalieninventar hinterlegt.'
+                : 'We do not have restricted-substance conformance details or a chemical inventory on record for this question.',
             drafted: true,
         }),
     },
@@ -2213,8 +2232,8 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['trade_compliance'],
         generate: (dm, fw, lang) => ({
             answer: lang === 'de'
-                ? 'Wir betreiben derzeit kein dokumentiertes Programm zur Sanktionsprüfung oder Exportkontroll-Compliance und erfassen dies für diese Frage nicht als gesonderte Kontrolle.'
-                : 'We do not currently operate a documented sanctions-screening or export-control compliance programme, and do not track this as a separate control for this question.',
+                ? 'Für diese Frage haben wir keine Angaben zu einem Programm für Sanktionslistenprüfungen oder Exportkontrollen hinterlegt.'
+                : 'We do not have details of a sanctions-screening or export-control compliance programme on record for this question.',
             drafted: true,
         }),
     },
@@ -2225,8 +2244,8 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['sustainable_materials'],
         generate: (dm, fw, lang) => ({
             answer: lang === 'de'
-                ? 'Wir haben die Faser-/Materialzusammensetzung unserer Produkte nicht dokumentiert und keine anerkannten Zertifizierungen für nachhaltige Materialien (wie GOTS, GRS, RDS oder FSC) für diese Frage erlangt.'
-                : 'We have not documented the fibre/material composition of our products or obtained recognised sustainable-material certifications (such as GOTS, GRS, RDS, or FSC) for this question.',
+                ? 'Für diese Frage haben wir weder Angaben zur Materialzusammensetzung der Produkte noch Zertifizierungen für nachhaltige Materialien hinterlegt.'
+                : 'We do not have product material-composition data or sustainable-material certifications on record for this question.',
             drafted: true,
         }),
     },
@@ -2244,8 +2263,8 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             return {
                 answer: de
-                    ? 'Unsere Produkte tragen derzeit keine anerkannten Umweltkennzeichen (wie das EU-Ecolabel, den Blauen Engel oder das Nordische Umweltzeichen) oder veröffentlichte Umweltproduktdeklarationen, und wir erfassen dies für diese Frage nicht.'
-                    : 'Our products do not currently carry recognised eco-labels (such as the EU Ecolabel, Blue Angel, or Nordic Swan) or published Environmental Product Declarations, and we do not track this for this question.',
+                    ? 'Für diese Frage haben wir keine Umweltzeichen oder Umweltproduktdeklarationen für unsere Produkte hinterlegt.'
+                    : 'We do not have product eco-labels or Environmental Product Declarations on record for this question.',
                 drafted: true,
             };
         },
@@ -2271,12 +2290,12 @@ export const ESG_ANSWER_TEMPLATES = [
                     : `Recorded packaging waste for the reporting period was ${fmt(packagingWaste)} kg.`);
             if (div > 0)
                 parts.push(de
-                    ? `Unsere Gesamt-Abfallverwertungsquote beträgt ${fmt(div, lang)}%, die Verpackungsabfallströme einschließt.`
-                    : `Our overall waste diversion rate is ${fmt(div)}%, which includes packaging waste streams.`);
+                    ? `Unsere Gesamtverwertungsquote für Abfälle beträgt ${fmt(div, lang)}%.`
+                    : `Our overall waste diversion rate is ${fmt(div)}%.`);
             if (!hasRecycled)
                 parts.push(de
-                    ? 'Unsere Verpackungsmaterialien, deren Recyclingfähigkeit oder Rezyklatanteil haben wir für diese Frage nicht gesondert dokumentiert.'
-                    : 'We have not separately documented our packaging materials, their recyclability, or recycled content for this question.');
+                    ? 'Für diese Frage haben wir keine verpackungsspezifischen Angaben zu Materialien, Recyclingfähigkeit oder Rezyklatanteil hinterlegt.'
+                    : 'We do not have packaging-specific materials, recyclability or recycled-content details on record for this question.');
             return { answer: parts.join(' '), drafted: !hasRecycled };
         },
     },
@@ -2297,8 +2316,8 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             return {
                 answer: de
-                    ? 'Wir erfassen derzeit nicht den Anteil der anhand von ESG-Kriterien bewerteten Lieferanten.'
-                    : 'We do not currently track the percentage of suppliers assessed on ESG criteria.',
+                    ? 'Für diese Frage haben wir den Anteil der anhand von ESG-Kriterien bewerteten Lieferanten nicht hinterlegt.'
+                    : 'We do not have the percentage of suppliers assessed against ESG criteria on record for this question.',
                 drafted: true,
             };
         },
@@ -2314,17 +2333,17 @@ export const ESG_ANSWER_TEMPLATES = [
             const cap = statusKind(str(dm, 'supplierCorrectiveActionProcess'));
             if (cap === 'available') {
                 return { answer: de
-                        ? 'Ja, wir unterhalten einen Prozess für Korrekturmaßnahmen bei ESG-Verstößen von Lieferanten, der Eskalation und erforderlichenfalls Beendigung der Geschäftsbeziehung umfasst.'
-                        : 'Yes, we operate a supplier corrective-action process for ESG non-compliance, covering escalation and, where necessary, termination of the business relationship.' };
+                        ? 'Ja, ein Prozess für Korrekturmaßnahmen bei ESG-Verstößen von Lieferanten ist als vorhanden hinterlegt. Für diese Frage haben wir keine Angaben zu Eskalations- oder Beendigungsschritten hinterlegt.'
+                        : 'Yes, a supplier corrective-action process for ESG non-compliance is recorded as being in place. We do not have its escalation or termination steps on record for this question.' };
             }
             if (cap === 'in_progress') {
                 return { answer: de
-                        ? 'Wir bauen derzeit einen Prozess für Korrekturmaßnahmen bei ESG-Verstößen von Lieferanten auf (Eskalation und erforderlichenfalls Beendigung).'
-                        : 'We are currently establishing a supplier corrective-action process for ESG non-compliance (escalation and, where necessary, termination).', drafted: true };
+                        ? 'Ein Prozess für Korrekturmaßnahmen bei ESG-Verstößen von Lieferanten ist als im Aufbau befindlich hinterlegt. Für diese Frage haben wir keine Angaben zu Eskalations- oder Beendigungsschritten hinterlegt.'
+                        : 'A supplier corrective-action process for ESG non-compliance is recorded as being in progress. We do not have its escalation or termination steps on record for this question.', drafted: true };
             }
             return { answer: de
-                    ? 'Wir haben keinen formellen Prozess für den Umgang mit ESG-Verstößen von Lieferanten (Korrekturmaßnahmen, Eskalation oder Beendigung) dokumentiert und erfassen dies für diese Frage nicht.'
-                    : 'We have not documented a formal process for handling supplier ESG non-compliance (corrective action, escalation, or termination), and do not track this for this question.',
+                    ? 'Für diese Frage haben wir keinen Prozess für Korrekturmaßnahmen bei ESG-Verstößen von Lieferanten hinterlegt.'
+                    : 'We do not have a supplier corrective-action process for ESG non-compliance on record for this question.',
                 drafted: true };
         },
     },
@@ -2347,12 +2366,12 @@ export const ESG_ANSWER_TEMPLATES = [
                 held.push('Sedex/SMETA');
             if (held.length > 0) {
                 return { answer: de
-                        ? `Wir haben die folgenden externen ESG-Ratings bzw. -Bewertungen abgeschlossen: ${held.join(', ')}. Die übrigen genannten Systeme (etwa DJSI, IntegrityNext, NQC oder Achilles) haben wir für diese Frage nicht durchlaufen.`
-                        : `We have completed the following external ESG ratings/assessments: ${held.join(', ')}. We have not completed the other named schemes (such as DJSI, IntegrityNext, NQC, or Achilles) for this question.` };
+                        ? `Folgende externe ESG-Bewertung ist hinterlegt: ${held.join(', ')}. Für die übrigen genannten Systeme haben wir keine Ergebnisse hinterlegt.`
+                        : `The following external ESG rating or assessment is on record: ${held.join(', ')}. We do not have results for the other named schemes on record for this question.` };
             }
             return { answer: de
-                    ? 'Die genannten externen ESG-Ratings und -Bewertungen (etwa EcoVadis, CDP, DJSI, Sedex/SMETA, IntegrityNext, NQC oder Achilles) haben wir für diese Frage nicht abgeschlossen.'
-                    : 'We have not completed the named external ESG ratings and assessments (such as EcoVadis, CDP, DJSI, Sedex/SMETA, IntegrityNext, NQC, or Achilles) for this question.',
+                    ? 'Für diese Frage haben wir keine Ergebnisse zu den genannten externen ESG-Ratings oder -Bewertungen hinterlegt.'
+                    : 'We do not have results for the named external ESG ratings or assessments on record for this question.',
                 drafted: true };
         },
     },
@@ -2368,8 +2387,8 @@ export const ESG_ANSWER_TEMPLATES = [
             const de = lang === 'de';
             const name = str(dm, 'legalEntityName');
             return { answer: de
-                    ? `${name || 'Unsere Organisation'} hat die Umsatz-, CapEx- und OpEx-Anteile nicht auf EU-Taxonomie-Konformität bewertet und dies für diese Frage nicht dokumentiert.`
-                    : `${name || 'Our organization'} has not assessed its revenue, CapEx, and OpEx shares for EU Taxonomy alignment, and has not documented this for this question.`,
+                    ? 'Für diese Frage haben wir keine EU-Taxonomie-Bewertung von Umsatz, CapEx oder OpEx hinterlegt.'
+                    : 'We do not have an EU Taxonomy assessment of revenue, CapEx or OpEx on record for this question.',
                 drafted: true };
         },
     },
@@ -2395,8 +2414,8 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             else {
                 return { answer: de
-                        ? `${name || 'Unsere Organisation'} hat für diese Frage nicht erfasst, ob sie einen eigenständigen Nachhaltigkeitsbericht veröffentlicht.`
-                        : `${name || 'Our organization'} has not recorded whether it publishes a standalone sustainability report for this question.`, drafted: true };
+                        ? 'Für diese Frage haben wir nicht hinterlegt, ob ein eigenständiger Nachhaltigkeitsbericht veröffentlicht wird.'
+                        : 'We do not have the publication status of a standalone sustainability report on record for this question.', drafted: true };
             }
             return parts.join(' ');
         },
@@ -2410,8 +2429,8 @@ export const ESG_ANSWER_TEMPLATES = [
             const name = str(dm, 'legalEntityName');
             return {
                 answer: de
-                    ? `${name || 'Unsere Organisation'} hat keinen formellen ESG-Risikomanagementprozess (Risikoidentifizierung, -bewertung und Einbindung in die Managementbewertung) dokumentiert und erfasst dies für diese Frage nicht.`
-                    : `${name || 'Our organization'} has not documented a formal ESG risk-management process (risk identification, assessment, and management-review integration), and does not track this for this question.`,
+                    ? 'Für diese Frage haben wir keinen formellen ESG-Risikomanagementprozess hinterlegt.'
+                    : 'We do not have a formal ESG risk-management process on record for this question.',
                 drafted: true,
             };
         },
@@ -2428,8 +2447,8 @@ export const ESG_ANSWER_TEMPLATES = [
             const name = str(dm, 'legalEntityName');
             return {
                 answer: de
-                    ? `${name || 'Unsere Organisation'} hat keine formelle Strategie zu Biodiversität, Naturschutz oder Entwaldung (einschließlich Landnutzungsänderung) dokumentiert und erfasst dies für diese Frage nicht.`
-                    : `${name || 'Our organization'} has not documented a formal biodiversity, nature, or deforestation strategy (including land-use change), and does not track this for this question.`,
+                    ? 'Für diese Frage haben wir keine formelle Strategie zu Biodiversität, Naturschutz oder Entwaldung hinterlegt.'
+                    : 'We do not have a formal biodiversity, nature or deforestation strategy on record for this question.',
                 drafted: true,
             };
         },
@@ -2456,8 +2475,8 @@ export const ESG_ANSWER_TEMPLATES = [
                     : `Women hold ${fmt(leaderPct)}% of leadership positions.`);
             }
             parts.push(de
-                ? 'Standardisierte Sozialkennzahlen wie das geschlechtsspezifische Lohngefälle, Fehlzeiten bzw. Krankenstand, Elternzeit und Mitarbeiterzufriedenheit erfassen wir für diese Frage nicht gesondert.'
-                : 'We do not separately track standardized social metrics such as the gender pay gap, absenteeism/sick leave, parental leave, and employee satisfaction for this question.');
+                ? 'Für diese Frage haben wir weder Kennzahlen zum geschlechtsspezifischen Lohngefälle noch zu Fehlzeiten, Elternzeit oder Mitarbeiterzufriedenheit hinterlegt.'
+                : 'We do not have gender pay gap, absenteeism, parental leave or employee satisfaction metrics on record for this question.');
             return { answer: parts.join(' '), drafted: true };
         },
     },
@@ -2479,11 +2498,11 @@ export const ESG_ANSWER_TEMPLATES = [
                     : 'Our information security management system is certified to ISO/IEC 27001.');
             if (hasPolicy === 'Yes')
                 parts.push(de
-                    ? 'Eine Datenschutzrichtlinie ist vorhanden und flankiert unsere Informationssicherheit.'
-                    : 'A data protection policy is in place and supports our information security posture.');
+                    ? 'Eine Datenschutzrichtlinie ist als vorhanden hinterlegt.'
+                    : 'A data protection policy is recorded as being in place.');
             parts.push(de
-                ? 'Ein gesondertes Programm zur Cyber- und Informationssicherheit (u. a. Reaktion auf Sicherheitsvorfälle und Datenschutzverletzungen) haben wir für diese Frage nicht eigens dokumentiert.'
-                : 'A dedicated cybersecurity and information-security programme (including incident and data-breach response) has not been separately documented for this question.');
+                ? 'Für diese Frage haben wir kein gesondertes Programm zur Cyber- oder Informationssicherheit hinterlegt.'
+                : 'We do not have a dedicated cybersecurity or information-security programme on record for this question.');
             return { answer: parts.join(' '), drafted: !has27001 };
         },
     },
@@ -2494,8 +2513,8 @@ export const ESG_ANSWER_TEMPLATES = [
         topics: ['pollution'],
         generate: (dm, fw, lang) => ({
             answer: lang === 'de'
-                ? 'Wir erfassen derzeit keine Luftschadstoffe (z. B. NOx, SOx, VOC, Feinstaub) und haben Umweltvorfälle wie Leckagen oder Freisetzungen für diese Frage nicht gesondert dokumentiert.'
-                : 'We do not currently track air pollutants (e.g. NOx, SOx, VOC, particulates) and have not separately documented environmental incidents such as spills or releases for this question.',
+                ? 'Für diese Frage haben wir weder Daten zu Luftschadstoffen noch Angaben zu Umweltvorfällen hinterlegt.'
+                : 'We do not have air pollutant data or environmental incident information on record for this question.',
             drafted: true,
         }),
     },
@@ -2508,8 +2527,8 @@ export const ESG_ANSWER_TEMPLATES = [
             const name = str(dm, 'legalEntityName');
             return {
                 answer: de
-                    ? `${name || 'Unsere Organisation'} hat kein formelles Programm für gesellschaftliches Engagement, lokale Gemeinwesenarbeit oder soziale Investitionen dokumentiert und erfasst dies für diese Frage nicht.`
-                    : `${name || 'Our organization'} has not documented a formal community-engagement, local-community, or social-investment programme, and does not track this for this question.`,
+                    ? 'Für diese Frage haben wir kein Programm für gesellschaftliches Engagement, lokale Gemeinwesenarbeit oder soziale Investitionen hinterlegt.'
+                    : 'We do not have a community-engagement or social-investment programme on record for this question.',
                 drafted: true,
             };
         },
@@ -2525,13 +2544,13 @@ export const ESG_ANSWER_TEMPLATES = [
             const rs = statusKind(str(dm, 'responsibleSourcingPolicyStatus'));
             if (rs === 'available') {
                 return { answer: de
-                        ? `Ja, ${name || 'unsere Organisation'} verfügt über eine Richtlinie für verantwortungsvolle Beschaffung, die Nachhaltigkeitsaspekte in Beschaffungsentscheidungen verankert.`
-                        : `Yes, ${name || 'our organization'} maintains a responsible-sourcing policy that embeds sustainability considerations into procurement decisions.` };
+                        ? 'Ja, eine Richtlinie für verantwortungsvolle Beschaffung ist als vorhanden hinterlegt. Für diese Frage haben wir nicht hinterlegt, wie sie Nachhaltigkeitsaspekte in Beschaffungsentscheidungen behandelt.'
+                        : 'Yes, a responsible-sourcing policy is recorded as being in place. Its treatment of sustainability in procurement decisions is not on record for this question.' };
             }
             if (rs === 'in_progress') {
                 return { answer: de
-                        ? `${name || 'Unsere Organisation'} baut derzeit eine Richtlinie für verantwortungsvolle Beschaffung auf, um Nachhaltigkeitsaspekte in Beschaffungsentscheidungen zu verankern.`
-                        : `${name || 'Our organization'} is currently developing a responsible-sourcing policy to embed sustainability considerations into procurement decisions.`, drafted: true };
+                        ? 'Eine Richtlinie für verantwortungsvolle Beschaffung ist als im Aufbau befindlich hinterlegt. Für diese Frage haben wir nicht hinterlegt, wie sie Nachhaltigkeitsaspekte in Beschaffungsentscheidungen behandeln soll.'
+                        : 'A responsible-sourcing policy is recorded as being in progress. Its intended treatment of sustainability in procurement decisions is not on record for this question.', drafted: true };
             }
             if (rs === 'na') {
                 return { answer: de
@@ -2540,8 +2559,8 @@ export const ESG_ANSWER_TEMPLATES = [
             }
             return {
                 answer: de
-                    ? `${name || 'Unsere Organisation'} hat nicht dokumentiert, wie Nachhaltigkeitsaspekte in Beschaffungsentscheidungen einbezogen werden, und erfasst dies für diese Frage nicht.`
-                    : `${name || 'Our organization'} has not documented how sustainability considerations are integrated into procurement decisions, and does not track this for this question.`,
+                    ? 'Für diese Frage haben wir keine Angaben dazu hinterlegt, wie Nachhaltigkeitsaspekte in Beschaffungsentscheidungen einbezogen werden.'
+                    : 'We do not have details of how sustainability considerations are integrated into procurement decisions on record for this question.',
                 drafted: true,
             };
         },
