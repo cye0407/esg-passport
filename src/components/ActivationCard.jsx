@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLicense } from '@/components/LicenseContext';
 import { useLanguage } from '@/components/LanguageContext';
+import { licenseErrorMessage } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Key, Loader2, CheckCircle2, X, Mail } from 'lucide-react';
@@ -57,7 +58,7 @@ export default function ActivationCard() {
     setLoading(true);
     setError('');
     const result = await activate(key);
-    if (!result.valid) setError(result.error);
+    if (!result.valid) setError(licenseErrorMessage(result, t));
     setLoading(false);
   }
 

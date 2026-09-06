@@ -8,7 +8,8 @@ import { QUESTIONNAIRE_TEMPLATES, templateToParseResult, templateName, templateD
 import { matchBuilderId } from '@/data/policyBuilders';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
-import { LANGUAGES, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
+import { LANGUAGES, isOfferedAnswerLanguage, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
+import { localizeEngineMessages } from '@/lib/engineMessages';
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { track } from '@/lib/track';
@@ -159,11 +160,15 @@ export default function Respond({ demoOnly = false }) {
     // (e.g. ?lang=de from the German marketing site) so the sample answers
     // render in German instead of the navigator/English default. Outside the
     // demo, honor the saved answer-language choice first.
-    if (demoOnly && ['en', 'de', 'fr', 'es'].includes(lang)) return lang;
+    // Every candidate is checked against isOfferedAnswerLanguage: a workspace saved
+    // while the picker still listed fr/es/pl/it/nl would otherwise set a value the
+    // Select cannot show, leaving the control blank.
+    if (demoOnly && isOfferedAnswerLanguage(lang)) return lang;
     const saved = loadData()?.settings?.language;
-    if (saved) return saved;
-    if (['en', 'de', 'fr', 'es'].includes(lang)) return lang;
-    return (navigator.language || 'en').split('-')[0];
+    if (isOfferedAnswerLanguage(saved)) return saved;
+    if (isOfferedAnswerLanguage(lang)) return lang;
+    const browser = (navigator.language || 'en').split('-')[0];
+    return isOfferedAnswerLanguage(browser) ? browser : 'en';
   });
   const [naJustifications, setNaJustifications] = useState({});
   const [naEditing, setNaEditing] = useState(null);
@@ -333,11 +338,13 @@ export default function Respond({ demoOnly = false }) {
       if (result.success && result.questions.length > 0) {
         beginQuestionnaireProcessing(result, file.name);
       } else if (result.questions.length === 0) {
-        setParseError(result.errors?.length ? result.errors.join('. ') : t('respond.errNoQuestions'));
+        setParseError(result.errors?.length
+          ? localizeEngineMessages(result.errors, t).join(' ')
+          : t('respond.errNoQuestions'));
         setShowMapping(true);
         if (result.metadata?.availableColumns) setMappingColumns(result.metadata.availableColumns);
       } else {
-        setParseError(result.errors.join('. '));
+        setParseError(localizeEngineMessages(result.errors, t).join(' '));
       }
     } catch (error) {
       console.error('Questionnaire parse failed:', error);

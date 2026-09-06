@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getCompanyProfile, saveCompanyProfile, getSettings, saveSettings, resetData } from '@/lib/store';
 import { COUNTRIES, EMISSION_FACTORS } from '@/lib/constants';
 import { useLanguage } from '@/components/LanguageContext';
+import { licenseErrorMessage } from '@/lib/i18n';
 import { localizeCountry } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -118,7 +119,9 @@ export default function Settings() {
 
     const result = await activate(key);
     if (!result.valid) {
-      setLicenseError(result.error || t('settings.activationFailed'));
+      setLicenseError((result.error || result.code)
+        ? licenseErrorMessage(result, t)
+        : t('settings.activationFailed'));
     } else {
       setLicenseKey('');
     }
@@ -345,7 +348,9 @@ export default function Settings() {
             const result = await deactivateLicense();
             setDeactivateLoading(false);
             if (!result.ok) {
-              setLicenseError(result.error || t('settings.deactivationFailed'));
+              setLicenseError((result.error || result.code)
+                ? licenseErrorMessage(result, t)
+                : t('settings.deactivationFailed'));
               return;
             }
             window.location.reload();

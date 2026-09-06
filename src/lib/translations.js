@@ -1,14 +1,30 @@
 const SUPPORTED = new Set(['en', 'de', 'pl', 'fr', 'es', 'it', 'nl']);
 
+// The answer languages actually offered in the Respond picker.
+//
+// en and de are generated NATIVELY by response-ready - the engine writes German
+// answers, it does not translate English ones. pl/fr/es/it/nl were only ever the
+// RULES table below, 82 regexes applied to English output. Measured across all 11
+// built-in templates (285 answers, 529 sentences) it rewrote about a quarter of
+// them; the rest stayed English, including the honest ones the supplier most needs
+// to be understood ("We do not have this data on record for this question", 28
+// occurrences untranslated). A supplier who picked Francais and exported was
+// sending their customer a half-English document without being told.
+//
+// The rules stay - they are correct as far as they go, and norm() still accepts an
+// older stored setting - but the picker offers only what the engine really writes.
+// Move a language up here when its answers are generated, not patched.
 export const LANGUAGES = [
   { code: 'en', label: 'English' },
   { code: 'de', label: 'Deutsch' },
-  { code: 'pl', label: 'Polski' },
-  { code: 'fr', label: 'Fran\u00e7ais' },
-  { code: 'es', label: 'Espa\u00f1ol' },
-  { code: 'it', label: 'Italiano' },
-  { code: 'nl', label: 'Nederlands' },
 ];
+
+// Is this language offered in the picker? A workspace saved before the picker was
+// trimmed can still carry 'fr' in settings.language, and a Select whose value is not
+// in its list renders blank.
+export function isOfferedAnswerLanguage(lang) {
+  return LANGUAGES.some((l) => l.code === lang);
+}
 
 function norm(lang) {
   const base = String(lang || 'en').toLowerCase().split('-')[0];
@@ -902,17 +918,6 @@ const RULES = [
       es: `Esta divulgación se rastrea parcialmente.`,
       it: `Questa disclosure è tracciata solo parzialmente.`,
       nl: `Deze disclosure wordt gedeeltelijk bijgehouden.`,
-    }),
-  },
-  {
-    regex: /\n\nData gaps:(?!)/g,
-    replace: (lang) => pick(lang, {
-      de: `\n\nDatenlücken: ${gaps}.`,
-      pl: `\n\nLuki w danych:`,
-      fr: `\n\nLacunes dans les données : ${gaps}.`,
-      es: `\n\nVacíos de datos: ${gaps}.`,
-      it: `\n\nLacune nei dati:`,
-      nl: `\n\nDatagaten:`,
     }),
   },
   {

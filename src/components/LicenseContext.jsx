@@ -11,6 +11,7 @@ import { getEntitlements } from '@/lib/entitlements';
 import { track } from '@/lib/track';
 import ActivationCard from '@/components/ActivationCard';
 import { useLanguage } from '@/components/LanguageContext';
+import { licenseErrorMessage } from '@/lib/i18n';
 
 const LicenseContext = createContext({
   isPaid: false,
@@ -59,7 +60,12 @@ export function LicenseProvider({ children }) {
       const urlKey = readActivationKeyFromUrl();
       if (urlKey) {
         const result = await activate(urlKey, { source: 'post_purchase_redirect' });
-        setAutoActivation({ ok: result.valid, error: result.error || null, tier: result.tier || getLicenseTier() });
+        setAutoActivation({
+          ok: result.valid,
+          error: result.error || null,
+          code: result.code || null,
+          tier: result.tier || getLicenseTier(),
+        });
         setIsChecking(false);
         return;
       }
@@ -107,7 +113,11 @@ function AutoActivationBanner({ result, onDismiss }) {
       <span>
         {success
           ? t('lic.activated', { tier: tierLabel })
-          : t('lic.failed', { error: result.error || t('lic.unknownError') })}
+          : t('lic.failed', {
+            error: (result.error || result.code)
+              ? licenseErrorMessage(result, t)
+              : t('lic.unknownError'),
+          })}
       </span>
       <button
         onClick={onDismiss}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLicense } from '@/components/LicenseContext';
 import { useLanguage } from '@/components/LanguageContext';
+import { licenseErrorMessage } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -57,7 +58,7 @@ export default function UpgradeGate({ feature }) {
 
     const result = await activate(key);
     if (!result.valid) {
-      setError(result.error);
+      setError(licenseErrorMessage(result, t));
     }
 
     setLoading(false);

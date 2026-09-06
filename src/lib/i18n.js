@@ -441,7 +441,7 @@ const translations = {
     'settings.license': 'License',
     'settings.licenseActive': '{tier} active since {date}.',
     'settings.noLicense': 'No license activated.',
-    'settings.upgradeHint': 'Upgraded to the full ESG Passport? Paste the new licence key below. It replaces your Questionnaire Pass and your data stays exactly as it is.',
+    'settings.upgradeHint': 'Upgraded to the full ESG Passport? Paste the new license key below. It replaces your Questionnaire Pass and your data stays exactly as it is.',
     'settings.licenseHint': 'Activate here or deactivate to transfer to another device.',
     'settings.licenseKey': 'License Key',
     'settings.licenseKeyPh': 'Enter your license key',
@@ -496,6 +496,30 @@ const translations = {
     'ext.cta': 'Upgrade to ESG Passport - €499',
     'ext.upgradeRatePre': 'Already have a license? Email',
     'ext.upgradeRatePost': 'for the upgrade-only rate.',
+    // Messages that arrive as data, not as UI strings: the engine's parse errors
+    // and Lemon Squeezy's license codes are English at the API boundary, and both
+    // land in front of the user verbatim. See engineMessages.js / license.js.
+    'engine.legacyDoc': 'The older .doc format cannot be read. Save the file as .docx and upload it again.',
+    'engine.unsupportedFormat': '.{ext} files cannot be read. Upload an Excel (.xlsx), CSV, PDF or Word (.docx) file.',
+    'engine.noQuestionsInDocument': 'No questions could be read from this document. Check that it contains questionnaire items.',
+    'engine.noQuestionsForMapping': 'No questions were found in the columns you selected. Choose a different question column.',
+    'engine.noQuestionColumn': 'The question column could not be identified. Rename its header to “Question”, or map the columns yourself.',
+    'engine.noSheets': 'This workbook has no sheets to read.',
+    'engine.tooManyQuestions': '{count} questions were extracted, which is unusually high. Check the results, and map the columns yourself if the wrong column was read.',
+    'engine.pdfFailed': 'This PDF could not be read. {detail}',
+    'engine.wordFailed': 'This Word document could not be read. {detail}',
+    'lic.err.notFound': 'This license key was not found. Check it and try again.',
+    'lic.err.expired': 'This license has expired. You can renew it at esgforsuppliers.com.',
+    'lic.err.disabled': 'This license has been deactivated. Write to contact@esgforsuppliers.com and we will sort it out.',
+    'lic.err.limitReached': 'This license is already active on another device. Deactivate it there first, or write to contact@esgforsuppliers.com.',
+    'lic.err.unrecognizedProduct': 'This license is valid, but it is not for an ESG Passport product.',
+    'lic.err.validationFailed': 'The license could not be checked. Please try again.',
+    'lic.err.invalidKey': 'This license key was not accepted. Check it and try again.',
+    'lic.err.malformedKey': 'That does not look like a license key. Check it and try again.',
+    'lic.err.unreachable': 'The license server could not be reached. Please try again in a moment.',
+    'lic.err.noActiveLicense': 'No active license was found on this device.',
+    'lic.err.noInstance': 'The license registration for this device could not be identified.',
+    'lic.err.deactivationFailed': 'The license could not be deactivated. Please try again.',
     // BillDrop (Pro+ document extraction)
     'bill.noData': 'No ESG data found. Try an electricity bill, gas invoice, water bill, waste manifest, or payroll report.',
     'bill.scannedPdf': 'This PDF looks like a scan or photo, so there is no text to read. Download the original PDF from your supplier’s portal, or enter the figures manually.',
@@ -1311,6 +1335,28 @@ const translations = {
     'ext.cta': 'ESG Passport freischalten - 499 €',
     'ext.upgradeRatePre': 'Sie haben bereits eine Lizenz? Schreiben Sie an',
     'ext.upgradeRatePost': 'für den Upgrade-Tarif.',
+    // Siehe engineMessages.js / license.js — Meldungen, die als Daten ankommen.
+    'engine.legacyDoc': 'Das ältere .doc-Format kann nicht gelesen werden. Speichern Sie die Datei als .docx und laden Sie sie erneut hoch.',
+    'engine.unsupportedFormat': '.{ext}-Dateien können nicht gelesen werden. Laden Sie eine Excel- (.xlsx), CSV-, PDF- oder Word-Datei (.docx) hoch.',
+    'engine.noQuestionsInDocument': 'Aus diesem Dokument konnten keine Fragen gelesen werden. Prüfen Sie, ob es Fragebogeneinträge enthält.',
+    'engine.noQuestionsForMapping': 'In den gewählten Spalten wurden keine Fragen gefunden. Wählen Sie eine andere Fragenspalte.',
+    'engine.noQuestionColumn': 'Die Fragenspalte konnte nicht erkannt werden. Benennen Sie die Überschrift in „Frage“ um oder ordnen Sie die Spalten selbst zu.',
+    'engine.noSheets': 'Diese Arbeitsmappe enthält keine lesbaren Tabellenblätter.',
+    'engine.tooManyQuestions': 'Es wurden {count} Fragen erkannt — ungewöhnlich viele. Prüfen Sie das Ergebnis und ordnen Sie die Spalten selbst zu, falls die falsche Spalte gelesen wurde.',
+    'engine.pdfFailed': 'Diese PDF konnte nicht gelesen werden. {detail}',
+    'engine.wordFailed': 'Dieses Word-Dokument konnte nicht gelesen werden. {detail}',
+    'lic.err.notFound': 'Dieser Lizenzschlüssel wurde nicht gefunden. Bitte prüfen Sie ihn und versuchen Sie es erneut.',
+    'lic.err.expired': 'Diese Lizenz ist abgelaufen. Sie können sie auf esgforsuppliers.com verlängern.',
+    'lic.err.disabled': 'Diese Lizenz wurde deaktiviert. Schreiben Sie an contact@esgforsuppliers.com, wir klären das.',
+    'lic.err.limitReached': 'Diese Lizenz ist bereits auf einem anderen Gerät aktiv. Deaktivieren Sie sie dort zuerst oder schreiben Sie an contact@esgforsuppliers.com.',
+    'lic.err.unrecognizedProduct': 'Diese Lizenz ist gültig, gehört aber nicht zu einem ESG-Passport-Produkt.',
+    'lic.err.validationFailed': 'Die Lizenz konnte nicht geprüft werden. Bitte versuchen Sie es erneut.',
+    'lic.err.invalidKey': 'Dieser Lizenzschlüssel wurde nicht akzeptiert. Bitte prüfen Sie ihn und versuchen Sie es erneut.',
+    'lic.err.malformedKey': 'Das sieht nicht nach einem Lizenzschlüssel aus. Bitte prüfen Sie ihn und versuchen Sie es erneut.',
+    'lic.err.unreachable': 'Der Lizenzserver war nicht erreichbar. Bitte versuchen Sie es gleich noch einmal.',
+    'lic.err.noActiveLicense': 'Auf diesem Gerät wurde keine aktive Lizenz gefunden.',
+    'lic.err.noInstance': 'Die Lizenzregistrierung für dieses Gerät konnte nicht ermittelt werden.',
+    'lic.err.deactivationFailed': 'Die Lizenz konnte nicht deaktiviert werden. Bitte versuchen Sie es erneut.',
     'bill.noData': 'Keine ESG-Daten gefunden. Versuchen Sie eine Stromrechnung, Gasrechnung, Wasserrechnung, einen Abfallnachweis oder eine Lohnabrechnung.',
     'bill.scannedPdf': 'Diese PDF ist offenbar ein Scan oder Foto und enthält keinen lesbaren Text. Laden Sie das Original-PDF im Portal Ihres Anbieters herunter oder erfassen Sie die Werte manuell.',
     'bill.reading': '{name} wird gelesen ({index}/{total})...',
@@ -1645,6 +1691,12 @@ const translations = {
     'results.naHint': 'Als N/A mit Begr\u00FCndung markieren',
     'results.masterSave': 'Als Standardantwort speichern',
   },
+  // ---- Inactive blocks -------------------------------------------------
+  // fr, es and pt are NOT listed in UI_LANGUAGES and cannot be selected. They
+  // stop at 40, 40 and 102 keys against en/de's 821, so t() would resolve the
+  // remaining ~95% from English and the app would read as half-translated.
+  // Kept as a starting point: finish a block, then add its code to
+  // UI_LANGUAGES. Nothing else has to change.
   fr: {
     'nav.home': 'Accueil',
     'nav.data': 'Donn\u00E9es',
@@ -1804,15 +1856,50 @@ export function t(key, lang = 'en', vars) {
   return interpolate(str, vars);
 }
 
+// Lemon Squeezy (and our own /api/validate-license) answer with a slug, not with
+// prose the buyer should read. Map the slug onto a string we control; an unmapped
+// slug falls back to the English sentence license.js carries, which still beats
+// showing a raw code.
+const LICENSE_ERROR_KEYS = {
+  not_found: 'lic.err.notFound',
+  expired: 'lic.err.expired',
+  disabled: 'lic.err.disabled',
+  limit_reached: 'lic.err.limitReached',
+  unrecognized_product: 'lic.err.unrecognizedProduct',
+  validation_failed: 'lic.err.validationFailed',
+  invalid_key: 'lic.err.invalidKey',
+  malformed_key: 'lic.err.malformedKey',
+  unreachable: 'lic.err.unreachable',
+  no_active_license: 'lic.err.noActiveLicense',
+  no_instance: 'lic.err.noInstance',
+  deactivation_failed: 'lic.err.deactivationFailed',
+};
+
+/**
+ * Turn a license.js result into something the user can read in their language.
+ *   licenseErrorMessage(result, t)   // t bound by useLanguage()
+ */
+export function licenseErrorMessage(result, t) {
+  const key = LICENSE_ERROR_KEYS[result?.code];
+  if (key) return t(key);
+  return result?.error || t('lic.err.invalidKey');
+}
+
 /**
  * Get all available UI languages.
  */
+// The languages the interface is actually offered in. This list is the single
+// source of truth: LanguageContext accepts a ?lang= param, a persisted setting
+// and a browser locale ONLY if the code appears here.
+//
+// fr/es/pt are deliberately absent. Their key blocks below hold 40, 40 and 102
+// keys against en/de's 821, so selecting one translated the navigation and left
+// roughly 95% of the app in English through t()'s fallback - which reads as
+// broken rather than as localized. Add a code back here when its block reaches
+// parity, not before.
 export const UI_LANGUAGES = [
   { code: 'en', label: 'English' },
   { code: 'de', label: 'Deutsch' },
-  { code: 'fr', label: 'Fran\u00E7ais' },
-  { code: 'es', label: 'Espa\u00F1ol' },
-  { code: 'pt', label: 'Portugu\u00EAs' },
 ];
 
 // ============================================

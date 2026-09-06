@@ -189,7 +189,7 @@ async function requestLicenseValidation(key, {
     if (allowLocalDevFallback && isLocalDev()) {
       return { valid: true, instance_id: null, license_key_id: null, tier: offlineFallbackTier(), fallback: true };
     }
-    return { valid: false, error: 'License validation failed. Please try again.' };
+    return { valid: false, error: 'License validation failed. Please try again.', code: 'validation_failed' };
   }
 
   const data = await response.json();
@@ -201,7 +201,7 @@ async function requestLicenseValidation(key, {
     return {
       valid: false,
       error: data.error || 'License validation failed.',
-      code: data.error || null,
+      code: data.error || 'validation_failed',
       licenseStatus: data.license_key?.status ?? null,
       status: response.status,
     };
@@ -226,6 +226,10 @@ async function requestLicenseValidation(key, {
     };
   }
 
+  // These sentences are the English fallback only. Every failure return here also
+  // carries a stable `code`, which i18n.js maps onto a localized string via
+  // licenseErrorMessage() - a German buyer who mistypes a key on the post-purchase
+  // screen must not be answered in English.
   const errorMessages = {
     'not_found': 'License key not found. Please check and try again.',
     'expired': 'This license has expired. Please renew at esgforsuppliers.com.',
@@ -236,7 +240,7 @@ async function requestLicenseValidation(key, {
   return {
     valid: false,
     error: errorMessages[data.error] || data.error || 'Invalid license key.',
-    code: data.error || null,
+    code: data.error || 'invalid_key',
     licenseStatus: data.license_key?.status ?? null,
     status: response.status,
   };
@@ -251,7 +255,7 @@ async function requestLicenseValidation(key, {
 export async function validateLicenseKey(key, { instanceId = null } = {}) {
   // First, basic format check
   if (!key || typeof key !== 'string' || key.trim().length < 8) {
-    return { valid: false, error: 'That doesn\u2019t look like a valid license key. Please check and try again.' };
+    return { valid: false, error: 'That doesn\u2019t look like a valid license key. Please check and try again.', code: 'malformed_key' };
   }
 
   try {
@@ -262,7 +266,7 @@ export async function validateLicenseKey(key, { instanceId = null } = {}) {
     if (isDownloadedBuild() || isLocalDev()) {
       return { valid: true, instance_id: null, license_key_id: null, tier: offlineFallbackTier(), fallback: true };
     }
-    return { valid: false, error: 'Could not reach the license server. Please try again.' };
+    return { valid: false, error: 'Could not reach the license server. Please try again.', code: 'unreachable' };
   }
 }
 
@@ -272,7 +276,7 @@ export async function validateLicenseKey(key, { instanceId = null } = {}) {
 export async function deactivateLicense() {
   const stored = getStoredLicense();
   if (!stored?.key) {
-    return { ok: false, error: 'No active license found on this device.' };
+    return { ok: false, error: 'No active license found on this device.', code: 'no_active_license' };
   }
 
   let instanceId = stored.instance_id;
@@ -298,12 +302,12 @@ export async function deactivateLicense() {
         return { ok: true, reconciled: true };
       }
     } catch {
-      return { ok: false, error: 'Could not reach the license server. Your license was not deactivated.' };
+      return { ok: false, error: 'Could not reach the license server. Your license was not deactivated.', code: 'unreachable' };
     }
   }
 
   if (!instanceId) {
-    return { ok: false, error: 'Could not identify the active license instance for this device.' };
+    return { ok: false, error: 'Could not identify the active license instance for this device.', code: 'no_instance' };
   }
 
   try {
@@ -324,10 +328,10 @@ export async function deactivateLicense() {
         localStorage.removeItem(LICENSE_STORAGE_KEY);
         return { ok: true, reconciled: true };
       }
-      return { ok: false, error: data?.error || 'License deactivation failed. Please try again.' };
+      return { ok: false, error: data?.error || 'License deactivation failed. Please try again.', code: 'deactivation_failed' };
     }
   } catch {
-    return { ok: false, error: 'Could not reach the license server. Your license was not deactivated.' };
+    return { ok: false, error: 'Could not reach the license server. Your license was not deactivated.', code: 'unreachable' };
   }
 
   localStorage.removeItem(LICENSE_STORAGE_KEY);

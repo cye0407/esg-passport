@@ -21,6 +21,7 @@
 
 import { saveData, resetData, loadData } from './store';
 import { EMISSION_FACTORS } from './constants';
+import { isOfferedAnswerLanguage } from './translations';
 
 const DEMO_PROFILE = {
   legalName: 'Hartmann Präzisionstechnik GmbH',
@@ -236,8 +237,9 @@ export function loadDemoData() {
     onboardingStep: 3,
     gridCountry: 'DE',
     // Answer language follows the UI language the visitor arrived in
-    // (was hardcoded 'en' — German onboarding produced an English sample).
-    language: ['de', 'fr', 'es'].includes(preservedUiLang) ? preservedUiLang : 'en',
+    // (was hardcoded 'en' — German onboarding produced an English sample), but only
+    // where the engine actually writes that language.
+    language: isOfferedAnswerLanguage(preservedUiLang) ? preservedUiLang : 'en',
     ...(preservedUiLang ? { uiLanguage: preservedUiLang } : {}),
   };
 
