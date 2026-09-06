@@ -15,7 +15,7 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - Consumes response-ready package (file:../response-ready) for questionnaire engine
 - Engine accessed via lazy singleton: `getEngine()` → `createResponseEngine(esgDomainPack)`
 - Upload Questionnaire page (Excel/CSV/PDF/DOCX parsing, template selection, saved history)
-- Results page (answer cards, confidence breakdown, Excel export, multi-language EN/DE/FR/ES)
+- Results page (answer cards, confidence breakdown, Excel export, EN/DE)
 - Data bridge connects Passport data to answer engine
 - Navigation updated with "Respond" tab
 - Customer requests link to questionnaire upload flow
@@ -26,7 +26,15 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - Monthly/Annual entry mode toggle on Data page
 - Industry-adaptive data entry (hides irrelevant metrics based on company industry)
 - Year-over-year comparison table with trend indicators
-- Multi-language answer rendering (EN/DE/FR/ES phrase-based translation)
+- **EN + DE only, both written not translated.** UI: 884 keys at full parity; the
+  partial fr/es/pt blocks were removed (they were 40/40/102 keys and fell back to
+  English for ~95% of the app). Answers: en/de are generated NATIVELY by
+  response-ready; the pl/fr/es/it/nl regex layer was removed after measuring that
+  it rewrote only ~25% of the sentences the engine emits.
+- The guided policy builder composes German policy documents (genusDe drives the
+  article; static labels use *De sibling fields read through accessors)
+- `npm test` includes an i18nCoverage guard: every `t()` key used anywhere in
+  src/ must resolve in every language listed in UI_LANGUAGES
 - Optional AI enhancement (bring your own Claude or OpenAI API key)
 - License deactivation in Settings (for device transfer)
 - Local-first Questionnaire Pass tier with a persistent one-questionnaire allowance
@@ -61,7 +69,9 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - src/lib/store.js — localStorage CRUD layer
 - src/lib/dataBridge.js — translates Passport store data to engine CompanyData format
 - response-ready (external) — questionnaire engine + ESG domain pack (via Vite alias to ../response-ready source)
-- src/lib/translations.js — multi-language phrase translation (DE/FR/ES)
+- src/lib/translations.js — answer-language layer (EN/DE only; see the header comment)
+- src/lib/engineMessages.js — localizes response-ready's English parse errors
+- src/lib/checkout.js — the single Passport checkout URL + language-aware marketing links
 - src/data/questionnaire-templates.js — pre-loaded EcoVadis/CDP/Basic/CSRD templates
 - src/components/ — Layout, UI components (Radix-based)
 
