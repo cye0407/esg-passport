@@ -38,11 +38,14 @@ function documentLabel(t, document) {
   }
 }
 
-function Group({ icon: Icon, tone, heading, body, children }) {
+// The icon arrives already rendered. Passing the component and calling it as <Icon />
+// reads better but the repo's eslint has no jsx-uses-vars rule, so it reports the
+// binding as unused; not worth a disable comment for one element.
+function Group({ icon, heading, body, children }) {
   return (
     <div className="border border-slate-200 bg-white p-5">
       <div className="flex items-start gap-3">
-        <Icon className={'w-5 h-5 shrink-0 mt-0.5 ' + tone} />
+        {icon}
         <div className="flex-1 min-w-0">
           <h3 className="text-base font-semibold text-slate-900">{heading}</h3>
           <p className="text-sm text-slate-600 leading-relaxed mt-1">{body}</p>
@@ -90,8 +93,7 @@ export default function CoverageReport({ coverage, questionnaireName, tier, onSt
 
       <div className="space-y-3">
         <Group
-          icon={FileCheck}
-          tone="text-emerald-600"
+          icon={<FileCheck className="w-5 h-5 shrink-0 mt-0.5 text-emerald-600" />}
           heading={t('coverage.fromRecords', { count: fromRecords.length })}
           body={fromRecords.length > 0 ? t('coverage.fromRecordsBody') : t('coverage.fromRecordsNone')}
         >
@@ -125,15 +127,13 @@ export default function CoverageReport({ coverage, questionnaireName, tier, onSt
         </Group>
 
         <Group
-          icon={PenLine}
-          tone="text-indigo-600"
+          icon={<PenLine className="w-5 h-5 shrink-0 mt-0.5 text-indigo-600" />}
           heading={t('coverage.written', { count: written.length })}
           body={t('coverage.writtenBody')}
         />
 
         <Group
-          icon={HelpCircle}
-          tone="text-slate-400"
+          icon={<HelpCircle className="w-5 h-5 shrink-0 mt-0.5 text-slate-400" />}
           heading={t('coverage.unanswerable', { count: unanswerable.length })}
           body={t('coverage.unanswerableBody')}
         />

@@ -39,11 +39,12 @@ import {
   ExternalLink,
 } from 'lucide-react';
 
-import { PASSPORT_CHECKOUT_URL, marketingUrl } from '@/lib/checkout';
+import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, marketingUrl } from '@/lib/checkout';
 import { canActivateAnotherKey } from '@/lib/entitlements';
 
 export default function Home() {
   const { tier } = useLicense();
+  const isPassHolder = tier === 'questionnaire-pass';
   const settings = getSettings();
   if (!settings.setupCompleted) {
     return <Navigate to="/onboarding" replace />;
@@ -234,6 +235,10 @@ export default function Home() {
       {/* Upgrade banner — anyone who still has something to buy. Keyed off the
           capability, not isPaid: isPaid is true for the €99 Questionnaire Pass too,
           so the €499 upgrade was invisible to exactly the people closest to it. */}
+      {/* Free is offered the EUR 99, not the EUR 499. The rung that matches the job in
+          front of someone with one questionnaire on their desk is the one questionnaire,
+          and the report they just read makes that case with their own numbers in it. A
+          Pass holder, who has already bought that, is offered the Passport. */}
       {canActivateAnotherKey(tier) && (
         <div className="bg-slate-900 text-white rounded-none p-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -241,20 +246,25 @@ export default function Home() {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1">
-              <h2 className="text-base font-semibold">{t('home.upgradeTitle')}</h2>
+              <h2 className="text-base font-semibold">
+                {isPassHolder ? t('home.upgradeTitle') : t('home.upgradeTitleFree')}
+              </h2>
               <p className="text-slate-300 text-sm">
-                {tier === 'questionnaire-pass' ? t('home.upgradeBodyPass') : t('home.upgradeBody')}
+                {isPassHolder ? t('home.upgradeBodyPass') : t('home.upgradeBodyFree')}
               </p>
             </div>
             <div className="flex flex-col sm:items-end gap-1.5">
               <a
-                href={PASSPORT_CHECKOUT_URL}
+                href={isPassHolder ? PASSPORT_CHECKOUT_URL : QUESTIONNAIRE_PASS_CHECKOUT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => track('upgrade_cta_click', { source: 'dashboard', from_tier: tier })}
+                onClick={() => {
+                  track('upgrade_cta_click', { source: 'dashboard', from_tier: tier });
+                  track('checkout_opened', { source: 'dashboard', from_tier: tier });
+                }}
                 className="inline-flex items-center justify-center gap-2 px-5 h-10 bg-white text-slate-900 font-medium hover:bg-slate-100 transition-colors"
               >
-                {t('home.upgradeCta')}
+                {isPassHolder ? t('home.upgradeCta') : t('home.upgradeCtaFree')}
                 <ExternalLink className="w-4 h-4" />
               </a>
               <a

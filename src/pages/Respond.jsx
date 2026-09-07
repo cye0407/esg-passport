@@ -12,7 +12,7 @@ import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
 import { LANGUAGES, isOfferedAnswerLanguage, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
 import { localizeEngineMessages } from '@/lib/engineMessages';
-import { PASSPORT_CHECKOUT_URL } from '@/lib/checkout';
+import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL } from '@/lib/checkout';
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { track } from '@/lib/track';
@@ -1870,19 +1870,24 @@ export default function Respond({ demoOnly = false }) {
                 </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {/* Was a link back to /onboarding, which bounces straight to the
+                    dashboard once setup is marked complete - so from the sample the
+                    button went nowhere. The real next step is the reader's own file,
+                    which free may now bring. */}
                 <Link
-                  to="/onboarding"
+                  to="/respond"
                   className="inline-flex h-10 items-center justify-center bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
                 >
-                  {t('onboard.startPreview')}
+                  {t('respond.useMyOwn')}
                 </Link>
                 <a
-                  href={PASSPORT_CHECKOUT_URL}
+                  href={QUESTIONNAIRE_PASS_CHECKOUT_URL}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => track('checkout_opened', { source: 'demo_bottom_bar', from_tier: tier })}
                   className="inline-flex h-10 items-center justify-center border border-slate-300 px-4 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
                 >
-                  {t('respond.buyPassport')}
+                  {t('respond.buyPass')}
                 </a>
                 <Link to="/settings" className="text-center text-xs text-slate-500 underline underline-offset-2">
                   {t('respond.alreadyPurchased')}
