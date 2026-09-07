@@ -89,6 +89,13 @@ export default function Data() {
   // confirmation on the first staged document would stack it on top of the review still
   // running for the second, so it waits for the batch to finish.
   const [annualReviewReady, setAnnualReviewReady] = useState(false);
+  // Values read out of a document were written into this page's form and left there
+  // unsaved. The reader had already confirmed every one of them in the review dialog, so
+  // the second, unlabelled press of Save was a step nobody knew to take - and until they
+  // took it the store still held nothing, so the coverage report kept asking for the very
+  // bill they had just uploaded. Requested here, run by the effect below once React has
+  // flushed the writes.
+  const [autoSaveRequested, setAutoSaveRequested] = useState(false);
 
   // Per-metric source notes — "where I find this number each month"
   // Keyed by `${section}.${field}`. One source per metric, edited inline.
@@ -329,6 +336,7 @@ export default function Data() {
       updateField(targetPeriod, mapping.section, mapping.field, val);
     }
     recordExtractionSources(fields, fileName);
+    setAutoSaveRequested(true);
 
     track('bill_extracted', {
       fields: fields.length,
@@ -354,6 +362,7 @@ export default function Data() {
     setAnnualValues(prev => ({ ...prev, ...mergeAnnualValues(forThisYear) }));
     // Per document, so a figure is attributed to the file it actually came out of.
     for (const bill of forThisYear) recordExtractionSources(bill.fields, bill.fileName);
+    setAutoSaveRequested(true);
 
     setHasChanges(true);
     setSaved(false);
@@ -375,6 +384,16 @@ export default function Data() {
   const dismissAnnualBills = useCallback(() => {
     setPendingAnnualBills(prev => prev.filter(bill => bill.year !== annualBatch.year));
   }, [annualBatch.year]);
+
+  // Runs after the extraction's writes have landed in state, which is why this is an
+  // effect and not a call at the end of handleBillExtracted: handleSave reads `records`,
+  // and inside that callback it still holds the values from before the document.
+  useEffect(() => {
+    if (!autoSaveRequested) return;
+    setAutoSaveRequested(false);
+    handleSave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSaveRequested]);
 
   const getValue = (period, section, field) => {
     const record = records[period];

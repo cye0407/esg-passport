@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, FileText } from 'lucide-react';
 import BillDrop from '@/components/BillDrop';
@@ -20,7 +20,11 @@ import { documentName, documentHolds } from '@/lib/documentLabels';
 export default function Evidence() {
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const [batch, setBatch] = useState([]);
+  // A ref, not state. BillDrop calls onDataExtracted and then onBatchComplete inside the
+  // same event handler, so React has not re-rendered in between - reading batch state
+  // there gives the value from BEFORE the document was accepted, which for a single file
+  // is an empty array. The upload then appeared to do nothing at all.
+  const batch = useRef([]);
   const stash = useMemo(() => readCoverageStash(), []);
 
   useEffect(() => {
@@ -83,12 +87,12 @@ export default function Evidence() {
       )}
 
       <BillDrop
-        onDataExtracted={(fields, period, fileName) =>
-          setBatch(prev => [...prev, { fields, period, fileName }])
-        }
+        onDataExtracted={(fields, period, fileName) => {
+          batch.current.push({ fields, period, fileName });
+        }}
         onBatchComplete={() => {
-          const items = batch;
-          setBatch([]);
+          const items = batch.current;
+          batch.current = [];
           handOff(items);
         }}
       />
