@@ -89,9 +89,16 @@ export default function Respond({ demoOnly = false }) {
   const { tier, entitlements, licenseKeyId } = useLicense();
   const { t, lang } = useLanguage();
   const dateLocale = lang === 'de' ? 'de-DE' : 'en-GB';
-  const canRespond = entitlements.canUploadQuestionnaire && !demoOnly;
+  // Free may put its OWN questionnaire in (canUploadQuestionnaire) but may not finish
+  // it (canGenerateAnswers). Those were one flag until now, so opening upload to free
+  // would have handed over the whole product. canUpload drives the file/parse surfaces;
+  // canGenerate drives everything that turns a parsed questionnaire into answers a
+  // supplier could send. isDemo tracks the paid line, so the preview limit and the buy
+  // CTAs are unchanged - what changes is that the questions and the data are now theirs.
+  const canUpload = entitlements.canUploadQuestionnaire && !demoOnly;
+  const canGenerate = entitlements.canGenerateAnswers && !demoOnly;
   const canExport = entitlements.canExportResponses && !demoOnly;
-  const isDemo = !canRespond;
+  const isDemo = !canGenerate;
   const [searchParams] = useSearchParams();
   const requestId = searchParams.get('requestId');
   const linkedRequest = requestId ? getRequestById(requestId) : null;
@@ -420,7 +427,7 @@ export default function Respond({ demoOnly = false }) {
     setParseResult(saved.parseResult || null);
     setAnswerDrafts(saved.answers.map(normalizeDraft));
     setCompanyData(buildCompanyData());
-    setDemoLibraryUsed(isDemo && getSettings()?.demoLibrarySeeded === true);
+    setDemoLibraryUsed(demoOnly && getSettings()?.demoLibrarySeeded === true);
     setPhase('results');
   };
 
@@ -480,24 +487,35 @@ export default function Respond({ demoOnly = false }) {
     track('respond_generation_started', { questions: pr?.questions?.length || 0 });
 
     try {
-      const shouldUseExampleData = isDemo && !hasUsableWorkspaceData();
+      // Example data is for the /demo route ONLY. A free user who has uploaded their
+      // own questionnaire must never be answered out of Hartmann's workspace - that
+      // is the whole defect this change exists to remove. Keyed on demoOnly, not on
+      // the paid line: free is now allowed its own file.
+      const shouldUseExampleData = demoOnly && !hasUsableWorkspaceData();
       let cd;
       let profile;
 
       if (shouldUseExampleData) {
+        // loadDemoData() does a destructive resetData() on the single workspace slot,
+        // so the visitor's own data is snapshotted and restored around it. The restore
+        // sits in a finally: a throw in between used to strand a real user inside the
+        // sample company permanently.
         const previousWorkspace = window.localStorage.getItem(PASSPORT_DATA_KEY);
-        loadDemoData();
-        setDemoLibraryUsed(true);
-        track('respond_demo_library_loaded', { source: name });
-        cd = buildCompanyData();
-        profile = buildCompanyProfile();
-        if (previousWorkspace === null) {
-          window.localStorage.removeItem(PASSPORT_DATA_KEY);
-        } else {
-          window.localStorage.setItem(PASSPORT_DATA_KEY, previousWorkspace);
+        try {
+          loadDemoData();
+          setDemoLibraryUsed(true);
+          track('respond_demo_library_loaded', { source: name });
+          cd = buildCompanyData();
+          profile = buildCompanyProfile();
+        } finally {
+          if (previousWorkspace === null) {
+            window.localStorage.removeItem(PASSPORT_DATA_KEY);
+          } else {
+            window.localStorage.setItem(PASSPORT_DATA_KEY, previousWorkspace);
+          }
         }
       } else {
-        setDemoLibraryUsed(isDemo && getSettings()?.demoLibrarySeeded === true);
+        setDemoLibraryUsed(demoOnly && getSettings()?.demoLibrarySeeded === true);
         cd = buildCompanyData();
         profile = buildCompanyProfile();
       }
@@ -1219,7 +1237,7 @@ export default function Respond({ demoOnly = false }) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {canRespond && (
+              {canGenerate && (
                 <>
                   <Button variant="outline" size="sm" onClick={handleReprepare}>
                     <RefreshCw className="w-4 h-4 mr-1.5" /> {t('respond.reprepare')}
@@ -1295,17 +1313,17 @@ export default function Respond({ demoOnly = false }) {
                 </Select>
                 {/* AI Enhance All */}
                 <Button
-                  onClick={canRespond ? handleEnhanceAll : () => window.open(PASSPORT_CHECKOUT_URL, '_blank')}
+                  onClick={canGenerate ? handleEnhanceAll : () => window.open(PASSPORT_CHECKOUT_URL, '_blank')}
                   disabled={enhancingAll}
                   variant="outline"
                   size="sm"
                   className="text-xs"
-                  title={canRespond ? '' : t('respond.titleUnlockAi')}
+                  title={canGenerate ? '' : t('respond.titleUnlockAi')}
                 >
                   {enhancingAll ? (
                     <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {enhanceProgress.done}/{enhanceProgress.total}</>
                   ) : (
-                    <><Sparkles className="w-3 h-3 mr-1.5" /> {canRespond ? t('respond.aiEnhance') : t('respond.aiEnhancePassport')}</>
+                    <><Sparkles className="w-3 h-3 mr-1.5" /> {canGenerate ? t('respond.aiEnhance') : t('respond.aiEnhancePassport')}</>
                   )}
                 </Button>
               </div>
@@ -1360,7 +1378,7 @@ export default function Respond({ demoOnly = false }) {
             </div>
           )}
 
-          {(canRespond ? filtered : filtered.slice(0, FREE_PREVIEW_LIMIT)).map((draft, i) => {
+          {(canGenerate ? filtered : filtered.slice(0, FREE_PREVIEW_LIMIT)).map((draft, i) => {
             const conf = CONFIDENCE_CONFIG[draft.answerConfidence] || CONFIDENCE_CONFIG.none;
             const support = SUPPORT_CONFIG[draft.supportLevel || 'draft'] || SUPPORT_CONFIG.draft;
             const isExpanded = showDetails.has(draft.questionId);
@@ -1513,7 +1531,7 @@ export default function Respond({ demoOnly = false }) {
                           </div>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2 pt-2">
-                            {canRespond && (
+                            {canGenerate && (
                             <button
                               onClick={() => draft._markedNA ? toggleNA(draft.questionId) : setNaEditing(draft.questionId)}
                               className={cn(
@@ -1524,7 +1542,7 @@ export default function Respond({ demoOnly = false }) {
                               <Ban className="w-3 h-3 inline mr-1" />{draft._markedNA ? t('respond.undoNA') : t('respond.markNA')}
                             </button>
                             )}
-                            {canRespond && (draft.answerConfidence !== 'none' || draft.supportLevel === 'supported') && !draft._markedNA && (
+                            {canGenerate && (draft.answerConfidence !== 'none' || draft.supportLevel === 'supported') && !draft._markedNA && (
                               <button
                                 onClick={() => handleSaveAsMaster(draft)}
                                 disabled={savedMasterIds.has(draft.questionId)}
@@ -1610,7 +1628,7 @@ export default function Respond({ demoOnly = false }) {
 
                   {/* Actions */}
                   <div className="flex items-start justify-end gap-1 pt-0.5">
-                    {canRespond && !draft._markedNA && (draft.answerConfidence !== 'none' || draft.supportLevel === 'supported') && (
+                    {canGenerate && !draft._markedNA && (draft.answerConfidence !== 'none' || draft.supportLevel === 'supported') && (
                       <button
                         onClick={() => handleEnhanceSingle(draft)}
                         disabled={isEnhancing || draft._enhanced}
@@ -1623,7 +1641,7 @@ export default function Respond({ demoOnly = false }) {
                         {isEnhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                       </button>
                     )}
-                    {canRespond && (
+                    {canGenerate && (
                       <button
                         onClick={() => startEditing(draft)}
                         className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
@@ -1884,28 +1902,28 @@ export default function Respond({ demoOnly = false }) {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-900">{canRespond ? t('respond.titleRespond') : t('respond.titleExample')}</h1>
-          {isDemo && (
+          <h1 className="text-2xl font-bold text-slate-900">{canUpload ? t('respond.titleRespond') : t('respond.titleExample')}</h1>
+          {demoOnly && (
             <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
               {t('respond.example')}
             </span>
           )}
         </div>
         <p className="text-slate-500 mt-1">
-          {canRespond
+          {canUpload
             ? t('respond.subtitlePaid')
             : t('respond.subtitleDemo')}
         </p>
       </div>
 
-      {canRespond && linkedRequest && (
+      {canUpload && linkedRequest && (
         <div className="bg-white border border-slate-200 rounded-none p-4 border-l-4 border-l-indigo-600">
           <p className="text-sm text-slate-500">{t('respond.linkedToRequest')}</p>
           <p className="font-medium text-slate-900">{linkedRequest.customerName} - {linkedRequest.platform}</p>
         </div>
       )}
 
-      {canRespond && (
+      {canUpload && (
         <div className="flex gap-1 bg-slate-100 rounded-none p-1">
           {[
             { id: 'upload', label: t('respond.tabUpload'), icon: UploadIcon },
@@ -1927,7 +1945,7 @@ export default function Respond({ demoOnly = false }) {
       )}
 
       {/* Data nudge — warn users with empty/sparse Data store before they upload */}
-      {canRespond && setupSkipped && (
+      {canUpload && setupSkipped && (
         <div className="bg-white border border-slate-200 rounded-none p-3 flex items-center gap-3">
           <Shield className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
@@ -1942,7 +1960,7 @@ export default function Respond({ demoOnly = false }) {
         </div>
       )}
 
-      {canRespond && (() => {
+      {canUpload && (() => {
         const hasAnyData = hasUsableWorkspaceData();
         if (hasAnyData) return null;
         return (
@@ -1973,9 +1991,9 @@ export default function Respond({ demoOnly = false }) {
               <div className="bg-indigo-50 border border-indigo-200 rounded-none p-5 flex items-start gap-4">
                 <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900">{canRespond ? t('respond.noQHandy') : t('respond.tryExample')}</p>
+                  <p className="text-sm font-medium text-slate-900">{canUpload ? t('respond.noQHandy') : t('respond.tryExample')}</p>
                   <p className="text-xs text-slate-600 mt-0.5">
-                    {canRespond
+                    {canUpload
                       ? t('respond.samplePaid', { count: sample.questionCount, framework: sample.framework })
                       : t('respond.sampleDemo', { count: sample.questionCount, framework: sample.framework, limit: FREE_PREVIEW_LIMIT })}
                   </p>
@@ -1986,7 +2004,7 @@ export default function Respond({ demoOnly = false }) {
                   onClick={() => runSampleTemplate(sample.id)}
                   className="border-indigo-300 text-indigo-700 hover:bg-indigo-100 flex-shrink-0"
                 >
-                  {canRespond ? t('respond.trySample') : t('respond.viewExample')}
+                  {canUpload ? t('respond.trySample') : t('respond.viewExample')}
                 </Button>
               </div>
             );
@@ -2033,7 +2051,7 @@ export default function Respond({ demoOnly = false }) {
             </div>
           )}
 
-          {canRespond ? (
+          {canUpload ? (
             <div
               className={cn(
                 'bg-white border-2 border-dashed rounded-none p-8 transition-all cursor-pointer',
@@ -2084,7 +2102,7 @@ export default function Respond({ demoOnly = false }) {
             </div>
           )}
 
-          {canRespond && !linkedRequest && requests.length > 0 && (
+          {canUpload && !linkedRequest && requests.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-none p-4">
               <Label className="text-sm text-slate-600 mb-2 block">{t('respond.linkRequest')}</Label>
               <Select value={selectedRequestId} onValueChange={setSelectedRequestId}>
@@ -2099,7 +2117,7 @@ export default function Respond({ demoOnly = false }) {
             </div>
           )}
 
-          {canRespond && showMapping && mappingColumns && (
+          {canUpload && showMapping && mappingColumns && (
             <div className="bg-white border border-slate-200 rounded-none p-4 space-y-3">
               <h3 className="font-medium text-slate-900">{t('respond.columnMapping')}</h3>
               <p className="text-sm text-slate-500">{t('respond.mappingBody')}</p>
@@ -2120,14 +2138,14 @@ export default function Respond({ demoOnly = false }) {
             </div>
           )}
 
-          {canRespond && parseError && (
+          {canUpload && parseError && (
             <div className="flex items-start gap-3 p-4 rounded-none bg-red-50 border border-red-200 text-red-700">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <p className="text-sm">{parseError}</p>
             </div>
           )}
 
-          {canRespond && (
+          {canUpload && (
           <div className="flex gap-3">
             {file && (
               <Button onClick={parseFile} disabled={parsing} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white">

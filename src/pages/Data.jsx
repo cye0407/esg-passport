@@ -18,7 +18,6 @@ import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import CompanyProfileSection from '@/components/CompanyProfileSection';
 import BillDrop from '@/components/BillDrop';
-import ExtractorUpgradeCard from '@/components/ExtractorUpgradeCard';
 import { useLicense } from '@/components/LicenseContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -45,7 +44,7 @@ import {
 } from 'lucide-react';
 
 export default function Data() {
-  const { tier, entitlements } = useLicense();
+  const { entitlements } = useLicense();
   const { lang, t } = useLanguage();
   // Honor ?period=YYYY-MM query param from deep links on Respond answer cards
   const initialYear = (() => {
@@ -919,14 +918,13 @@ export default function Data() {
       {/* Company Profile (collapsible) */}
       <CompanyProfileSection />
 
-      {/* Document extraction — paid feature (single €499 Passport SKU). Free users
-          see the upgrade card. The old `tier === 'pro-plus'` gate stranded every
-          buyer once the Pro/Pro+ split was retired — a €499 license resolves to
-          'pro', so extraction was locked for the people who paid for it. */}
-      {entitlements.canExtractDocuments ? (
+      {/* Document extraction is free as of the coverage-report change: reading your own
+          bills is how you find out whether Passport can answer anything, and forbidding
+          it is what left every visitor evaluating the product on a fictional company's
+          numbers. The paid line is generating and exporting answers, not looking. The
+          capability check stays so the boundary lives in one file. */}
+      {entitlements.canExtractDocuments && (
         <BillDrop onDataExtracted={handleBillExtracted} />
-      ) : (
-        <ExtractorUpgradeCard tier={tier} />
       )}
 
       {/* CSV Import / Template Toolbar */}

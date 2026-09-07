@@ -38,7 +38,7 @@ function CollapsibleSection({ icon: Icon, title, children, defaultOpen = false }
 export default function Settings() {
   const navigate = useNavigate();
   const { lang, setLang, t } = useLanguage();
-  const { activate, isPaid, tier } = useLicense();
+  const { activate, isPaid, tier, entitlements } = useLicense();
   const [company, setCompany] = useState(null);
   const [settings, setSettings] = useState(null);
   const [saved, setSaved] = useState(false);
@@ -227,9 +227,13 @@ export default function Settings() {
       </CollapsibleSection>
 
       {/* AI Enhancement */}
+      {/* Gated on the capability, not on "has paid something". isPaid is true for every
+          tier, so this was the last place where the boundary was a different shape from
+          the one Respond enforces - and AI enhancement rewrites generated answers, so it
+          belongs with canGenerateAnswers. Keys are the user's own; this costs us nothing. */}
       <CollapsibleSection icon={Sparkles} title={t('settings.aiTitle')}>
         <div className="space-y-4 pt-4">
-          {isPaid ? (
+          {entitlements.canGenerateAnswers ? (
             <>
               <p className="text-sm text-slate-500">
                 {t('settings.aiIntro')}

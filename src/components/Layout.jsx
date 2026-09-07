@@ -17,7 +17,6 @@ import {
   Menu,
   Settings,
   Shield,
-  Sparkles,
   Upload,
   X,
 } from 'lucide-react';
@@ -32,8 +31,11 @@ const navigation = [
   { name: 'Policies', labelKey: 'nav.policies', href: '/policies', icon: ClipboardCheck, paid: false },
   { name: 'Documents', labelKey: 'nav.documents', href: '/documents', icon: FolderOpen, paid: false },
   { name: 'Report', labelKey: 'nav.report', href: '/report', icon: FileText, paid: true, capability: 'canGenerateReport' },
-  { name: 'Respond', labelKey: 'nav.respond', href: '/demo', icon: Sparkles, paid: false, preview: true, hideWhenPaid: true },
-  { name: 'Respond', labelKey: 'nav.respond', href: '/respond', icon: Upload, paid: true, capability: 'canUploadQuestionnaire', hideWhenFree: true },
+  // One Respond entry for everyone. Free used to be shunted to /demo, which answers a
+  // sample questionnaire out of a fictional company's data - so the nav promised the
+  // product and delivered someone else's numbers. Free may now bring its own file;
+  // what it cannot do is finish it, and that is enforced inside the page.
+  { name: 'Respond', labelKey: 'nav.respond', href: '/respond', icon: Upload, paid: false },
   { name: 'Requests', labelKey: 'nav.requests', href: '/requests', icon: Inbox, paid: false },
   { name: 'Settings', labelKey: 'nav.settings', href: '/settings', icon: Settings, paid: false },
 ];
