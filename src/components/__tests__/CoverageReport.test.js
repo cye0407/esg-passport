@@ -114,7 +114,10 @@ describe('CoverageReport', () => {
   });
 
   it('samples the answers, leading with the ones built on the reader own figures', async () => {
-    const supported = draft('emissions', 'high', { dataValue: '425000', dataUnit: 'kWh' });
+    const supported = draft('emissions', 'high', {
+      answer: 'Electricity consumption was 425000 kWh.',
+      dataValue: '425000', dataUnit: 'kWh',
+    });
     const drafted = Array.from({ length: 6 }, () => draft('workforce', 'medium'));
     await render([...drafted, supported]);
     const text = container.textContent;
@@ -123,8 +126,33 @@ describe('CoverageReport', () => {
     expect(text).toContain('2 more questions in this questionnaire');
   });
 
+  // The engine attaches a figure to a draft whether or not the answer it chose rests on
+  // it: a Scope 3 question came back "we do not have this on record" carrying the Scope 1
+  // number, and the number was rendered under the sentence denying it.
+  it('will not show a figure the answer does not state, and rounds the one it does', async () => {
+    const contradicted = draft('emissions', 'high', {
+      answer: 'We do not have quantified Scope 3 emissions on record for this question.',
+      dataValue: '68.58000000000001 tCO2e',
+    });
+    await render([contradicted]);
+    expect(container.textContent).not.toContain('68.58');
+    expect(container.textContent).not.toContain('68.6');
+
+    const stated = draft('emissions', 'high', {
+      answer: 'Our Scope 1 emissions for the reporting period are 68.6 tCO2e.',
+      dataValue: '68.58000000000001 tCO2e',
+    });
+    await render([stated]);
+    // Rounded, never fifteen decimal places of binary floating point.
+    expect(container.textContent).not.toContain('68.58000000000001');
+    expect(container.textContent).toContain('68.6 tCO2e');
+  });
+
   it('names the document a figure came from only when one was recorded', async () => {
-    const question = draft('energy_electricity', 'high', { dataValue: '42500', dataUnit: 'kWh' });
+    const question = draft('energy_electricity', 'high', {
+      answer: 'Electricity consumption was 42500 kWh.',
+      dataValue: '42500', dataUnit: 'kWh',
+    });
     question.matchResult = {
       primaryDomain: 'energy_electricity',
       suggestedDataPoints: ['Electricity consumption (kWh)'],

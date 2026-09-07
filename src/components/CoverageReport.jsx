@@ -4,6 +4,7 @@ import { ArrowRight, Lock, Upload } from 'lucide-react';
 import { track } from '@/lib/track';
 import { useLanguage } from '@/components/LanguageContext';
 import { documentName, documentHolds } from '@/lib/documentLabels';
+import { figureWithUnit, answerStatesFigure } from '@/lib/figures';
 import {
   PASSPORT_CHECKOUT_URL,
   QUESTIONNAIRE_PASS_CHECKOUT_URL,
@@ -266,21 +267,24 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
               <span className="w-28 text-center">{t('respond.colConfidence')}</span>
             </div>
 
-            {sample.map(answer => (
+            {sample.map((answer) => {
+              // The engine attaches a figure to a draft whether or not the answer it
+              // chose rests on it - a Scope 3 "we do not have this on record" came back
+              // carrying the Scope 1 number. Show it only when the answer says it.
+              const figure = answerStatesFigure(answer.answer, answer.value)
+                ? figureWithUnit(answer.value, answer.unit)
+                : null;
+              return (
               <div key={answer.questionId} className="grid grid-cols-[1fr_auto] gap-4 border-b border-slate-100 px-5 py-4 last:border-b-0">
                 <div>
                   <p className="text-sm font-semibold text-slate-900">{answer.questionText}</p>
                   <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{answer.answer}</p>
-                  {(answer.value != null || answer.document) && (
+                  {(figure || answer.document) && (
                     <p className="mt-1.5 text-xs text-slate-400">
-                      {answer.value != null && (
-                        <span className="font-medium text-slate-600">
-                          {answer.value}{answer.unit ? ` ${answer.unit}` : ''}
-                        </span>
-                      )}
+                      {figure && <span className="font-medium text-slate-600">{figure}</span>}
                       {/* Only claimed when extraction or the user actually recorded where
                           the figure came from. Silence is correct when nothing is known. */}
-                      {answer.document && <span> · {t('coverage.fromSource', { document: answer.document })}</span>}
+                      {answer.document && <span>{figure ? ' · ' : ''}{t('coverage.fromSource', { document: answer.document })}</span>}
                     </p>
                   )}
                 </div>
@@ -288,7 +292,8 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                   <SupportBadge supported={fromRecords.includes(answer)} t={t} />
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             {remaining > 0 && (
               <div className="flex items-center gap-2.5 border-t border-slate-200 bg-slate-50 px-5 py-4">

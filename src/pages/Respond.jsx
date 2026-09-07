@@ -7,6 +7,7 @@ import { loadDemoData } from '@/lib/demoData';
 import { QUESTIONNAIRE_TEMPLATES, templateToParseResult, templateName, templateDescription } from '@/data/questionnaire-templates';
 import { matchBuilderId } from '@/data/policyBuilders';
 import { summarizeCoverage } from '@/lib/coverage';
+import { figureWithUnit, answerStatesFigure } from '@/lib/figures';
 import { takeHandoff } from '@/lib/handoff';
 import { writeCoverageStash, takeCoverageStash, clearCoverageStash } from '@/lib/coverageStash';
 import JourneySpine from '@/components/JourneySpine';
@@ -831,6 +832,17 @@ export default function Respond({ demoOnly = false }) {
       return true;
     });
   }, [answerDrafts, filterConfidence, filterType]);
+
+  // A figure is shown only when the answer actually states it, and only after the
+  // floating-point artefact is rounded off. The engine attaches dataValue to a draft
+  // whether or not the template it chose used the number, so an answer saying the data
+  // is missing was being rendered with a figure underneath it.
+  const shownFigure = (draft) => {
+    const text = draft.verifiedAnswer || draft.answer || '';
+    return answerStatesFigure(text, draft.dataValue)
+      ? figureWithUnit(draft.dataValue, draft.dataUnit)
+      : null;
+  };
 
   const getDisplayedVerified = (draft) => draft.verifiedAnswer || draft.answer || '';
   const getDisplayedDraft = (draft) => {
@@ -1659,17 +1671,17 @@ export default function Respond({ demoOnly = false }) {
                   <div className="pr-4 min-w-0">
                     {/* Question */}
                     <p className="text-sm font-medium text-slate-900 leading-relaxed">{draft.questionText}</p>
-                    {(draft.category || draft.dataValue) && (
+                    {(draft.category || shownFigure(draft)) && (
                       <Link
                         to={draft.dataPeriod ? `/data?period=${encodeURIComponent(draft.dataPeriod)}` : '/data'}
                         className="text-[11px] text-slate-400 hover:text-indigo-600 mt-0.5 inline-flex items-center gap-1.5 transition-colors"
-                        title={draft.dataValue ? `${t('respond.labelSource')} ${draft.dataValue}${draft.dataUnit ? ' ' + draft.dataUnit : ''}${draft.dataPeriod ? ' (' + draft.dataPeriod + ')' : ''}` : t('respond.viewSourceData')}
+                        title={shownFigure(draft) ? `${t('respond.labelSource')} ${shownFigure(draft)}${draft.dataPeriod ? ' (' + draft.dataPeriod + ')' : ''}` : t('respond.viewSourceData')}
                       >
                         {draft.category && <span>{draft.category}</span>}
-                        {draft.category && draft.dataValue && <span className="text-slate-300">·</span>}
-                        {draft.dataValue && (
+                        {draft.category && shownFigure(draft) && <span className="text-slate-300">·</span>}
+                        {shownFigure(draft) && (
                           <span>
-                            {draft.dataValue}{draft.dataUnit && ` ${draft.dataUnit}`}
+                            {shownFigure(draft)}
                             {draft.dataPeriod && ` (${draft.dataPeriod})`}
                           </span>
                         )}
