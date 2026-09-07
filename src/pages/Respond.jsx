@@ -51,6 +51,8 @@ async function getEngine() {
 
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
 const FREE_PREVIEW_LIMIT = 5;
+// Where a free reader's questionnaire waits while they go and fetch a document.
+const COVERAGE_RESUME_KEY = 'respond_coverage_questionnaire';
 const DATA_SECTIONS = ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training'];
 const PASSPORT_DATA_KEY = 'esg_passport_data';
 
@@ -147,6 +149,32 @@ export default function Respond({ demoOnly = false }) {
   useEffect(() => {
     setPassClaim(getQuestionnairePassClaim(licenseKeyId));
   }, [licenseKeyId]);
+
+  // A free coverage report is not saved (saveResults is gated on canExport, and storing
+  // the full drafts would put the paid artefact on disk for someone who has not bought
+  // it). But the report's strongest call to action sends the reader to /data to add a
+  // bill - and without this they would come back to an empty upload screen and have to
+  // find the file again, which is exactly the moment the loop breaks.
+  //
+  // So the QUESTIONNAIRE is kept, not the answers, and re-running is the point: they
+  // added a document, so the counts should move. Session-scoped, because it is a
+  // return-trip aid and not a saved result.
+  useEffect(() => {
+    if (canGenerate || demoOnly || phase !== 'upload') return;
+    const stored = sessionStorage.getItem(COVERAGE_RESUME_KEY);
+    if (!stored) return;
+    sessionStorage.removeItem(COVERAGE_RESUME_KEY);
+    try {
+      const { parseResult, name } = JSON.parse(stored);
+      if (parseResult?.questions?.length) {
+        track('coverage_resumed', { questions: parseResult.questions.length });
+        processConfirmedQuestionnaire(parseResult, name, false);
+      }
+    } catch {
+      // A malformed stash is not worth surfacing; the upload screen is the fallback.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-resume sample after user returns from entering data via the nudge
   useEffect(() => {
@@ -1321,6 +1349,16 @@ export default function Respond({ demoOnly = false }) {
     if (!canGenerate && !demoOnly) {
       return (
         <CoverageReport
+          onAddDocuments={() => {
+            try {
+              sessionStorage.setItem(
+                COVERAGE_RESUME_KEY,
+                JSON.stringify({ parseResult, name: questionnaireName }),
+              );
+            } catch {
+              // Storage full or blocked: they can re-upload. Do not block the link.
+            }
+          }}
           coverage={summarizeCoverage(answerDrafts, {
             companyData,
             dataSources: getSettings()?.dataSources || {},

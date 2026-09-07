@@ -57,7 +57,7 @@ function Group({ icon, heading, body, children }) {
   );
 }
 
-export default function CoverageReport({ coverage, questionnaireName, tier, onStartOver }) {
+export default function CoverageReport({ coverage, questionnaireName, tier, onStartOver, onAddDocuments }) {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { total, fromRecords, written, unanswerable, missingDocuments, policyGaps } = coverage;
@@ -148,7 +148,13 @@ export default function CoverageReport({ coverage, questionnaireName, tier, onSt
             ))}
           </ul>
           <button
-            onClick={() => { track('coverage_add_documents_click'); navigate('/data'); }}
+            onClick={() => {
+              track('coverage_add_documents_click');
+              // Stash the questionnaire before leaving, so coming back re-runs it against
+              // whatever they just added instead of showing an empty upload screen.
+              onAddDocuments?.();
+              navigate('/data');
+            }}
             className="mt-4 inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2.5"
           >
             <Upload className="w-4 h-4" />

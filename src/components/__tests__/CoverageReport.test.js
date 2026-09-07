@@ -39,7 +39,7 @@ describe('CoverageReport', () => {
     container?.remove();
   });
 
-  async function render(drafts, options = {}) {
+  async function render(drafts, options = {}, props = {}) {
     const coverage = summarizeCoverage(drafts, options);
     await act(async () => {
       root.render(
@@ -50,6 +50,7 @@ describe('CoverageReport', () => {
             coverage,
             questionnaireName: 'buyer-saq.xlsx',
             tier: 'free',
+            ...props,
           })
         )
       );
@@ -143,5 +144,20 @@ describe('CoverageReport', () => {
       written: 1,
       unanswerable: 1,
     });
+  });
+
+  // The report is not saved, so leaving to fetch a bill would otherwise mean coming
+  // back to an empty upload screen and hunting for the file again - which is the exact
+  // moment this loop breaks.
+  it('hands the questionnaire back before sending the reader off to add documents', async () => {
+    const onAddDocuments = vi.fn();
+    const needing = draft('a', 'none', { matchResult: { suggestedDataPoints: ['Total waste (kg)'] } });
+    await render([needing], { companyData: {} }, { onAddDocuments });
+    const button = [...container.querySelectorAll('button')].find(b =>
+      b.textContent.includes('Add documents')
+    );
+    expect(button).toBeTruthy();
+    await act(async () => button.click());
+    expect(onAddDocuments).toHaveBeenCalled();
   });
 });
