@@ -12,7 +12,7 @@ import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
 import { LANGUAGES, isOfferedAnswerLanguage, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
 import { localizeEngineMessages } from '@/lib/engineMessages';
-import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL } from '@/lib/checkout';
+import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, openCheckout, checkoutLinkProps } from '@/lib/checkout';
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { track } from '@/lib/track';
@@ -1383,7 +1383,7 @@ export default function Respond({ demoOnly = false }) {
               )}
               <Button
                 size="sm"
-                onClick={canExport ? handleExport : () => window.open(PASSPORT_CHECKOUT_URL, '_blank')}
+                onClick={canExport ? handleExport : () => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'respond_export', tier)}
                 className="bg-slate-900 hover:bg-slate-800 text-white"
                 title={canExport ? t('respond.titleExport') : t('respond.titleUnlockExport')}
               >
@@ -1447,7 +1447,7 @@ export default function Respond({ demoOnly = false }) {
                 </Select>
                 {/* AI Enhance All */}
                 <Button
-                  onClick={canGenerate ? handleEnhanceAll : () => window.open(PASSPORT_CHECKOUT_URL, '_blank')}
+                  onClick={canGenerate ? handleEnhanceAll : () => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'respond_ai_enhance', tier)}
                   disabled={enhancingAll}
                   variant="outline"
                   size="sm"
@@ -1843,7 +1843,7 @@ export default function Respond({ demoOnly = false }) {
               {t('respond.bottomSummary', { supported: stats?.supported, total: stats?.total, drafts: stats?.drafted, readiness: stats?.readinessPercent })}
             </p>
             <Button
-              onClick={canExport ? handleExport : () => window.open(PASSPORT_CHECKOUT_URL, '_blank')}
+              onClick={canExport ? handleExport : () => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'respond_export', tier)}
               className="bg-slate-900 hover:bg-slate-800 text-white"
               title={canExport ? '' : t('respond.titleUnlockExportBottom')}
             >
@@ -1881,10 +1881,7 @@ export default function Respond({ demoOnly = false }) {
                   {t('respond.useMyOwn')}
                 </Link>
                 <a
-                  href={QUESTIONNAIRE_PASS_CHECKOUT_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => track('checkout_opened', { source: 'demo_bottom_bar', from_tier: tier })}
+                  {...checkoutLinkProps(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'demo_bottom_bar', tier)}
                   className="inline-flex h-10 items-center justify-center border border-slate-300 px-4 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
                 >
                   {t('respond.buyPass')}
@@ -2172,18 +2169,18 @@ export default function Respond({ demoOnly = false }) {
                         {t('respond.passReopen')}
                       </Button>
                     )}
-                    <a
-                      href={PASSPORT_CHECKOUT_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => track('questionnaire_pass_upgrade_clicked', {
-                        tier: 'questionnaire-pass',
-                        source: 'second_questionnaire_block',
-                      })}
+                    <button
+                      onClick={() => {
+                        track('questionnaire_pass_upgrade_clicked', {
+                          tier: 'questionnaire-pass',
+                          source: 'second_questionnaire_block',
+                        });
+                        openCheckout(PASSPORT_CHECKOUT_URL, 'second_questionnaire_block', tier);
+                      }}
                       className="inline-flex items-center justify-center h-9 px-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-none"
                     >
                       {t('respond.passUpgrade')}
-                    </a>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2225,19 +2222,20 @@ export default function Respond({ demoOnly = false }) {
             )}
             </div>
           ) : (
+            /* Only /demo reaches this now. It used to say a real questionnaire
+               needs the Passport and sell one; that is no longer true, so it
+               points at the thing the reader can actually do instead. */
             <div className="bg-white border border-slate-200 rounded-none p-5">
-              <p className="text-sm font-medium text-slate-900">{t('respond.ownNeedsPassport')}</p>
+              <p className="text-sm font-medium text-slate-900">{t('respond.ownIsFree')}</p>
               <p className="mt-1 text-sm text-slate-500">
-                {t('respond.ownNeedsBody')}
+                {t('respond.ownIsFreeBody')}
               </p>
-              <a
-                href={PASSPORT_CHECKOUT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to="/respond"
                 className="mt-4 inline-flex items-center justify-center h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-none"
               >
-                {t('respond.unlockPassport')}
-              </a>
+                {t('respond.useMyOwn')}
+              </Link>
             </div>
           )}
 

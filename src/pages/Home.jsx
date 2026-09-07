@@ -39,7 +39,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 
-import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, marketingUrl } from '@/lib/checkout';
+import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, checkoutLinkProps, marketingUrl } from '@/lib/checkout';
 import { canActivateAnotherKey } from '@/lib/entitlements';
 
 export default function Home() {
@@ -255,13 +255,12 @@ export default function Home() {
             </div>
             <div className="flex flex-col sm:items-end gap-1.5">
               <a
-                href={isPassHolder ? PASSPORT_CHECKOUT_URL : QUESTIONNAIRE_PASS_CHECKOUT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => {
-                  track('upgrade_cta_click', { source: 'dashboard', from_tier: tier });
-                  track('checkout_opened', { source: 'dashboard', from_tier: tier });
-                }}
+                {...checkoutLinkProps(
+                  isPassHolder ? PASSPORT_CHECKOUT_URL : QUESTIONNAIRE_PASS_CHECKOUT_URL,
+                  'dashboard',
+                  tier,
+                )}
+                onClickCapture={() => track('upgrade_cta_click', { source: 'dashboard', from_tier: tier })}
                 className="inline-flex items-center justify-center gap-2 px-5 h-10 bg-white text-slate-900 font-medium hover:bg-slate-100 transition-colors"
               >
                 {isPassHolder ? t('home.upgradeCta') : t('home.upgradeCtaFree')}

@@ -8,6 +8,7 @@ import {
   QUESTIONNAIRE_PASS_CHECKOUT_URL,
   PASS_PRICE,
   PASSPORT_PRICE,
+  openCheckout,
 } from '@/lib/checkout';
 
 // The free first action: what this questionnaire needs, measured against what the
@@ -77,11 +78,6 @@ export default function CoverageReport({ coverage, questionnaireName, tier, onSt
   const documents = missingDocuments
     .map(entry => ({ ...entry, label: documentLabel(t, entry.document) }))
     .filter(entry => entry.label);
-
-  const openCheckout = (url, source) => {
-    track('checkout_opened', { source, from_tier: tier });
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
 
   return (
     <div className="space-y-6">
@@ -171,7 +167,7 @@ export default function CoverageReport({ coverage, questionnaireName, tier, onSt
             <h3 className="text-base font-semibold text-slate-900">{t('coverage.passTitle')}</h3>
             <p className="text-sm text-slate-600 leading-relaxed mt-2 flex-1">{t('coverage.passBody')}</p>
             <button
-              onClick={() => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_report_pass')}
+              onClick={() => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_report_pass', tier)}
               className="mt-4 inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2.5"
             >
               {t('coverage.passCta', { price: PASS_PRICE })}
@@ -188,7 +184,7 @@ export default function CoverageReport({ coverage, questionnaireName, tier, onSt
               </p>
             )}
             <button
-              onClick={() => openCheckout(PASSPORT_CHECKOUT_URL, 'coverage_report_passport')}
+              onClick={() => openCheckout(PASSPORT_CHECKOUT_URL, 'coverage_report_passport', tier)}
               className="mt-4 inline-flex items-center justify-center gap-2 border border-slate-900 text-slate-900 hover:bg-slate-50 text-sm font-medium px-4 py-2.5"
             >
               {t('coverage.passportCta', { price: PASSPORT_PRICE })}

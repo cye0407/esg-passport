@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLicense } from '@/components/LicenseContext';
 import { useLanguage } from '@/components/LanguageContext';
 import { licenseErrorMessage } from '@/lib/i18n';
-import { PASSPORT_CHECKOUT_URL } from '@/lib/checkout';
+import { PASSPORT_CHECKOUT_URL, checkoutLinkProps } from '@/lib/checkout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -39,7 +39,7 @@ const GATE_CONTENT = {
  * Includes license key activation inline - no redirect needed.
  */
 export default function UpgradeGate({ feature }) {
-  const { activate } = useLicense();
+  const { activate, tier } = useLicense();
   const { t } = useLanguage();
   const [licenseKey, setLicenseKey] = useState('');
   const [error, setError] = useState('');
@@ -90,9 +90,7 @@ export default function UpgradeGate({ feature }) {
         </div>
 
         <a
-          href={PASSPORT_CHECKOUT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+          {...checkoutLinkProps(PASSPORT_CHECKOUT_URL, 'upgrade_gate', tier)}
           className="flex items-center justify-center gap-2 w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none transition-colors mb-6"
         >
           {t('gate.cta')}

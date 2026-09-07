@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   PASSPORT_CHECKOUT_URL,
   QUESTIONNAIRE_PASS_CHECKOUT_URL,
   PASS_PRICE,
   PASSPORT_PRICE,
+  checkoutLinkProps,
+  openCheckout,
   marketingUrl,
 } from '../checkout';
 
@@ -39,5 +41,33 @@ describe('checkout links', () => {
   it('names both prices in one place', () => {
     expect(PASS_PRICE).toBe('€99');
     expect(PASSPORT_PRICE).toBe('€499');
+  });
+});
+
+describe('checkout instrumentation', () => {
+  // checkout_opened fired from one of eleven checkout links for a year, and the
+  // resulting "1 checkout opened" was read as evidence about demand.
+  it('gives a real anchor its attributes and tracks without opening a second window', () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const props = checkoutLinkProps(PASSPORT_CHECKOUT_URL, 'upgrade_gate', 'free');
+    expect(props).toMatchObject({
+      href: PASSPORT_CHECKOUT_URL,
+      target: '_blank',
+      rel: 'noopener noreferrer',
+    });
+    props.onClick();
+    // The browser follows the href; opening as well would give the reader two tabs.
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('opens from a button, and refuses to open nothing', () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_report_pass', 'free');
+    expect(open).toHaveBeenCalledWith(QUESTIONNAIRE_PASS_CHECKOUT_URL, '_blank', 'noopener,noreferrer');
+    open.mockClear();
+    openCheckout('', 'somewhere', 'free');
+    expect(open).not.toHaveBeenCalled();
+    open.mockRestore();
   });
 });

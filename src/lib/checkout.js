@@ -1,3 +1,5 @@
+import { track } from './track';
+
 // ============================================
 // Where a buyer goes to pay, and where they go to read
 // ============================================
@@ -19,6 +21,29 @@ export const QUESTIONNAIRE_PASS_CHECKOUT_URL =
 // each hardcoding their own. If a price changes, it changes in one place here.
 export const PASS_PRICE = '€99';
 export const PASSPORT_PRICE = '€499';
+
+// Every checkout in the app goes through one of these two. checkout_opened used to
+// fire from exactly one of eleven checkout links, which is why a full year of
+// analytics recorded a single opened checkout - and why nobody should have read that
+// number as evidence about demand.
+//
+// Two helpers because both shapes exist and each has to stay honest: a real anchor
+// keeps middle-click and "open in new tab" working, so it must only TRACK on click,
+// never open a second window; a button has no href, so it opens.
+export function checkoutLinkProps(url, source, tier) {
+  return {
+    href: url,
+    target: '_blank',
+    rel: 'noopener noreferrer',
+    onClick: () => track('checkout_opened', { source, from_tier: tier }),
+  };
+}
+
+export function openCheckout(url, source, tier) {
+  if (!url) return;
+  track('checkout_opened', { source, from_tier: tier });
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
 
 const MARKETING_BASE = 'https://esgforsuppliers.com';
 
