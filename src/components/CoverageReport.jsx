@@ -21,6 +21,9 @@ import {
 // Three answers are shown in full and the rest are counted. That is the line between
 // proving the thing works on your own documents and doing the work for free.
 const FULL_ANSWERS_SHOWN = 3;
+// Enough to tell at a glance whether the file was read properly, without turning the
+// report into a wall of text.
+const QUESTIONS_PREVIEWED = 5;
 
 // Document labels are literal t() calls, not a computed key: the i18n coverage guard
 // only sees keys it can read in the source, and a key it cannot see is a key that can
@@ -57,10 +60,10 @@ function Group({ icon, heading, body, children }) {
   );
 }
 
-export default function CoverageReport({ coverage, questionnaireName, tier, onStartOver, onAddDocuments }) {
+export default function CoverageReport({ coverage, questionnaireName, questions = [], tier, onStartOver, onAddDocuments }) {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const { total, fromRecords, written, unanswerable, missingDocuments, policyGaps } = coverage;
+  const { total, fromRecords, written, unanswerable, missingDocuments, policyGaps, hasOwnData } = coverage;
 
   // The number that says this change worked. Over the previous year the funnel
   // recorded two paywall hits, because nobody could get far enough to see one.
@@ -74,6 +77,9 @@ export default function CoverageReport({ coverage, questionnaireName, tier, onSt
     });
   }, [total, fromRecords.length, written.length, unanswerable.length, policyGaps.builders.length]);
 
+  const [showAllQuestions, setShowAllQuestions] = React.useState(false);
+  const questionPreview = showAllQuestions ? questions : questions.slice(0, QUESTIONS_PREVIEWED);
+
   const shown = fromRecords.slice(0, FULL_ANSWERS_SHOWN);
   const documents = missingDocuments
     .map(entry => ({ ...entry, label: documentLabel(t, entry.document) }))
@@ -86,6 +92,34 @@ export default function CoverageReport({ coverage, questionnaireName, tier, onSt
         {questionnaireName && <p className="text-slate-500 mt-1 truncate">{questionnaireName}</p>}
         <p className="text-slate-600 mt-3 leading-relaxed">{t('coverage.lead')}</p>
       </div>
+
+      {/* What we actually read. Three counts about a file you cannot see is a number you
+          have to take on faith, and reading a questionnaire out of a PDF is the step most
+          likely to go wrong — so show the questions, and let anyone check them for free. */}
+      {questions.length > 0 && (
+        <div className="border border-slate-200 bg-white p-5">
+          <h2 className="text-base font-semibold text-slate-900">{t('coverage.readTitle')}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t('coverage.readBody')}</p>
+          <ol className="mt-3 space-y-2 text-sm text-slate-700">
+            {questionPreview.map((question, index) => (
+              <li key={question.id || index} className="flex gap-2">
+                <span className="text-slate-400 shrink-0">{index + 1}.</span>
+                <span>{question.text}</span>
+              </li>
+            ))}
+          </ol>
+          {questions.length > QUESTIONS_PREVIEWED && (
+            <button
+              onClick={() => setShowAllQuestions(v => !v)}
+              className="mt-3 text-sm text-slate-600 underline hover:text-slate-900"
+            >
+              {showAllQuestions
+                ? t('coverage.readShowLess')
+                : t('coverage.readShowAll', { count: questions.length - QUESTIONS_PREVIEWED })}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="space-y-3">
         <Group
@@ -125,7 +159,10 @@ export default function CoverageReport({ coverage, questionnaireName, tier, onSt
         <Group
           icon={<PenLine className="w-5 h-5 shrink-0 mt-0.5 text-indigo-600" />}
           heading={t('coverage.written', { count: written.length })}
-          body={t('coverage.writtenBody')}
+          // With an empty workspace these come from the answer library and nothing else.
+          // Saying they were "written from what you told us" would be a lie about a real
+          // number, and the number is the first thing that makes someone distrust the page.
+          body={hasOwnData ? t('coverage.writtenBody') : t('coverage.writtenBodyNoData')}
         />
 
         <Group

@@ -1436,6 +1436,7 @@ export default function Respond({ demoOnly = false }) {
             dataSources: getSettings()?.dataSources || {},
           })}
           questionnaireName={questionnaireName}
+          questions={parseResult?.questions || []}
           tier={tier}
           onStartOver={resetToUpload}
         />

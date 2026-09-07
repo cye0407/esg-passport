@@ -160,4 +160,27 @@ describe('CoverageReport', () => {
     await act(async () => button.click());
     expect(onAddDocuments).toHaveBeenCalled();
   });
+
+  it('shows what it read, and lets you see the rest', async () => {
+    const questions = Array.from({ length: 8 }, (_, i) => ({ id: `q${i}`, text: `Read question ${i}` }));
+    await render([draft('a', 'medium')], {}, { questions });
+    expect(container.textContent).toContain('Read question 0');
+    expect(container.textContent).toContain('Read question 4');
+    expect(container.textContent).not.toContain('Read question 5');
+    const more = [...container.querySelectorAll('button')].find(b => b.textContent.includes('Show the other 3'));
+    expect(more).toBeTruthy();
+    await act(async () => more.click());
+    expect(container.textContent).toContain('Read question 7');
+  });
+
+  // The misleading half of a true number: the engine composes these from its template
+  // library whether or not the reader has told us anything about their business.
+  it('does not claim a draft came from the reader when they have entered nothing', async () => {
+    await render([draft('a', 'medium')], { companyData: {} });
+    expect(container.textContent).toContain('come from our answer library');
+    expect(container.textContent).not.toContain('what you have told us about your business');
+
+    await render([draft('a', 'medium')], { companyData: { electricityKwh: 42000 } });
+    expect(container.textContent).toContain('what you have told us about your business');
+  });
 });

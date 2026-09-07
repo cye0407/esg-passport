@@ -12,7 +12,7 @@
 //     engine emitted text for it. Presenting a weak draft as an answer is how a
 //     supplier ends up signing something that is not true.
 //   - a document is only named when the map knows a real field it would fill
-import { rowForLabel } from './coverageFieldMap';
+import { rowForLabel, COVERAGE_FIELD_MAP } from './coverageFieldMap';
 import { matchBuilderId } from '@/data/policyBuilders';
 
 /** A value the workspace actually holds. Zero is a figure; undefined is a gap. */
@@ -92,6 +92,20 @@ function summarize(draft, dataSources) {
  *   policyGaps: {questions: number, builders: string[]}
  * }}
  */
+/**
+ * Whether the workspace holds anything of the user's at all.
+ *
+ * This decides how the middle group may be described. The engine composes those answers
+ * from the ESG template library, so they exist whether or not the user has told us
+ * anything — someone who uploads nothing still gets most of the questionnaire "written".
+ * Calling that "written from what you told us about your business" when they have told us
+ * nothing is the misleading half of a true number, and the spec flagged it before it was
+ * built.
+ */
+export function hasOwnData(companyData) {
+  return COVERAGE_FIELD_MAP.some(row => row.companyDataKeys.some(key => isPresent(companyData?.[key])));
+}
+
 export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} } = {}) {
   const list = Array.isArray(drafts) ? drafts : [];
   const fromRecords = [];
@@ -138,6 +152,8 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
     written,
     unanswerable,
     missingDocuments,
+    // Lets the report describe the middle group honestly. See hasOwnData.
+    hasOwnData: hasOwnData(companyData),
     // questions: how many the buyer is being asked. builders: how many documents
     // actually have to be written to cover them. They are different numbers and the
     // copy must not conflate them.
