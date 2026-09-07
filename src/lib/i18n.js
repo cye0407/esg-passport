@@ -907,6 +907,18 @@ const translations = {
     'confirm.selected': '{count} of {total} selected',
     'confirm.cta': 'Yes, these are the questions',
     'confirm.back': 'Use a different file',
+    // Dropping work on the dashboard instead of hunting for the right tab.
+    'drop.questionnaireTitle': 'Drop the questionnaire here',
+    'drop.questionnaireBody': 'Or click to choose it. We read it and tell you what it asks for.',
+    'drop.wrongType': 'We cannot read that file type. Try {formats}.',
+    'home.dropQuestionnaireTitle': 'Your customer questionnaire',
+    'home.dropQuestionnaireFree': 'Drop it in and see what it asks for, how much of it your own records already answer, and which documents would answer the rest. Free.',
+    'home.dropQuestionnairePaid': 'Drop it in and we will draft every question we can answer from your records, ready to review and export.',
+    'home.dropDocumentTitle': 'A bill, invoice or record',
+    'home.dropDocumentBody': 'We read the figures out of it so they can answer questions for you. You check every value before it is saved.',
+    'respond.reprepareChanged': 'Regenerated. {count} answers changed.',
+    'respond.reprepareKeptEdits': 'Regenerated. Nothing changed, and your {count} edited answers were kept.',
+    'respond.reprepareUnchanged': 'Regenerated. Nothing changed - add or update your data and run this again.',
     // Coverage report — the free first action. Wording is normative: see
     // COVERAGE-REPORT-SPEC.md. It describes what the record supports and never a
     // readiness score, a pass likelihood, or a predicted buyer outcome.
@@ -1814,6 +1826,18 @@ const translations = {
     'confirm.selected': '{count} von {total} ausgewählt',
     'confirm.cta': 'Ja, das sind die Fragen',
     'confirm.back': 'Andere Datei verwenden',
+    // Arbeit direkt auf dem Dashboard ablegen, statt den richtigen Tab zu suchen.
+    'drop.questionnaireTitle': 'Fragebogen hier ablegen',
+    'drop.questionnaireBody': 'Oder klicken, um ihn auszuwählen. Wir lesen ihn und sagen Ihnen, was verlangt wird.',
+    'drop.wrongType': 'Dieses Dateiformat können wir nicht lesen. Versuchen Sie {formats}.',
+    'home.dropQuestionnaireTitle': 'Ihr Kundenfragebogen',
+    'home.dropQuestionnaireFree': 'Legen Sie ihn ab und sehen Sie, was verlangt wird, wie viel davon Ihre eigenen Unterlagen bereits beantworten und welche Dokumente den Rest beantworten würden. Kostenlos.',
+    'home.dropQuestionnairePaid': 'Legen Sie ihn ab, und wir formulieren jede Frage, die sich aus Ihren Unterlagen beantworten lässt — bereit zur Prüfung und zum Export.',
+    'home.dropDocumentTitle': 'Eine Rechnung oder ein Nachweis',
+    'home.dropDocumentBody': 'Wir lesen die Zahlen heraus, damit sie Fragen für Sie beantworten können. Sie prüfen jeden Wert, bevor er gespeichert wird.',
+    'respond.reprepareChanged': 'Neu erstellt. {count} Antworten haben sich geändert.',
+    'respond.reprepareKeptEdits': 'Neu erstellt. Nichts hat sich geändert, und Ihre {count} bearbeiteten Antworten wurden beibehalten.',
+    'respond.reprepareUnchanged': 'Neu erstellt. Nichts hat sich geändert — ergänzen oder aktualisieren Sie Ihre Daten und führen Sie dies erneut aus.',
     // Abdeckungsbericht — die kostenlose erste Aktion. Beschreibt, was die
     // Datenlage hergibt, und niemals eine Bewertung oder eine Erfolgsprognose.
     'coverage.title': 'Ihr Fragebogen: {count} Fragen',

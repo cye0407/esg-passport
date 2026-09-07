@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import {
   getCompanyProfile,
   getReadinessStats,
@@ -40,20 +40,25 @@ import {
 } from 'lucide-react';
 
 import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, checkoutLinkProps, marketingUrl } from '@/lib/checkout';
+import QuestionnaireDrop from '@/components/QuestionnaireDrop';
+import BillDrop from '@/components/BillDrop';
+import { setHandoff } from '@/lib/handoff';
 import { canActivateAnotherKey } from '@/lib/entitlements';
 
 export default function Home() {
-  const { tier } = useLicense();
+  const navigate = useNavigate();
+  const { tier, entitlements } = useLicense();
   const isPassHolder = tier === 'questionnaire-pass';
   const settings = getSettings();
-  if (!settings.setupCompleted) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
+  // Every hook runs before the redirect. It used to sit above useLanguage and useState,
+  // which is a rules-of-hooks violation that happened not to bite because setupCompleted
+  // does not flip mid-render - the dashboard is the first screen people land on now, so
+  // it is not worth leaving as a trap.
   const { lang, t } = useLanguage();
   const [showGuide, setShowGuide] = React.useState(() => {
     return !localStorage.getItem('esg_passport_guide_dismissed');
   });
+  const redirectToOnboarding = !settings.setupCompleted;
 
   const dismissGuide = () => {
     localStorage.setItem('esg_passport_guide_dismissed', 'true');
@@ -74,14 +79,9 @@ export default function Home() {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   const currentPeriod = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-  const lastMonth = currentMonth === 1
-    ? `${currentYear - 1}-12`
-    : `${currentYear}-${String(currentMonth - 1).padStart(2, '0')}`;
-
   const annualTotals = getAnnualTotals(currentYear.toString());
 
   const hasCurrentMonthData = dataRecords.some(r => r.period === currentPeriod);
-  const hasLastMonthData = dataRecords.some(r => r.period === lastMonth);
   const hasAnyData = dataRecords.length > 0;
   const monthsTracked = dataRecords.length;
 
@@ -183,6 +183,10 @@ export default function Home() {
 
   const primaryCTA = getPrimaryCTA();
 
+  if (redirectToOnboarding) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return (
     <div className="space-y-6">
       {/* Welcome + Primary CTA */}
@@ -229,6 +233,32 @@ export default function Home() {
               </Button>
             </Link>
           </div>
+        </div>
+      </div>
+
+      {/* Do the two things people actually arrive holding, here, rather than sending
+          them to find the right tab first. Both hand off in memory to the page that owns
+          the rest of the flow - parsing and the Pass claim live on /respond, applying
+          extracted values lives on /data - so neither behaviour gets a second copy. */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="bg-white border border-slate-200 rounded-none p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-1">{t('home.dropQuestionnaireTitle')}</h2>
+          <p className="text-sm text-slate-500 mb-4">
+            {entitlements.canGenerateAnswers ? t('home.dropQuestionnairePaid') : t('home.dropQuestionnaireFree')}
+          </p>
+          <QuestionnaireDrop />
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-none p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-1">{t('home.dropDocumentTitle')}</h2>
+          <p className="text-sm text-slate-500 mb-4">{t('home.dropDocumentBody')}</p>
+          <BillDrop
+            onDataExtracted={(fields, period, fileName) => {
+              setHandoff({ kind: 'extraction', fields, period, fileName });
+              track('dashboard_document_extracted', { fields: fields.length });
+              navigate('/data');
+            }}
+          />
         </div>
       </div>
 

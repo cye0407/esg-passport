@@ -13,6 +13,7 @@ import { FIELD_UNITS, getAlternativeUnits, convert } from '@/lib/units';
 import { useLanguage } from '@/components/LanguageContext';
 import { track, trackOnce } from '@/lib/track';
 import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
+import { takeHandoff } from '@/lib/handoff';
 import { detectNumberFormat, parseNumber, parsePeriod, buildColumnMap } from '@/lib/csvImport';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
@@ -272,6 +273,16 @@ export default function Data() {
     if (!changed) return;
     setDataSources(next);
     saveSettings({ dataSources: next });
+  }, []);
+
+  // A document extracted on the dashboard hands its ACCEPTED fields over here, because
+  // applying them needs this page's records state and the bare-year confirmation dialog.
+  // The review dialog already happened on the dashboard; this is only the write.
+  useEffect(() => {
+    const handoff = takeHandoff('extraction');
+    if (!handoff?.fields?.length) return;
+    handleBillExtracted(handoff.fields, handoff.period, handoff.fileName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleBillExtracted = useCallback((fields, extractedPeriod, fileName) => {

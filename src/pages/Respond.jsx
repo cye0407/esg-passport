@@ -7,6 +7,7 @@ import { loadDemoData } from '@/lib/demoData';
 import { QUESTIONNAIRE_TEMPLATES, templateToParseResult, templateName, templateDescription } from '@/data/questionnaire-templates';
 import { matchBuilderId } from '@/data/policyBuilders';
 import { summarizeCoverage } from '@/lib/coverage';
+import { takeHandoff } from '@/lib/handoff';
 import CoverageReport from '@/components/CoverageReport';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
@@ -149,6 +150,17 @@ export default function Respond({ demoOnly = false }) {
   useEffect(() => {
     setPassClaim(getQuestionnairePassClaim(licenseKeyId));
   }, [licenseKeyId]);
+
+  // A questionnaire dropped on the dashboard arrives here as a File. Parsing, the
+  // question-confirmation step and the Pass claim all live on this page, so the drop
+  // hands over the file rather than a half-processed result.
+  useEffect(() => {
+    const handoff = takeHandoff('questionnaire');
+    if (!handoff?.file) return;
+    track('respond_handoff_received');
+    validateAndSetFile(handoff.file);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A free coverage report is not saved (saveResults is gated on canExport, and storing
   // the full drafts would put the paid artefact on disk for someone who has not bought
@@ -573,6 +585,7 @@ export default function Respond({ demoOnly = false }) {
   async function runPipeline(pr, name, {
     questionnaireFingerprint = null,
     shouldClaimPass = false,
+    onComplete = null,
   } = {}) {
     setPhase('generating');
     setPipelineError(null);
@@ -683,6 +696,7 @@ export default function Respond({ demoOnly = false }) {
       setGeneratingProgress({ step: t('respond.progSaving'), percent: 95 });
       track('respond_answers_generated', { count: normalizedDrafts.length, framework: fw || 'none' });
       setPhase('results');
+      onComplete?.(normalizedDrafts);
     } catch (err) {
       console.error('Pipeline error:', err);
       track('respond_generation_failed', { error: err?.name || 'unknown' });
@@ -954,14 +968,48 @@ export default function Respond({ demoOnly = false }) {
     };
   };
 
-  const handleReprepare = () => {
+  // Regenerate against the CURRENT workspace data. Two things were wrong here:
+  //
+  // It routed through beginQuestionnaireProcessing, which now sends PDF and Word
+  // questionnaires to the confirmation screen — so re-preparing a PDF asked the user to
+  // approve a question list they had already approved, and looked like the button had
+  // thrown their answers away.
+  //
+  // And it gave no feedback. Regeneration preserves answers the user has edited (by
+  // design — losing an edit to a refresh would be worse), so on an unchanged workspace
+  // it correctly produces the same text and read as a dead button. It now says what it
+  // did, including when the honest answer is "nothing changed".
+  const handleReprepare = async () => {
     const repreparePayload = buildRepreparePayload();
     if (!repreparePayload?.questions?.length) {
       showFeedback(t('respond.reprepareUnavailable'));
       return;
     }
     setPipelineError(null);
-    beginQuestionnaireProcessing(repreparePayload, questionnaireName);
+    // Compare only the drafts the user has NOT edited: applyGeneratedDrafts keeps an
+    // edited answer as it is, so counting those as "changed" would report work that did
+    // not reach the screen.
+    const editedIds = new Set(answerDrafts.filter(d => d._edited).map(d => d.questionId));
+    const before = new Map(
+      answerDrafts.filter(d => !editedIds.has(d.questionId)).map(d => [d.questionId, d.answer]),
+    );
+    const edited = editedIds.size;
+    track('respond_reprepare', { questions: repreparePayload.questions.length });
+    await runPipeline(repreparePayload, questionnaireName, {
+      questionnaireFingerprint: passClaim?.fingerprint || null,
+      onComplete: (drafts) => {
+        const changed = drafts.filter(
+          d => !editedIds.has(d.questionId) && before.get(d.questionId) !== d.answer,
+        ).length;
+        showFeedback(
+          changed > 0
+            ? t('respond.reprepareChanged', { count: changed })
+            : edited > 0
+              ? t('respond.reprepareKeptEdits', { count: edited })
+              : t('respond.reprepareUnchanged'),
+        );
+      },
+    });
   };
 
   const buildExportMetadata = (data, exportLanguage, exportFramework, creator = 'ESG Passport') => {
