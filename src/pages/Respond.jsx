@@ -128,6 +128,9 @@ export default function Respond({ demoOnly = false }) {
   const [passClaim, setPassClaim] = useState(() => getQuestionnairePassClaim(licenseKeyId));
   const [pendingPassClaim, setPendingPassClaim] = useState(null);
   const [passBlock, setPassBlock] = useState(null);
+  // The question list awaiting the user's confirmation, and which of them they kept.
+  const [pendingConfirm, setPendingConfirm] = useState(null);
+  const [confirmedIds, setConfirmedIds] = useState(() => new Set());
 
   const requests = getRequests().filter(r => r.status !== 'closed' && r.status !== 'sent');
   const [selectedRequestId, setSelectedRequestId] = useState(requestId || '');
@@ -279,8 +282,35 @@ export default function Respond({ demoOnly = false }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // Formats where the question list has to be confirmed before anything is counted.
+  // A spreadsheet has rows, and the parser already reports totalRows against
+  // parsedRows; a PDF has prose, and the parser found 22 of roughly 50 questions in a
+  // real Drive Sustainability SAQ. Reporting "18 of 22 substantiated" against a
+  // denominator that wrong makes every number on the coverage report false, and
+  // confidently so. Better to make the failure visible than to hide it in a total.
+  const NEEDS_QUESTION_CONFIRMATION = /\.(pdf|docx?)$/i;
+
   function beginQuestionnaireProcessing(pr, name, { isBuiltInSample = false } = {}) {
     const builtInSample = isBuiltInSample || pr?.metadata?.source === 'built-in-sample';
+
+    // Confirmation comes before the Questionnaire Pass claim: nobody should spend
+    // their one allowance on a question list that was read wrong.
+    if (!builtInSample && NEEDS_QUESTION_CONFIRMATION.test(pr?.metadata?.fileName || name || '')) {
+      setPendingConfirm({ parseResult: pr, name });
+      setConfirmedIds(new Set((pr?.questions || []).map(q => q.id)));
+      setPhase('confirm');
+      track('questionnaire_confirm_shown', { questions: pr?.questions?.length || 0 });
+      return;
+    }
+
+    processConfirmedQuestionnaire(pr, name, builtInSample);
+  }
+
+  function processConfirmedQuestionnaire(pr, name, builtInSample) {
+    // Every branch below except the pipeline itself renders on the upload screen -
+    // a parse error or a pass dialog left behind a confirmation step would be
+    // invisible. runPipeline moves us on to 'generating' from here.
+    setPhase('upload');
     const decision = getQuestionnairePassDecision({
       tier,
       licenseKeyId,
@@ -317,6 +347,40 @@ export default function Respond({ demoOnly = false }) {
     runPipeline(pr, name, {
       questionnaireFingerprint: builtInSample ? null : decision.fingerprint,
     });
+  }
+
+  const toggleConfirmedQuestion = (id) => {
+    setConfirmedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  function confirmQuestionList() {
+    if (!pendingConfirm || confirmedIds.size === 0) return;
+    const { parseResult, name } = pendingConfirm;
+    const questions = parseResult.questions.filter(q => confirmedIds.has(q.id));
+    // The corrected list becomes the questionnaire. parsedRows follows it, so the
+    // denominator on every later screen is the one the user actually confirmed.
+    const corrected = {
+      ...parseResult,
+      questions,
+      metadata: { ...parseResult.metadata, parsedRows: questions.length },
+    };
+    track('questionnaire_confirmed', {
+      kept: questions.length,
+      dropped: parseResult.questions.length - questions.length,
+    });
+    setPendingConfirm(null);
+    processConfirmedQuestionnaire(corrected, name, false);
+  }
+
+  function cancelQuestionList() {
+    setPendingConfirm(null);
+    setConfirmedIds(new Set());
+    setPhase('upload');
+    removeFile();
   }
 
   async function confirmQuestionnairePassClaim() {
@@ -1183,6 +1247,57 @@ export default function Respond({ demoOnly = false }) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      </div>
+    );
+  }
+
+  // ============ RENDER: CONFIRM THE QUESTION LIST ============
+  if (phase === 'confirm' && pendingConfirm) {
+    const parsed = pendingConfirm.parseResult.questions;
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{t('confirm.title')}</h1>
+          <p className="text-slate-600 mt-2 leading-relaxed">
+            {t('confirm.body', { count: parsed.length, fileName: pendingConfirm.name })}
+          </p>
+        </div>
+
+        <div className="border border-slate-200 bg-white divide-y divide-slate-100">
+          {parsed.map((question, index) => (
+            <label
+              key={question.id}
+              className="flex items-start gap-3 p-3 cursor-pointer hover:bg-slate-50"
+            >
+              <input
+                type="checkbox"
+                checked={confirmedIds.has(question.id)}
+                onChange={() => toggleConfirmedQuestion(question.id)}
+                className="mt-1 shrink-0"
+              />
+              <span className="text-sm text-slate-700">
+                <span className="text-slate-400 mr-2">{index + 1}.</span>
+                {question.text}
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={confirmQuestionList}
+            disabled={confirmedIds.size === 0}
+            className="bg-slate-900 hover:bg-slate-800 text-white rounded-none"
+          >
+            {t('confirm.cta')}
+          </Button>
+          <span className="text-sm text-slate-500">
+            {t('confirm.selected', { count: confirmedIds.size, total: parsed.length })}
+          </span>
+          <button onClick={cancelQuestionList} className="text-sm text-slate-500 hover:text-slate-700 underline ml-auto">
+            {t('confirm.back')}
+          </button>
+        </div>
       </div>
     );
   }

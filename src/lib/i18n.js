@@ -926,6 +926,12 @@ const translations = {
     'results.na': 'Not Applicable',
     'results.naHint': 'Mark as N/A with justification',
     'results.masterSave': 'Save as Master Answer',
+    // Confirming a parsed question list before anything is counted.
+    'confirm.title': 'Does this look like your questionnaire?',
+    'confirm.body': 'We read {count} questions out of {fileName}. PDFs and Word files are the hardest to read reliably, so please check the list before we count anything. Untick anything that is not a question.',
+    'confirm.selected': '{count} of {total} selected',
+    'confirm.cta': 'Yes, these are the questions',
+    'confirm.back': 'Use a different file',
     // Coverage report — the free first action. Wording is normative: see
     // COVERAGE-REPORT-SPEC.md. It describes what the record supports and never a
     // readiness score, a pass likelihood, or a predicted buyer outcome.
@@ -1852,6 +1858,12 @@ const translations = {
     'results.na': 'Nicht zutreffend',
     'results.naHint': 'Als N/A mit Begr\u00FCndung markieren',
     'results.masterSave': 'Als Standardantwort speichern',
+    // Bestätigung der erkannten Fragenliste, bevor irgendetwas gezählt wird.
+    'confirm.title': 'Sieht das nach Ihrem Fragebogen aus?',
+    'confirm.body': 'Wir haben {count} Fragen aus {fileName} gelesen. PDF- und Word-Dateien sind am schwersten zuverlässig zu lesen — bitte prüfen Sie die Liste, bevor wir etwas zählen. Haken Sie ab, was keine Frage ist.',
+    'confirm.selected': '{count} von {total} ausgewählt',
+    'confirm.cta': 'Ja, das sind die Fragen',
+    'confirm.back': 'Andere Datei verwenden',
     // Abdeckungsbericht — die kostenlose erste Aktion. Beschreibt, was die
     // Datenlage hergibt, und niemals eine Bewertung oder eine Erfolgsprognose.
     'coverage.title': 'Ihr Fragebogen: {count} Fragen',
