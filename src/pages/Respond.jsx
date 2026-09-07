@@ -6,6 +6,8 @@ import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getD
 import { loadDemoData } from '@/lib/demoData';
 import { QUESTIONNAIRE_TEMPLATES, templateToParseResult, templateName, templateDescription } from '@/data/questionnaire-templates';
 import { matchBuilderId } from '@/data/policyBuilders';
+import { summarizeCoverage } from '@/lib/coverage';
+import CoverageReport from '@/components/CoverageReport';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
 import { LANGUAGES, isOfferedAnswerLanguage, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
@@ -1195,6 +1197,23 @@ export default function Respond({ demoOnly = false }) {
           <p className="text-sm text-red-600 mb-6">{pipelineError}</p>
           <Button variant="outline" onClick={resetToUpload}>{t('respond.tryAgain')}</Button>
         </div>
+      );
+    }
+
+    // Free, on their own questionnaire: the coverage report, not a truncated preview
+    // of answers they cannot use. /demo keeps the sample preview - a coverage report
+    // about a fictional company's documents would tell the reader nothing.
+    if (!canGenerate && !demoOnly) {
+      return (
+        <CoverageReport
+          coverage={summarizeCoverage(answerDrafts, {
+            companyData,
+            dataSources: getSettings()?.dataSources || {},
+          })}
+          questionnaireName={questionnaireName}
+          tier={tier}
+          onStartOver={resetToUpload}
+        />
       );
     }
 

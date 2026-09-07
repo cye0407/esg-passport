@@ -140,6 +140,30 @@ describe('summarizeCoverage', () => {
     expect(summarizeCoverage(questions).fromRecords[0].document).toBeNull();
   });
 
+  it('counts a missing policy only when a guided builder would actually write it', () => {
+    const policy = (id, text) => draft(id, 'medium', [], {
+      questionType: 'POLICY', confidenceSource: 'drafted', questionText: text,
+    });
+    const result = summarizeCoverage([
+      policy('a', 'Do you have a code of conduct?'),
+      policy('b', 'Do you have a whistleblowing procedure?'),
+      policy('c', 'Do you have a business ethics policy?'),
+      // No builder writes a modern slavery statement, so it is not counted.
+      policy('d', 'Do you publish a modern slavery statement?'),
+    ]);
+    expect(result.policyGaps.questions).toBe(3);
+    // Two questions, one document: the numbers are different and must stay so.
+    expect(result.policyGaps.builders).toEqual(['code_of_conduct', 'whistleblowing']);
+  });
+
+  it('does not count a policy the company already has', () => {
+    const held = draft('a', 'high', [], {
+      questionType: 'POLICY', confidenceSource: 'provided',
+      questionText: 'Do you have a code of conduct?',
+    });
+    expect(summarizeCoverage([held]).policyGaps.questions).toBe(0);
+  });
+
   it('survives an empty or malformed questionnaire without inventing coverage', () => {
     expect(summarizeCoverage([]).total).toBe(0);
     expect(summarizeCoverage(null).total).toBe(0);

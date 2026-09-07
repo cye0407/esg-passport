@@ -13,6 +13,7 @@
 //     supplier ends up signing something that is not true.
 //   - a document is only named when the map knows a real field it would fill
 import { rowForLabel } from './coverageFieldMap';
+import { matchBuilderId } from '@/data/policyBuilders';
 
 /** A value the workspace actually holds. Zero is a figure; undefined is a gap. */
 function isPresent(value) {
@@ -49,6 +50,22 @@ function documentFor(draft, dataSources) {
   return null;
 }
 
+/**
+ * A policy question this workspace cannot answer because the document does not exist,
+ * AND which one of the nine guided builders would actually write.
+ *
+ * A question no builder covers is not counted. The report quotes this number back to
+ * the buyer as the reason to pay 499 rather than 99, so counting a question we could
+ * not in fact help with would be a fake door with a price on it.
+ */
+function policyBuilderFor(draft) {
+  if (draft?.questionType !== 'POLICY') return null;
+  // 'drafted' is the engine saying it wrote this from nothing on record - i.e. the
+  // policy is missing, not merely unmatched.
+  if (draft?.confidenceSource !== 'drafted') return null;
+  return matchBuilderId(`${draft.questionText || ''} ${draft.category || ''}`);
+}
+
 function summarize(draft, dataSources) {
   return {
     questionId: draft.questionId,
@@ -71,7 +88,8 @@ function summarize(draft, dataSources) {
  * @returns {{
  *   total: number,
  *   fromRecords: Array, written: Array, unanswerable: Array,
- *   missingDocuments: Array<{document: string, unlocks: number}>
+ *   missingDocuments: Array<{document: string, unlocks: number}>,
+ *   policyGaps: {questions: number, builders: string[]}
  * }}
  */
 export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} } = {}) {
@@ -82,8 +100,16 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
 
   // Questions per document, counted once each however many of its fields they want.
   const unlocksByDocument = new Map();
+  const policyBuilders = new Set();
+  let policyQuestions = 0;
 
   for (const draft of list) {
+    const builder = policyBuilderFor(draft);
+    if (builder) {
+      policyQuestions += 1;
+      policyBuilders.add(builder);
+    }
+
     const confidence = draft?.answerConfidence;
     if (confidence === 'high') {
       fromRecords.push(summarize(draft, dataSources));
@@ -112,5 +138,9 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
     written,
     unanswerable,
     missingDocuments,
+    // questions: how many the buyer is being asked. builders: how many documents
+    // actually have to be written to cover them. They are different numbers and the
+    // copy must not conflate them.
+    policyGaps: { questions: policyQuestions, builders: [...policyBuilders].sort() },
   };
 }

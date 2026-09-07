@@ -165,3 +165,31 @@ describe('matchBuilderId reaches German questionnaires', () => {
     expect(matchBuilderId('Wie hoch war Ihr Stromverbrauch?')).toBe(null);
   });
 });
+
+// Widened for the coverage report, which quotes the match count back to the buyer.
+describe('matchBuilderId covers the wording buyers actually use', () => {
+  it.each([
+    ['Do you have a business ethics policy?', 'code_of_conduct'],
+    ['How are conflicts of interest handled?', 'code_of_conduct'],
+    ['Do you have a responsible sourcing policy?', 'supplier_coc'],
+    ['Describe your sustainable procurement requirements', 'supplier_coc'],
+    ['Do you have an anti-money laundering policy?', 'anti_corruption'],
+    ['Do you have a privacy notice?', 'data_privacy'],
+    ['Do you have an anti-harassment policy?', 'equal_opp'],
+    ['Do you have a workplace accident procedure?', 'health_safety'],
+    ['Are you certified to ISO 14001?', 'environmental'],
+    ['Haben Sie eine Einkaufsrichtlinie?', 'supplier_coc'],
+    ['Wie gehen Sie mit Geldwäsche um?', 'anti_corruption'],
+  ])('%s -> %s', (text, expected) => {
+    expect(matchBuilderId(text)).toBe(expected);
+  });
+
+  // No builder writes these. Matching them would promise a document that never arrives.
+  it.each([
+    'Do you publish a modern slavery statement?',
+    'Describe your human rights due diligence',
+    'Do you have a conflict minerals policy?',
+  ])('leaves %s unmatched rather than promising the wrong document', text => {
+    expect(matchBuilderId(text)).toBeNull();
+  });
+});
