@@ -147,7 +147,48 @@ const CITATION_START = /^(report|see|source)\s+(?:19|20)\d{2}\b/i;
 function wordCount(text) {
     return text.trim().split(/\s+/).filter(Boolean).length;
 }
-function looksLikeQuestion(text) {
+/**
+ * A questionnaire item is followed by the evidence it wants, and that guidance is prose in
+ * the same text flow: "Document guidelines Your document should include evidence that…".
+ * Absorbed into the question it makes the text unmatchable and unreadable; standing alone
+ * it becomes a question that was never asked.
+ */
+const GUIDANCE_MARKER = /\b(?:document guidelines|documents guidelines|the document\(s\)? should|the documents? should|your document\(s\)? should|your documents? should)\b/i;
+/**
+ * "List of agreements made to improve workers' conditions", "Report, CSR/Sustainability
+ * Report or any other implementation evidence." — these name the EVIDENCE, and they were
+ * read as questions because "list" and "report" are also imperative verbs. The giveaway is
+ * what follows the word: "List of…" and "Report," are noun phrases, while "List the sites"
+ * and "Report on the following KPIs" are instructions.
+ */
+const EVIDENCE_NOUN_PHRASE = /^(?:list|report|copy|copies|record|records|certificate|certificates|policy|policies|document|documents|evidence)\s*(?:,|of\b)/i;
+/**
+ * Cut a question free of the evidence guidance printed after it.
+ *
+ * Two cuts, in order. At an explicit guidance marker, always. Then at the question mark,
+ * but only when what trails it is long enough to be a guidance block rather than a short
+ * qualifier — "Do you X? If yes, describe Y." keeps its second half, which is part of what
+ * is being asked; four sentences about acceptable file formats and publication dates is
+ * not.
+ */
+const TRAILING_GUIDANCE_MIN = 120;
+export function trimGuidance(text) {
+    let out = text;
+    const marker = out.search(GUIDANCE_MARKER);
+    if (marker > 0)
+        out = out.slice(0, marker).trim();
+    const lastMark = out.lastIndexOf('?');
+    if (lastMark > 0 && out.length - lastMark - 1 >= TRAILING_GUIDANCE_MIN) {
+        out = out.slice(0, lastMark + 1).trim();
+    }
+    return out.replace(/\s+/g, ' ').trim();
+}
+function looksLikeQuestion(raw) {
+    // Judge the QUESTION, not the question plus four sentences about acceptable file
+    // formats. Trimming first matters for the length cap below: a real item that carries
+    // its evidence guidance on the same line runs past 300 characters and was dropped
+    // whole, question and all.
+    const text = trimGuidance(raw);
     if (text.length > 300)
         return false;
     if (/^[a-z]/.test(text))
@@ -155,6 +196,9 @@ function looksLikeQuestion(text) {
     if (CITATION_START.test(text))
         return false;
     if (SKIP_PATTERNS.some(p => p.test(text)))
+        return false;
+    // Evidence the questionnaire asks you to attach, not something it asks you.
+    if (EVIDENCE_NOUN_PHRASE.test(text))
         return false;
     // A single-word line ending in "?" ("impacts?", "targets?", "year?") is a wrapped-question
     // tail, not a standalone question \u2014 unless it opens with an interrogative ("Why?"). Two-word
@@ -459,7 +503,7 @@ export function questionsFromText(text, fileName) {
             questions.push({
                 id: uuid(),
                 rowIndex: i + 1,
-                text: stripAnswerScaffolding(tableQuestion.text),
+                text: trimGuidance(stripAnswerScaffolding(tableQuestion.text)),
                 category: currentCategory,
                 referenceId: tableQuestion.referenceId,
                 rawRow: { text: line },
@@ -473,7 +517,7 @@ export function questionsFromText(text, fileName) {
             questions.push({
                 id: uuid(),
                 rowIndex: i + 1,
-                text: stripAnswerScaffolding(merged.text),
+                text: trimGuidance(stripAnswerScaffolding(merged.text)),
                 category: currentCategory,
                 referenceId: spacedQuestion.referenceId,
                 rawRow: { text: line },
@@ -500,14 +544,14 @@ export function questionsFromText(text, fileName) {
             if (!isQuestion)
                 continue;
             const merged = absorbWrappedTail(lines, i, cleaned);
-            questions.push({ id: uuid(), rowIndex: i + 1, text: stripAnswerScaffolding(merged.text), category: currentCategory, rawRow: { text: line } });
+            questions.push({ id: uuid(), rowIndex: i + 1, text: trimGuidance(stripAnswerScaffolding(merged.text)), category: currentCategory, rawRow: { text: line } });
             i = merged.endIdx;
             continue;
         }
         if (!looksLikeQuestion(cleaned))
             continue;
         const merged = absorbWrappedTail(lines, i, cleaned);
-        questions.push({ id: uuid(), rowIndex: i + 1, text: stripAnswerScaffolding(merged.text), category: currentCategory, rawRow: { text: line } });
+        questions.push({ id: uuid(), rowIndex: i + 1, text: trimGuidance(stripAnswerScaffolding(merged.text)), category: currentCategory, rawRow: { text: line } });
         i = merged.endIdx;
     }
     const seen = new Set();

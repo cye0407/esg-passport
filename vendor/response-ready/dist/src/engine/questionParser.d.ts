@@ -1,4 +1,5 @@
 import type { ParsedQuestion, ParseResult, ColumnMapping } from '../types';
+export declare function trimGuidance(text: string): string;
 /**
  * Exported for tests. The PDF and DOCX paths both funnel through here, and the wrap
  * heuristics below it are the whole reason a question arrives complete or truncated —
