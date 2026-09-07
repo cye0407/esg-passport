@@ -47,6 +47,8 @@ import { canActivateAnotherKey } from '@/lib/entitlements';
 
 export default function Home() {
   const navigate = useNavigate();
+  // Accepted documents from the current drop, held until the whole batch is reviewed.
+  const extractedBatch = React.useRef([]);
   const { tier, entitlements } = useLicense();
   const isPassHolder = tier === 'questionnaire-pass';
   const settings = getSettings();
@@ -252,10 +254,22 @@ export default function Home() {
         <div className="bg-white border border-slate-200 rounded-none p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-1">{t('home.dropDocumentTitle')}</h2>
           <p className="text-sm text-slate-500 mb-4">{t('home.dropDocumentBody')}</p>
+          {/* Collect the WHOLE batch before leaving. Navigating on the first accepted
+              document abandoned BillDrop's review queue, so dropping three bills applied
+              one and silently lost two. */}
           <BillDrop
             onDataExtracted={(fields, period, fileName) => {
-              setHandoff({ kind: 'extraction', fields, period, fileName });
-              track('dashboard_document_extracted', { fields: fields.length });
+              extractedBatch.current.push({ fields, period, fileName });
+            }}
+            onBatchComplete={() => {
+              const items = extractedBatch.current;
+              extractedBatch.current = [];
+              if (items.length === 0) return;
+              setHandoff({ kind: 'extraction', items });
+              track('dashboard_document_extracted', {
+                documents: items.length,
+                fields: items.reduce((n, item) => n + item.fields.length, 0),
+              });
               navigate('/data');
             }}
           />

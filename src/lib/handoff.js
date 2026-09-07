@@ -11,7 +11,7 @@
 // machine and the drop takes one second.
 let pending = null;
 
-/** @param {{kind: 'questionnaire', file: File} | {kind: 'extraction', fields: Array, period: string|null, fileName: string}} payload */
+/** @param {{kind: 'questionnaire', file: File} | {kind: 'extraction', items: Array<{fields: Array, period: string|null, fileName: string}>}} payload */
 export function setHandoff(payload) {
   pending = payload;
 }

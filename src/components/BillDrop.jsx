@@ -14,8 +14,12 @@ import { useLanguage } from '@/components/LanguageContext';
  *   onDataExtracted(fields, period, fileName) — called with accepted fields to merge into
  *     data records. fileName is the document the values came out of, so the workspace can
  *     record where each figure came from rather than losing it at the moment of import.
+ *   onBatchComplete() — called once the whole dropped batch has been reviewed, accepted or
+ *     cancelled. Several files are reviewed one dialog at a time, so a parent that reacts
+ *     to the FIRST onDataExtracted — by navigating away, or by opening a dialog of its own
+ *     over the next review — loses every document after it.
  */
-export default function BillDrop({ onDataExtracted }) {
+export default function BillDrop({ onDataExtracted, onBatchComplete }) {
   const { lang, t } = useLanguage();
   const [dragging, setDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -128,8 +132,9 @@ export default function BillDrop({ onDataExtracted }) {
       setQueue(prev => prev.slice(1));
     } else {
       setResults(null);
+      onBatchComplete?.();
     }
-  }, [queue]);
+  }, [queue, onBatchComplete]);
 
   const handleConfirm = useCallback(() => {
     if (!results) return;
