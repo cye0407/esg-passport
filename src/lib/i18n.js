@@ -919,6 +919,10 @@ const translations = {
     'respond.reprepareChanged': 'Regenerated. {count} answers changed.',
     'respond.reprepareKeptEdits': 'Regenerated. Nothing changed, and your {count} edited answers were kept.',
     'respond.reprepareUnchanged': 'Regenerated. Nothing changed - add or update your data and run this again.',
+    // Said wherever a Questionnaire Pass holder is offered the Passport. "Have I now
+    // paid twice?" is the objection standing in front of that button, and the answer is
+    // arithmetic, so give them the arithmetic.
+    'upgrade.credit': 'You have already paid €99 of it. Email contact@esgforsuppliers.com before you buy and we send you an upgrade link for the remaining €400 — arriving by way of the Pass never costs more than buying the Passport outright.',
     // Coverage report — the free first action. Wording is normative: see
     // COVERAGE-REPORT-SPEC.md. It describes what the record supports and never a
     // readiness score, a pass likelihood, or a predicted buyer outcome.
@@ -1838,6 +1842,7 @@ const translations = {
     'respond.reprepareChanged': 'Neu erstellt. {count} Antworten haben sich geändert.',
     'respond.reprepareKeptEdits': 'Neu erstellt. Nichts hat sich geändert, und Ihre {count} bearbeiteten Antworten wurden beibehalten.',
     'respond.reprepareUnchanged': 'Neu erstellt. Nichts hat sich geändert — ergänzen oder aktualisieren Sie Ihre Daten und führen Sie dies erneut aus.',
+    'upgrade.credit': 'Davon haben Sie bereits 99 € bezahlt. Schreiben Sie vor dem Kauf an contact@esgforsuppliers.com, und wir senden Ihnen einen Upgrade-Link über die verbleibenden 400 € — der Weg über den Pass kostet Sie also nie mehr als der direkte Kauf des Passports.',
     // Abdeckungsbericht — die kostenlose erste Aktion. Beschreibt, was die
     // Datenlage hergibt, und niemals eine Bewertung oder eine Erfolgsprognose.
     'coverage.title': 'Ihr Fragebogen: {count} Fragen',

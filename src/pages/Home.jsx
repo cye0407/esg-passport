@@ -282,6 +282,9 @@ export default function Home() {
               <p className="text-slate-300 text-sm">
                 {isPassHolder ? t('home.upgradeBodyPass') : t('home.upgradeBodyFree')}
               </p>
+              {isPassHolder && (
+                <p className="text-slate-400 text-xs mt-1">{t('upgrade.credit')}</p>
+              )}
             </div>
             <div className="flex flex-col sm:items-end gap-1.5">
               <a

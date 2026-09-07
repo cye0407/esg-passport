@@ -2268,6 +2268,11 @@ export default function Respond({ demoOnly = false }) {
                       {t('respond.passUpgrade')}
                     </button>
                   </div>
+                  {/* The highest-intent moment there is: a second questionnaire has
+                      arrived and they have already paid once. The one thing worth saying
+                      here is the arithmetic, because "have I now paid twice?" is the
+                      objection standing between them and the button above. */}
+                  <p className="mt-3 text-xs text-slate-600">{t('upgrade.credit')}</p>
                 </div>
               </div>
             </div>

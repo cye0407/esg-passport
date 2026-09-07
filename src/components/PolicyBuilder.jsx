@@ -510,6 +510,10 @@ export default function PolicyBuilder() {
             <div className="font-semibold text-[15px]">{t('pb.upgrade.title')}</div>
             <div className="text-slate-300 text-[13px]">
               {t('pb.upgrade.body')}
+              {/* A Pass holder reaching this has already paid once; say the arithmetic. */}
+              {tier === 'questionnaire-pass' && (
+                <span className="block mt-2 text-slate-300">{t('upgrade.credit')}</span>
+              )}
             </div>
           </div>
         </div>
