@@ -162,23 +162,6 @@ export default function Respond({ demoOnly = false }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep the questionnaire the moment a free report exists, not only when its "add
-  // documents" button is used. People leave a screen the way they like — the nav, the
-  // back button, the dashboard — and every one of those routes came back to an empty
-  // upload screen and looked like the work had been thrown away.
-  useEffect(() => {
-    if (canGenerate || demoOnly) return;
-    if (phase !== 'results' || !parseResult?.questions?.length) return;
-    try {
-      sessionStorage.setItem(
-        COVERAGE_RESUME_KEY,
-        JSON.stringify({ parseResult, name: questionnaireName }),
-      );
-    } catch {
-      // Storage blocked or full: they can re-upload. Never worth an error here.
-    }
-  }, [canGenerate, demoOnly, phase, parseResult, questionnaireName]);
-
   // A free coverage report is not saved (saveResults is gated on canExport, and storing
   // the full drafts would put the paid artefact on disk for someone who has not bought
   // it). But the report's strongest call to action sends the reader to /data to add a
@@ -223,6 +206,27 @@ export default function Respond({ demoOnly = false }) {
   const [framework, setFramework] = useState(null);
   const [parseResult, setParseResult] = useState(null);
   const [pipelineError, setPipelineError] = useState(null);
+
+  // Must sit below the state it reads: a dependency array is evaluated during render,
+  // so referencing parseResult from above its useState threw on every render and took
+  // the whole Respond page down.
+  // Keep the questionnaire the moment a free report exists, not only when its "add
+  // documents" button is used. People leave a screen the way they like — the nav, the
+  // back button, the dashboard — and every one of those routes came back to an empty
+  // upload screen and looked like the work had been thrown away.
+  useEffect(() => {
+    if (canGenerate || demoOnly) return;
+    if (phase !== 'results' || !parseResult?.questions?.length) return;
+    try {
+      sessionStorage.setItem(
+        COVERAGE_RESUME_KEY,
+        JSON.stringify({ parseResult, name: questionnaireName }),
+      );
+    } catch {
+      // Storage blocked or full: they can re-upload. Never worth an error here.
+    }
+  }, [canGenerate, demoOnly, phase, parseResult, questionnaireName]);
+
   const [filterConfidence, setFilterConfidence] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [language, setLanguage] = useState(() => {
