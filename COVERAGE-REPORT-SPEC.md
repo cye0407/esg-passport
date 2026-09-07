@@ -1,6 +1,8 @@
 # Coverage report — specification
 
-Draft for review. Nothing built yet.
+**BUILT, 2026-09-07** (branch `feat/coverage-report`). This file is kept as the record
+of what was decided and why, not as a to-do list. Where the build diverged from the
+spec, the spec is annotated inline. What is still open is at the bottom.
 
 ## Why
 
@@ -294,3 +296,37 @@ misreads digits, and on a bill the digits are the answer.
 
 Category detection is unreliable; either fix it or keep categories out of the
 report rather than showing `'body'` as a section heading.
+
+## What was built, and where it diverged (2026-09-07)
+
+Build order items 3–9 are done; item 10 (site copy) is done in the `esgforsuppliers`
+repo on `feat/ninety-nine-ladder`.
+
+Three divergences worth recording:
+
+1. **It is a view, not a second pipeline.** `runPipeline` already produces per-draft
+   `answerConfidence`, `confidenceSource`, `dataValue`/`dataUnit` and
+   `matchResult.suggestedDataPoints`. `summarizeCoverage` aggregates those. No separate
+   coverage engine was needed, which is most of why this was a day rather than a week.
+
+2. **"Answered from your documents" became "answered from your records", and provenance
+   had to be built first.** Extraction wrote the value and threw the filename away, so a
+   figure read out of an uploaded bill was indistinguishable from one someone typed. The
+   document name is now recorded in `settings.dataSources` on apply, and the report names
+   it only when it is actually known. The spec's "the page it came from" is not shipped —
+   we record the document, not the page.
+
+3. **Low confidence counts as unanswered.** The spec's three groups are high / medium /
+   none. The engine also emits `low`, and it emits text for it. Presenting that as an
+   answer is how a supplier signs something untrue, so `low` is reported in the third
+   group. The groups partition; a test asserts they sum to the question count.
+
+### Still open
+
+- **Partial recall on PDFs is not fixed.** The confirmation step makes it visible; the
+  parser still finds 22 of roughly 50 questions in the Drive Sustainability SAQ.
+- **The end-to-end €99 purchase has never been run.** See
+  `testing/QUESTIONNAIRE-PASS-MANUAL-TEST.md`, and the two Lemon Squeezy confirmations in
+  the `esgforsuppliers` go-live checklist.
+- **Category headings are still out**, deliberately — detection reads `'body'` and `'3'`
+  as section headers.
