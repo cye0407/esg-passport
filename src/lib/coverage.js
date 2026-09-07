@@ -14,6 +14,7 @@
 //   - a document is only named when the map knows a real field it would fill
 import { rowForLabel, COVERAGE_FIELD_MAP } from './coverageFieldMap';
 import { matchBuilderId } from '@/data/policyBuilders';
+import { TOPIC_ORDER, topicForDomain } from './coverageTopics';
 
 /** A value the workspace actually holds. Zero is a figure; undefined is a gap. */
 function isPresent(value) {
@@ -106,6 +107,54 @@ export function hasOwnData(companyData) {
   return COVERAGE_FIELD_MAP.some(row => row.companyDataKeys.some(key => isPresent(companyData?.[key])));
 }
 
+/**
+ * The questionnaire grouped the way the customer asking it thinks - environmental,
+ * social, governance, and what is really just company profile - with the documents that
+ * would answer each group.
+ *
+ * Every count is a count of QUESTIONS, so the topic totals sum to the questionnaire. A
+ * question wanting three documents is one question, not three.
+ */
+function summarizeTopics(list, companyData) {
+  const byTopic = new Map(TOPIC_ORDER.map(topic => [topic, {
+    topic,
+    total: 0,
+    fromRecords: 0,
+    needsDocument: 0,
+    needsPolicy: 0,
+    documents: [],
+    policies: [],
+  }]));
+
+  for (const draft of list) {
+    const bucket = byTopic.get(topicForDomain(draft?.matchResult?.primaryDomain));
+    bucket.total += 1;
+
+    if (draft?.answerConfidence === 'high') {
+      bucket.fromRecords += 1;
+      // An answered question is not still asking for the document that answered it.
+      continue;
+    }
+
+    const documents = new Set(missingRowsFor(draft, companyData).map(row => row.document));
+    if (documents.size > 0) {
+      bucket.needsDocument += 1;
+      for (const document of documents) {
+        if (!bucket.documents.includes(document)) bucket.documents.push(document);
+      }
+    }
+
+    const builder = policyBuilderFor(draft);
+    if (builder) {
+      bucket.needsPolicy += 1;
+      if (!bucket.policies.includes(builder)) bucket.policies.push(builder);
+    }
+  }
+
+  // A topic this questionnaire never asks about is not a card with a zero on it.
+  return TOPIC_ORDER.map(topic => byTopic.get(topic)).filter(bucket => bucket.total > 0);
+}
+
 export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} } = {}) {
   const list = Array.isArray(drafts) ? drafts : [];
   const fromRecords = [];
@@ -152,6 +201,8 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
     written,
     unanswerable,
     missingDocuments,
+    // The questionnaire grouped by subject rather than by engine confidence.
+    topics: summarizeTopics(list, companyData),
     // Lets the report describe the middle group honestly. See hasOwnData.
     hasOwnData: hasOwnData(companyData),
     // questions: how many the buyer is being asked. builders: how many documents

@@ -25,17 +25,17 @@ const PASSPORT_SHA = typeof __PASSPORT_SHA__ === 'string' ? __PASSPORT_SHA__ : '
 
 // `name` is a stable, language-independent identifier (used as a fallback and for
 // logic); `labelKey` is the i18n key rendered to the user.
+// Two groups, not eight equal tabs. The product has one job - a questionnaire arrives,
+// you find out what it needs, you finish it - and six of the eight items are things you
+// do in service of that job rather than the job itself. Nothing is removed; the
+// secondary group simply stops competing for the first press.
 const navigation = [
-  { name: 'Dashboard', labelKey: 'nav.dashboard', href: '/', icon: Home, paid: false },
+  { name: 'Home', labelKey: 'nav.home', href: '/', icon: Home, paid: false, primary: true },
+  { name: 'Respond', labelKey: 'nav.respond', href: '/respond', icon: Upload, paid: false, primary: true },
   { name: 'Data', labelKey: 'nav.data', href: '/data', icon: Database, paid: false },
   { name: 'Policies', labelKey: 'nav.policies', href: '/policies', icon: ClipboardCheck, paid: false },
   { name: 'Documents', labelKey: 'nav.documents', href: '/documents', icon: FolderOpen, paid: false },
   { name: 'Report', labelKey: 'nav.report', href: '/report', icon: FileText, paid: true, capability: 'canGenerateReport' },
-  // One Respond entry for everyone. Free used to be shunted to /demo, which answers a
-  // sample questionnaire out of a fictional company's data - so the nav promised the
-  // product and delivered someone else's numbers. Free may now bring its own file;
-  // what it cannot do is finish it, and that is enforced inside the page.
-  { name: 'Respond', labelKey: 'nav.respond', href: '/respond', icon: Upload, paid: false },
   { name: 'Requests', labelKey: 'nav.requests', href: '/requests', icon: Inbox, paid: false },
   { name: 'Settings', labelKey: 'nav.settings', href: '/settings', icon: Settings, paid: false },
 ];
@@ -48,6 +48,9 @@ export default function Layout() {
   // unlocked walked them into a EUR 499 paywall carrying an activation form their key
   // cannot satisfy.
   const hasAccess = (item) => !item.capability || entitlements?.[item.capability] === true;
+  const visibleNav = navigation.filter(
+    item => !(item.hideWhenPaid && isPaid) && !(item.hideWhenFree && !isPaid),
+  );
   const t = useT();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [updateInfo, setUpdateInfo] = React.useState(null);
@@ -108,33 +111,36 @@ export default function Layout() {
             </Link>
 
             <div className="hidden items-center gap-1 md:flex">
-              {navigation.filter(item => !(item.hideWhenPaid && isPaid) && !(item.hideWhenFree && !isPaid)).map((item) => {
+              {visibleNav.map((item, index) => {
                 const isActive =
                   location.pathname === item.href ||
                   (item.href !== '/' && location.pathname.startsWith(item.href));
                 const showLock = item.paid && !hasAccess(item);
-                const showPreview = item.preview && !isPaid;
                 const label = t(item.labelKey);
+                // A rule between the two items that carry the job and everything else.
+                const startsSecondary = !item.primary && index > 0 && visibleNav[index - 1].primary;
                 return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    className={cn(
-                      'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-indigo-600 text-white'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-                    )}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {label}
-                    {showPreview && (
-                      <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
-                        {t('nav.example')}
-                      </span>
-                    )}
-                    {showLock && <Lock aria-label={t('nav.locked', { name: label })} className="h-3 w-3 opacity-50" />}
-                  </Link>
+                  <React.Fragment key={item.href}>
+                    {startsSecondary && <span className="mx-2.5 h-6 w-px bg-slate-200" aria-hidden="true" />}
+                    <Link
+                      to={item.href}
+                      className={cn(
+                        'flex items-center gap-2 rounded-lg transition-colors',
+                        item.primary
+                          ? 'px-3 py-2 text-sm font-medium'
+                          : 'px-2.5 py-1.5 text-[13px]',
+                        isActive
+                          ? 'bg-indigo-600 text-white'
+                          : item.primary
+                            ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700',
+                      )}
+                    >
+                      {item.primary && <item.icon className="h-4 w-4" />}
+                      {label}
+                      {showLock && <Lock aria-label={t('nav.locked', { name: label })} className="h-3 w-3 opacity-50" />}
+                    </Link>
+                  </React.Fragment>
                 );
               })}
             </div>
@@ -151,16 +157,17 @@ export default function Layout() {
         {mobileMenuOpen && (
           <div className="border-t border-slate-200 bg-white md:hidden">
             <div className="space-y-1 px-4 py-3">
-              {navigation.filter(item => !(item.hideWhenPaid && isPaid) && !(item.hideWhenFree && !isPaid)).map((item) => {
+              {visibleNav.map((item, index) => {
                 const isActive =
                   location.pathname === item.href ||
                   (item.href !== '/' && location.pathname.startsWith(item.href));
                 const showLock = item.paid && !hasAccess(item);
-                const showPreview = item.preview && !isPaid;
                 const label = t(item.labelKey);
+                const startsSecondary = !item.primary && index > 0 && visibleNav[index - 1].primary;
                 return (
+                  <React.Fragment key={item.href}>
+                  {startsSecondary && <div className="my-2 h-px bg-slate-200" aria-hidden="true" />}
                   <Link
-                    key={item.href}
                     to={item.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={cn(
@@ -172,15 +179,11 @@ export default function Layout() {
                   >
                     <item.icon className="h-5 w-5" />
                     {label}
-                    {showPreview && (
-                      <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">
-                        {t('nav.example')}
-                      </span>
-                    )}
                     {showLock && (
                       <Lock aria-label={t('nav.locked', { name: label })} className="ml-auto h-3.5 w-3.5 opacity-50" />
                     )}
                   </Link>
+                  </React.Fragment>
                 );
               })}
             </div>

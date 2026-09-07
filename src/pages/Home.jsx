@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import {
   getCompanyProfile,
   getReadinessStats,
@@ -16,39 +16,36 @@ import { formatNumber } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  Database,
-  ShieldCheck,
-  Inbox,
-  ArrowRight,
-  Clock,
-  TrendingUp,
-  Zap,
-  Droplets,
-  Trash2,
-  Users,
-  Sparkles,
-  CalendarPlus,
   AlertTriangle,
-  Upload,
-  FileText,
-  Info,
-  X,
-  HardDrive,
-  PenLine,
-  FileSpreadsheet,
+  ArrowRight,
+  CalendarPlus,
+  Clock,
+  Database,
+  Droplets,
   ExternalLink,
+  FileSpreadsheet,
+  FileText,
+  HardDrive,
+  Inbox,
+  Info,
+  PenLine,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  TrendingUp,
+  Upload,
+  Users,
+  X,
+  Zap,
 } from 'lucide-react';
 
 import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, checkoutLinkProps, marketingUrl } from '@/lib/checkout';
 import QuestionnaireDrop from '@/components/QuestionnaireDrop';
-import BillDrop from '@/components/BillDrop';
-import { setHandoff } from '@/lib/handoff';
+import JourneySpine from '@/components/JourneySpine';
 import { canActivateAnotherKey } from '@/lib/entitlements';
 
 export default function Home() {
-  const navigate = useNavigate();
-  // Accepted documents from the current drop, held until the whole batch is reviewed.
-  const extractedBatch = React.useRef([]);
   const { tier, entitlements } = useLicense();
   const isPassHolder = tier === 'questionnaire-pass';
   const settings = getSettings();
@@ -191,6 +188,7 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
+      <JourneySpine step={1} />
       {/* Welcome + Primary CTA */}
       <div className="bg-white border border-slate-200 rounded-none p-6">
         <div className="flex flex-col lg:flex-row lg:items-center gap-6">
@@ -242,38 +240,39 @@ export default function Home() {
           them to find the right tab first. Both hand off in memory to the page that owns
           the rest of the flow - parsing and the Pass claim live on /respond, applying
           extracted values lives on /data - so neither behaviour gets a second copy. */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="bg-white border border-slate-200 rounded-none p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-1">{t('home.dropQuestionnaireTitle')}</h2>
-          <p className="text-sm text-slate-500 mb-4">
-            {entitlements.canGenerateAnswers ? t('home.dropQuestionnairePaid') : t('home.dropQuestionnaireFree')}
+      {/* One front door, one primary action. The questionnaire is the job; evidence is
+          step two, and giving it an equal dropzone here is what made the screen
+          ambiguous. It gets a quiet strip and a page of its own. */}
+      <div className="space-y-4">
+        <div className="max-w-2xl space-y-2">
+          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">{t('home.heroTitle')}</h1>
+          <p className="text-base leading-relaxed text-slate-500">
+            {entitlements.canGenerateAnswers ? t('home.heroBodyPaid') : t('home.heroBodyFree')}
           </p>
-          <QuestionnaireDrop />
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-none p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-1">{t('home.dropDocumentTitle')}</h2>
-          <p className="text-sm text-slate-500 mb-4">{t('home.dropDocumentBody')}</p>
-          {/* Collect the WHOLE batch before leaving. Navigating on the first accepted
-              document abandoned BillDrop's review queue, so dropping three bills applied
-              one and silently lost two. */}
-          <BillDrop
-            onDataExtracted={(fields, period, fileName) => {
-              extractedBatch.current.push({ fields, period, fileName });
-            }}
-            onBatchComplete={() => {
-              const items = extractedBatch.current;
-              extractedBatch.current = [];
-              if (items.length === 0) return;
-              setHandoff({ kind: 'extraction', items });
-              track('dashboard_document_extracted', {
-                documents: items.length,
-                fields: items.reduce((n, item) => n + item.fields.length, 0),
-              });
-              navigate('/data');
-            }}
-          />
+        <QuestionnaireDrop />
+
+        <div className="flex flex-col gap-4 border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <FileText className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+            <div>
+              <p className="text-sm font-semibold text-slate-900">{t('home.evidenceTitle')}</p>
+              <p className="text-sm text-slate-500">{t('home.evidenceBody')}</p>
+            </div>
+          </div>
+          <Link
+            to="/evidence"
+            className="inline-flex h-10 shrink-0 items-center justify-center border border-slate-900 px-4 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+          >
+            {t('home.evidenceCta')}
+          </Link>
         </div>
+
+        <p className="flex items-center gap-2 text-xs text-slate-400">
+          <Shield className="h-3.5 w-3.5" />
+          {t('onboard.privacy')}
+        </p>
       </div>
 
       {/* Upgrade banner — anyone who still has something to buy. Keyed off the

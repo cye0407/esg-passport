@@ -8,6 +8,8 @@ import { QUESTIONNAIRE_TEMPLATES, templateToParseResult, templateName, templateD
 import { matchBuilderId } from '@/data/policyBuilders';
 import { summarizeCoverage } from '@/lib/coverage';
 import { takeHandoff } from '@/lib/handoff';
+import { writeCoverageStash, takeCoverageStash, clearCoverageStash } from '@/lib/coverageStash';
+import JourneySpine from '@/components/JourneySpine';
 import CoverageReport from '@/components/CoverageReport';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
@@ -52,8 +54,6 @@ async function getEngine() {
 
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
 const FREE_PREVIEW_LIMIT = 5;
-// Where a free reader's questionnaire waits while they go and fetch a document.
-const COVERAGE_RESUME_KEY = 'respond_coverage_questionnaire';
 const DATA_SECTIONS = ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training'];
 const PASSPORT_DATA_KEY = 'esg_passport_data';
 
@@ -173,11 +173,10 @@ export default function Respond({ demoOnly = false }) {
   // return-trip aid and not a saved result.
   useEffect(() => {
     if (canGenerate || demoOnly || phase !== 'upload') return;
-    const stored = sessionStorage.getItem(COVERAGE_RESUME_KEY);
+    const stored = takeCoverageStash();
     if (!stored) return;
-    sessionStorage.removeItem(COVERAGE_RESUME_KEY);
     try {
-      const { parseResult: stashed, name } = JSON.parse(stored);
+      const { parseResult: stashed, name } = stored;
       if (stashed?.questions?.length) {
         track('coverage_resumed', { questions: stashed.questions.length });
         processConfirmedQuestionnaire(stashed, name, false);
@@ -210,22 +209,33 @@ export default function Respond({ demoOnly = false }) {
   // Must sit below the state it reads: a dependency array is evaluated during render,
   // so referencing parseResult from above its useState threw on every render and took
   // the whole Respond page down.
+  // Computed once and used twice: the report renders it, and the stash below carries
+  // what it asked for over to the evidence page.
+  const coverage = useMemo(() => {
+    if (canGenerate || demoOnly || phase !== 'results') return null;
+    return summarizeCoverage(answerDrafts, {
+      companyData,
+      dataSources: getSettings()?.dataSources || {},
+    });
+  }, [canGenerate, demoOnly, phase, answerDrafts, companyData]);
+
   // Keep the questionnaire the moment a free report exists, not only when its "add
-  // documents" button is used. People leave a screen the way they like — the nav, the
-  // back button, the dashboard — and every one of those routes came back to an empty
+  // documents" button is used. People leave a screen the way they like - the nav, the
+  // back button, the dashboard - and every one of those routes came back to an empty
   // upload screen and looked like the work had been thrown away.
+  //
+  // It carries what the report asked for too, so the evidence page can name the
+  // documents this questionnaire wants rather than being a blank uploader.
   useEffect(() => {
     if (canGenerate || demoOnly) return;
     if (phase !== 'results' || !parseResult?.questions?.length) return;
-    try {
-      sessionStorage.setItem(
-        COVERAGE_RESUME_KEY,
-        JSON.stringify({ parseResult, name: questionnaireName }),
-      );
-    } catch {
-      // Storage blocked or full: they can re-upload. Never worth an error here.
-    }
-  }, [canGenerate, demoOnly, phase, parseResult, questionnaireName]);
+    writeCoverageStash({
+      parseResult,
+      name: questionnaireName,
+      questionCount: parseResult.questions.length,
+      missingDocuments: coverage?.missingDocuments || [],
+    });
+  }, [canGenerate, demoOnly, phase, parseResult, questionnaireName, coverage]);
 
   const [filterConfidence, setFilterConfidence] = useState('all');
   const [filterType, setFilterType] = useState('all');
@@ -1176,7 +1186,7 @@ export default function Respond({ demoOnly = false }) {
 
   const resetToUpload = () => {
     // Forget the stash too, or "use a different questionnaire" hands back the old one.
-    try { sessionStorage.removeItem(COVERAGE_RESUME_KEY); } catch { /* nothing to clear */ }
+    clearCoverageStash();
     setPhase('upload');
     setDemoLibraryUsed(false);
     setFile(null);
@@ -1420,26 +1430,20 @@ export default function Respond({ demoOnly = false }) {
     // about a fictional company's documents would tell the reader nothing.
     if (!canGenerate && !demoOnly) {
       return (
-        <CoverageReport
-          onAddDocuments={() => {
-            try {
-              sessionStorage.setItem(
-                COVERAGE_RESUME_KEY,
-                JSON.stringify({ parseResult, name: questionnaireName }),
-              );
-            } catch {
-              // Storage full or blocked: they can re-upload. Do not block the link.
-            }
-          }}
-          coverage={summarizeCoverage(answerDrafts, {
-            companyData,
-            dataSources: getSettings()?.dataSources || {},
-          })}
-          questionnaireName={questionnaireName}
-          questions={parseResult?.questions || []}
-          tier={tier}
-          onStartOver={resetToUpload}
-        />
+        <div className="space-y-6">
+          <JourneySpine
+            step={3}
+            questionCount={parseResult?.questions?.length || 0}
+            documentCount={new Set(Object.values(getSettings()?.dataSources || {}).filter(Boolean)).size}
+          />
+          <CoverageReport
+            coverage={coverage}
+            questionnaireName={questionnaireName}
+            questions={parseResult?.questions || []}
+            tier={tier}
+            onStartOver={resetToUpload}
+          />
+        </div>
       );
     }
 
@@ -2146,7 +2150,9 @@ export default function Respond({ demoOnly = false }) {
 
   // ============ RENDER: UPLOAD ============
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="space-y-6">
+      <JourneySpine step={1} />
+      <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold text-slate-900">{canUpload ? t('respond.titleRespond') : t('respond.titleExample')}</h1>
@@ -2656,6 +2662,7 @@ export default function Respond({ demoOnly = false }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

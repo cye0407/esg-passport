@@ -1,0 +1,77 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "1 · Front door"
+    },
+    {
+      "file": "Confirm.dc.html",
+      "x": 1560,
+      "y": 0,
+      "w": 1440,
+      "h": 980,
+      "title": "2 · Confirm the questions"
+    },
+    {
+      "file": "Evidence.dc.html",
+      "x": 3120,
+      "y": 0,
+      "w": 1440,
+      "h": 1020,
+      "title": "3 · Add your evidence"
+    },
+    {
+      "file": "Report.dc.html",
+      "x": 4680,
+      "y": 0,
+      "w": 1440,
+      "h": 2160,
+      "title": "4 · What you can answer"
+    },
+    {
+      "file": "Nav.dc.html",
+      "x": 0,
+      "y": 1740,
+      "w": 900,
+      "h": 620,
+      "title": "The nav, demoted"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "spine",
+      "x": 0,
+      "y": -190,
+      "w": 700,
+      "text": "One spine.\n\nThe same three-step header runs across every screen, so you always know which of the three you are in and what is left. Steps that are done go green and carry their result (\"36 questions\", \"3 documents\") rather than just a tick."
+    },
+    {
+      "id": "front-door",
+      "x": 760,
+      "y": -190,
+      "w": 660,
+      "text": "The front door has ONE primary action.\n\nToday the dashboard and the Respond page both offer a questionnaire drop, and the Respond page offers six other things beside it. Here the questionnaire is the hero and evidence is a quiet second row — because evidence is step 2, and competing with step 1 is what makes it confusing."
+    },
+    {
+      "id": "evidence-note",
+      "x": 3120,
+      "y": -190,
+      "w": 700,
+      "text": "\"Add documents\" lands HERE, not on the Data page.\n\nToday that button drops you into the densest screen in the app to hunt for an uploader. This one restates what the questionnaire actually needs, takes several files at once, shows what each gave you, and hands you back to the questionnaire when you are done."
+    },
+    {
+      "id": "report-note",
+      "x": 4680,
+      "y": -190,
+      "w": 700,
+      "text": "The report, restructured.\n\nWhat it read, then what it is asking ABOUT grouped the way your customer thinks (environmental / social / governance) with the documents that answer each group, then how to add those documents - upload or type the figures - then five real answers in the shape Respond renders them.\n\nPrices last, and each one names what it unlocks rather than what tier it is."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

@@ -160,4 +160,10 @@ describe('the other pages I changed render', () => {
     await mount(Onboarding);
     expect(container.textContent.length).toBeGreaterThan(0);
   });
+
+  it('the evidence page mounts, with somewhere to drop a document', async () => {
+    const { default: Evidence } = await import('../Evidence');
+    await mount(Evidence);
+    expect(container.querySelectorAll('input[type="file"]').length).toBeGreaterThan(0);
+  });
 });
