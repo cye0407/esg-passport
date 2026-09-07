@@ -11,7 +11,9 @@ import { useLanguage } from '@/components/LanguageContext';
  * BillDrop — drop utility bills to auto-fill ESG data.
  *
  * Props:
- *   onDataExtracted(fields, period) — called with accepted fields to merge into data records
+ *   onDataExtracted(fields, period, fileName) — called with accepted fields to merge into
+ *     data records. fileName is the document the values came out of, so the workspace can
+ *     record where each figure came from rather than losing it at the moment of import.
  */
 export default function BillDrop({ onDataExtracted }) {
   const { lang, t } = useLanguage();
@@ -133,7 +135,7 @@ export default function BillDrop({ onDataExtracted }) {
     if (!results) return;
     const accepted = results.fields.filter(f => f.accepted);
     if (accepted.length > 0) {
-      onDataExtracted(accepted, results.result?.period);
+      onDataExtracted(accepted, results.result?.period, results.fileName);
     }
     showNext();
   }, [results, onDataExtracted, showNext]);

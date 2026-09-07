@@ -251,7 +251,30 @@ export default function Data() {
     setSaved(false);
   };
 
-  const handleBillExtracted = useCallback((fields, extractedPeriod) => {
+  // Record which document a figure came out of. Extraction used to write the value and
+  // throw the filename away, so an answer built on an uploaded bill was indistinguishable
+  // from one someone typed - and the coverage report cannot honestly say "we found this in
+  // the records you uploaded" about a number whose origin was never kept. A label the user
+  // typed themselves always wins; we never overwrite their own note.
+  const recordExtractionSources = useCallback((fields, fileName) => {
+    if (!fileName) return;
+    const current = getSettings()?.dataSources || {};
+    const next = { ...current };
+    let changed = false;
+    for (const f of fields) {
+      const mapping = EXTRACT_FIELD_MAP[f.field];
+      if (!mapping) continue;
+      const key = `${mapping.section}.${mapping.field}`;
+      if (next[key]) continue;
+      next[key] = fileName;
+      changed = true;
+    }
+    if (!changed) return;
+    setDataSources(next);
+    saveSettings({ dataSources: next });
+  }, []);
+
+  const handleBillExtracted = useCallback((fields, extractedPeriod, fileName) => {
     // Determine where extracted values belong.
     // YYYY-MM documents map to a monthly record.
     // A YYYY-only period is an ambiguous guess: the extractor's bare-year fallback
@@ -259,7 +282,7 @@ export default function Data() {
     // Switching to annual mode and overwriting that year's values is destructive, so
     // stage it for explicit confirmation instead of applying it silently.
     if (extractedPeriod && /^\d{4}$/.test(extractedPeriod)) {
-      setPendingAnnualBill({ year: parseInt(extractedPeriod, 10), fields, extractedPeriod });
+      setPendingAnnualBill({ year: parseInt(extractedPeriod, 10), fields, extractedPeriod, fileName });
       return;
     }
 
@@ -277,6 +300,7 @@ export default function Data() {
       if (isNaN(val)) continue;
       updateField(targetPeriod, mapping.section, mapping.field, val);
     }
+    recordExtractionSources(fields, fileName);
 
     track('bill_extracted', {
       fields: fields.length,
@@ -284,13 +308,13 @@ export default function Data() {
       extractedPeriod: extractedPeriod || 'fallback_current_month',
       documentType: fields[0]?.source?.rawText?.slice(0, 30) || 'unknown',
     });
-  }, [selectedYear, updateField]);
+  }, [selectedYear, updateField, recordExtractionSources]);
 
   // User confirmed the bare-year annual interpretation → switch to annual mode for that
   // year and write the extracted values (the previously-silent behavior, now gated).
   const applyAnnualBill = useCallback(() => {
     if (!pendingAnnualBill) return;
-    const { year, fields, extractedPeriod } = pendingAnnualBill;
+    const { year, fields, extractedPeriod, fileName } = pendingAnnualBill;
     setSelectedYear(year);
     setEntryMode('annual');
     setAnnualValues(prev => {
@@ -304,6 +328,7 @@ export default function Data() {
       }
       return next;
     });
+    recordExtractionSources(fields, fileName);
     setHasChanges(true);
     setSaved(false);
     track('bill_extracted', {
@@ -313,7 +338,7 @@ export default function Data() {
       documentType: fields[0]?.source?.rawText?.slice(0, 30) || 'unknown',
     });
     setPendingAnnualBill(null);
-  }, [pendingAnnualBill]);
+  }, [pendingAnnualBill, recordExtractionSources]);
 
   const getValue = (period, section, field) => {
     const record = records[period];
