@@ -10,26 +10,173 @@
  *   they entered*. Keep props to small enums, counts, and error categories.
  * - All ESG data stays in the user's browser. These events are pure
  *   behavioral pings used to improve onboarding and conversion.
+ *
+ * That contract used to be only a comment, and a comment does not stop a
+ * `rawText.slice(0, 30)` from reaching Vercel. It is now enforced: EVENT_SCHEMA
+ * below is an allowlist, and everything not on it is dropped.
+ *
+ *   - An event with no schema entry is sent with NO properties at all.
+ *   - A property with no validator on its event is dropped.
+ *   - A property whose value fails its validator is dropped.
+ *
+ * So adding a new tracked property is a deliberate edit to this file, made by
+ * someone looking straight at the privacy contract. That is the point.
  */
 import { track as vercelTrack } from '@vercel/analytics';
 
-const QUESTIONNAIRE_PASS_EVENTS = new Set([
-  'questionnaire_pass_claim_started',
-  'questionnaire_pass_claimed',
-  'questionnaire_pass_second_questionnaire_blocked',
-  'questionnaire_pass_upgrade_clicked',
-]);
-const SAFE_PASS_SOURCES = new Set(['upload', 'second_questionnaire_block']);
-const SAFE_TIERS = new Set(['free', 'questionnaire-pass', 'pro', 'pro-plus']);
+// --- validators -------------------------------------------------------------
+// Each returns the value to send, or undefined to drop the property.
 
+/** One of a fixed set of internal names. Anything else is dropped. */
+const oneOf = (...values) => {
+  const allowed = new Set(values);
+  return value => (allowed.has(value) ? value : undefined);
+};
+
+/** One of a fixed set, with everything else collapsed into a bucket. Use when
+ *  the miss is itself the signal — an unsupported upload, say. */
+const oneOfOr = (fallback, ...values) => {
+  const allowed = new Set(values);
+  return value => (allowed.has(value) ? value : fallback);
+};
+
+/** A non-negative whole number. */
+const count = () => value =>
+  (Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : undefined);
+
+/** An internal identifier: lowercase, no spaces, no punctuation beyond _ - .
+ *  Document text does not survive this — it carries capitals, spaces and
+ *  digits in shapes this rejects — but a slug like `policy_environmental` does. */
+const SLUG = /^[a-z0-9][a-z0-9_.-]{0,39}$/;
+const slug = () => value => (typeof value === 'string' && SLUG.test(value) ? value : undefined);
+
+/** An in-app route, e.g. `/data`. */
+const ROUTE = /^\/[a-z0-9/_-]{0,40}$/;
+const route = () => value => (typeof value === 'string' && ROUTE.test(value) ? value : undefined);
+
+/** A JS error constructor name, e.g. `TypeError`. */
+const ERROR_NAME = /^[A-Za-z]{1,40}$/;
+const errorName = () => value =>
+  (typeof value === 'string' && ERROR_NAME.test(value) ? value : undefined);
+
+/** A reporting period: `2025` or `2025-03`. The extractor's bare-year fallback
+ *  can pick up an invoice or account number, so anything else becomes `other`
+ *  rather than shipping a number off the customer's bill. */
+const PERIOD = /^\d{4}(-\d{2})?$/;
+const period = () => value => {
+  if (typeof value !== 'string') return undefined;
+  if (value === 'fallback_current_month') return value;
+  return PERIOD.test(value) ? value : 'other';
+};
+
+/** A campaign or referrer token from the URL. Free-form by nature, so it is
+ *  shape-limited rather than allowlisted, and never longer than a token. */
+const URL_TOKEN = /^[a-z0-9][a-z0-9_.-]{0,63}$/;
+const urlToken = () => value =>
+  (typeof value === 'string' && URL_TOKEN.test(value) ? value : undefined);
+
+const bool = () => value => {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true' || value === 'false') return value;
+  return undefined;
+};
+
+const TIER = oneOf('free', 'questionnaire-pass', 'pro', 'pro-plus');
+const LANGUAGE = oneOf('en', 'de');
+const ENTRY_MODE = oneOf('monthly', 'annual');
+const UPLOAD_EXT = oneOfOr('other', '.xlsx', '.xls', '.csv', '.pdf', '.docx');
+
+// --- the allowlist ----------------------------------------------------------
+// Event → the properties it may send, and the only shapes they may take.
+// An event listed with {} is sent bare; an event absent entirely is ALSO sent
+// bare, so a forgotten entry fails closed.
+
+const EVENT_SCHEMA = {
+  // Access and conversion
+  paywall_hit: { feature: slug() },
+  checkout_opened: { source: slug(), from_tier: TIER },
+  upgrade_cta_click: { source: slug(), from_tier: TIER },
+  license_activated: { fallback: bool(), source: slug(), tier: TIER },
+
+  // Questionnaire Pass
+  questionnaire_pass_claim_started: { tier: TIER, source: slug(), question_count: count() },
+  questionnaire_pass_claimed: { tier: TIER, source: slug(), question_count: count() },
+  questionnaire_pass_second_questionnaire_blocked: {
+    tier: TIER,
+    source: slug(),
+    question_count: count(),
+  },
+  questionnaire_pass_upgrade_clicked: { tier: TIER, source: slug() },
+
+  // Onboarding
+  onboarding_started: {},
+  onboarding_profile_started: {},
+  onboarding_profile_completed: {},
+  onboarding_completed: { destination: route() },
+  onboarding_skipped: { destination: route() },
+
+  // Data entry and extraction
+  data_page_viewed: {},
+  data_first_save: {},
+  data_saved: { mode: ENTRY_MODE },
+  source_set: { hasValue: bool() },
+  year_data_cleared: { year: count() },
+  // `lead_field` is the extractor's own field name (an EXTRACT_FIELD_MAP key),
+  // which is what tells us whether people are dropping in power bills or waste
+  // manifests. It replaced a 30-character slice of the document's raw text.
+  bill_extracted: {
+    fields: count(),
+    periodType: ENTRY_MODE,
+    extractedPeriod: period(),
+    lead_field: slug(),
+  },
+
+  // Respond
+  respond_page_viewed: {},
+  respond_upload_started: { ext: UPLOAD_EXT },
+  respond_upload_rejected: { ext: UPLOAD_EXT },
+  respond_generation_started: { questions: count() },
+  respond_answers_generated: { count: count(), framework: slug() },
+  respond_generation_failed: { error: errorName() },
+  respond_answer_language_regenerated: { language: LANGUAGE },
+  respond_batch_export_completed: { templates: count() },
+  respond_demo_library_loaded: { source: slug() },
+
+  // Policies
+  policy_saved: { builder: slug(), adopted: bool() },
+  policy_downloaded: { builder: slug(), adopted: bool() },
+  policy_builder_locked_click: { builder: slug() },
+  policy_adoption_invalidated: { builder: slug() },
+  policy_free_template_download: {},
+
+  // Acquisition
+  first_visit: {
+    source: urlToken(),
+    referrer_host: urlToken(),
+    utm_source: urlToken(),
+    utm_medium: urlToken(),
+    utm_campaign: urlToken(),
+  },
+};
+
+/**
+ * Reduce an event's properties to the allowlisted, correctly shaped subset.
+ * Deny-by-default: unknown events and unknown properties send nothing.
+ */
 export function sanitizeAnalyticsProperties(event, props = {}) {
-  if (!QUESTIONNAIRE_PASS_EVENTS.has(event)) return props;
+  const schema = EVENT_SCHEMA[event];
+  if (!schema) {
+    if (import.meta.env?.DEV) {
+      // Fail loudly in development, silently in production.
+      console.warn(`[track] "${event}" has no EVENT_SCHEMA entry — sent without properties.`);
+    }
+    return {};
+  }
 
   const sanitized = {};
-  if (SAFE_TIERS.has(props.tier)) sanitized.tier = props.tier;
-  if (SAFE_PASS_SOURCES.has(props.source)) sanitized.source = props.source;
-  if (Number.isFinite(props.question_count)) {
-    sanitized.question_count = Math.max(0, Math.trunc(props.question_count));
+  for (const [name, validate] of Object.entries(schema)) {
+    const value = validate(props?.[name]);
+    if (value !== undefined) sanitized[name] = value;
   }
   return sanitized;
 }
@@ -92,3 +239,6 @@ function classifyReferrer(host, utmSource) {
   if (host.includes('catyeldi')) return 'catyeldi';
   return 'other';
 }
+
+/** Exported for the privacy test: every event the app is allowed to send. */
+export const TRACKED_EVENTS = Object.keys(EVENT_SCHEMA);
