@@ -121,7 +121,13 @@ const SKIP_PATTERNS = [
     /^(yes|no|true|false|x|n\/a)$/i,
     /^(guidance|note[s:\s]|instructions?[\s:]|tip[\s:]|example[\s:]|please note|see also|refer to|for more|this question|you should|if you|the purpose|this section|in this|further guidance|additional info)/i,
     /^(select from|select one|select all that|choose one|choose from|click|enter a|type your|dropdown|response option|please select|upload your|attach your|free text|open.?ended)/i,
-    /^(total|subtotal|n\/a|none|not applicable|other \(specify\)|grand total|all of the above|not yet|no change|same as|see above)/i,
+    // Anchored to the whole cell, not used as a prefix. These are spreadsheet labels — a
+    // "Total" row, an "N/A" cell — and matching them as prefixes threw away any line that
+    // merely began with one of the words. That is how a CDP question lost its tail: the
+    // wrapped continuation "total base year emissions covered by each target, and describe
+    // the methodology used to set them." was read as a totals row and dropped, leaving the
+    // question truncated at "…the percentage of".
+    /^(total|subtotal|n\/a|none|not applicable|other \(specify\)|grand total|all of the above|not yet|no change|same as|see above)\s*[:\-]?\s*[\d.,%€$£\s]*$/i,
     /^(column|row|field|header|label|unit|format|data type|response type|answer type|scoring|weight|points)/i,
     /^[☐☑✓✗✘●○■□▪▫►▶]\s/,
 ];
@@ -141,7 +147,48 @@ const CITATION_START = /^(report|see|source)\s+(?:19|20)\d{2}\b/i;
 function wordCount(text) {
     return text.trim().split(/\s+/).filter(Boolean).length;
 }
-function looksLikeQuestion(text) {
+/**
+ * A questionnaire item is followed by the evidence it wants, and that guidance is prose in
+ * the same text flow: "Document guidelines Your document should include evidence that…".
+ * Absorbed into the question it makes the text unmatchable and unreadable; standing alone
+ * it becomes a question that was never asked.
+ */
+const GUIDANCE_MARKER = /\b(?:document guidelines|documents guidelines|the document\(s\)? should|the documents? should|your document\(s\)? should|your documents? should)\b/i;
+/**
+ * "List of agreements made to improve workers' conditions", "Report, CSR/Sustainability
+ * Report or any other implementation evidence." — these name the EVIDENCE, and they were
+ * read as questions because "list" and "report" are also imperative verbs. The giveaway is
+ * what follows the word: "List of…" and "Report," are noun phrases, while "List the sites"
+ * and "Report on the following KPIs" are instructions.
+ */
+const EVIDENCE_NOUN_PHRASE = /^(?:list|report|copy|copies|record|records|certificate|certificates|policy|policies|document|documents|evidence)\s*(?:,|of\b)/i;
+/**
+ * Cut a question free of the evidence guidance printed after it.
+ *
+ * Two cuts, in order. At an explicit guidance marker, always. Then at the question mark,
+ * but only when what trails it is long enough to be a guidance block rather than a short
+ * qualifier — "Do you X? If yes, describe Y." keeps its second half, which is part of what
+ * is being asked; four sentences about acceptable file formats and publication dates is
+ * not.
+ */
+const TRAILING_GUIDANCE_MIN = 120;
+export function trimGuidance(text) {
+    let out = text;
+    const marker = out.search(GUIDANCE_MARKER);
+    if (marker > 0)
+        out = out.slice(0, marker).trim();
+    const lastMark = out.lastIndexOf('?');
+    if (lastMark > 0 && out.length - lastMark - 1 >= TRAILING_GUIDANCE_MIN) {
+        out = out.slice(0, lastMark + 1).trim();
+    }
+    return out.replace(/\s+/g, ' ').trim();
+}
+function looksLikeQuestion(raw) {
+    // Judge the QUESTION, not the question plus four sentences about acceptable file
+    // formats. Trimming first matters for the length cap below: a real item that carries
+    // its evidence guidance on the same line runs past 300 characters and was dropped
+    // whole, question and all.
+    const text = trimGuidance(raw);
     if (text.length > 300)
         return false;
     if (/^[a-z]/.test(text))
@@ -149,6 +196,9 @@ function looksLikeQuestion(text) {
     if (CITATION_START.test(text))
         return false;
     if (SKIP_PATTERNS.some(p => p.test(text)))
+        return false;
+    // Evidence the questionnaire asks you to attach, not something it asks you.
+    if (EVIDENCE_NOUN_PHRASE.test(text))
         return false;
     // A single-word line ending in "?" ("impacts?", "targets?", "year?") is a wrapped-question
     // tail, not a standalone question \u2014 unless it opens with an interrogative ("Why?"). Two-word
@@ -227,9 +277,19 @@ function headIsIncomplete(text) {
 // ([Fixed row], ☑ options, "Select from"), boilerplate, and pure values/numbers.
 function isContinuationTail(line) {
     const t = line.trim();
-    // A full-measure body line in an A4 questionnaire runs past 60 characters — the SAQ wraps at
-    // 63 — so a 60-char cap rejects exactly the mid-question lines this is meant to reabsorb.
-    if (t.length === 0 || t.length > 90)
+    // Length only rules out something absurd. The cap was 60, then 90, and each number was
+    // set from the width of whichever document was in front of us: the Drive Sustainability
+    // SAQ wraps at 63, so 60 rejected the very lines it existed to reabsorb. A wide-layout
+    // questionnaire (CDP wraps past 100) then hit the 90 for the same reason, and every
+    // question whose tail ran long stayed truncated at its connector — "…with the potential
+    // to have a", "…the progress made against them during the".
+    //
+    // The head test is what carries the decision: absorbWrappedTail only asks this while
+    // headIsIncomplete() says the line above ends mid-sentence, and the rejections below
+    // throw out numbering, contents lines, headings, answer options and anything that opens
+    // a new item. A line long enough to fail this is not a wrap at all; 200 is a page width,
+    // not a document width.
+    if (t.length === 0 || t.length > 200)
         return false;
     // A bare answer option is the line after a question, never part of it. Cheap to test and it
     // is the one thing a looser head test could otherwise swallow.
@@ -274,7 +334,10 @@ function absorbWrappedTail(lines, headIdx, headText) {
     let text = headText;
     let j = headIdx;
     let absorbed = 0;
-    while (absorbed < 5 && headIsIncomplete(text) && j + 1 < lines.length) {
+    // Eight, not five: a CDP-style question runs to three or four wrapped lines before its
+    // sub-clauses, and the loop stops as soon as the head reads as finished anyway. The cap
+    // is a runaway guard, not a length policy.
+    while (absorbed < 8 && headIsIncomplete(text) && j + 1 < lines.length) {
         const cand = lines[j + 1].trim();
         if (!isContinuationTail(cand))
             break;
@@ -409,7 +472,12 @@ function mergeSplitTableRows(lines) {
 // ============================================
 // Text-to-Questions (shared by PDF + DOCX)
 // ============================================
-function questionsFromText(text, fileName) {
+/**
+ * Exported for tests. The PDF and DOCX paths both funnel through here, and the wrap
+ * heuristics below it are the whole reason a question arrives complete or truncated —
+ * testing them through a generated PDF would test pdf.js, not this.
+ */
+export function questionsFromText(text, fileName) {
     const lines = mergeSplitTableRows(text.split('\n').map(l => l.trim()).filter(l => l.length > 0));
     const questions = [];
     let currentCategory;
@@ -435,7 +503,7 @@ function questionsFromText(text, fileName) {
             questions.push({
                 id: uuid(),
                 rowIndex: i + 1,
-                text: stripAnswerScaffolding(tableQuestion.text),
+                text: trimGuidance(stripAnswerScaffolding(tableQuestion.text)),
                 category: currentCategory,
                 referenceId: tableQuestion.referenceId,
                 rawRow: { text: line },
@@ -449,7 +517,7 @@ function questionsFromText(text, fileName) {
             questions.push({
                 id: uuid(),
                 rowIndex: i + 1,
-                text: stripAnswerScaffolding(merged.text),
+                text: trimGuidance(stripAnswerScaffolding(merged.text)),
                 category: currentCategory,
                 referenceId: spacedQuestion.referenceId,
                 rawRow: { text: line },
@@ -476,14 +544,14 @@ function questionsFromText(text, fileName) {
             if (!isQuestion)
                 continue;
             const merged = absorbWrappedTail(lines, i, cleaned);
-            questions.push({ id: uuid(), rowIndex: i + 1, text: stripAnswerScaffolding(merged.text), category: currentCategory, rawRow: { text: line } });
+            questions.push({ id: uuid(), rowIndex: i + 1, text: trimGuidance(stripAnswerScaffolding(merged.text)), category: currentCategory, rawRow: { text: line } });
             i = merged.endIdx;
             continue;
         }
         if (!looksLikeQuestion(cleaned))
             continue;
         const merged = absorbWrappedTail(lines, i, cleaned);
-        questions.push({ id: uuid(), rowIndex: i + 1, text: stripAnswerScaffolding(merged.text), category: currentCategory, rawRow: { text: line } });
+        questions.push({ id: uuid(), rowIndex: i + 1, text: trimGuidance(stripAnswerScaffolding(merged.text)), category: currentCategory, rawRow: { text: line } });
         i = merged.endIdx;
     }
     const seen = new Set();
