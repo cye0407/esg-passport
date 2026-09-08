@@ -2,9 +2,16 @@
 // Demo data loader — for screen recordings & demos
 // ============================================
 //
-// Triggered via URL hash query params:
+// Triggered via URL hash query params, IN DEVELOPMENT BUILDS ONLY:
 //   /#/?demo=load   → seeds the localStorage with realistic demo data
 //   /#/?demo=reset  → wipes localStorage back to a fresh state
+//
+// Both of these destroy the workspace, and the workspace is the only copy —
+// there is no server-side backup to restore from. In a production build a
+// stray link, a mistyped bookmark or a shared screen-recording URL was enough
+// to wipe a customer's records, licence and all, with no confirmation. So the
+// handler now refuses to run outside a dev build, and asks before wiping even
+// there. If you need seeded data for a recording, run the dev server.
 //
 // The demo company is Hartmann Präzisionstechnik GmbH — a fictional
 // 280-FTE precision-machining SME in Düsseldorf with a second
@@ -300,23 +307,48 @@ export function resetDemoData() {
 }
 
 /**
+ * True only in a development build. Vite replaces `import.meta.env.DEV` at
+ * build time, so in production the guarded branches below are dead code and
+ * the URL handler cannot be reached at all — not by a link, not by a console
+ * call, not by anything a customer could click.
+ */
+function isDevBuild() {
+  try {
+    return import.meta.env?.DEV === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Read the URL hash for ?demo=load or ?demo=reset and act on it.
  * Returns the action taken (or null) so callers can decide whether to redirect.
+ *
+ * DEVELOPMENT ONLY. Both actions destroy the only copy of the workspace, so
+ * this is a no-op in a production build regardless of who calls it, and the
+ * wipe asks for confirmation even in development.
  */
 export function handleDemoQueryParam() {
   if (typeof window === 'undefined') return null;
+  if (!isDevBuild()) return null;
   const hash = window.location.hash || '';
   const queryStart = hash.indexOf('?');
   if (queryStart === -1) return null;
   const params = new URLSearchParams(hash.slice(queryStart + 1));
   const action = params.get('demo');
   if (action === 'load') {
+    if (!window.confirm('[dev] Replace this workspace with demo data? Anything unsaved here is lost.')) {
+      return null;
+    }
     loadDemoData();
     window.location.hash = '#/';
     window.location.reload();
     return 'loaded';
   }
   if (action === 'reset') {
+    if (!window.confirm('[dev] Wipe this workspace and licence back to a fresh install?')) {
+      return null;
+    }
     resetDemoData();
     window.location.hash = '#/onboarding';
     window.location.reload();
