@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getRequestById, saveRequest, getConfidenceRecords, getPolicies, getAnnualTotals } from '@/lib/store';
+import { getRequestById, saveRequest, getConfidenceRecords } from '@/lib/store';
 import { REQUEST_STATUSES, QUESTIONNAIRE_TOPICS, QUESTIONNAIRE_TEMPLATES } from '@/lib/constants';
 import { useLanguage } from '@/components/LanguageContext';
 import { localizeStatus, localizeTopic, localizeTemplate, localizeDataPoint } from '@/lib/i18n';
@@ -19,19 +19,19 @@ export default function RequestWorkspace() {
   const navigate = useNavigate();
   const [request, setRequest] = useState(null);
   const [confidence, setConfidence] = useState([]);
-  const [policies, setPolicies] = useState([]);
   const [selectedTopics, setSelectedTopics] = useState([]);
   const [statusSaved, setStatusSaved] = useState(false);
 
-  const currentYear = new Date().getFullYear().toString();
-
+  // Keyed on a route param that changes without a remount, and it redirects when
+  // the record is gone — so it is a real synchronisation effect, not derived state
+  // that should have been computed during render.
   useEffect(() => {
     const req = getRequestById(id);
     if (!req) { navigate('/requests'); return; }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRequest(req);
     setSelectedTopics(req.questionnaire?.requestedTopics || []);
     setConfidence(getConfidenceRecords());
-    setPolicies(getPolicies());
   }, [id, navigate]);
 
   const handleUpdate = (updates) => {

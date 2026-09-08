@@ -78,13 +78,13 @@ export function parsePeriod(raw) {
   m = s.match(/^(\d{4})\/(\d{1,2})$/);
   if (m) return `${m[1]}-${m[2].padStart(2, '0')}`;
 
-  m = s.match(/^([a-zA-ZäöüÄÖÜ]+)[\s.\-]+(\d{4})$/);
+  m = s.match(/^([a-zA-ZäöüÄÖÜ]+)[\s.-]+(\d{4})$/);
   if (m) {
     const mo = MONTH_NAMES[m[1].toLowerCase()];
     if (mo) return `${m[2]}-${mo}`;
   }
 
-  m = s.match(/^(\d{4})[\s.\-]+([a-zA-ZäöüÄÖÜ]+)$/);
+  m = s.match(/^(\d{4})[\s.-]+([a-zA-ZäöüÄÖÜ]+)$/);
   if (m) {
     const mo = MONTH_NAMES[m[2].toLowerCase()];
     if (mo) return `${m[1]}-${mo}`;

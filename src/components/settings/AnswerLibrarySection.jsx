@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,15 +22,13 @@ const TYPE_STYLES = {
 
 export default function AnswerLibrarySection() {
   const { t } = useLanguage();
-  const [answers, setAnswers] = useState([]);
+  const [answers, setAnswers] = useState(() => getMasterAnswers());
   const [searchQuery, setSearchQuery] = useState('');
   const [filterConfidence, setFilterConfidence] = useState('all');
   const [expandedIds, setExpandedIds] = useState(new Set());
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-
-  useEffect(() => { setAnswers(getMasterAnswers()); }, []);
 
   const stats = useMemo(() => {
     const byConfidence = { high: 0, medium: 0, low: 0, none: 0 };
