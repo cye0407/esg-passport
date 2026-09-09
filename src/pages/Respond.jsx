@@ -488,7 +488,12 @@ export default function Respond({ demoOnly = false }) {
         const previousWorkspace = window.localStorage.getItem(PASSPORT_DATA_KEY);
         loadDemoData();
         setDemoLibraryUsed(true);
-        track('respond_demo_library_loaded', { source: name });
+        // `name` is the questionnaire's own name, which on an upload is the customer's
+        // file name. What the funnel actually needs is whether the example workspace was
+        // seeded for a built-in sample or for something they brought.
+        track('respond_demo_library_loaded', {
+          source: questionnaireFingerprint ? 'upload' : 'built_in',
+        });
         cd = buildCompanyData();
         profile = buildCompanyProfile();
         if (previousWorkspace === null) {

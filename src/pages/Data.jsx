@@ -283,7 +283,7 @@ export default function Data() {
       fields: fields.length,
       periodType: 'monthly',
       extractedPeriod: extractedPeriod || 'fallback_current_month',
-      documentType: fields[0]?.source?.rawText?.slice(0, 30) || 'unknown',
+      lead_field: fields[0]?.field || 'unknown',
     });
   }, [selectedYear, updateField]);
 
@@ -311,7 +311,7 @@ export default function Data() {
       fields: fields.length,
       periodType: 'annual',
       extractedPeriod,
-      documentType: fields[0]?.source?.rawText?.slice(0, 30) || 'unknown',
+      lead_field: fields[0]?.field || 'unknown',
     });
     setPendingAnnualBill(null);
   }, [pendingAnnualBill]);
