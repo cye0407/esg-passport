@@ -119,9 +119,10 @@ function SupportBadge({ supported, t }) {
 // it was the second showing of a list just approved. It stays reachable at the foot of
 // the panel, because a spreadsheet skips that confirmation and a wrong denominator makes
 // every number here false. Reachable, not resident.
+// `fromRecords` is still needed — SupportBadge asks whether a given draft is in it. The
+// other counts moved to the stat band above both columns and are no longer read here.
 function ReferencePanel({
-  t, total, fromRecords, written, unanswerable, questions, sample, remaining, hasOwnData,
-  onDownloadChecklist,
+  t, fromRecords, questions, sample, remaining, hasOwnData, onDownloadChecklist,
 }) {
   const [showQuestions, setShowQuestions] = React.useState(false);
 
@@ -310,10 +311,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         <aside className="hidden lg:col-start-2 lg:row-start-1 lg:block">
           <ReferencePanel
             t={t}
-            total={total}
             fromRecords={fromRecords}
-            written={written}
-            unanswerable={unanswerable}
             questions={questions}
             sample={sample}
             remaining={remaining}
@@ -412,10 +410,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           <div className="order-3 lg:hidden">
             <ReferencePanel
               t={t}
-              total={total}
               fromRecords={fromRecords}
-              written={written}
-              unanswerable={unanswerable}
               questions={questions}
               sample={sample}
               remaining={remaining}

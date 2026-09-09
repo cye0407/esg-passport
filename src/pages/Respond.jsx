@@ -655,10 +655,17 @@ export default function Respond({ demoOnly = false }) {
         try {
           loadDemoData();
           setDemoLibraryUsed(true);
-          track('respond_demo_library_loaded', { source: name });
+          // `name` is the questionnaire's own name, which on an upload is the customer's
+          // file name. What the funnel actually needs is whether the example workspace was
+          // seeded for a built-in sample or for something they brought.
+          track('respond_demo_library_loaded', {
+            source: questionnaireFingerprint ? 'upload' : 'built_in',
+          });
           cd = buildCompanyData();
           profile = buildCompanyProfile();
         } finally {
+          // Restore even if seeding threw: otherwise a throw here leaves the customer
+          // looking at demo figures where their own records used to be.
           if (previousWorkspace === null) {
             window.localStorage.removeItem(PASSPORT_DATA_KEY);
           } else {

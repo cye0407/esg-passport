@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getRequests, saveRequest, deleteRequest } from '@/lib/store';
 import { REQUEST_PLATFORMS, REQUEST_STATUSES } from '@/lib/constants';
@@ -14,7 +14,7 @@ import { Inbox, Plus, ArrowRight, Calendar, Building2, Trash2 } from 'lucide-rea
 
 export default function Requests() {
   const { lang, t } = useLanguage();
-  const [requests, setRequests] = useState([]);
+  const [requests, setRequests] = useState(() => getRequests());
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [newRequest, setNewRequest] = useState({
@@ -28,8 +28,6 @@ export default function Requests() {
     questionnaire: { type: 'custom', requestedTopics: [] },
     response: { status: 'not_started', includedDataPoints: [] },
   });
-
-  useEffect(() => { loadRequests(); }, []);
 
   const loadRequests = () => setRequests(getRequests());
 
@@ -72,7 +70,6 @@ export default function Requests() {
   const formatDate = (d) => d ? new Date(d).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
 
   const openRequests = requests.filter(r => r.status !== 'closed' && r.status !== 'sent');
-  const closedRequests = requests.filter(r => r.status === 'closed' || r.status === 'sent');
 
   return (
     <div className="space-y-6">

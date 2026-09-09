@@ -9,7 +9,7 @@ import {
 } from '@/lib/store';
 import { EMISSION_FACTORS } from '@/lib/constants';
 import { getIndustryMetrics } from '@/data/industry-metrics';
-import { FIELD_UNITS, getAlternativeUnits, convert } from '@/lib/units';
+import { FIELD_UNITS } from '@/lib/units';
 import { useLanguage } from '@/components/LanguageContext';
 import { track, trackOnce } from '@/lib/track';
 import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
@@ -342,7 +342,7 @@ export default function Data() {
       fields: fields.length,
       periodType: 'monthly',
       extractedPeriod: extractedPeriod || 'fallback_current_month',
-      documentType: fields[0]?.source?.rawText?.slice(0, 30) || 'unknown',
+      lead_field: fields[0]?.field || 'unknown',
     });
   }, [selectedYear, updateField, recordExtractionSources]);
 
@@ -371,6 +371,7 @@ export default function Data() {
       periodType: 'annual',
       extractedPeriod: String(year),
       documents: forThisYear.length,
+      lead_field: forThisYear[0]?.fields?.[0]?.field || 'unknown',
     });
     setPendingAnnualBills(prev => prev.filter(bill => bill.year !== year));
   }, [pendingAnnualBills, recordExtractionSources]);

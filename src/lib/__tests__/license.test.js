@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockFetch = vi.fn();
 
@@ -9,6 +9,14 @@ describe('license flow', () => {
     localStorage.clear();
     mockFetch.mockReset();
     vi.resetModules();
+    // license.js reads these at module load, so they must be stubbed before any
+    // dynamic import below. Without them tierFromResponse correctly refuses every
+    // response as `unrecognized_product` — which meant this suite passed or failed
+    // according to whether the machine running it happened to have a .env.local.
+    // It passed on the author's laptop and failed the moment CI ran it.
+    // Tests that care about the unconfigured build pass their own arguments.
+    vi.stubEnv('VITE_QUESTIONNAIRE_PASS_VARIANT_ID', '98765');
+    vi.stubEnv('VITE_PASSPORT_VARIANT_ID', '12345');
     Object.defineProperty(window, 'crypto', {
       value: {
         ...(window.crypto || {}),
@@ -16,6 +24,10 @@ describe('license flow', () => {
       },
       configurable: true,
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('resolves Questionnaire Pass only from its configured variant ID', async () => {

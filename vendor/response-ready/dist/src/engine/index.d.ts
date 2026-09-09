@@ -1,4 +1,5 @@
 export { parseQuestionFile, reprocessWithMapping, parseQuestionsFromText } from './questionParser';
+export { MAX_FILE_BYTES, MAX_PDF_PAGES, MAX_QUESTIONS, checkFileSize, checkSignature, readSignature } from './parseLimits';
 export { parseCSV, parseCSVLine, loadMappingRules, loadMetricKeys } from './configLoader';
 export { createMatcher } from './keywordMatcher';
 export type { KeywordMatcherInstance, MatchOptions } from './keywordMatcher';

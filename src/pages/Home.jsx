@@ -46,17 +46,20 @@ import JourneySpine from '@/components/JourneySpine';
 import { canActivateAnotherKey } from '@/lib/entitlements';
 
 export default function Home() {
+  // Every hook runs before the redirect below. It used to sit between them, so a
+  // render with setup incomplete called one hook and a render with it complete called
+  // three — and React throws "rendered more hooks than during the previous render" the
+  // moment that count changes under a mounted component. It never bit because
+  // setupCompleted does not flip mid-render, but the dashboard is the first screen
+  // people land on now and it is not worth leaving as a trap.
   const { tier, entitlements } = useLicense();
   const isPassHolder = tier === 'questionnaire-pass';
   const settings = getSettings();
-  // Every hook runs before the redirect. It used to sit above useLanguage and useState,
-  // which is a rules-of-hooks violation that happened not to bite because setupCompleted
-  // does not flip mid-render - the dashboard is the first screen people land on now, so
-  // it is not worth leaving as a trap.
   const { lang, t } = useLanguage();
   const [showGuide, setShowGuide] = React.useState(() => {
     return !localStorage.getItem('esg_passport_guide_dismissed');
   });
+  // The redirect itself is at the bottom, after every hook has run — see line ~192.
   const redirectToOnboarding = !settings.setupCompleted;
 
   const dismissGuide = () => {

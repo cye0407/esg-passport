@@ -5,6 +5,7 @@
 // No domain-specific logic — works for any questionnaire type.
 import * as XLSX from 'xlsx';
 import { v4 as uuid } from 'uuid';
+import { MAX_PDF_PAGES, MAX_QUESTIONS, MAX_ROWS_PER_SHEET, MAX_SHEETS, MAX_TOTAL_ROWS, capText, checkFileSize, checkSignature, readSignature, } from './parseLimits';
 // ============================================
 // Column Detection
 // ============================================
@@ -576,6 +577,8 @@ export function questionsFromText(text, fileName) {
 // ============================================
 // PDF Parsing
 // ============================================
+// Bounds live in parseLimits.ts; see the header there for why an uploaded
+// questionnaire is the least trusted input this engine takes.
 async function parsePdfFile(file) {
     try {
         const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -590,7 +593,12 @@ async function parsePdfFile(file) {
         }
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const textParts = [];
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const pageLimit = Math.min(pdf.numPages, MAX_PDF_PAGES);
+        const pageNotices = [];
+        if (pdf.numPages > MAX_PDF_PAGES) {
+            pageNotices.push(`This PDF has ${pdf.numPages} pages; only the first ${MAX_PDF_PAGES} were read. Questions after that point are not included.`);
+        }
+        for (let pageNum = 1; pageNum <= pageLimit; pageNum++) {
             const page = await pdf.getPage(pageNum);
             const content = await page.getTextContent();
             const items = content.items
@@ -617,7 +625,10 @@ async function parsePdfFile(file) {
                 lines.push(currentLine.trim());
             textParts.push(lines.filter(l => l.length > 0).join('\n'));
         }
-        return questionsFromText(textParts.join('\n'), file.name);
+        const { text, warning } = capText(textParts.join('\n'));
+        const parsed = questionsFromText(text, file.name);
+        const notices = [...pageNotices, ...(warning ? [warning] : [])];
+        return notices.length > 0 ? { ...parsed, errors: [...parsed.errors, ...notices] } : parsed;
     }
     catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error parsing PDF';
@@ -646,7 +657,9 @@ async function parseDocxFile(file) {
                 throw browserShapeError;
             result = await mammoth.extractRawText({ buffer: Buffer.from(arrayBuffer) });
         }
-        return questionsFromText(result.value, file.name);
+        const { text, warning } = capText(result.value);
+        const parsed = questionsFromText(text, file.name);
+        return warning ? { ...parsed, errors: [...parsed.errors, warning] } : parsed;
     }
     catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error parsing Word document';
@@ -720,13 +733,28 @@ async function parseSpreadsheetFile(file) {
         let totalRows = 0;
         let availableColumns = [];
         let sheetsSkipped = 0;
-        for (const sheetName of workbook.SheetNames) {
-            if (workbook.SheetNames.length > 1 && shouldSkipSheet(sheetName)) {
+        // A workbook is attacker-shaped input: sheet_to_json materialises every row of
+        // every sheet into objects before anything looks at them, so the caps have to bite
+        // here rather than after. Anything trimmed is reported, never dropped silently.
+        const sheetNames = workbook.SheetNames.slice(0, MAX_SHEETS);
+        if (workbook.SheetNames.length > MAX_SHEETS) {
+            errors.push(`This workbook has ${workbook.SheetNames.length} sheets; only the first ${MAX_SHEETS} were read.`);
+        }
+        for (const sheetName of sheetNames) {
+            if (sheetNames.length > 1 && shouldSkipSheet(sheetName)) {
                 sheetsSkipped++;
                 continue;
             }
+            if (totalRows >= MAX_TOTAL_ROWS) {
+                errors.push(`Stopped after ${MAX_TOTAL_ROWS.toLocaleString('en-GB')} rows. Later sheets were not read.`);
+                break;
+            }
             const sheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+            const allRows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+            const jsonData = allRows.slice(0, Math.min(MAX_ROWS_PER_SHEET, MAX_TOTAL_ROWS - totalRows));
+            if (allRows.length > jsonData.length) {
+                errors.push(`Sheet "${sheetName}" has ${allRows.length.toLocaleString('en-GB')} rows; only the first ${jsonData.length.toLocaleString('en-GB')} were read.`);
+            }
             if (jsonData.length === 0)
                 continue;
             const headers = Object.keys(jsonData[0]);
@@ -761,6 +789,13 @@ async function parseSpreadsheetFile(file) {
         if (dedupedQuestions.length > 100) {
             errors.push(`Extracted ${dedupedQuestions.length} questions — this seems high. Review the results and consider using manual column mapping if needed.`);
             autoDetectionConfidence = 'low';
+        }
+        // Past this it is not a questionnaire, and every one of these becomes an answer
+        // to generate and a card to render. The old code only warned at 100 and then
+        // handed the whole list on regardless.
+        if (dedupedQuestions.length > MAX_QUESTIONS) {
+            errors.push(`Stopped at ${MAX_QUESTIONS.toLocaleString('en-GB')} questions. If this really is one questionnaire, split it and upload the parts separately.`);
+            dedupedQuestions.length = MAX_QUESTIONS;
         }
         if (dedupedQuestions.length === 0 && totalRows > 0) {
             return {
@@ -823,8 +858,23 @@ export async function reprocessWithMapping(file, manualMapping) {
 function getFileExtension(name) {
     return name.split('.').pop()?.toLowerCase() || '';
 }
+function rejected(fileName, message) {
+    return {
+        success: false, questions: [], errors: [message],
+        metadata: { fileName, totalRows: 0, parsedRows: 0, columnMapping: { questionText: '' } },
+    };
+}
 export async function parseQuestionFile(file) {
     const ext = getFileExtension(file.name);
+    // Size and shape are checked before any parser touches the bytes. The extension
+    // is the only thing the caller has vouched for, and it is chosen by whoever sent
+    // the questionnaire.
+    const tooBig = checkFileSize(file);
+    if (tooBig)
+        return rejected(file.name, tooBig);
+    const mismatch = checkSignature(ext, await readSignature(file));
+    if (mismatch)
+        return rejected(file.name, mismatch);
     switch (ext) {
         case 'pdf':
             return parsePdfFile(file);

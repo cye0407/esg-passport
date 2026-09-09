@@ -18,6 +18,13 @@
 // If a sibling source repo is not present (e.g. a Vercel build that only checked out this
 // repo), that check SKIPS with no error — there is nothing to compare against, and we must
 // not break that build. Each check only enforces where both repos are available.
+//
+// That skip is correct on Vercel and WRONG in CI, where a missing sibling means the checkout
+// failed (no PAT, revoked token, renamed repo) and the guard quietly reports success on code
+// it never looked at. That is how vendor/response-ready came to ship a questionParser older
+// than the engine while the workflow badge stayed green. So CI sets
+// VERIFY_VENDOR_REQUIRE_SOURCE=1 and a missing sibling becomes a failure — the check fails
+// closed where it is the only thing standing between stale code and a customer.
 
 import { spawnSync } from 'child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
@@ -31,6 +38,23 @@ const extractRoot = path.resolve(passportRoot, '../esg-extract');
 
 function log(msg) { console.log(`verify-vendor-dist: ${msg}`); }
 function fail(msg) { console.error(`verify-vendor-dist: ${msg}`); process.exit(1); }
+
+// Set by CI. Off by default so a Vercel build, which checks out this repo alone, still works.
+const requireSource = process.env.VERIFY_VENDOR_REQUIRE_SOURCE === '1';
+
+/** A sibling repo is absent: skip locally and on Vercel, fail in CI. */
+function sourceMissing(label, dir) {
+  if (requireSource) {
+    fail(
+      [
+        `sibling source for ${label} not present (${dir}), and VERIFY_VENDOR_REQUIRE_SOURCE=1.`,
+        '  This check is running somewhere it is expected to enforce, so a missing checkout is',
+        '  a failure, not a skip. Check the RESPONSE_READY_PAT secret and the checkout step.',
+      ].join('\n'),
+    );
+  }
+  log(`sibling source for ${label} not present (${dir}) — skipping.`);
+}
 
 // Recursively collect relative file paths under a dir. `includeTests: false` drops
 // __tests__ dirs — the vendored engine dist intentionally ships only the runtime engine
@@ -52,7 +76,7 @@ function listFiles(dir, { includeTests }, base = dir, acc = []) {
 // Compare a committed vendor tree against a source tree; return an array of drift descriptions.
 function compareTrees(label, sourceDir, vendorDir, { includeTests }) {
   if (!existsSync(sourceDir)) {
-    log(`sibling source for ${label} not present (${sourceDir}) — skipping.`);
+    sourceMissing(label, sourceDir);
     return [];
   }
   if (!existsSync(vendorDir)) return [`${label}: committed vendor copy missing: ${vendorDir}`];
@@ -91,7 +115,7 @@ if (existsSync(path.join(engineRoot, 'src', 'index.ts'))) {
     { includeTests: false },
   ));
 } else {
-  log('sibling ../response-ready source not present — skipping engine drift check.');
+  sourceMissing('response-ready/dist', engineRoot);
 }
 
 // --- Extractor: vendored verbatim as source, compare src directly (tests included) ---

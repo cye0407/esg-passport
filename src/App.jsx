@@ -10,8 +10,11 @@ import { getSettings } from '@/lib/store';
 
 // Run before any routing — if ?demo=load or ?demo=reset is in the URL,
 // seed/wipe localStorage and reload. This is for screen recording prep,
-// not user-facing.
-if (typeof window !== 'undefined') {
+// not user-facing, and both actions destroy the only copy of the workspace.
+// `import.meta.env.DEV` is substituted at build time, so this whole call is
+// stripped from the production bundle; handleDemoQueryParam refuses to run
+// there in any case. Belt and braces, because the failure is unrecoverable.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   handleDemoQueryParam();
 }
 import Layout from '@/components/Layout';
