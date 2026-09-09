@@ -52,6 +52,19 @@ jobs:
           token: ${{ env.RESPONSE_READY_PAT }}
           path: response-ready
 
+      # The SECOND vendored dependency, and the one nobody remembered. Passport commits
+      # vendor/esg-extract/src as well as the engine dist, the drift script has always
+      # compared both, and this workflow only ever checked out one of them - so with the
+      # skip in place the extractor comparison silently did nothing, and with the skip
+      # removed it is the first thing to fail. The extractor has drifted before: vendor
+      # once held an eager pdf-parse import that source had already moved lazy.
+      - name: Checkout esg-extract (extractor source)
+        uses: actions/checkout@v4
+        with:
+          repository: cye0407/esg-extract
+          token: ${{ env.RESPONSE_READY_PAT }}
+          path: esg-extract
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
