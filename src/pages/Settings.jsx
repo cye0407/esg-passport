@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { deactivateLicense, getStoredLicense } from '@/lib/license';
 import { canActivateAnotherKey } from '@/lib/entitlements';
+import { serializeBackup, mergeImportedBackup } from '@/lib/backup';
 import { useLicense } from '@/components/LicenseContext';
 
 function CollapsibleSection({ icon: Icon, title, children, defaultOpen = false }) {
@@ -70,9 +71,17 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  // A backup is a file people forward — to support, to a colleague, into a
+  // shared drive. The API key stays out of it. See lib/backup.js.
   const handleExportData = () => {
-    const data = localStorage.getItem('esg_passport_data');
-    const blob = new Blob([data], { type: 'application/json' });
+    let json;
+    try {
+      json = serializeBackup(JSON.parse(localStorage.getItem('esg_passport_data')));
+    } catch {
+      alert(t('settings.exportFailed'));
+      return;
+    }
+    const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -87,8 +96,17 @@ export default function Settings() {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const data = JSON.parse(event.target.result);
-        localStorage.setItem('esg_passport_data', JSON.stringify(data));
+        const imported = JSON.parse(event.target.result);
+        // Backups no longer carry the API key, so take the one already here
+        // rather than wiping it on every import.
+        let current = null;
+        try {
+          current = JSON.parse(localStorage.getItem('esg_passport_data'));
+        } catch {
+          current = null;
+        }
+        const merged = mergeImportedBackup(imported, current);
+        localStorage.setItem('esg_passport_data', JSON.stringify(merged));
         window.location.reload();
       } catch {
         alert(t('settings.invalidBackup'));
@@ -289,6 +307,9 @@ export default function Settings() {
           </div>
           <p className="text-sm text-slate-500">
             {t('settings.dataMgmtHint')}
+          </p>
+          <p className="text-sm text-slate-500">
+            {t('settings.backupExcludesKey')}
           </p>
         </div>
       </div>
