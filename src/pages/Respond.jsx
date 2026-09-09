@@ -12,6 +12,7 @@ import { takeHandoff } from '@/lib/handoff';
 import { writeCoverageStash, takeCoverageStash, clearCoverageStash } from '@/lib/coverageStash';
 import JourneySpine from '@/components/JourneySpine';
 import CoverageReport from '@/components/CoverageReport';
+import ResultsViewSwitch from '@/components/ResultsViewSwitch';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
 import { LANGUAGES, isOfferedAnswerLanguage, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
@@ -212,13 +213,23 @@ export default function Respond({ demoOnly = false }) {
   // the whole Respond page down.
   // Computed once and used twice: the report renders it, and the stash below carries
   // what it asked for over to the evidence page.
+  // Every tier that reached results, not just free. The report was built as the free
+  // tier's consolation for not getting answers, which was the wrong idea: it is the
+  // questionnaire's status view, and a paid buyer chasing a colleague for the waste
+  // manifest before a deadline needs it more than a free visitor does. /demo is still
+  // excluded - a coverage report about a fictional company's documents tells nobody
+  // anything.
+  // Which face of the results a paid reader is looking at: the drafts they bought, or
+  // the report on what is still open before they send.
+  const [resultsView, setResultsView] = useState('answers');
+
   const coverage = useMemo(() => {
-    if (canGenerate || demoOnly || phase !== 'results') return null;
+    if (demoOnly || phase !== 'results') return null;
     return summarizeCoverage(answerDrafts, {
       companyData,
       dataSources: getSettings()?.dataSources || {},
     });
-  }, [canGenerate, demoOnly, phase, answerDrafts, companyData]);
+  }, [demoOnly, phase, answerDrafts, companyData]);
 
   // Keep the questionnaire the moment a free report exists, not only when its "add
   // documents" button is used. People leave a screen the way they like - the nav, the
@@ -1461,8 +1472,30 @@ export default function Respond({ demoOnly = false }) {
 
     const activeFilterCount = (filterConfidence !== 'all' ? 1 : 0) + (filterType !== 'all' ? 1 : 0);
 
+    // Paid, looking at the report rather than the drafts. Same component the free
+    // reader sees; the footer is what differs.
+    if (resultsView === 'report' && coverage) {
+      return (
+        <div className="space-y-6">
+          <ResultsViewSwitch value={resultsView} onChange={setResultsView} t={t} />
+          <CoverageReport
+            coverage={coverage}
+            questionnaireName={questionnaireName}
+            questions={parseResult?.questions || []}
+            tier={tier}
+            onStartOver={resetToUpload}
+          />
+        </div>
+      );
+    }
+
     return (
       <div className={cn('space-y-0', isDemo && 'pb-44 sm:pb-32')}>
+        {coverage && !isDemo && (
+          <div className="mb-6">
+            <ResultsViewSwitch value={resultsView} onChange={setResultsView} t={t} />
+          </div>
+        )}
         {/* Feedback toast */}
         {savedFeedback && (
           <div className="fixed top-20 right-4 bg-green-100 text-green-800 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">

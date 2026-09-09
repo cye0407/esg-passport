@@ -68,16 +68,31 @@ describe('CoverageReport', () => {
     expect(container.textContent).toContain('buyer-saq.xlsx');
   });
 
-  it('shows what it read, and lets you see the rest', async () => {
+  // The raw question list is reference, so it lives in the side panel behind a tab and
+  // the panel scrolls. It used to be the first full-width section on the page, which put
+  // the least decision-relevant thing in the most valuable space.
+  it('keeps every question it read, one tab away', async () => {
     const questions = Array.from({ length: 8 }, (_, i) => ({ id: `r${i}`, text: `Read question ${i}` }));
     await render([draft('emissions', 'medium')], {}, { questions });
-    expect(container.textContent).toContain('Read question 0');
-    expect(container.textContent).toContain('Read question 4');
-    expect(container.textContent).not.toContain('Read question 5');
-    const more = [...container.querySelectorAll('button')].find(b => b.textContent.includes('Show all 8'));
-    expect(more).toBeTruthy();
-    await act(async () => more.click());
-    expect(container.textContent).toContain('Read question 7');
+
+    // Lands on the answers, not the buyer's list.
+    expect(container.textContent).not.toContain('Read question 0');
+
+    const tab = [...container.querySelectorAll('button')].find(b => b.textContent.trim() === 'Questions');
+    expect(tab).toBeTruthy();
+    await act(async () => tab.click());
+
+    // All of them, not a truncated preview: the panel scrolls.
+    for (let i = 0; i < 8; i += 1) {
+      expect(container.textContent).toContain(`Read question ${i}`);
+    }
+  });
+
+  it('says how many answers the sample is showing, so five drafts do not read as all of them', async () => {
+    const drafts = Array.from({ length: 9 }, () => draft('workforce', 'medium'));
+    await render(drafts);
+    expect(container.textContent).toContain('Your first 5 answers');
+    expect(container.textContent).toContain('4 more questions in this questionnaire');
   });
 
   // Grouped the way the customer asking the questions groups them. Confidence is our
