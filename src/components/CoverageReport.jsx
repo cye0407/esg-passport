@@ -1,10 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Lock, Upload } from 'lucide-react';
+import { ArrowRight, Download, Lock, Upload } from 'lucide-react';
 import { track } from '@/lib/track';
 import { useLanguage } from '@/components/LanguageContext';
 import { documentName, documentHolds } from '@/lib/documentLabels';
 import { figureWithUnit, answerStatesFigure } from '@/lib/figures';
+import {
+  buildChecklistHtml,
+  checklistFileName,
+  downloadChecklist,
+  workspaceUrl,
+} from '@/lib/coverageChecklist';
 import {
   PASSPORT_CHECKOUT_URL,
   QUESTIONNAIRE_PASS_CHECKOUT_URL,
@@ -23,6 +29,12 @@ import {
 //   what do I do next, per document, upload or type
 //   what will the answers actually look like
 //   what does finishing cost
+//   what do I take with me
+//
+// The page closes on the takeaway, not on the price. Someone who has just learned
+// they are missing twelve figures is not deciding whether to buy - they are about to
+// go and look for bills, and the deadline is a week out. The offer stays where it is;
+// the last thing they read is what to go and find.
 //
 // It reports counts and provenance, never a readiness score, a pass likelihood or a
 // predicted buyer outcome - we do not know how a customer will read a response, and
@@ -106,6 +118,20 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   const documents = missingDocuments
     .map(entry => ({ ...entry, name: documentName(t, entry.document) }))
     .filter(entry => entry.name);
+
+  const handleDownloadChecklist = () => {
+    const generatedAt = new Date();
+    const html = buildChecklistHtml({
+      t,
+      coverage,
+      questionnaireName,
+      url: workspaceUrl(),
+      generatedAt,
+    });
+    if (downloadChecklist(html, checklistFileName(generatedAt))) {
+      track('coverage_checklist_downloaded', { documents: documents.length });
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -354,6 +380,21 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
             {t('coverage.passportCta', { price: PASSPORT_PRICE })}
           </button>
         </div>
+      </div>
+
+      {/* 6 - what they take with them. There is no account and no email, so the file
+          they carry out is the only way back to this workspace. */}
+      <div className="border border-slate-200 bg-slate-50 p-6">
+        <h2 className="text-lg font-semibold text-slate-900">{t('coverage.takeawayTitle')}</h2>
+        <p className="mt-1 text-[15px] leading-relaxed text-slate-500">{t('coverage.takeawayBody')}</p>
+        <button
+          onClick={handleDownloadChecklist}
+          className="mt-4 inline-flex h-11 items-center gap-2 border border-slate-900 bg-white px-5 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
+        >
+          <Download className="h-4 w-4" />
+          {t('coverage.takeawayDownload')}
+        </button>
+        <p className="mt-3 text-[13px] leading-relaxed text-slate-500">{t('coverage.takeawaySaved')}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
