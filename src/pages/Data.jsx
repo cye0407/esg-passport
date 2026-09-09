@@ -9,7 +9,7 @@ import {
 } from '@/lib/store';
 import { EMISSION_FACTORS } from '@/lib/constants';
 import { getIndustryMetrics } from '@/data/industry-metrics';
-import { FIELD_UNITS, getAlternativeUnits, convert } from '@/lib/units';
+import { FIELD_UNITS } from '@/lib/units';
 import { useLanguage } from '@/components/LanguageContext';
 import { track, trackOnce } from '@/lib/track';
 import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';

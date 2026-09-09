@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCompanyProfile, saveCompanyProfile, getSettings, saveSettings, resetData } from '@/lib/store';
 import { COUNTRIES, EMISSION_FACTORS } from '@/lib/constants';
@@ -40,19 +40,17 @@ export default function Settings() {
   const navigate = useNavigate();
   const { lang, setLang, t } = useLanguage();
   const { activate, isPaid, tier } = useLicense();
-  const [company, setCompany] = useState(null);
-  const [settings, setSettings] = useState(null);
+  // Read straight out of the store on first render. These used to be null until
+  // an effect filled them in, which is a second render for data that was already
+  // sitting in localStorage.
+  const [company, setCompany] = useState(() => getCompanyProfile());
+  const [settings, setSettings] = useState(() => getSettings());
   const [saved, setSaved] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [licenseKey, setLicenseKey] = useState('');
   const [licenseLoading, setLicenseLoading] = useState(false);
   const [licenseError, setLicenseError] = useState('');
   const [deactivateLoading, setDeactivateLoading] = useState(false);
-
-  useEffect(() => {
-    setCompany(getCompanyProfile());
-    setSettings(getSettings());
-  }, []);
 
   const handleCompanyUpdate = (field, value) => {
     const updated = { ...company, [field]: value };
@@ -110,7 +108,7 @@ export default function Settings() {
         const merged = mergeImportedBackup(imported, current);
         localStorage.setItem('esg_passport_data', JSON.stringify(merged));
         window.location.reload();
-      } catch (err) {
+      } catch {
         alert(t('settings.invalidBackup'));
       }
     };

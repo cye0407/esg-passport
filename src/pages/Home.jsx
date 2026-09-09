@@ -43,16 +43,20 @@ import { PASSPORT_CHECKOUT_URL, marketingUrl } from '@/lib/checkout';
 import { canActivateAnotherKey } from '@/lib/entitlements';
 
 export default function Home() {
+  // Every hook runs before the redirect below. It used to sit between them, so a
+  // render with setup incomplete called one hook and a render with it complete
+  // called three — and React throws "rendered more hooks than during the previous
+  // render" the moment that count changes under a mounted component.
   const { tier } = useLicense();
-  const settings = getSettings();
-  if (!settings.setupCompleted) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
   const { lang, t } = useLanguage();
   const [showGuide, setShowGuide] = React.useState(() => {
     return !localStorage.getItem('esg_passport_guide_dismissed');
   });
+
+  const settings = getSettings();
+  if (!settings.setupCompleted) {
+    return <Navigate to="/onboarding" replace />;
+  }
 
   const dismissGuide = () => {
     localStorage.setItem('esg_passport_guide_dismissed', 'true');
@@ -73,14 +77,9 @@ export default function Home() {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   const currentPeriod = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-  const lastMonth = currentMonth === 1
-    ? `${currentYear - 1}-12`
-    : `${currentYear}-${String(currentMonth - 1).padStart(2, '0')}`;
-
   const annualTotals = getAnnualTotals(currentYear.toString());
 
   const hasCurrentMonthData = dataRecords.some(r => r.period === currentPeriod);
-  const hasLastMonthData = dataRecords.some(r => r.period === lastMonth);
   const hasAnyData = dataRecords.length > 0;
   const monthsTracked = dataRecords.length;
 

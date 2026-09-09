@@ -107,18 +107,16 @@ const FIELDS = [
 export default function CompanyProfileSection() {
   const { lang, t } = useLanguage();
   const [open, setOpen] = useState(false);
-  const [profile, setProfile] = useState({});
-  const [saved, setSaved] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-
-  useEffect(() => {
+  const [profile, setProfile] = useState(() => {
     const stored = getCompanyProfile() || {};
     const init = {};
     FIELDS.forEach(f => { init[f] = stored[f] || ''; });
     init.customerTypes = stored.customerTypes || [];
     init.certifications = stored.certifications || [];
-    setProfile(init);
-  }, []);
+    return init;
+  });
+  const [saved, setSaved] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   const update = (field, value) => {
     setProfile(prev => ({ ...prev, [field]: value }));

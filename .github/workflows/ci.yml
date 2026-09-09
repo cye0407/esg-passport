@@ -1,0 +1,43 @@
+name: CI
+
+# A push to main IS the production release for this app — Vercel deploys from it
+# and buyers get whatever lands. Until now nothing ran build, tests or lint on the
+# way, so a broken licence check or a failing render could ship unremarked. This
+# runs on every push and pull request, and fails closed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch makes the older run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` needs the lockfile to match package.json — that mismatch is worth
+      # failing on in its own right.
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # The build is the real gate: the app is a Vite bundle, and a broken import
+      # or an unresolved vendored module only shows up here.
+      - name: Build
+        run: npm run build

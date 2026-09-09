@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { getDocuments, saveDocument, deleteDocument } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,12 +42,10 @@ const CERTIFICATE_TYPES = [
 
 export default function DocumentsSection() {
   const { lang, t } = useLanguage();
-  const [documents, setDocuments] = useState([]);
+  const [documents, setDocuments] = useState(() => getDocuments());
   const [showForm, setShowForm] = useState(false);
   const [editDoc, setEditDoc] = useState(null);
   const [form, setForm] = useState({ name: '', category: 'certificate', validUntil: '', notes: '', referenceNumber: '' });
-
-  useEffect(() => { setDocuments(getDocuments()); }, []);
 
   const handleSave = () => {
     if (!form.name.trim()) return;
