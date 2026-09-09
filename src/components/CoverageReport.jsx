@@ -78,6 +78,21 @@ function topicSubtitle(t, topic) {
   }
 }
 
+// One heading treatment for every section, so a reader can tell at a glance what each
+// block is doing for them. The eyebrow names the JOB - what it asks, what is missing,
+// what it costs - and the title says it in words. Before this, four boxes of near
+// identical weight sat under headings of three different sizes, some inside the box and
+// some above it, and nothing told you which was which.
+function SectionHeading({ eyebrow, title, body }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{eyebrow}</p>
+      <h2 className="mt-1 text-xl font-semibold text-slate-900">{title}</h2>
+      {body && <p className="mt-1 text-[15px] leading-relaxed text-slate-500">{body}</p>}
+    </div>
+  );
+}
+
 // The support badge, in the same colours Respond puts on a real answer - so the sample
 // looks like the product rather than like a report about it.
 function SupportBadge({ supported, t }) {
@@ -311,56 +326,37 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
               and read the other way round it was an echo of a list already given. */}
           {topics.length > 0 && (
             <div className="space-y-4">
-              <div>
-                <h2 className="text-xl font-semibold text-slate-900">{t('coverage.topicsTitle')}</h2>
-                <p className="mt-0.5 text-[15px] leading-relaxed text-slate-500">{t('coverage.topicsBody')}</p>
-              </div>
+              <SectionHeading
+                eyebrow={t('coverage.eyebrowAsks')}
+                title={t('coverage.topicsTitle')}
+                body={t('coverage.topicsBody')}
+              />
 
-              <div className="grid gap-3.5 sm:grid-cols-2">
+              {/* One block of rows rather than four cards. Each card used to repeat the
+                  same status breakdown the panel already gives - "answered from your
+                  records" appeared three times on one screen - so the rows are gone and
+                  these say what they are for: how much of each subject was asked, and
+                  which documents speak to it. */}
+              <div className="divide-y divide-slate-100 border border-slate-200 bg-white">
                 {topics.map((bucket) => {
                   const name = topicName(t, bucket.topic);
                   if (!name) return null;
                   const wants = bucket.documents.map(d => documentName(t, d)).filter(Boolean);
                   return (
-                    <div
-                      key={bucket.topic}
-                      className="flex flex-col gap-3.5 border border-slate-200 bg-white p-5"
-                    >
-                      <div>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-3xl font-bold leading-none text-slate-900">{bucket.total}</span>
-                          <span className="text-base font-semibold text-slate-900">{name}</span>
-                        </div>
-                        <p className="mt-1.5 text-[13px] text-slate-500">{topicSubtitle(t, bucket.topic)}</p>
-                      </div>
-
-                      <div className="space-y-1.5 border-t border-slate-100 pt-3">
-                        <div className="flex justify-between text-[13px]">
-                          <span className="text-slate-500">{t('coverage.topicFromRecords')}</span>
-                          <span className="font-semibold text-emerald-600">{bucket.fromRecords}</span>
-                        </div>
-                        {bucket.needsDocument > 0 && (
-                          <div className="flex justify-between text-[13px]">
-                            <span className="text-slate-500">{t('coverage.topicNeedsDocument')}</span>
-                            <span className="font-semibold text-slate-900">{bucket.needsDocument}</span>
-                          </div>
-                        )}
-                        {bucket.needsPolicy > 0 && (
-                          <div className="flex justify-between text-[13px]">
-                            <span className="text-slate-500">{t('coverage.topicNeedsPolicy')}</span>
-                            <span className="font-semibold text-slate-900">{bucket.needsPolicy}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {wants.length > 0 && (
-                        <div className="border-t border-slate-100 pt-3">
-                          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                            {t('coverage.topicWouldAnswer')}
+                    <div key={bucket.topic} className="flex gap-5 px-5 py-4">
+                      <span className="w-8 shrink-0 text-2xl font-bold leading-tight text-slate-900">
+                        {bucket.total}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[15px] font-semibold text-slate-900">{name}</p>
+                        <p className="text-[13px] leading-relaxed text-slate-500">{topicSubtitle(t, bucket.topic)}</p>
+                        {wants.length > 0 && (
+                          <p className="mt-1.5 text-[13px] leading-relaxed text-slate-600">
+                            <span className="text-slate-400">{t('coverage.topicWouldAnswer')}: </span>
+                            {wants.join(' · ')}
                           </p>
-                          <p className="text-[13px] leading-relaxed text-slate-700">{wants.join(' · ')}</p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -369,11 +365,14 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           )}
 
           {documents.length > 0 && (
-            <div className="border border-slate-900 bg-white p-6">
-              <h2 className="text-lg font-semibold text-slate-900">{t('coverage.addDocsTitle')}</h2>
-              <p className="mt-1 text-[15px] leading-relaxed text-slate-500">{t('coverage.addDocsBody')}</p>
+            <div className="space-y-4">
+              <SectionHeading
+                eyebrow={t('coverage.eyebrowMissing')}
+                title={t('coverage.addDocsTitle')}
+                body={t('coverage.addDocsBody')}
+              />
 
-              <div className="mt-4 border-t border-slate-100">
+              <div className="border border-slate-900 bg-white px-6 py-2">
                 {documents.map(entry => (
                   <div
                     key={entry.document}
@@ -411,16 +410,17 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           {/* A paid reader has already bought the answers; the open question is what is
               still missing before they send it. Only a free reader is shown a price. */}
           {canGenerateAnswers ? (
-            <div className="border border-slate-900 bg-white p-6">
-              <h2 className="text-lg font-semibold text-slate-900">
-                {unanswerable.length > 0 ? t('coverage.paidOpenTitle', { count: unanswerable.length }) : t('coverage.paidDoneTitle')}
-              </h2>
-              <p className="mt-1 text-[15px] leading-relaxed text-slate-500">
-                {unanswerable.length > 0 ? t('coverage.paidOpenBody') : t('coverage.paidDoneBody')}
-              </p>
-            </div>
+            <SectionHeading
+              eyebrow={t('coverage.eyebrowBeforeSend')}
+              title={unanswerable.length > 0
+                ? t('coverage.paidOpenTitle', { count: unanswerable.length })
+                : t('coverage.paidDoneTitle')}
+              body={unanswerable.length > 0 ? t('coverage.paidOpenBody') : t('coverage.paidDoneBody')}
+            />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-4">
+              <SectionHeading eyebrow={t('coverage.eyebrowCost')} title={t('coverage.costTitle')} />
+              <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-3 border-2 border-slate-900 bg-white p-6">
                 <h2 className="text-lg font-semibold text-slate-900">{t('coverage.passTitle')}</h2>
                 <ul className="flex-grow space-y-1.5">
@@ -468,6 +468,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 >
                   {t('coverage.passportCta', { price: PASSPORT_PRICE })}
                 </button>
+                </div>
               </div>
             </div>
           )}

@@ -64,12 +64,12 @@ describe('CoverageReport', () => {
 
   it('opens with the questionnaire it read, and counts it once', async () => {
     await render([draft('emissions', 'medium'), draft('workforce', 'medium')]);
-    expect(container.textContent).toContain('What this questionnaire needs');
+    expect(container.textContent).toContain('Questionnaire summary');
     expect(container.textContent).toContain('buyer-saq.xlsx');
 
     // The total belongs to the sticky panel, which survives scrolling. The heading
     // used to carry it too, so the same number was on screen twice.
-    expect(container.textContent).toContain('Questionnaire summary');
+    expect(container.textContent).toContain('Where you stand');
     expect(container.textContent).not.toContain('Your questionnaire: 2 questions');
   });
 
