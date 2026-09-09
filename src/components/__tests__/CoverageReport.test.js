@@ -62,27 +62,33 @@ describe('CoverageReport', () => {
     return coverage;
   }
 
-  it('opens with the questionnaire it read', async () => {
+  it('opens with the questionnaire it read, and counts it once', async () => {
     await render([draft('emissions', 'medium'), draft('workforce', 'medium')]);
-    expect(container.textContent).toContain('Your questionnaire: 2 questions');
+    expect(container.textContent).toContain('What this questionnaire needs');
     expect(container.textContent).toContain('buyer-saq.xlsx');
+
+    // The total belongs to the sticky panel, which survives scrolling. The heading
+    // used to carry it too, so the same number was on screen twice.
+    expect(container.textContent).toContain('Questionnaire summary');
+    expect(container.textContent).not.toContain('Your questionnaire: 2 questions');
   });
 
-  // The raw question list is reference, so it lives in the side panel behind a tab and
-  // the panel scrolls. It used to be the first full-width section on the page, which put
-  // the least decision-relevant thing in the most valuable space.
-  it('keeps every question it read, one tab away', async () => {
+  // The buyer's own question list is not first-impression material - the reader wrote
+  // none of it and has read all of it, and PDF/Word uploads confirm the parsed list in a
+  // step of its own before this screen. It stays reachable, because a spreadsheet skips
+  // that confirmation and a wrong denominator makes every number here false.
+  it('keeps every question it read, but not in the way', async () => {
     const questions = Array.from({ length: 8 }, (_, i) => ({ id: `r${i}`, text: `Read question ${i}` }));
     await render([draft('emissions', 'medium')], {}, { questions });
 
-    // Lands on the answers, not the buyer's list.
     expect(container.textContent).not.toContain('Read question 0');
 
-    const tab = [...container.querySelectorAll('button')].find(b => b.textContent.trim() === 'Questions');
-    expect(tab).toBeTruthy();
-    await act(async () => tab.click());
+    const disclose = [...container.querySelectorAll('button')]
+      .find(b => b.textContent.includes('See the 8 questions we read'));
+    expect(disclose).toBeTruthy();
+    await act(async () => disclose.click());
 
-    // All of them, not a truncated preview: the panel scrolls.
+    // All of them, not a truncated preview.
     for (let i = 0; i < 8; i += 1) {
       expect(container.textContent).toContain(`Read question ${i}`);
     }
@@ -115,7 +121,7 @@ describe('CoverageReport', () => {
 
   it('names the documents that would answer a topic', async () => {
     await render([needing('waste', ['Total waste (kg)'])], { companyData: {} });
-    expect(container.textContent).toContain('Would answer these');
+    expect(container.textContent).toContain('Documents that would help here');
     expect(container.textContent).toContain('Your waste manifest');
   });
 

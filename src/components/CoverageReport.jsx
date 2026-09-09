@@ -78,13 +78,6 @@ function topicSubtitle(t, topic) {
   }
 }
 
-const TOPIC_RULE = {
-  environmental: 'border-t-emerald-600',
-  social: 'border-t-indigo-600',
-  governance: 'border-t-slate-500',
-  other: 'border-t-slate-300',
-};
-
 // The support badge, in the same colours Respond puts on a real answer - so the sample
 // looks like the product rather than like a report about it.
 function SupportBadge({ supported, t }) {
@@ -102,28 +95,27 @@ function SupportBadge({ supported, t }) {
 }
 
 
-// The reference pane: the counts, then the raw question list and the sample answers
-// behind tabs. Sticky from lg up, so the numbers stay put while someone works down the
-// left column. Below lg there is no room for two panes, so the counts stay and the rest
-// hides behind one button - reference material should never cost a phone reader eight
-// screens of scrolling before they reach the thing to do.
+// The panel: where this questionnaire stands, the file to take away, and the answers
+// this produced. Sticky from lg up, so the numbers stay put while someone works down
+// the left column.
+//
+// The raw question list is NOT up front any more. It is the buyer's own content — the
+// reader wrote nothing of it but has read all of it — and PDF and Word uploads already
+// confirm the parsed list in a step of its own before this screen, so for those formats
+// it was the second showing of a list just approved. It stays reachable at the foot of
+// the panel, because a spreadsheet skips that confirmation and a wrong denominator makes
+// every number here false. Reachable, not resident.
 function ReferencePanel({
   t, total, fromRecords, written, unanswerable, questions, sample, remaining, hasOwnData,
   onDownloadChecklist,
 }) {
-  const [tab, setTab] = React.useState(sample.length > 0 ? 'answers' : 'questions');
-  const [openOnSmall, setOpenOnSmall] = React.useState(false);
+  const [showQuestions, setShowQuestions] = React.useState(false);
 
   const counts = [
     [t('coverage.topicFromRecords'), fromRecords.length, 'text-emerald-600'],
     [t('checklist.written'), written.length, 'text-slate-900'],
     [t('checklist.unanswerable'), unanswerable.length, 'text-slate-900'],
   ];
-
-  const tabClass = active =>
-    `flex-1 border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors ${
-      active ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'
-    }`;
 
   return (
     <div className="border border-slate-200 bg-white">
@@ -160,29 +152,65 @@ function ReferencePanel({
         <p className="mt-2.5 text-xs leading-relaxed text-slate-400">{t('coverage.takeawaySaved')}</p>
       </div>
 
-      <button
-        onClick={() => setOpenOnSmall(v => !v)}
-        className="flex w-full items-center justify-between px-5 py-3 text-left text-sm font-medium text-slate-700 lg:hidden"
-      >
-        {openOnSmall ? t('coverage.panelHide') : t('coverage.panelShow', { count: questions.length })}
-        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${openOnSmall ? 'rotate-180' : ''}`} />
-      </button>
-
-      <div className={`${openOnSmall ? 'block' : 'hidden'} lg:block`}>
-        <div className="flex border-b border-slate-100">
-          <button onClick={() => setTab('questions')} className={tabClass(tab === 'questions')}>
-            {t('coverage.tabQuestions')}
-          </button>
-          {sample.length > 0 && (
-            <button onClick={() => setTab('answers')} className={tabClass(tab === 'answers')}>
-              {t('coverage.tabAnswers')}
-            </button>
-          )}
+      {sample.length > 0 && (
+        <div className="border-b border-slate-100">
+          <p className="px-5 pt-4 text-[13px] font-semibold text-slate-900">
+            {t('coverage.sampleTitle', { count: sample.length })}
+          </p>
+          {/* Whose numbers these are. Without their own data the drafts rest on the
+              example workspace, and a sample that does not say so reads as a claim
+              about the reader's company. */}
+          <p className="px-5 pb-3 pt-1 text-[12px] leading-relaxed text-slate-500">
+            {hasOwnData ? t('coverage.sampleBody') : t('coverage.sampleBodyNoData')}
+          </p>
+          <div className="max-h-[22rem] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100">
+            {sample.map(answer => {
+              // The engine attaches a figure to a draft whether or not the answer it
+              // chose rests on it - a Scope 3 "we do not have this on record" came back
+              // carrying the Scope 1 number. Show it only when the answer says it.
+              const figure = answerStatesFigure(answer.answer, answer.value)
+                ? figureWithUnit(answer.value, answer.unit)
+                : null;
+              return (
+                <div key={answer.questionId} className="px-5 py-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-[13px] font-semibold text-slate-900">{answer.questionText}</p>
+                    <SupportBadge supported={fromRecords.includes(answer)} t={t} />
+                  </div>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-slate-600">{answer.answer}</p>
+                  {(figure || answer.document) && (
+                    <p className="mt-1.5 text-xs text-slate-400">
+                      {figure && <span className="font-medium text-slate-600">{figure}</span>}
+                      {/* Only claimed when extraction or the user actually recorded
+                          where the figure came from. Silence is correct when nothing
+                          is known. */}
+                      {answer.document && <span>{figure ? ' · ' : ''}{t('coverage.fromSource', { document: answer.document })}</span>}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+            {remaining > 0 && (
+              <div className="flex items-center gap-2.5 bg-slate-50 px-5 py-3.5">
+                <Lock className="h-4 w-4 shrink-0 text-slate-500" />
+                <span className="text-[13px] text-slate-600">{t('coverage.sampleRemaining', { count: remaining })}</span>
+              </div>
+            )}
+          </div>
         </div>
+      )}
 
-        <div className="max-h-[24rem] overflow-y-auto">
-          {tab === 'questions' ? (
-            <ol className="divide-y divide-slate-100">
+      {questions.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowQuestions(v => !v)}
+            className="flex w-full items-center justify-between px-5 py-3.5 text-left text-[13px] text-slate-500 transition-colors hover:text-slate-700"
+          >
+            {showQuestions ? t('coverage.panelHide') : t('coverage.seeQuestions', { count: questions.length })}
+            <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${showQuestions ? 'rotate-180' : ''}`} />
+          </button>
+          {showQuestions && (
+            <ol className="max-h-[20rem] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100">
               {questions.map((question, index) => (
                 <li key={question.id || index} className="flex gap-2.5 px-5 py-3">
                   <span className="w-5 shrink-0 text-[13px] text-slate-400">{index + 1}.</span>
@@ -190,53 +218,9 @@ function ReferencePanel({
                 </li>
               ))}
             </ol>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              <p className="px-5 pt-4 text-[13px] font-semibold text-slate-900">
-                {t('coverage.sampleTitle', { count: sample.length })}
-              </p>
-              {/* Whose numbers these are. Without their own data the drafts rest on the
-                  example workspace, and a sample that does not say so reads as a claim
-                  about the reader's company. */}
-              <p className="bg-slate-50 px-5 py-2.5 text-[12px] leading-relaxed text-slate-500">
-                {hasOwnData ? t('coverage.sampleBody') : t('coverage.sampleBodyNoData')}
-              </p>
-              {sample.map(answer => {
-                // The engine attaches a figure to a draft whether or not the answer it
-                // chose rests on it - a Scope 3 "we do not have this on record" came back
-                // carrying the Scope 1 number. Show it only when the answer says it.
-                const figure = answerStatesFigure(answer.answer, answer.value)
-                  ? figureWithUnit(answer.value, answer.unit)
-                  : null;
-                return (
-                  <div key={answer.questionId} className="px-5 py-3.5">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-[13px] font-semibold text-slate-900">{answer.questionText}</p>
-                      <SupportBadge supported={fromRecords.includes(answer)} t={t} />
-                    </div>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-slate-600">{answer.answer}</p>
-                    {(figure || answer.document) && (
-                      <p className="mt-1.5 text-xs text-slate-400">
-                        {figure && <span className="font-medium text-slate-600">{figure}</span>}
-                        {/* Only claimed when extraction or the user actually recorded
-                            where the figure came from. Silence is correct when nothing
-                            is known. */}
-                        {answer.document && <span>{figure ? ' · ' : ''}{t('coverage.fromSource', { document: answer.document })}</span>}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-              {remaining > 0 && (
-                <div className="flex items-center gap-2.5 bg-slate-50 px-5 py-3.5">
-                  <Lock className="h-4 w-4 shrink-0 text-slate-500" />
-                  <span className="text-[13px] text-slate-600">{t('coverage.sampleRemaining', { count: remaining })}</span>
-                </div>
-              )}
-            </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -288,7 +272,9 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-          {t('coverage.title', { count: total })}
+          {/* The count lives in the sticky panel, not here. This heading scrolls away;
+              the panel does not, and a status number you cannot see is not a status. */}
+          {t('coverage.title')}
         </h1>
         <p className="mt-1.5 text-sm text-slate-400">
           {questionnaireName && <span>{questionnaireName} · </span>}
@@ -319,46 +305,10 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
 
         {/* LEFT - the work, in the order someone acts on it */}
         <div className="space-y-8 lg:col-start-1 lg:row-start-1">
-          {documents.length > 0 && (
-            <div className="border border-slate-900 bg-white p-6">
-              <h2 className="text-lg font-semibold text-slate-900">{t('coverage.addDocsTitle')}</h2>
-              <p className="mt-1 text-[15px] leading-relaxed text-slate-500">{t('coverage.addDocsBody')}</p>
-
-              <div className="mt-4 border-t border-slate-100">
-                {documents.map(entry => (
-                  <div
-                    key={entry.document}
-                    className="flex flex-col gap-3 border-b border-slate-100 py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"
-                  >
-                    <div className="flex-grow">
-                      <p className="text-[15px] font-medium text-slate-900">{entry.name}</p>
-                      <p className="mt-0.5 text-[13px] text-slate-500">
-                        {documentHolds(t, entry.document)} · {t('coverage.docUnlocks', { count: entry.unlocks })}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        onClick={() => { track('coverage_add_documents_click', { document: entry.document }); navigate('/evidence'); }}
-                        className="inline-flex h-10 items-center gap-2 bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-                      >
-                        <Upload className="h-4 w-4" />
-                        {t('coverage.docUpload')}
-                      </button>
-                      {/* Some of these documents are awkward, and typing four numbers beats
-                          fighting a scanned PDF. Both routes end in the same place. */}
-                      <button
-                        onClick={() => { track('coverage_enter_figures_click', { document: entry.document }); navigate('/data'); }}
-                        className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                      >
-                        {t('coverage.docEnter')}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
+          {/* Asking before missing. The topic cards name the documents each group
+              wants, and the block below lists those same documents with the buttons
+              that act on them - so read in this order the repetition is build-up,
+              and read the other way round it was an echo of a list already given. */}
           {topics.length > 0 && (
             <div className="space-y-4">
               <div>
@@ -374,7 +324,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                   return (
                     <div
                       key={bucket.topic}
-                      className={`flex flex-col gap-3.5 border border-t-[3px] border-slate-200 bg-white p-5 ${TOPIC_RULE[bucket.topic] || 'border-t-slate-300'}`}
+                      className="flex flex-col gap-3.5 border border-slate-200 bg-white p-5"
                     >
                       <div>
                         <div className="flex items-baseline gap-2">
@@ -414,6 +364,46 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {documents.length > 0 && (
+            <div className="border border-slate-900 bg-white p-6">
+              <h2 className="text-lg font-semibold text-slate-900">{t('coverage.addDocsTitle')}</h2>
+              <p className="mt-1 text-[15px] leading-relaxed text-slate-500">{t('coverage.addDocsBody')}</p>
+
+              <div className="mt-4 border-t border-slate-100">
+                {documents.map(entry => (
+                  <div
+                    key={entry.document}
+                    className="flex flex-col gap-3 border-b border-slate-100 py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"
+                  >
+                    <div className="flex-grow">
+                      <p className="text-[15px] font-medium text-slate-900">{entry.name}</p>
+                      <p className="mt-0.5 text-[13px] text-slate-500">
+                        {documentHolds(t, entry.document)} · {t('coverage.docUnlocks', { count: entry.unlocks })}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        onClick={() => { track('coverage_add_documents_click', { document: entry.document }); navigate('/evidence'); }}
+                        className="inline-flex h-10 items-center gap-2 bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+                      >
+                        <Upload className="h-4 w-4" />
+                        {t('coverage.docUpload')}
+                      </button>
+                      {/* Some of these documents are awkward, and typing four numbers beats
+                          fighting a scanned PDF. Both routes end in the same place. */}
+                      <button
+                        onClick={() => { track('coverage_enter_figures_click', { document: entry.document }); navigate('/data'); }}
+                        className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                      >
+                        {t('coverage.docEnter')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

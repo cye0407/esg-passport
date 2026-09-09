@@ -45,7 +45,7 @@ describe('the checklist someone takes away', () => {
     const html = build();
     expect(html).toContain('34');
     expect(html).toContain('Answered from your records');
-    expect(html).toContain('Still need information');
+    expect(html).toContain('Still waiting on something');
   });
 
   it('names the documents to go and find, and what each would answer', () => {
