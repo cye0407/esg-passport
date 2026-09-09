@@ -110,9 +110,8 @@ function SupportBadge({ supported, t }) {
 }
 
 
-// The panel: where this questionnaire stands, the file to take away, and the answers
-// this produced. Sticky from lg up, so the numbers stay put while someone works down
-// the left column.
+// Supporting detail: the answer preview, portable checklist, and raw questions.
+// Status sits above both columns so it is the first thing at every viewport.
 //
 // The raw question list is NOT up front any more. It is the buyer's own content — the
 // reader wrote nothing of it but has read all of it — and PDF and Word uploads already
@@ -126,35 +125,16 @@ function ReferencePanel({
 }) {
   const [showQuestions, setShowQuestions] = React.useState(false);
 
-  const counts = [
-    [t('coverage.topicFromRecords'), fromRecords.length, 'text-emerald-600'],
-    [t('checklist.written'), written.length, 'text-slate-900'],
-    [t('checklist.unanswerable'), unanswerable.length, 'text-slate-900'],
-  ];
-
   return (
-    <div className="border border-slate-200 bg-white">
-      <div className="border-b border-slate-100 p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-          {t('coverage.panelTitle')}
-        </p>
-        <p className="mt-1 text-3xl font-bold leading-none text-slate-900">{total}</p>
-        <dl className="mt-3.5 space-y-1.5 border-t border-slate-100 pt-3">
-          {counts.map(([label, value, tone]) => (
-            <div key={label} className="flex justify-between gap-3 text-[13px]">
-              <dt className="text-slate-500">{label}</dt>
-              <dd className={`font-semibold ${tone}`}>{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-
-      {/* The takeaway sits here rather than at the foot of the page, where it was the
-          last thing under two checkout buttons and read as the consolation prize for
-          not buying. It is the opposite: the only way back to this workspace, since
-          there is no account and no email. Sticky, so it is reachable at the moment
-          someone decides to leave — which is not a moment we get to choose. */}
-      <div className="border-b border-slate-100 p-5">
+    <div className="flex flex-col border border-slate-200 bg-white">
+      {/* The takeaway sits inside the panel rather than at the foot of the page, where
+          it was the last thing under two checkout buttons and read as the consolation
+          prize for not buying. It is the opposite: with no account and no email, a file
+          someone carries out is the only thing that can bring them back. It is NOT
+          sticky — the panel stopped being sticky when the status band moved above both
+          columns — so it scrolls away like everything else. If people turn out to leave
+          without it, that is the first thing to change. */}
+      <div className="order-2 border-b border-slate-100 p-5">
         <p className="text-sm font-semibold text-slate-900">{t('coverage.takeawayTitle')}</p>
         <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{t('coverage.takeawayBody')}</p>
         <button
@@ -168,7 +148,7 @@ function ReferencePanel({
       </div>
 
       {sample.length > 0 && (
-        <div className="border-b border-slate-100">
+        <div className="order-1 border-b border-slate-100">
           <p className="px-5 pt-4 text-[13px] font-semibold text-slate-900">
             {t('coverage.sampleTitle', { count: sample.length })}
           </p>
@@ -178,7 +158,7 @@ function ReferencePanel({
           <p className="px-5 pb-3 pt-1 text-[12px] leading-relaxed text-slate-500">
             {hasOwnData ? t('coverage.sampleBody') : t('coverage.sampleBodyNoData')}
           </p>
-          <div className="max-h-[22rem] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100">
+          <div className="divide-y divide-slate-100 border-t border-slate-100">
             {sample.map(answer => {
               // The engine attaches a figure to a draft whether or not the answer it
               // chose rests on it - a Scope 3 "we do not have this on record" came back
@@ -216,7 +196,7 @@ function ReferencePanel({
       )}
 
       {questions.length > 0 && (
-        <div>
+        <div className="order-3">
           <button
             onClick={() => setShowQuestions(v => !v)}
             className="flex w-full items-center justify-between px-5 py-3.5 text-left text-[13px] text-slate-500 transition-colors hover:text-slate-700"
@@ -225,7 +205,7 @@ function ReferencePanel({
             <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${showQuestions ? 'rotate-180' : ''}`} />
           </button>
           {showQuestions && (
-            <ol className="max-h-[20rem] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100">
+            <ol className="divide-y divide-slate-100 overflow-hidden border-t border-slate-100">
               {questions.map((question, index) => (
                 <li key={question.id || index} className="flex gap-2.5 px-5 py-3">
                   <span className="w-5 shrink-0 text-[13px] text-slate-400">{index + 1}.</span>
@@ -284,7 +264,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-5xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
           {/* The count lives in the sticky panel, not here. This heading scrolls away;
@@ -295,15 +275,39 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           {questionnaireName && <span>{questionnaireName} · </span>}
           {t('coverage.readOnDevice')}
         </p>
+        <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-slate-600">
+          {t('coverage.lead')}
+        </p>
       </div>
 
-      {/* The panel is FIRST in the DOM and placed into column two on lg. Source order is
-          what a phone gets: status and the takeaway, then the work. Left in source order
-          it read counts-last on mobile, which put two price cards ahead of the numbers
-          they are meant to justify. */}
-      <div className="space-y-8 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-8 lg:space-y-0">
-        {/* RIGHT - reference, and it sticks */}
-        <aside className="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-6">
+      <dl className="grid grid-cols-2 border border-slate-200 bg-white sm:grid-cols-4">
+        {[
+          [t('checklist.total'), total, 'text-slate-900'],
+          [t('coverage.topicFromRecords'), fromRecords.length, 'text-emerald-700'],
+          [t('checklist.written'), written.length, 'text-slate-900'],
+          [t('checklist.unanswerable'), unanswerable.length, 'text-slate-900'],
+        ].map(([label, value, tone], index) => (
+          <div
+            key={label}
+            className={`flex flex-col-reverse gap-1 p-4 sm:border-l sm:p-5 sm:first:border-l-0 ${index % 2 ? 'border-l' : ''} ${index > 1 ? 'border-t sm:border-t-0' : ''}`}
+          >
+            {/* Term before definition, as a description list requires; flex-col-reverse
+                puts the number back on top visually. */}
+            <dt className="text-xs leading-snug text-slate-500">{label}</dt>
+            <dd className={`text-3xl font-bold tabular-nums ${tone}`}>{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {/* Desktop keeps supporting detail in a compact second column. Mobile gets the
+          same panel inline after the actionable gaps and before the purchase choice.
+          Both instances are mounted and one is display:none per breakpoint — the panel
+          has to sit in a different COLUMN on desktop and mid-flow on mobile, which no
+          amount of ordering can do from one node. Only the visible copy is in the
+          accessibility tree, so the duplicate buttons are not announced twice. */}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        {/* RIGHT - supporting detail */}
+        <aside className="hidden lg:col-start-2 lg:row-start-1 lg:block">
           <ReferencePanel
             t={t}
             total={total}
@@ -319,17 +323,14 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         </aside>
 
         {/* LEFT - the work, in the order someone acts on it */}
-        <div className="space-y-8 lg:col-start-1 lg:row-start-1">
-          {/* Asking before missing. The topic cards name the documents each group
-              wants, and the block below lists those same documents with the buttons
-              that act on them - so read in this order the repetition is build-up,
-              and read the other way round it was an echo of a list already given. */}
+        <div className="flex flex-col gap-10 lg:col-start-1 lg:row-start-1">
+          {/* Missing items are ordered first: outcome to action. Topic context follows. */}
           {topics.length > 0 && (
-            <div className="space-y-4">
+            <div className="order-2 space-y-4">
               <SectionHeading
                 eyebrow={t('coverage.eyebrowAsks')}
                 title={t('coverage.topicsTitle')}
-                body={t('coverage.topicsBody')}
+                body={t('coverage.topicsBody', { count: total })}
               />
 
               {/* One block of rows rather than four cards. Each card used to repeat the
@@ -341,21 +342,22 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 {topics.map((bucket) => {
                   const name = topicName(t, bucket.topic);
                   if (!name) return null;
-                  const wants = bucket.documents.map(d => documentName(t, d)).filter(Boolean);
+                  const share = total > 0 ? Math.max(4, Math.round((bucket.total / total) * 100)) : 0;
                   return (
-                    <div key={bucket.topic} className="flex gap-5 px-5 py-4">
-                      <span className="w-8 shrink-0 text-2xl font-bold leading-tight text-slate-900">
-                        {bucket.total}
-                      </span>
-                      <div className="min-w-0">
+                    <div key={bucket.topic} className="px-5 py-4">
+                      <div className="flex items-baseline justify-between gap-4">
+                        <div className="min-w-0">
                         <p className="text-[15px] font-semibold text-slate-900">{name}</p>
                         <p className="text-[13px] leading-relaxed text-slate-500">{topicSubtitle(t, bucket.topic)}</p>
-                        {wants.length > 0 && (
-                          <p className="mt-1.5 text-[13px] leading-relaxed text-slate-600">
-                            <span className="text-slate-400">{t('coverage.topicWouldAnswer')}: </span>
-                            {wants.join(' · ')}
-                          </p>
-                        )}
+                        </div>
+                        <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-700">
+                          {bucket.total === 1
+                            ? t('coverage.topicQuestion', { count: bucket.total })
+                            : t('coverage.topicQuestions', { count: bucket.total })}
+                        </p>
+                      </div>
+                      <div className="mt-3 h-1.5 overflow-hidden bg-slate-100" aria-hidden="true">
+                        <div className="h-full bg-slate-700" style={{ width: `${share}%` }} />
                       </div>
                     </div>
                   );
@@ -365,7 +367,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           )}
 
           {documents.length > 0 && (
-            <div className="space-y-4">
+            <div className="order-1 space-y-4">
               <SectionHeading
                 eyebrow={t('coverage.eyebrowMissing')}
                 title={t('coverage.addDocsTitle')}
@@ -407,18 +409,33 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
             </div>
           )}
 
+          <div className="order-3 lg:hidden">
+            <ReferencePanel
+              t={t}
+              total={total}
+              fromRecords={fromRecords}
+              written={written}
+              unanswerable={unanswerable}
+              questions={questions}
+              sample={sample}
+              remaining={remaining}
+              hasOwnData={hasOwnData}
+              onDownloadChecklist={handleDownloadChecklist}
+            />
+          </div>
+
           {/* A paid reader has already bought the answers; the open question is what is
               still missing before they send it. Only a free reader is shown a price. */}
           {canGenerateAnswers ? (
-            <SectionHeading
+            <div className="order-4"><SectionHeading
               eyebrow={t('coverage.eyebrowBeforeSend')}
               title={unanswerable.length > 0
                 ? t('coverage.paidOpenTitle', { count: unanswerable.length })
                 : t('coverage.paidDoneTitle')}
               body={unanswerable.length > 0 ? t('coverage.paidOpenBody') : t('coverage.paidDoneBody')}
-            />
+            /></div>
           ) : (
-            <div className="space-y-4">
+            <div className="order-4 space-y-4">
               <SectionHeading eyebrow={t('coverage.eyebrowCost')} title={t('coverage.costTitle')} />
               <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-3 border-2 border-slate-900 bg-white p-6">
@@ -473,7 +490,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="order-5 flex flex-wrap items-center gap-4">
             {!canGenerateAnswers && (
               <p className="text-xs leading-relaxed text-slate-400">{t('coverage.creditNote', { pass: PASS_PRICE })}</p>
             )}

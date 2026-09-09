@@ -67,10 +67,11 @@ describe('CoverageReport', () => {
     expect(container.textContent).toContain('Questionnaire summary');
     expect(container.textContent).toContain('buyer-saq.xlsx');
 
-    // The total belongs to the sticky panel, which survives scrolling. The heading
-    // used to carry it too, so the same number was on screen twice.
-    expect(container.textContent).toContain('Where you stand');
+    // The total is stated once, in the stat band above both columns. The heading used
+    // to carry it too, and the panel carried it a third time.
+    expect(container.textContent).toContain('Questions asked');
     expect(container.textContent).not.toContain('Your questionnaire: 2 questions');
+    expect(container.textContent).not.toContain('Where you stand');
   });
 
   // The buyer's own question list is not first-impression material - the reader wrote
@@ -119,9 +120,11 @@ describe('CoverageReport', () => {
     expect(text).not.toContain('we cannot answer');
   });
 
-  it('names the documents that would answer a topic', async () => {
+  it('labels topic counts as questions without repeating the missing-document list', async () => {
     await render([needing('waste', ['Total waste (kg)'])], { companyData: {} });
-    expect(container.textContent).toContain('Documents that would help here');
+    expect(container.textContent).toContain('1 question');
+    expect(container.textContent).not.toContain('Documents that would help here');
+    // The document still appears once, in the actionable section with its buttons.
     expect(container.textContent).toContain('Your waste manifest');
   });
 
