@@ -109,6 +109,7 @@ function SupportBadge({ supported, t }) {
 // screens of scrolling before they reach the thing to do.
 function ReferencePanel({
   t, total, fromRecords, written, unanswerable, questions, sample, remaining, hasOwnData,
+  onDownloadChecklist,
 }) {
   const [tab, setTab] = React.useState(sample.length > 0 ? 'answers' : 'questions');
   const [openOnSmall, setOpenOnSmall] = React.useState(false);
@@ -139,6 +140,24 @@ function ReferencePanel({
             </div>
           ))}
         </dl>
+      </div>
+
+      {/* The takeaway sits here rather than at the foot of the page, where it was the
+          last thing under two checkout buttons and read as the consolation prize for
+          not buying. It is the opposite: the only way back to this workspace, since
+          there is no account and no email. Sticky, so it is reachable at the moment
+          someone decides to leave — which is not a moment we get to choose. */}
+      <div className="border-b border-slate-100 p-5">
+        <p className="text-sm font-semibold text-slate-900">{t('coverage.takeawayTitle')}</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{t('coverage.takeawayBody')}</p>
+        <button
+          onClick={onDownloadChecklist}
+          className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
+        >
+          <Download className="h-4 w-4" />
+          {t('coverage.takeawayDownload')}
+        </button>
+        <p className="mt-2.5 text-xs leading-relaxed text-slate-400">{t('coverage.takeawaySaved')}</p>
       </div>
 
       <button
@@ -277,9 +296,29 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         </p>
       </div>
 
+      {/* The panel is FIRST in the DOM and placed into column two on lg. Source order is
+          what a phone gets: status and the takeaway, then the work. Left in source order
+          it read counts-last on mobile, which put two price cards ahead of the numbers
+          they are meant to justify. */}
       <div className="space-y-8 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-8 lg:space-y-0">
+        {/* RIGHT - reference, and it sticks */}
+        <aside className="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-6">
+          <ReferencePanel
+            t={t}
+            total={total}
+            fromRecords={fromRecords}
+            written={written}
+            unanswerable={unanswerable}
+            questions={questions}
+            sample={sample}
+            remaining={remaining}
+            hasOwnData={hasOwnData}
+            onDownloadChecklist={handleDownloadChecklist}
+          />
+        </aside>
+
         {/* LEFT - the work, in the order someone acts on it */}
-        <div className="space-y-8">
+        <div className="space-y-8 lg:col-start-1 lg:row-start-1">
           {documents.length > 0 && (
             <div className="border border-slate-900 bg-white p-6">
               <h2 className="text-lg font-semibold text-slate-900">{t('coverage.addDocsTitle')}</h2>
@@ -443,21 +482,6 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
             </div>
           )}
 
-          {/* What they take with them. There is no account and no email, so the file they
-              carry out is the only way back to this workspace. */}
-          <div className="border border-slate-200 bg-slate-50 p-6">
-            <h2 className="text-lg font-semibold text-slate-900">{t('coverage.takeawayTitle')}</h2>
-            <p className="mt-1 text-[15px] leading-relaxed text-slate-500">{t('coverage.takeawayBody')}</p>
-            <button
-              onClick={handleDownloadChecklist}
-              className="mt-4 inline-flex h-11 items-center gap-2 border border-slate-900 bg-white px-5 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-100"
-            >
-              <Download className="h-4 w-4" />
-              {t('coverage.takeawayDownload')}
-            </button>
-            <p className="mt-3 text-[13px] leading-relaxed text-slate-500">{t('coverage.takeawaySaved')}</p>
-          </div>
-
           <div className="flex flex-wrap items-center gap-4">
             {!canGenerateAnswers && (
               <p className="text-xs leading-relaxed text-slate-400">{t('coverage.creditNote', { pass: PASS_PRICE })}</p>
@@ -470,20 +494,6 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           </div>
         </div>
 
-        {/* RIGHT - reference, and it sticks */}
-        <aside className="lg:sticky lg:top-6">
-          <ReferencePanel
-            t={t}
-            total={total}
-            fromRecords={fromRecords}
-            written={written}
-            unanswerable={unanswerable}
-            questions={questions}
-            sample={sample}
-            remaining={remaining}
-            hasOwnData={hasOwnData}
-          />
-        </aside>
       </div>
     </div>
   );
