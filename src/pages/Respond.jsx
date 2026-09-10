@@ -21,6 +21,7 @@ import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, openCheckout, c
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { track } from '@/lib/track';
+import { clearDynamicImportRecovery, isDynamicImportFailure, recoverFromDynamicImportFailure } from '@/lib/dynamicImportRecovery';
 import {
   claimQuestionnaire,
   getQuestionnairePassClaim,
@@ -58,6 +59,7 @@ async function getEngine() {
     const { createResponseEngine } = await import('response-ready');
     const { esgDomainPack } = await import('response-ready/domain-packs/esg');
     _engine = createResponseEngine(esgDomainPack);
+    clearDynamicImportRecovery();
   }
   return _engine;
 }
@@ -550,6 +552,7 @@ export default function Respond({ demoOnly = false }) {
         setParseError(localizeEngineMessages(result.errors, t).join(' '));
       }
     } catch (error) {
+      if (recoverFromDynamicImportFailure(error)) return;
       track('respond_parse_completed', {
         ext: questionnaireExtension(file.name),
         outcome: 'error',
@@ -561,7 +564,9 @@ export default function Respond({ demoOnly = false }) {
       });
       console.error('Questionnaire parse failed:', error);
       const message = error instanceof Error ? error.message : '';
-      setParseError(message ? `${t('respond.errUnreadable')} ${message}` : t('respond.errUnreadable'));
+      setParseError(isDynamicImportFailure(error)
+        ? t('respond.errAppUpdate')
+        : (message ? `${t('respond.errUnreadable')} ${message}` : t('respond.errUnreadable')));
     } finally {
       setParsing(false);
     }
