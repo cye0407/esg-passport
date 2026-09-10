@@ -112,6 +112,29 @@ describe('Respond renders', () => {
     // The whole point of the entitlement split: free brings its own questionnaire.
     expect(container.querySelector('input[type="file"]')).not.toBeNull();
   });
+
+  it('keeps onboarding questionnaire entry focused on the upload task', async () => {
+    mockEntitlements.mockReturnValue({
+      tier: 'free',
+      entitlements: TIERS.free,
+      licenseKeyId: null,
+      isPaid: false,
+    });
+    await act(async () => {
+      root.render(
+        React.createElement(
+          MemoryRouter,
+          { initialEntries: ['/respond?focus=questionnaire'] },
+          React.createElement(Respond),
+        ),
+      );
+    });
+
+    expect(container.textContent).not.toContain('Previous');
+    expect(container.textContent).not.toContain('Readiness');
+    expect(container.textContent).not.toContain('No questionnaire handy');
+    expect(container.querySelector('input[type="file"]')).not.toBeNull();
+  });
 });
 
 // Home and Data took the same kind of edit this week — new effects, a moved early

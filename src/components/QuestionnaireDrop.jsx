@@ -30,7 +30,7 @@ export default function QuestionnaireDrop({ compact = false }) {
     setError(null);
     setHandoff({ kind: 'questionnaire', file });
     track('dashboard_questionnaire_dropped');
-    navigate('/respond');
+    navigate('/respond?focus=questionnaire');
   };
 
   return (

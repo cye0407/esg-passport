@@ -118,6 +118,10 @@ export default function Respond({ demoOnly = false }) {
   const canExport = entitlements.canExportResponses && !demoOnly;
   const isDemo = !canGenerate;
   const [searchParams] = useSearchParams();
+  // A person arriving from onboarding or the dashboard has already chosen the
+  // questionnaire job. Do not drop them into the legacy multipurpose workspace and
+  // ask them to choose again between upload, history and abstract readiness tooling.
+  const focusedEntry = searchParams.get('focus') === 'questionnaire';
   const requestId = searchParams.get('requestId');
   const linkedRequest = requestId ? getRequestById(requestId) : null;
   const devExportsEnabled = (
@@ -2353,7 +2357,7 @@ export default function Respond({ demoOnly = false }) {
         </div>
       )}
 
-      {canUpload && (
+      {canUpload && !focusedEntry && (
         <div className="order-3 flex gap-1 bg-slate-100 rounded-none p-1">
           {[
             { id: 'upload', label: t('respond.tabUpload'), icon: UploadIcon },
@@ -2375,7 +2379,7 @@ export default function Respond({ demoOnly = false }) {
       )}
 
       {/* Data nudge — warn users with empty/sparse Data store before they upload */}
-      {canUpload && setupSkipped && (
+      {canUpload && !focusedEntry && setupSkipped && (
         <div className="order-6 bg-white border border-slate-200 rounded-none p-3 flex items-center gap-3 sm:order-4">
           <Shield className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
@@ -2390,7 +2394,7 @@ export default function Respond({ demoOnly = false }) {
         </div>
       )}
 
-      {canUpload && (() => {
+      {canUpload && !focusedEntry && (() => {
         const hasAnyData = hasUsableWorkspaceData();
         if (hasAnyData) return null;
         return (
@@ -2415,6 +2419,7 @@ export default function Respond({ demoOnly = false }) {
         <>
           {/* Try with sample — quick example path for users without a real questionnaire */}
           {(() => {
+            if (focusedEntry) return null;
             const sample = [...templates].sort((a, b) => (a.questionCount || 999) - (b.questionCount || 999))[0];
             if (!sample) return null;
             return (
@@ -2539,7 +2544,7 @@ export default function Respond({ demoOnly = false }) {
             </div>
           )}
 
-          {canUpload && !linkedRequest && requests.length > 0 && (
+          {canUpload && !focusedEntry && !linkedRequest && requests.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-none p-4">
               <Label className="text-sm text-slate-600 mb-2 block">{t('respond.linkRequest')}</Label>
               <Select value={selectedRequestId} onValueChange={setSelectedRequestId}>
