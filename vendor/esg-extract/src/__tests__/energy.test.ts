@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { extractFromText } from '../extractors/registry';
 import { toPassportRecord } from '../output/passport';
 import { toResponseReadyData } from '../output/responseReady';
@@ -161,6 +163,24 @@ describe('Water extraction', () => {
     expect(water).toBeDefined();
     expect(water!.value).toBe(245);
     expect(water!.unit).toBe('m3');
+  });
+
+  it.each([
+    ['wasser-q1-2025.txt', 2200, '2025-01'],
+    ['wasser-q2-2025.txt', 1900, '2025-04'],
+    ['wasser-q3-2025.txt', 1850, '2025-07'],
+    ['wasser-q4-2025.txt', 2130, '2025-10'],
+  ])('never converts %s water volume into electricity', (file, expected, period) => {
+    const text = readFileSync(resolve('testing/demo-bills', file), 'utf8');
+    const result = extractFromText(text);
+
+    expect(result.documentType).toBe('water_bill');
+    expect(result.period).toBe(period);
+    expect(result.fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: 'waterM3', value: expected, unit: 'm3' }),
+    ]));
+    expect(result.fields.find(field => field.field === 'electricityKwh')).toBeUndefined();
+    expect(result.fields.find(field => field.field === 'naturalGasKwh')).toBeUndefined();
   });
 });
 
