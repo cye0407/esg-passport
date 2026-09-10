@@ -5,7 +5,7 @@ import { track, trackOnce } from '@/lib/track';
 import { useLanguage } from '@/components/LanguageContext';
 import { marketingUrl } from '@/lib/checkout';
 import { Button } from '@/components/ui/button';
-import { Upload, ArrowRight, ArrowLeft, Database, Shield } from 'lucide-react';
+import { Upload, ArrowRight, ArrowLeft, Database, FileText, Shield } from 'lucide-react';
 
 // First run. One screen, one obvious action: put the questionnaire in.
 //
@@ -92,7 +92,19 @@ export default function Onboarding() {
             <span>{t('onboard.privacy')}</span>
           </div>
 
+          {/* Bills and certificates are free to read at every tier, and until now the
+              first screen of the free flow offered no way to hand one over — the door
+              only existed on the dashboard, which nobody sees until this screen is
+              past. Someone who has a stack of bills but no questionnaire yet had
+              nothing to do here. */}
           <div className="border-t border-slate-100 pt-5 space-y-3">
+            <button
+              onClick={() => start('/evidence')}
+              className="w-full text-left text-sm font-medium text-slate-900 inline-flex items-center gap-2 hover:text-slate-700"
+            >
+              <FileText className="w-4 h-4" />
+              {t('onboard.documentsCta')}
+            </button>
             <button
               onClick={() => start('/demo', { skipped: true })}
               className="w-full text-left text-sm text-slate-600 hover:text-slate-900"
