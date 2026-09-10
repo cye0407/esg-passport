@@ -167,7 +167,13 @@ describe('the other pages I changed render', () => {
       }],
     });
 
-    await mount(Data);
+    await act(async () => {
+      root.render(React.createElement(
+        React.StrictMode,
+        null,
+        React.createElement(MemoryRouter, null, React.createElement(Data)),
+      ));
+    });
     await act(async () => {});
 
     expect(container.textContent).toContain('2025');
