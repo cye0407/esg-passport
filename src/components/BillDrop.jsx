@@ -22,7 +22,7 @@ import { useLanguage } from '@/components/LanguageContext';
  *     arrival, so the drop and the review are not two different uploaders. Processed
  *     once; the caller has already consumed its hand-off, so a re-render never re-reads.
  */
-export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = null }) {
+export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = null, inputId }) {
   const { lang, t } = useLanguage();
   const [dragging, setDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -182,6 +182,7 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
         `}
       >
         <input
+          id={inputId}
           ref={fileInputRef}
           type="file"
           multiple
