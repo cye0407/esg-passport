@@ -243,8 +243,14 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
 
   // Answered-from-records first: those carry the reader's own numbers and are the only
   // part of this page no one else could have produced.
-  const sample = [...fromRecords, ...written].slice(0, SAMPLE_ANSWERS);
-  const remaining = Math.max(0, total - sample.length);
+  // A free visitor has not bought generated answers, and the current engine can turn
+  // absence into confident-sounding prose (or a partial-period bill into an annual
+  // statement). Do not use that output as a sales preview. Paid workspaces retain the
+  // answer panel because it is part of the product they already have access to.
+  const sample = canGenerateAnswers
+    ? [...fromRecords, ...written].slice(0, SAMPLE_ANSWERS)
+    : [];
+  const remaining = canGenerateAnswers ? Math.max(0, total - sample.length) : 0;
 
   const documents = missingDocuments
     .map(entry => ({ ...entry, name: documentName(t, entry.document) }))
