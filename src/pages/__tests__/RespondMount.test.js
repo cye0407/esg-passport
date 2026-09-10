@@ -32,6 +32,8 @@ import Respond from '../Respond';
 import Home from '../Home';
 import Data from '../Data';
 import { saveSettings } from '@/lib/store';
+import { getDataRecords } from '@/lib/store';
+import { setHandoff } from '@/lib/handoff';
 
 const TIERS = {
   free: {
@@ -176,6 +178,23 @@ describe('the other pages I changed render', () => {
   it('the data page mounts', async () => {
     await mount(Data);
     expect(container.textContent.length).toBeGreaterThan(0);
+  });
+
+  it('shows and persists the year delivered by an extraction handoff', async () => {
+    setHandoff({
+      kind: 'extraction',
+      items: [{
+        period: '2025-03',
+        fileName: 'electricity-march.pdf',
+        fields: [{ field: 'electricityKwh', value: 198000 }],
+      }],
+    });
+
+    await mount(Data);
+    await act(async () => {});
+
+    expect(container.textContent).toContain('2025');
+    expect(getDataRecords().find(record => record.period === '2025-03')?.energy?.electricityKwh).toBe(198000);
   });
 
   it('onboarding mounts for someone who has not set up', async () => {
