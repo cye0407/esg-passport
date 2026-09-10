@@ -5,7 +5,7 @@ import BillDrop from '@/components/BillDrop';
 import JourneySpine from '@/components/JourneySpine';
 import { useLanguage } from '@/components/LanguageContext';
 import { track } from '@/lib/track';
-import { setHandoff } from '@/lib/handoff';
+import { setHandoff, takeHandoff } from '@/lib/handoff';
 import { getSettings } from '@/lib/store';
 import { readCoverageStash } from '@/lib/coverageStash';
 import { documentName, documentHolds } from '@/lib/documentLabels';
@@ -26,6 +26,10 @@ export default function Evidence() {
   // is an empty array. The upload then appeared to do nothing at all.
   const batch = useRef([]);
   const stash = useMemo(() => readCoverageStash(), []);
+  // Bills dropped on the dashboard. Consumed once, on mount, and handed straight to
+  // BillDrop — the drop happens where the user is standing, the reading happens here,
+  // where the review dialog and the /data hand-off already live.
+  const dropped = useMemo(() => takeHandoff('documents')?.files || null, []);
 
   useEffect(() => {
     track('evidence_page_viewed', { wanted: stash?.missingDocuments?.length || 0 });
@@ -87,6 +91,7 @@ export default function Evidence() {
       )}
 
       <BillDrop
+        incoming={dropped}
         onDataExtracted={(fields, period, fileName) => {
           batch.current.push({ fields, period, fileName });
         }}

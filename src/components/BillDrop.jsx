@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { extractFromText } from '@extract/extractors/registry';
 import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
 import { readPdfText, isUnreadablePdfText } from '../../web-helpers/pdfReader';
@@ -18,8 +18,11 @@ import { useLanguage } from '@/components/LanguageContext';
  *     cancelled. Several files are reviewed one dialog at a time, so a parent that reacts
  *     to the FIRST onDataExtracted — by navigating away, or by opening a dialog of its own
  *     over the next review — loses every document after it.
+ *   incoming — files dropped somewhere else (the dashboard) and handed here to read on
+ *     arrival, so the drop and the review are not two different uploaders. Processed
+ *     once; the caller has already consumed its hand-off, so a re-render never re-reads.
  */
-export default function BillDrop({ onDataExtracted, onBatchComplete }) {
+export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = null }) {
   const { lang, t } = useLanguage();
   const [dragging, setDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -105,6 +108,19 @@ export default function BillDrop({ onDataExtracted, onBatchComplete }) {
       setQueue(allResults.slice(1));
     }
   }, [processFile, t]);
+
+  // Files handed over from another screen. The ref guards against a second pass if the
+  // parent re-renders with the same array — reading a bill twice would ask the user to
+  // confirm the same figures again.
+  const consumedIncoming = useRef(false);
+  useEffect(() => {
+    if (consumedIncoming.current) return;
+    if (!incoming || incoming.length === 0) return;
+    consumedIncoming.current = true;
+    // Deferred a tick: processFiles sets the reading state on its first line, and doing
+    // that synchronously inside an effect makes React re-render mid-commit.
+    queueMicrotask(() => processFiles(incoming));
+  }, [incoming, processFiles]);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();

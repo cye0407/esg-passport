@@ -139,9 +139,15 @@ const EVENT_SCHEMA = {
   csv_import_succeeded: { rows: count(), format: slug() },
   csv_import_failed: { error: slug() },
 
-  // The dashboard's drop target
+  // The dashboard's two drop targets, and the switcher between them. `tab` is the one
+  // number that says whether the default-selection rules in homeTab.js are right: a
+  // switch immediately after landing means the wrong door was open.
   dashboard_questionnaire_dropped: {},
   dashboard_questionnaire_rejected: { ext: UPLOAD_EXT },
+  dashboard_documents_dropped: { documents: count() },
+  dashboard_document_rejected: { ext: UPLOAD_EXT },
+  home_tab_switched: { tab: slug() },
+  home_documents_cta: { documents: count() },
 
   // Evidence
   evidence_page_viewed: { wanted: count() },
