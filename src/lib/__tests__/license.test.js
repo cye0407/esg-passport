@@ -399,6 +399,56 @@ describe('license flow', () => {
     expect(result.tier).not.toBe('pro');
   });
 
+  // --- A fresh timestamp must not buy a free pass -----------------------------
+  // The escalation this closes: edit `tier` to 'pro' in localStorage, set
+  // `last_validated` to today in the same blob, and the old seven-day gate meant the
+  // API was never asked again. Both fields were equally editable, so the check
+  // supervised nothing.
+  it('revalidates even when the stored timestamp claims it was just checked', async () => {
+    localStorage.setItem('esg_passport_license', JSON.stringify({
+      key: 'tampered-key-1234',
+      activated_at: new Date().toISOString(),
+      last_validated: new Date().toISOString(),
+      tier: 'pro',
+    }));
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ error: 'not_found' }),
+    });
+    const { revalidateStoredLicense } = await import('../license');
+
+    expect(await revalidateStoredLicense()).toBe(false);
+    expect(mockFetch).toHaveBeenCalled();
+    expect(localStorage.getItem('esg_passport_license')).toBeNull();
+  });
+
+  it('asks the API once per launch, not once per call', async () => {
+    localStorage.setItem('esg_passport_license', storedPro());
+    mockFetch.mockResolvedValue({
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({
+        valid: true,
+        meta: { product_name: 'ESG Passport' },
+        license_key: { id: 42 },
+        instance: { id: 'existing-instance' },
+      }),
+    });
+    const { revalidateStoredLicense, resetRevalidationGuard } = await import('../license');
+
+    await revalidateStoredLicense();
+    await revalidateStoredLicense();
+    await revalidateStoredLicense();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    // A reload is a new launch, and must ask again.
+    resetRevalidationGuard();
+    await revalidateStoredLicense();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
   it('fails closed for an unfamiliar tier stored locally', async () => {
     localStorage.setItem('esg_passport_license', JSON.stringify({
       key: 'abcd-1234',

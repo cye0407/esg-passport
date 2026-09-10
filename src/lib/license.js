@@ -405,16 +405,31 @@ export function getLicenseTier() {
  * Returns true if still valid, false if expired/revoked.
  * On network error, assumes still valid (offline-friendly).
  */
+// One attempt per page load. Deliberately in memory rather than a stored timestamp:
+// the old gate skipped revalidation while `last_validated` was under seven days old,
+// and that field sits in the same localStorage blob as `tier` — so anyone who edited
+// their tier to 'pro' could set the timestamp to today in the same breath and the check
+// would never run again. A module-level flag cannot be edited from the console, resets
+// on reload, and keeps us to a single API call per launch.
+//
+// This raises the bar; it does not close the door. The app is local-first, so the
+// bundle is on the user's machine and gating there is an honour system by
+// construction — the same class as the one-questionnaire counter. What this does buy:
+// a fabricated key comes back definitively invalid and the licence is wiped, so casual
+// tampering has to be redone at every launch instead of once.
+let revalidationAttempted = false;
+
+/** Test seam: the flag lives for the page's lifetime, and tests need several launches. */
+export function resetRevalidationGuard() {
+  revalidationAttempted = false;
+}
+
 export async function revalidateStoredLicense() {
   const stored = getStoredLicense();
   if (!stored?.key) return false;
 
-  // Only re-validate once per 7 days — unless the stored license predates
-  // tier tracking, in which case we force a fresh check so the user gets
-  // the right tier-aware UX on this launch.
-  const lastValidated = stored.last_validated ? new Date(stored.last_validated) : new Date(0);
-  const daysSinceValidation = (Date.now() - lastValidated.getTime()) / (1000 * 60 * 60 * 24);
-  if (daysSinceValidation < 7 && getLicenseTier() !== 'free' && stored.tier) return true;
+  if (revalidationAttempted) return getLicenseTier() !== 'free';
+  revalidationAttempted = true;
 
   try {
     const result = await validateLicenseKey(stored.key, { instanceId: stored.instance_id });
