@@ -81,7 +81,9 @@ function extractByType(text: string, docType: DocumentType, config?: ExtractionC
       return fuelResult.fields.length > gasResult.fields.length ? fuelResult : gasResult;
     }
     case 'water_bill':
-      return extractEnergy(text, config); // water patterns in generic matcher
+      // Preserve the registry's confident classification. The shared utility
+      // extractor must not reclassify water volume as gas and then electricity.
+      return extractEnergy(text, { ...config, forceType: 'water_bill' });
     case 'waste_manifest':
       return extractWaste(text, config);
     case 'payroll_summary':

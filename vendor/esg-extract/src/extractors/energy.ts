@@ -72,10 +72,12 @@ function detectProvider(text: string): string | undefined {
 }
 
 /** Detect if this is an electricity vs gas document */
-function detectEnergyType(text: string): 'electricity_bill' | 'gas_invoice' {
+function detectEnergyType(text: string): 'electricity_bill' | 'gas_invoice' | 'water_bill' {
   const lower = text.toLowerCase();
+  const waterScore = (lower.match(/\b(wasserrechnung|wasserverbrauch|wasserbezug|trinkwasser|water\s*(?:bill|consumption|withdrawal|usage)|consommation\s*d'eau)\b/g) || []).length;
   const gasScore = (lower.match(/\b(gas|erdgas|gaz\s*naturel|natural\s*gas|gasverbrauch|facture\s*de\s*gaz)\b/g) || []).length;
   const elecScore = (lower.match(/\b(electricity|strom|électricité|stromrechnung)\b/g) || []).length;
+  if (waterScore > gasScore && waterScore > elecScore) return 'water_bill';
   return gasScore > elecScore ? 'gas_invoice' : 'electricity_bill';
 }
 
@@ -86,7 +88,10 @@ export function extractEnergy(
   text: string,
   config?: ExtractionConfig,
 ): ExtractionResult {
-  const documentType = config?.forceType || detectEnergyType(text);
+  const requestedType = config?.forceType;
+  const documentType = requestedType === 'water_bill' || requestedType === 'gas_invoice' || requestedType === 'electricity_bill'
+    ? requestedType
+    : detectEnergyType(text);
   const provider = detectProvider(text);
   const period = detectPeriod(text);
 
@@ -95,7 +100,9 @@ export function extractEnergy(
 
   // Keep only fields that make sense for the detected document type and
   // recover obvious mislabeled kWh fields from provider-specific layouts.
-  if (documentType === 'electricity_bill') {
+  if (documentType === 'water_bill') {
+    fields = fields.filter(field => field.field === 'waterM3' || field.field === 'waterSourceMunicipalPercent');
+  } else if (documentType === 'electricity_bill') {
     if (!fields.some(field => field.field === 'electricityKwh')) {
       const fallback = fields.find(field => field.field === 'naturalGasKwh');
       if (fallback) {
@@ -131,7 +138,7 @@ export function extractEnergy(
   // If only water fields were extracted, correct the document type
   const hasWaterOnly = fields.every(f => f.field === 'waterM3' || f.field === 'waterSourceMunicipalPercent');
   const hasWater = fields.some(f => f.field === 'waterM3');
-  const finalDocType = (hasWater && hasWaterOnly) ? 'water_bill' as const : documentType;
+  const finalDocType = documentType === 'water_bill' || (hasWater && hasWaterOnly) ? 'water_bill' as const : documentType;
 
   // Detect gaps
   const gaps: string[] = [];
