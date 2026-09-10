@@ -160,6 +160,10 @@ const EVENT_SCHEMA = {
   // `kept` and `dropped` are the pair that says whether this step is earning its place.
   questionnaire_confirm_shown: { questions: count(), rows: count(), thin: bool(), ext: UPLOAD_EXT },
   questionnaire_confirmed: { kept: count(), dropped: count() },
+  // Someone acted on the thin-parse warning by going to pick the question column
+  // themselves. Pairs with questionnaire_confirm_shown's `thin` flag: shown-but-never-
+  // remapped means the warning is being read and ignored, which is worth knowing.
+  questionnaire_remap_opened: { columns: count() },
 
   // The coverage report. `coverage_report_viewed` is the number that says the free tier
   // change worked: over the previous year the funnel recorded two paywall hits, because

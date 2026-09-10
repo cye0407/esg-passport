@@ -475,6 +475,23 @@ export default function Respond({ demoOnly = false }) {
     removeFile();
   }
 
+  // The thin-parse warning tells the reader to choose the question column themselves, and
+  // that column chooser only ever opened when a parse found NOTHING — so the one case the
+  // warning exists for (2 questions out of 80 populated rows) had no way to act on it.
+  // "Use a different file" cannot double as this: it clears the file, and the re-parse
+  // button renders only while a file is loaded.
+  function remapQuestionColumn() {
+    const columns = pendingConfirm?.parseResult?.metadata?.availableColumns || [];
+    setPendingConfirm(null);
+    setConfirmedIds(new Set());
+    setPhase('upload');
+    setParseError(null);
+    setPassBlock(null);
+    setMappingColumns(columns);
+    setShowMapping(true);
+    track('questionnaire_remap_opened', { columns: columns.length });
+  }
+
   async function confirmQuestionnairePassClaim() {
     const pending = pendingPassClaim;
     if (!pending) return;
@@ -1473,6 +1490,11 @@ export default function Respond({ demoOnly = false }) {
           <span className="text-sm text-slate-500">
             {t('confirm.selected', { count: confirmedIds.size, total: parsed.length })}
           </span>
+          {pendingConfirm.review?.thin && pendingConfirm.parseResult?.metadata?.availableColumns?.length > 0 && (
+            <button onClick={remapQuestionColumn} className="text-sm font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
+              {t('confirm.chooseColumn')}
+            </button>
+          )}
           <button onClick={cancelQuestionList} className="text-sm text-slate-500 hover:text-slate-700 underline ml-auto">
             {t('confirm.back')}
           </button>
