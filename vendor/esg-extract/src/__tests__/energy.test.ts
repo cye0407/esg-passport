@@ -139,6 +139,17 @@ describe('Energy extraction', () => {
     const result = extractFromText(MWH_BILL);
     expect(result.period).toBe('2025-02');
   });
+
+  it('keeps the month from a European billing range', () => {
+    const result = extractFromText(`
+      Stromrechnung
+      Abrechnungszeitraum: 01.03.2025 - 31.03.2025
+      Stromverbrauch gesamt 198.000 kWh
+    `);
+
+    expect(result.period).toBe('2025-03');
+    expect(result.fields.every(field => field.period === '2025-03')).toBe(true);
+  });
 });
 
 describe('Water extraction', () => {

@@ -14,9 +14,9 @@ function detectPeriod(text: string): string | undefined {
   if (isoMatch) return isoMatch[1];
 
   // European date range: 01.01.2025 - 31.01.2025
-  const euRange = /\d{1,2}\.\d{1,2}\.(\d{4})\s*(?:to|bis|au|–|-)\s*\d{1,2}\.\d{1,2}\.\d{4}/i;
+  const euRange = /\d{1,2}\.(\d{1,2})\.(\d{4})\s*(?:to|bis|au|–|-)\s*\d{1,2}\.\d{1,2}\.\d{4}/i;
   const euMatch = euRange.exec(text);
-  if (euMatch) return euMatch[1];
+  if (euMatch) return `${euMatch[2]}-${euMatch[1].padStart(2, '0')}`;
 
   // Month + Year: January 2025, Januar 2025, Janvier 2025
   const monthYear = /\b(jan(?:uar[iy]?)?|feb(?:ruar[iy]?)?|m[aä]r[czs]?|apr(?:il)?|ma[iy]|jun[ei]?|jul[iy]?|aug(?:ust)?|sep(?:tember)?|o[ck]t(?:ober)?|nov(?:ember)?|de[czs](?:ember)?)\s*(\d{4})\b/i;
