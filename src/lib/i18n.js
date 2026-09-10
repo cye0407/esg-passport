@@ -899,7 +899,10 @@ const translations = {
     'results.masterSave': 'Save as Master Answer',
     // Confirming a parsed question list before anything is counted.
     'confirm.title': 'Does this look like your questionnaire?',
-    'confirm.body': 'We read {count} questions out of {fileName}. PDFs and Word files are the hardest to read reliably, so please check the list before we count anything. Untick anything that is not a question.',
+    'confirm.body': 'We read {count} questions out of {fileName}. Please check the list before we count anything. Untick anything that is not a question.',
+    'confirm.thinTitle': 'This question list looks unusually short',
+    'confirm.thinBody': 'We found {count} questions across {rows} populated rows or lines. Check the list carefully. If questions are missing, go back and choose the question column manually or try another file format.',
+    'confirm.chooseColumn': 'Choose the question column',
     'confirm.selected': '{count} of {total} selected',
     'confirm.cta': 'Yes, these are the questions',
     'confirm.back': 'Use a different file',
@@ -1934,7 +1937,10 @@ const translations = {
     'results.masterSave': 'Als Standardantwort speichern',
     // Bestätigung der erkannten Fragenliste, bevor irgendetwas gezählt wird.
     'confirm.title': 'Sieht das nach Ihrem Fragebogen aus?',
-    'confirm.body': 'Wir haben {count} Fragen aus {fileName} gelesen. PDF- und Word-Dateien sind am schwersten zuverlässig zu lesen — bitte prüfen Sie die Liste, bevor wir etwas zählen. Haken Sie ab, was keine Frage ist.',
+    'confirm.body': 'Wir haben {count} Fragen aus {fileName} gelesen. Bitte prüfen Sie die Liste, bevor wir etwas zählen. Haken Sie ab, was keine Frage ist.',
+    'confirm.thinTitle': 'Diese Fragenliste wirkt ungewöhnlich kurz',
+    'confirm.thinBody': 'Wir haben {count} Fragen in {rows} befüllten Zeilen oder Textzeilen gefunden. Prüfen Sie die Liste sorgfältig. Wenn Fragen fehlen, gehen Sie zurück und wählen Sie die Fragenspalte manuell aus oder versuchen Sie ein anderes Dateiformat.',
+    'confirm.chooseColumn': 'Fragenspalte auswählen',
     'confirm.selected': '{count} von {total} ausgewählt',
     'confirm.cta': 'Ja, das sind die Fragen',
     'confirm.back': 'Andere Datei verwenden',

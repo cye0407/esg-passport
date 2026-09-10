@@ -30,6 +30,11 @@ import { saveAs } from 'file-saver';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  questionnaireExtension,
+  requiresQuestionConfirmation,
+  thinParseSummary,
+} from '@/lib/questionnaireReview';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -366,24 +371,27 @@ export default function Respond({ demoOnly = false }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Formats where the question list has to be confirmed before anything is counted.
-  // A spreadsheet has rows, and the parser already reports totalRows against
-  // parsedRows; a PDF has prose, and the parser found 22 of roughly 50 questions in a
-  // real Drive Sustainability SAQ. Reporting "18 of 22 substantiated" against a
-  // denominator that wrong makes every number on the coverage report false, and
-  // confidently so. Better to make the failure visible than to hide it in a total.
-  const NEEDS_QUESTION_CONFIRMATION = /\.(pdf|docx?)$/i;
-
+  // Every uploaded format confirms the question list before anything is counted. A
+  // spreadsheet has useful row metadata, but a labelled question column can still contain
+  // legends or other junk; PDFs and Word files can silently miss questions in prose. A
+  // wrong denominator makes every number on the coverage report false in either direction.
   function beginQuestionnaireProcessing(pr, name, { isBuiltInSample = false } = {}) {
     const builtInSample = isBuiltInSample || pr?.metadata?.source === 'built-in-sample';
 
     // Confirmation comes before the Questionnaire Pass claim: nobody should spend
     // their one allowance on a question list that was read wrong.
-    if (!builtInSample && NEEDS_QUESTION_CONFIRMATION.test(pr?.metadata?.fileName || name || '')) {
-      setPendingConfirm({ parseResult: pr, name });
+    const sourceName = pr?.metadata?.fileName || name || '';
+    if (!builtInSample && requiresQuestionConfirmation(sourceName)) {
+      const review = thinParseSummary(pr);
+      setPendingConfirm({ parseResult: pr, name, review });
       setConfirmedIds(new Set((pr?.questions || []).map(q => q.id)));
       setPhase('confirm');
-      track('questionnaire_confirm_shown', { questions: pr?.questions?.length || 0 });
+      track('questionnaire_confirm_shown', {
+        questions: review.questions,
+        rows: review.rows,
+        thin: review.thin,
+        ext: questionnaireExtension(sourceName),
+      });
       return;
     }
 
@@ -467,6 +475,23 @@ export default function Respond({ demoOnly = false }) {
     removeFile();
   }
 
+  // The thin-parse warning tells the reader to choose the question column themselves, and
+  // that column chooser only ever opened when a parse found NOTHING — so the one case the
+  // warning exists for (2 questions out of 80 populated rows) had no way to act on it.
+  // "Use a different file" cannot double as this: it clears the file, and the re-parse
+  // button renders only while a file is loaded.
+  function remapQuestionColumn() {
+    const columns = pendingConfirm?.parseResult?.metadata?.availableColumns || [];
+    setPendingConfirm(null);
+    setConfirmedIds(new Set());
+    setPhase('upload');
+    setParseError(null);
+    setPassBlock(null);
+    setMappingColumns(columns);
+    setShowMapping(true);
+    track('questionnaire_remap_opened', { columns: columns.length });
+  }
+
   async function confirmQuestionnairePassClaim() {
     const pending = pendingPassClaim;
     if (!pending) return;
@@ -492,6 +517,17 @@ export default function Respond({ demoOnly = false }) {
         ? await engine.parseWithMapping(file, columnMapping)
         : await engine.parseFile(file);
 
+      const review = thinParseSummary(result);
+      track('respond_parse_completed', {
+        ext: questionnaireExtension(file.name),
+        outcome: result.success && result.questions.length > 0 ? 'success' : 'empty',
+        questions: review.questions,
+        rows: review.rows,
+        confidence: result.metadata?.autoDetectionConfidence || 'unknown',
+        manual_mapping: Boolean(showMapping && columnMapping.questionText),
+        thin: review.thin,
+      });
+
       if (result.success && result.questions.length > 0) {
         beginQuestionnaireProcessing(result, file.name);
       } else if (result.questions.length === 0) {
@@ -504,6 +540,15 @@ export default function Respond({ demoOnly = false }) {
         setParseError(localizeEngineMessages(result.errors, t).join(' '));
       }
     } catch (error) {
+      track('respond_parse_completed', {
+        ext: questionnaireExtension(file.name),
+        outcome: 'error',
+        questions: 0,
+        rows: 0,
+        confidence: 'unknown',
+        manual_mapping: Boolean(showMapping && columnMapping.questionText),
+        thin: false,
+      });
       console.error('Questionnaire parse failed:', error);
       const message = error instanceof Error ? error.message : '';
       setParseError(message ? `${t('respond.errUnreadable')} ${message}` : t('respond.errUnreadable'));
@@ -1401,6 +1446,17 @@ export default function Respond({ demoOnly = false }) {
           <p className="text-slate-600 mt-2 leading-relaxed">
             {t('confirm.body', { count: parsed.length, fileName: pendingConfirm.name })}
           </p>
+          {pendingConfirm.review?.thin && (
+            <div className="mt-4 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
+              <p className="font-semibold">{t('confirm.thinTitle')}</p>
+              <p className="mt-1 leading-relaxed">
+                {t('confirm.thinBody', {
+                  count: pendingConfirm.review.questions,
+                  rows: pendingConfirm.review.rows,
+                })}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="border border-slate-200 bg-white divide-y divide-slate-100">
@@ -1434,6 +1490,11 @@ export default function Respond({ demoOnly = false }) {
           <span className="text-sm text-slate-500">
             {t('confirm.selected', { count: confirmedIds.size, total: parsed.length })}
           </span>
+          {pendingConfirm.review?.thin && pendingConfirm.parseResult?.metadata?.availableColumns?.length > 0 && (
+            <button onClick={remapQuestionColumn} className="text-sm font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
+              {t('confirm.chooseColumn')}
+            </button>
+          )}
           <button onClick={cancelQuestionList} className="text-sm text-slate-500 hover:text-slate-700 underline ml-auto">
             {t('confirm.back')}
           </button>

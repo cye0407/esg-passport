@@ -85,6 +85,8 @@ const TIER = oneOf('free', 'questionnaire-pass', 'pro', 'pro-plus');
 const LANGUAGE = oneOf('en', 'de');
 const ENTRY_MODE = oneOf('monthly', 'annual');
 const UPLOAD_EXT = oneOfOr('other', '.xlsx', '.xls', '.csv', '.pdf', '.docx');
+const PARSE_OUTCOME = oneOf('success', 'empty', 'error');
+const PARSE_CONFIDENCE = oneOf('high', 'medium', 'low', 'unknown');
 
 // --- the allowlist ----------------------------------------------------------
 // Event → the properties it may send, and the only shapes they may take.
@@ -156,8 +158,12 @@ const EVENT_SCHEMA = {
   // Confirming the parsed question list. The parser finds 22 of ~50 questions in a real
   // SAQ, and a wrong denominator makes every number on the coverage report false — so
   // `kept` and `dropped` are the pair that says whether this step is earning its place.
-  questionnaire_confirm_shown: { questions: count() },
+  questionnaire_confirm_shown: { questions: count(), rows: count(), thin: bool(), ext: UPLOAD_EXT },
   questionnaire_confirmed: { kept: count(), dropped: count() },
+  // Someone acted on the thin-parse warning by going to pick the question column
+  // themselves. Pairs with questionnaire_confirm_shown's `thin` flag: shown-but-never-
+  // remapped means the warning is being read and ignored, which is worth knowing.
+  questionnaire_remap_opened: { columns: count() },
 
   // The coverage report. `coverage_report_viewed` is the number that says the free tier
   // change worked: over the previous year the funnel recorded two paywall hits, because
@@ -180,6 +186,15 @@ const EVENT_SCHEMA = {
   respond_reprepare: { questions: count() },
   respond_upload_started: { ext: UPLOAD_EXT },
   respond_upload_rejected: { ext: UPLOAD_EXT },
+  respond_parse_completed: {
+    ext: UPLOAD_EXT,
+    outcome: PARSE_OUTCOME,
+    questions: count(),
+    rows: count(),
+    confidence: PARSE_CONFIDENCE,
+    manual_mapping: bool(),
+    thin: bool(),
+  },
   respond_generation_started: { questions: count() },
   respond_answers_generated: { count: count(), framework: slug() },
   respond_generation_failed: { error: errorName() },
