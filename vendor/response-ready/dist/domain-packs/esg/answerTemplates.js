@@ -60,6 +60,14 @@ export const ESG_ANSWER_TEMPLATES = [
                 return null;
             const de = lang === 'de';
             const kwh = num(dm, 'totalElectricity');
+            const covered = num(dm, 'electricityMonthsCovered');
+            const expected = num(dm, 'electricityExpectedMonths');
+            if (covered > 0 && expected > 0 && covered < expected) {
+                const periods = str(dm, 'electricityCoveragePeriods');
+                return { answer: de
+                        ? `Als Stromverbrauch haben wir ${fmt(kwh, lang)} kWh für ${periods} erfasst (${covered} von ${expected} Monaten). Eine Jahressumme für den Berichtszeitraum liegt noch nicht vor.`
+                        : `We have recorded electricity consumption of ${fmt(kwh)} kWh for ${periods} (${covered} of ${expected} months). A full reporting-period total is not yet available.`, drafted: true };
+            }
             const renPct = num(dm, 'renewablePercent');
             const period = str(dm, 'reportingPeriod');
             const periodStr = de
@@ -136,6 +144,14 @@ export const ESG_ANSWER_TEMPLATES = [
                 return null;
             const de = lang === 'de';
             const kwh = num(dm, 'totalElectricity');
+            const covered = num(dm, 'electricityMonthsCovered');
+            const expected = num(dm, 'electricityExpectedMonths');
+            if (covered > 0 && expected > 0 && covered < expected) {
+                const periods = str(dm, 'electricityCoveragePeriods');
+                return { answer: de
+                        ? `Als Stromverbrauch haben wir ${fmt(kwh, lang)} kWh für ${periods} erfasst (${covered} von ${expected} Monaten). Eine Jahressumme für den Berichtszeitraum liegt noch nicht vor.`
+                        : `We have recorded electricity consumption of ${fmt(kwh)} kWh for ${periods} (${covered} of ${expected} months). A full reporting-period total is not yet available.`, drafted: true };
+            }
             const renPct = num(dm, 'renewablePercent');
             const period = str(dm, 'reportingPeriod');
             const periodStr = de
@@ -907,6 +923,14 @@ export const ESG_ANSWER_TEMPLATES = [
                 return null;
             const de = lang === 'de';
             const waste = num(dm, 'totalWaste');
+            const covered = num(dm, 'wasteMonthsCovered');
+            const expected = num(dm, 'wasteExpectedMonths');
+            if (covered > 0 && expected > 0 && covered < expected) {
+                const periods = str(dm, 'wasteCoveragePeriods');
+                return { answer: de
+                        ? `Wir haben ${fmt(waste, lang)} kg Abfall für ${periods} erfasst (${covered} von ${expected} Monaten). Eine Jahressumme und eine Jahres-Verwertungsquote liegen noch nicht vor.`
+                        : `We have recorded ${fmt(waste)} kg of waste for ${periods} (${covered} of ${expected} months). A full-year total and diversion rate are not yet available.`, drafted: true };
+            }
             const div = num(dm, 'diversionRate');
             const haz = num(dm, 'hazardousWaste');
             const period = str(dm, 'reportingPeriod');
@@ -934,6 +958,13 @@ export const ESG_ANSWER_TEMPLATES = [
             const de = lang === 'de';
             const waste = num(dm, 'totalWaste');
             const div = num(dm, 'diversionRate');
+            const covered = num(dm, 'wasteMonthsCovered');
+            const expected = num(dm, 'wasteExpectedMonths');
+            if (covered > 0 && expected > 0 && covered < expected) {
+                return { answer: de
+                        ? `Die erfassten Abfalldaten decken ${covered} von ${expected} Monaten ab. Die Verwertungsquote von ${fmt(div, lang)}% ist deshalb keine Jahresquote.`
+                        : `The recorded waste data covers ${covered} of ${expected} months. The ${fmt(div)}% diversion rate is therefore not a full-year rate.`, drafted: true };
+            }
             const period = str(dm, 'reportingPeriod');
             const periodStr = de
                 ? (period ? ` für den Zeitraum ${period}` : ' im Berichtszeitraum')
@@ -957,6 +988,14 @@ export const ESG_ANSWER_TEMPLATES = [
             const de = lang === 'de';
             const haz = num(dm, 'hazardousWaste');
             const waste = num(dm, 'totalWaste');
+            const covered = num(dm, 'wasteMonthsCovered');
+            const expected = num(dm, 'wasteExpectedMonths');
+            if (covered > 0 && expected > 0 && covered < expected) {
+                const periods = str(dm, 'wasteCoveragePeriods');
+                return { answer: de
+                        ? `Für ${periods} sind ${fmt(haz, lang)} kg gefährlicher Abfall erfasst (${covered} von ${expected} Monaten). Dies ist keine Jahresmenge.`
+                        : `${fmt(haz)} kg of hazardous waste is recorded for ${periods} (${covered} of ${expected} months). This is not a full-year amount.`, drafted: true };
+            }
             const period = str(dm, 'reportingPeriod');
             const periodStr = de
                 ? (period ? ` für den Zeitraum ${period}` : ' im Berichtszeitraum')

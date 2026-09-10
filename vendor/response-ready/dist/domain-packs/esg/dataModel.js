@@ -5,6 +5,20 @@
 // that maps matched questions to relevant data points.
 import { addIfPresent, deduplicatePoints } from '../../src/engine/dataRetrieval';
 import { estimateScope1, estimateScope2Location, estimateScope2Market } from './emissionFactors';
+function coverage(data, metric) {
+    return data.dataCoverage?.[metric];
+}
+function addCoverage(target, domain, prefix, value) {
+    if (!value)
+        return;
+    target.push({ domain, field: `${prefix}MonthsCovered`, label: 'Months Covered', value: value.monthsCovered, confidence: 'high' });
+    target.push({ domain, field: `${prefix}ExpectedMonths`, label: 'Expected Months', value: value.expectedMonths, confidence: 'high' });
+    target.push({ domain, field: `${prefix}CoveragePeriods`, label: 'Periods Covered', value: value.periods.join(', '), confidence: 'high' });
+}
+function completeForAnnualUse(data, metric) {
+    const value = coverage(data, metric);
+    return !value || value.complete;
+}
 function addIndustryMetric(target, data, domain, section, field, label, unit, outputField) {
     const value = data.industryMetrics?.[section]?.[field];
     if (value !== undefined && value !== null) {
@@ -133,6 +147,7 @@ export function esgRetrieveData(matchResult, data) {
             case 'energy_electricity':
                 if (data.electricityKwh != null && data.electricityKwh >= 0) {
                     operational.push({ domain: 'energy_electricity', field: 'totalElectricity', label: 'Total Electricity Consumption', value: data.electricityKwh, unit: 'kWh', period: data.reportingPeriod, confidence: 'high' });
+                    addCoverage(operational, 'energy_electricity', 'electricity', coverage(data, 'electricityKwh'));
                     if (data.renewablePercent !== undefined) {
                         operational.push({ domain: 'energy_electricity', field: 'renewablePercent', label: 'Renewable Electricity', value: data.renewablePercent, unit: '%', confidence: 'high' });
                     }
@@ -169,7 +184,8 @@ export function esgRetrieveData(matchResult, data) {
                     calculated.push({ domain: 'emissions', field: 'scope1Estimate', label: 'Scope 1 Emissions (User Provided)', value: data.scope1Tco2e, unit: 'tCO2e', confidence: 'high' });
                 }
                 else {
-                    const scope1 = estimateScope1(data.naturalGasM3, data.dieselLiters);
+                    const fuelCoverageComplete = completeForAnnualUse(data, 'naturalGasM3') && completeForAnnualUse(data, 'dieselLiters');
+                    const scope1 = fuelCoverageComplete ? estimateScope1(data.naturalGasM3, data.dieselLiters) : null;
                     if (scope1 !== null) {
                         calculated.push({ domain: 'emissions', field: 'scope1Estimate', label: 'Scope 1 Emissions (Auto-calculated)', value: scope1, unit: 'tCO2e', confidence: 'medium' });
                     }
@@ -181,14 +197,15 @@ export function esgRetrieveData(matchResult, data) {
                     calculated.push({ domain: 'emissions', field: 'scope2Location', label: 'Scope 2 Emissions (User Provided)', value: data.scope2Tco2e, unit: 'tCO2e', confidence: 'high' });
                 }
                 else {
-                    const scope2Location = estimateScope2Location(data.electricityKwh, data.country);
+                    const electricityCoverageComplete = completeForAnnualUse(data, 'electricityKwh');
+                    const scope2Location = electricityCoverageComplete ? estimateScope2Location(data.electricityKwh, data.country) : null;
                     if (scope2Location) {
                         calculated.push({ domain: 'emissions', field: 'scope2Location', label: `Scope 2 Location-Based (Auto-calculated — ${scope2Location.source})`, value: scope2Location.value, unit: 'tCO2e', confidence: 'medium' });
                     }
                     else {
                         dataGaps.push('No electricity data for Scope 2 calculation — enter electricity consumption');
                     }
-                    const scope2Market = estimateScope2Market(data.electricityKwh, data.renewablePercent, data.country);
+                    const scope2Market = electricityCoverageComplete ? estimateScope2Market(data.electricityKwh, data.renewablePercent, data.country) : null;
                     if (scope2Market) {
                         calculated.push({ domain: 'emissions', field: 'scope2Market', label: `Scope 2 Market-Based (Auto-calculated — ${scope2Market.source})`, value: scope2Market.value, unit: 'tCO2e', confidence: 'medium' });
                     }
@@ -241,6 +258,7 @@ export function esgRetrieveData(matchResult, data) {
             case 'waste':
                 if (data.totalWasteKg) {
                     operational.push({ domain: 'waste', field: 'totalWaste', label: 'Total Waste Generated', value: data.totalWasteKg, unit: 'kg', confidence: 'high' });
+                    addCoverage(operational, 'waste', 'waste', coverage(data, 'totalWasteKg'));
                     if (data.recyclingPercent !== undefined)
                         operational.push({ domain: 'waste', field: 'diversionRate', label: 'Waste Diversion Rate', value: data.recyclingPercent, unit: '%', confidence: 'high' });
                     if (data.hazardousWasteKg)

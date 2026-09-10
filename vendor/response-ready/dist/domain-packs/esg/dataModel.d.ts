@@ -7,6 +7,13 @@ export interface ESGCompanyData {
     numberOfSites?: number;
     revenueBand?: string;
     reportingPeriod?: string;
+    /** Month-level provenance for values aggregated into a reporting-year total. */
+    dataCoverage?: Record<string, {
+        periods: string[];
+        monthsCovered: number;
+        expectedMonths: number;
+        complete: boolean;
+    }>;
     yearFounded?: string;
     productsServices?: string;
     operatingCountries?: string;
