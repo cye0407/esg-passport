@@ -65,8 +65,15 @@ export default function Evidence() {
       />
 
       <div className="max-w-3xl space-y-2">
-        <h1 className="text-2xl font-bold text-slate-900">{t('evidence.title')}</h1>
-        <p className="text-base leading-relaxed text-slate-500">{t('evidence.body')}</p>
+        {/* Reachable from onboarding now, before any questionnaire exists — so the
+            heading cannot assume one. Promising what "your questionnaire needs" to
+            someone who has not uploaded one is a claim about a file we have not seen. */}
+        <h1 className="text-2xl font-bold text-slate-900">
+          {stash ? t('evidence.title') : t('evidence.titleStandalone')}
+        </h1>
+        <p className="text-base leading-relaxed text-slate-500">
+          {stash ? t('evidence.body') : t('evidence.bodyStandalone')}
+        </p>
       </div>
 
       {/* What the questionnaire actually asked for, so this is not a blank uploader.
