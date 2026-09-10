@@ -7,6 +7,7 @@ import { extractEnergy } from './energy';
 import { extractWaste } from './waste';
 import { extractWorkforce } from './workforce';
 import { extractFuel } from './fuel';
+export { extractFleetCsv } from './fleetCsv';
 
 /**
  * Auto-detect document type from text content.
@@ -21,6 +22,7 @@ function detectDocumentType(text: string): DocumentTypeDetection {
     water_bill: 0,
     waste_manifest: 0,
     payroll_summary: 0,
+    fleet_fuel_report: 0,
     unknown: 0,
   };
 
@@ -48,10 +50,7 @@ function detectDocumentType(text: string): DocumentTypeDetection {
   const hrWords = lower.match(/\b(employee|mitarbeiter|headcount|payroll|salary|personalbestand|personalbericht|training\s*hours|schulungsstunden|turnover|fluktuation|fte|personnel|effectif)\b/g);
   scores.payroll_summary = (hrWords || []).length;
 
-  // Fuel uses gas_invoice type but needs separate detection
-  if (fuelScore > 0 && fuelScore >= scores.gas_invoice) {
-    scores.gas_invoice = fuelScore;
-  }
+  scores.fleet_fuel_report = fuelScore;
 
   // Find the highest scoring type
   const ranked = (Object.entries(scores) as [DocumentType, number][])
@@ -87,6 +86,8 @@ function extractByType(text: string, docType: DocumentType, config?: ExtractionC
       return extractWaste(text, config);
     case 'payroll_summary':
       return extractWorkforce(text, config);
+    case 'fleet_fuel_report':
+      return extractFuel(text, config);
     default:
       return extractBestEffort(text, config);
   }

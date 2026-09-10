@@ -13,7 +13,7 @@ export type {
   ResponseReadyData,
 } from './types';
 
-export { extractFromPdf, extractFromText } from './extractors/registry';
+export { extractFromPdf, extractFromText, extractFleetCsv } from './extractors/registry';
 export { toPassportRecord } from './output/passport';
 export { toResponseReadyData } from './output/responseReady';
 export { parseNumber, detectUnit, convertToCanonical } from './matchers/units';

@@ -83,6 +83,7 @@ export type DocumentType =
   | 'water_bill'
   | 'waste_manifest'
   | 'payroll_summary'
+  | 'fleet_fuel_report'
   | 'unknown';
 
 /** Configuration for an extraction run */
