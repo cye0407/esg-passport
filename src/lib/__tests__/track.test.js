@@ -63,7 +63,8 @@ const hostileProps = () => {
     'feature', 'source', 'from_tier', 'tier', 'fallback', 'destination', 'mode',
     'hasValue', 'year', 'fields', 'periodType', 'extractedPeriod', 'lead_field',
     'ext', 'questions', 'count', 'framework', 'error', 'language', 'templates',
-    'builder', 'adopted', 'question_count', 'referrer_host', 'utm_source',
+    'builder', 'adopted', 'question_count', 'rows', 'thin', 'outcome',
+    'confidence', 'manual_mapping', 'referrer_host', 'utm_source',
     'utm_medium', 'utm_campaign',
   ]) {
     props[name] = CANARIES[0];
@@ -140,5 +141,28 @@ describe('analytics is deny-by-default', () => {
     expect(sanitizeAnalyticsProperties('respond_upload_started', {
       ext: '.xlsx',
     })).toEqual({ ext: '.xlsx' });
+  });
+
+  it('keeps parse health signals and drops questionnaire identity', async () => {
+    const { sanitizeAnalyticsProperties } = await import('../track');
+    expect(sanitizeAnalyticsProperties('respond_parse_completed', {
+      ext: '.xlsx',
+      outcome: 'success',
+      questions: 3,
+      rows: 80,
+      confidence: 'low',
+      manual_mapping: false,
+      thin: true,
+      filename: 'Secret Buyer Questionnaire.xlsx',
+      question_text: 'Describe confidential process details.',
+    })).toEqual({
+      ext: '.xlsx',
+      outcome: 'success',
+      questions: 3,
+      rows: 80,
+      confidence: 'low',
+      manual_mapping: false,
+      thin: true,
+    });
   });
 });

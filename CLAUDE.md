@@ -34,7 +34,10 @@ Three tiers, and the line between them is **finishing**, not looking:
   absent. Spec: `COVERAGE-REPORT-SPEC.md`.
 - **PDF and Word uploads confirm the question list first** — the parser finds 22 of ~50
   questions in a real SAQ, and a wrong denominator makes every number on the report
-  false. Spreadsheets skip the step.
+  false. Excel and CSV now confirm too; unusually thin parses carry an explicit warning.
+- **Parser health telemetry is content-free** — upload extension, outcome, question/row
+  counts, confidence, manual-mapping use and the thin-parse flag. Filenames and question
+  text remain blocked by the analytics allowlist.
 - **Onboarding is one screen** whose action is the questionnaire. The company profile is
   deferred to /data.
 - **Extraction records provenance** — the document name is stored in
