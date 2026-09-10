@@ -296,6 +296,14 @@ export default function Data() {
   useEffect(() => {
     const handoff = takeHandoff('extraction');
     if (!handoff?.items?.length) return;
+    // The data grid defaults to the current calendar year. A batch of last year's
+    // invoices was therefore applied correctly and then presented as an empty screen.
+    // Open the year the user just imported; otherwise successful extraction is
+    // indistinguishable from lost data.
+    const importedYear = handoff.items
+      .map(item => /^\d{4}/.exec(item.period || '')?.[0])
+      .find(Boolean);
+    if (importedYear) setSelectedYear(Number(importedYear));
     for (const item of handoff.items) {
       handleBillExtracted(item.fields, item.period, item.fileName);
     }
