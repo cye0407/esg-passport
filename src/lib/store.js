@@ -561,6 +561,35 @@ export const deleteDocument = (id) => {
   saveData(data);
 };
 
+// A compact, local audit trail for values accepted from the document extractor.
+// This deliberately stores no source text or file contents. It exists so returning
+// from /data does not erase the user's only account of what was just added.
+export const getExtractionReceipts = () => {
+  const data = loadData();
+  return Array.isArray(data.extractionReceipts) ? data.extractionReceipts : [];
+};
+
+export const saveExtractionReceipt = (receipt) => {
+  const data = loadData();
+  const fields = (receipt?.fields || [])
+    .filter(field => field && typeof field.field === 'string' && Number.isFinite(Number(field.value)))
+    .map(field => ({ field: field.field, value: Number(field.value), unit: field.unit || '' }));
+  if (!fields.length) return null;
+  const saved = {
+    id: `extract_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: new Date().toISOString(),
+    fileName: String(receipt.fileName || ''),
+    sourcePeriod: String(receipt.sourcePeriod || ''),
+    savedPeriod: String(receipt.savedPeriod || receipt.sourcePeriod || ''),
+    annual: !!receipt.annual,
+    allocationMonths: receipt.annual && Number.isFinite(Number(receipt.allocationMonths)) ? Number(receipt.allocationMonths) : null,
+    fields,
+  };
+  data.extractionReceipts = [saved, ...(data.extractionReceipts || [])].slice(0, 30);
+  saveData(data);
+  return saved;
+};
+
 // ============================================
 // MASTER ANSWERS (answer library)
 // ============================================
