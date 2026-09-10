@@ -216,7 +216,7 @@ export default function Home() {
 
         {/* The two doors. Both are the same gesture — hand us a file you already have. */}
         <div className="flex flex-col gap-6">
-          <div role="tablist" aria-label={t('home.tabsLabel')} className="flex justify-center gap-7 border-b border-slate-100">
+          {!stash && !hasAnyData && <div role="tablist" aria-label={t('home.tabsLabel')} className="flex justify-center gap-7 border-b border-slate-100">
             <button
               type="button"
               role="tab"
@@ -239,9 +239,9 @@ export default function Home() {
             >
               {t('home.tab.bills')}
             </button>
-          </div>
+          </div>}
 
-          {tab === HOME_TABS.questionnaire ? (
+          {!stash && (hasAnyData || tab === HOME_TABS.questionnaire) ? (
             <div
               role="tabpanel"
               id="home-panel-questionnaire"
@@ -249,7 +249,10 @@ export default function Home() {
               className="flex flex-col gap-5"
             >
               <div className="text-center">
-                <h1 className="text-[19px] font-medium leading-snug tracking-tight text-slate-900">{t('home.heroTitle')}</h1>
+                <h1 className="text-[19px] font-medium leading-snug tracking-tight text-slate-900">
+                  {t('home.heroTitle')}{' '}
+                  <span className="align-middle text-[10px] uppercase tracking-[0.1em] text-indigo-600">{t('home.free')}</span>
+                </h1>
                 <p className="mx-auto mt-1.5 max-w-lg text-[13px] leading-relaxed text-slate-500">
                   {entitlements.canGenerateAnswers ? t('home.heroBodyPaid') : t('home.heroBodyFree')}
                 </p>
@@ -265,7 +268,7 @@ export default function Home() {
                 <span className="text-slate-500">{t('home.flowReview')}</span>
               </div>
             </div>
-          ) : (
+          ) : !stash ? (
             <div
               role="tabpanel"
               id="home-panel-bills"
@@ -289,7 +292,7 @@ export default function Home() {
                 </Link>
               </p>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* The one colour block on the screen, and the only thing on it that is asking
@@ -297,8 +300,8 @@ export default function Home() {
             Pass too, so the €499 upgrade was invisible to the people closest to it.
             Free is offered the €99 rung, a Pass holder the Passport. */}
         {canActivateAnotherKey(tier) && (
-          <div className="flex flex-wrap items-center justify-between gap-4 bg-indigo-50 p-5">
-            <div>
+          <div className="flex flex-col items-center gap-4 bg-indigo-50 p-5 text-center">
+            <div className="flex flex-col items-center">
               <p className="text-[13px] font-semibold text-indigo-950">
                 {isPassHolder ? t('home.upgradeTitle') : t('home.upgradeTitleFree')}
               </p>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, FileText } from 'lucide-react';
 import BillDrop from '@/components/BillDrop';
 import JourneySpine from '@/components/JourneySpine';
@@ -19,6 +19,7 @@ import { documentName, documentHolds } from '@/lib/documentLabels';
 // back to the questionnaire when you are done.
 export default function Evidence() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useLanguage();
   // A ref, not state. BillDrop calls onDataExtracted and then onBatchComplete inside the
   // same event handler, so React has not re-rendered in between - reading batch state
@@ -46,15 +47,22 @@ export default function Evidence() {
   // confirmation, so the accepted fields are handed over rather than written here.
   const handOff = useCallback((items) => {
     if (items.length === 0) return;
-    setHandoff({ kind: 'extraction', items });
+    setHandoff({
+      kind: 'extraction',
+      items,
+      // Data owns validation and persistence, but it is not the destination when the
+      // evidence belongs to an in-progress questionnaire.
+      returnTo: stash ? '/evidence?added=1' : null,
+    });
     track('evidence_documents_extracted', {
       documents: items.length,
       fields: items.reduce((n, item) => n + item.fields.length, 0),
     });
     navigate('/data');
-  }, [navigate]);
+  }, [navigate, stash]);
 
   const wanted = stash?.missingDocuments || [];
+  const documentAdded = stash && searchParams.get('added') === '1';
 
   return (
     <div className="space-y-6">
@@ -75,6 +83,33 @@ export default function Evidence() {
           {stash ? t('evidence.body') : t('evidence.bodyStandalone')}
         </p>
       </div>
+
+      {documentAdded && (
+        <div className="border border-emerald-200 bg-emerald-50 p-5">
+          <div className="flex items-start gap-3">
+            <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+            <div className="flex-1">
+              <p className="font-semibold text-emerald-950">{t('evidence.successTitle')}</p>
+              <p className="mt-1 text-sm text-emerald-900/70">{t('evidence.successBody')}</p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('evidence-file-input')?.click()}
+                  className="inline-flex h-10 items-center bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+                >
+                  {t('evidence.addAnother')}
+                </button>
+                <Link
+                  to="/respond"
+                  className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  {t('evidence.toSummary')}
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* What the questionnaire actually asked for, so this is not a blank uploader.
           Only shown when a questionnaire has been read — inventing a wish list without
@@ -98,6 +133,7 @@ export default function Evidence() {
       )}
 
       <BillDrop
+        inputId="evidence-file-input"
         incoming={dropped}
         onDataExtracted={(fields, period, fileName) => {
           batch.current.push({ fields, period, fileName });

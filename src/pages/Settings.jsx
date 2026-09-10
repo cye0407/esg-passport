@@ -17,6 +17,9 @@ import { deactivateLicense, getStoredLicense } from '@/lib/license';
 import { canActivateAnotherKey } from '@/lib/entitlements';
 import { serializeBackup, mergeImportedBackup } from '@/lib/backup';
 import { useLicense } from '@/components/LicenseContext';
+import buildInfo from '@/buildInfo.json';
+
+const PASSPORT_SHA = typeof __PASSPORT_SHA__ === 'string' ? __PASSPORT_SHA__ : 'dev';
 
 function CollapsibleSection({ icon: Icon, title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -405,6 +408,14 @@ export default function Settings() {
         >
           contact@esgforsuppliers.com
         </a>
+        {buildInfo?.passportVersion && buildInfo.passportVersion !== 'dev' && (
+          <details className="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-500">
+            <summary className="cursor-pointer font-medium text-slate-700">{t('settings.technicalDetails')}</summary>
+            <p className="mt-2 font-mono leading-relaxed">
+              v{buildInfo.passportVersion} · pass@{PASSPORT_SHA} · ext@{buildInfo.extractSha} · eng@{buildInfo.engineSha}
+            </p>
+          </details>
+        )}
       </div>
 
       {/* Danger Zone */}

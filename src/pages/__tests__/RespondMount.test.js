@@ -1,6 +1,6 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -114,6 +114,29 @@ describe('Respond renders', () => {
     // The whole point of the entitlement split: free brings its own questionnaire.
     expect(container.querySelector('input[type="file"]')).not.toBeNull();
   });
+
+  it('keeps onboarding questionnaire entry focused on the upload task', async () => {
+    mockEntitlements.mockReturnValue({
+      tier: 'free',
+      entitlements: TIERS.free,
+      licenseKeyId: null,
+      isPaid: false,
+    });
+    await act(async () => {
+      root.render(
+        React.createElement(
+          MemoryRouter,
+          { initialEntries: ['/respond?focus=questionnaire'] },
+          React.createElement(Respond),
+        ),
+      );
+    });
+
+    expect(container.textContent).not.toContain('Previous');
+    expect(container.textContent).not.toContain('Readiness');
+    expect(container.textContent).not.toContain('No questionnaire handy');
+    expect(container.querySelector('input[type="file"]')).not.toBeNull();
+  });
 });
 
 // Home and Data took the same kind of edit this week — new effects, a moved early
@@ -178,6 +201,39 @@ describe('the other pages I changed render', () => {
 
     expect(container.textContent).toContain('2025');
     expect(getDataRecords().find(record => record.period === '2025-03')?.energy?.electricityKwh).toBe(198000);
+  });
+
+  it('returns questionnaire evidence to the questionnaire after saving', async () => {
+    setHandoff({
+      kind: 'extraction',
+      returnTo: '/respond',
+      items: [{
+        period: '2025-04',
+        fileName: 'electricity-april.pdf',
+        fields: [{ field: 'electricityKwh', value: 180000 }],
+      }],
+    });
+
+    await act(async () => {
+      root.render(React.createElement(
+        React.StrictMode,
+        null,
+        React.createElement(
+          MemoryRouter,
+          { initialEntries: ['/data'] },
+          React.createElement(
+            Routes,
+            null,
+            React.createElement(Route, { path: '/data', element: React.createElement(Data) }),
+            React.createElement(Route, { path: '/respond', element: React.createElement('div', null, 'Questionnaire returned') }),
+          ),
+        ),
+      ));
+    });
+    await act(async () => {});
+
+    expect(container.textContent).toContain('Questionnaire returned');
+    expect(getDataRecords().find(record => record.period === '2025-04')?.energy?.electricityKwh).toBe(180000);
   });
 
   it('onboarding mounts for someone who has not set up', async () => {

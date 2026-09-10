@@ -243,8 +243,14 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
 
   // Answered-from-records first: those carry the reader's own numbers and are the only
   // part of this page no one else could have produced.
-  const sample = [...fromRecords, ...written].slice(0, SAMPLE_ANSWERS);
-  const remaining = Math.max(0, total - sample.length);
+  // A free visitor has not bought generated answers, and the current engine can turn
+  // absence into confident-sounding prose (or a partial-period bill into an annual
+  // statement). Do not use that output as a sales preview. Paid workspaces retain the
+  // answer panel because it is part of the product they already have access to.
+  const sample = canGenerateAnswers
+    ? [...fromRecords, ...written].slice(0, SAMPLE_ANSWERS)
+    : [];
+  const remaining = canGenerateAnswers ? Math.max(0, total - sample.length) : 0;
 
   const documents = missingDocuments
     .map(entry => ({ ...entry, name: documentName(t, entry.document) }))
@@ -464,7 +470,12 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                   {policyGaps.builders.length > 0 && (
                     <li className="flex gap-2.5 text-sm font-medium leading-relaxed text-slate-900">
                       <span className="text-slate-400">•</span>
-                      <span>{t('coverage.passportPolicies', { count: policyGaps.builders.length })}</span>
+                      <span>{t(
+                        policyGaps.builders.length === 1
+                          ? 'coverage.passportPolicyOne'
+                          : 'coverage.passportPolicies',
+                        { count: policyGaps.builders.length },
+                      )}</span>
                     </li>
                   )}
                   <li className="flex gap-2.5 text-sm leading-relaxed text-slate-600">

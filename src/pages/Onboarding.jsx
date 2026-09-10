@@ -80,7 +80,7 @@ export default function Onboarding() {
           </ul>
 
           <Button
-            onClick={() => start('/respond')}
+            onClick={() => start('/respond?focus=questionnaire')}
             className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-none"
           >
             {t('onboard.startCta')}

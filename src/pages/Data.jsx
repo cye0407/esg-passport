@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   getDataRecords,
   saveDataRecord,
@@ -46,6 +47,7 @@ import {
 } from 'lucide-react';
 
 export default function Data() {
+  const navigate = useNavigate();
   const { entitlements } = useLicense();
   const { lang, t } = useLanguage();
   // Honor ?period=YYYY-MM query param from deep links on Respond answer cards
@@ -100,6 +102,7 @@ export default function Data() {
   // bill they had just uploaded. Requested here, run by the effect below once React has
   // flushed the writes.
   const [autoSaveRequested, setAutoSaveRequested] = useState(false);
+  const extractionReturnTo = useRef(null);
 
   // Per-metric source notes — "where I find this number each month"
   // Keyed by `${section}.${field}`. One source per metric, edited inline.
@@ -302,6 +305,7 @@ export default function Data() {
   useEffect(() => {
     const handoff = takeHandoff('extraction');
     if (!handoff?.items?.length) return;
+    extractionReturnTo.current = handoff.returnTo || null;
     // The data grid defaults to the current calendar year. A batch of last year's
     // invoices was therefore applied correctly and then presented as an empty screen.
     // Open the year the user just imported; otherwise successful extraction is
@@ -611,6 +615,12 @@ export default function Data() {
     setSaving(false);
     trackOnce('data_first_save');
     track('data_saved', { mode: entryMode });
+    if (extractionReturnTo.current) {
+      const destination = extractionReturnTo.current;
+      extractionReturnTo.current = null;
+      navigate(destination, { replace: true });
+      return;
+    }
     setTimeout(() => setSaved(false), 2000);
   };
 

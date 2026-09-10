@@ -12,6 +12,7 @@ import { takeHandoff } from '@/lib/handoff';
 import { writeCoverageStash, takeCoverageStash, clearCoverageStash } from '@/lib/coverageStash';
 import JourneySpine from '@/components/JourneySpine';
 import CoverageReport from '@/components/CoverageReport';
+import DocumentDrop from '@/components/DocumentDrop';
 import ResultsViewSwitch from '@/components/ResultsViewSwitch';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
@@ -117,6 +118,10 @@ export default function Respond({ demoOnly = false }) {
   const canExport = entitlements.canExportResponses && !demoOnly;
   const isDemo = !canGenerate;
   const [searchParams] = useSearchParams();
+  // A person arriving from onboarding or the dashboard has already chosen the
+  // questionnaire job. Do not drop them into the legacy multipurpose workspace and
+  // ask them to choose again between upload, history and abstract readiness tooling.
+  const focusedEntry = searchParams.get('focus') === 'questionnaire';
   const requestId = searchParams.get('requestId');
   const linkedRequest = requestId ? getRequestById(requestId) : null;
   const devExportsEnabled = (
@@ -145,6 +150,7 @@ export default function Respond({ demoOnly = false }) {
   const [passBlock, setPassBlock] = useState(null);
   // The question list awaiting the user's confirmation, and which of them they kept.
   const [pendingConfirm, setPendingConfirm] = useState(null);
+  const [pendingEvidence, setPendingEvidence] = useState(null);
   const [confirmedIds, setConfirmedIds] = useState(() => new Set());
 
   const requests = getRequests().filter(r => r.status !== 'closed' && r.status !== 'sent');
@@ -191,7 +197,7 @@ export default function Respond({ demoOnly = false }) {
       const { parseResult: stashed, name } = stored;
       if (stashed?.questions?.length) {
         track('coverage_resumed', { questions: stashed.questions.length });
-        processConfirmedQuestionnaire(stashed, name, false);
+        processConfirmedQuestionnaire(stashed, name, false, { evidenceOffered: true });
         showFeedback(t('respond.coverageResumed', { name }));
       }
     } catch {
@@ -403,11 +409,23 @@ export default function Respond({ demoOnly = false }) {
     processConfirmedQuestionnaire(pr, name, builtInSample);
   }
 
-  function processConfirmedQuestionnaire(pr, name, builtInSample) {
+  function processConfirmedQuestionnaire(pr, name, builtInSample, { evidenceOffered = false } = {}) {
     // Every branch below except the pipeline itself renders on the upload screen -
     // a parse error or a pass dialog left behind a confirmation step would be
     // invisible. runPipeline moves us on to 'generating' from here.
     setPhase('upload');
+    if (!canGenerate && !demoOnly && !builtInSample && !evidenceOffered) {
+      writeCoverageStash({
+        parseResult: pr,
+        name,
+        questionCount: pr.questions.length,
+        missingDocuments: [],
+      });
+      setPendingEvidence({ parseResult: pr, name });
+      setPhase('evidence');
+      track('questionnaire_evidence_offered', { questions: pr.questions.length });
+      return;
+    }
     const decision = getQuestionnairePassDecision({
       tier,
       licenseKeyId,
@@ -444,6 +462,14 @@ export default function Respond({ demoOnly = false }) {
     runPipeline(pr, name, {
       questionnaireFingerprint: builtInSample ? null : decision.fingerprint,
     });
+  }
+
+  function continueWithoutEvidence() {
+    if (!pendingEvidence) return;
+    const { parseResult: pr, name } = pendingEvidence;
+    setPendingEvidence(null);
+    track('questionnaire_evidence_skipped', { questions: pr.questions.length });
+    processConfirmedQuestionnaire(pr, name, false, { evidenceOffered: true });
   }
 
   const toggleConfirmedQuestion = (id) => {
@@ -1518,6 +1544,32 @@ export default function Respond({ demoOnly = false }) {
     );
   }
 
+  if (phase === 'evidence' && pendingEvidence) {
+    return (
+      <div className="space-y-7">
+        <JourneySpine step={2} questionCount={pendingEvidence.parseResult.questions.length} />
+        <div className="mx-auto max-w-2xl space-y-6">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-slate-900">{t('respond.evidenceStepTitle')}</h1>
+            <p className="mx-auto mt-2 max-w-xl text-[15px] leading-relaxed text-slate-600">
+              {t('respond.evidenceStepBody')}
+            </p>
+          </div>
+          <DocumentDrop />
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={continueWithoutEvidence}
+              className="text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4 hover:text-slate-900"
+            >
+              {t('respond.evidenceStepSkip')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ============ RENDER: RESULTS ============
   if (phase === 'results') {
     if (pipelineError) {
@@ -1541,6 +1593,7 @@ export default function Respond({ demoOnly = false }) {
             step={3}
             questionCount={parseResult?.questions?.length || 0}
             documentCount={new Set(Object.values(getSettings()?.dataSources || {}).filter(Boolean)).size}
+            evidenceSkipped={new Set(Object.values(getSettings()?.dataSources || {}).filter(Boolean)).size === 0}
           />
           <CoverageReport
             coverage={coverage}
@@ -2280,8 +2333,8 @@ export default function Respond({ demoOnly = false }) {
   return (
     <div className="space-y-6">
       <JourneySpine step={1} />
-      <div className="max-w-2xl mx-auto space-y-6">
-      <div>
+      <div className="max-w-2xl mx-auto flex flex-col gap-6">
+      <div className="order-1">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold text-slate-900">{canUpload ? t('respond.titleRespond') : t('respond.titleExample')}</h1>
           {demoOnly && (
@@ -2292,20 +2345,20 @@ export default function Respond({ demoOnly = false }) {
         </div>
         <p className="text-slate-500 mt-1">
           {canUpload
-            ? t('respond.subtitlePaid')
+            ? (canGenerate ? t('respond.subtitlePaid') : t('respond.subtitleCheck'))
             : t('respond.subtitleDemo')}
         </p>
       </div>
 
       {canUpload && linkedRequest && (
-        <div className="bg-white border border-slate-200 rounded-none p-4 border-l-4 border-l-indigo-600">
+        <div className="order-2 bg-white border border-slate-200 rounded-none p-4 border-l-4 border-l-indigo-600">
           <p className="text-sm text-slate-500">{t('respond.linkedToRequest')}</p>
           <p className="font-medium text-slate-900">{linkedRequest.customerName} - {linkedRequest.platform}</p>
         </div>
       )}
 
-      {canUpload && (
-        <div className="flex gap-1 bg-slate-100 rounded-none p-1">
+      {canUpload && !focusedEntry && (
+        <div className="order-3 flex gap-1 bg-slate-100 rounded-none p-1">
           {[
             { id: 'upload', label: t('respond.tabUpload'), icon: UploadIcon },
             { id: 'history', label: t('respond.tabPrevious', { count: savedResults.length }), icon: Clock },
@@ -2326,8 +2379,8 @@ export default function Respond({ demoOnly = false }) {
       )}
 
       {/* Data nudge — warn users with empty/sparse Data store before they upload */}
-      {canUpload && setupSkipped && (
-        <div className="bg-white border border-slate-200 rounded-none p-3 flex items-center gap-3">
+      {canUpload && !focusedEntry && setupSkipped && (
+        <div className="order-6 bg-white border border-slate-200 rounded-none p-3 flex items-center gap-3 sm:order-4">
           <Shield className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm text-slate-600">{t('respond.nudgeProfile')}</p>
@@ -2341,11 +2394,11 @@ export default function Respond({ demoOnly = false }) {
         </div>
       )}
 
-      {canUpload && (() => {
+      {canUpload && !focusedEntry && (() => {
         const hasAnyData = hasUsableWorkspaceData();
         if (hasAnyData) return null;
         return (
-          <div className="bg-white border border-slate-200 rounded-none p-3 flex items-center gap-3">
+          <div className="order-6 bg-white border border-slate-200 rounded-none p-3 flex items-center gap-3 sm:order-4">
             <AlertTriangle className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-sm text-slate-600">{t('respond.nudgeNoData')}</p>
@@ -2366,10 +2419,11 @@ export default function Respond({ demoOnly = false }) {
         <>
           {/* Try with sample — quick example path for users without a real questionnaire */}
           {(() => {
+            if (focusedEntry) return null;
             const sample = [...templates].sort((a, b) => (a.questionCount || 999) - (b.questionCount || 999))[0];
             if (!sample) return null;
             return (
-              <div className="bg-indigo-50 border border-indigo-200 rounded-none p-5 flex items-start gap-4">
+              <div className="order-7 bg-indigo-50 border border-indigo-200 rounded-none p-5 flex items-start gap-4 sm:order-5">
                 <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-900">{canUpload ? t('respond.noQHandy') : t('respond.tryExample')}</p>
@@ -2392,7 +2446,7 @@ export default function Respond({ demoOnly = false }) {
           })()}
 
           {passBlock && (
-            <div className="bg-amber-50 border border-amber-300 rounded-none p-5">
+            <div className="order-5 bg-amber-50 border border-amber-300 rounded-none p-5 sm:order-6">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
@@ -2440,6 +2494,7 @@ export default function Respond({ demoOnly = false }) {
           {canUpload ? (
             <div
               className={cn(
+                'order-4 sm:order-6',
                 'bg-white border-2 border-dashed rounded-none p-8 transition-all cursor-pointer',
                 dragActive ? 'border-indigo-600 bg-indigo-50' : 'border-slate-300 hover:border-slate-400',
                 file && 'border-solid border-slate-200'
@@ -2489,7 +2544,7 @@ export default function Respond({ demoOnly = false }) {
             </div>
           )}
 
-          {canUpload && !linkedRequest && requests.length > 0 && (
+          {canUpload && !focusedEntry && !linkedRequest && requests.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-none p-4">
               <Label className="text-sm text-slate-600 mb-2 block">{t('respond.linkRequest')}</Label>
               <Select value={selectedRequestId} onValueChange={setSelectedRequestId}>
@@ -2505,12 +2560,16 @@ export default function Respond({ demoOnly = false }) {
           )}
 
           {canUpload && showMapping && mappingColumns && (
-            <div className="bg-white border border-slate-200 rounded-none p-4 space-y-3">
+            <div className="order-5 bg-white border border-slate-200 rounded-none p-4 space-y-3 sm:order-6">
               <h3 className="font-medium text-slate-900">{t('respond.columnMapping')}</h3>
               <p className="text-sm text-slate-500">{t('respond.mappingBody')}</p>
               {['questionText', 'category', 'subcategory', 'referenceId'].map(field => (
                 <div key={field}>
-                  <Label className="text-sm capitalize">{field === 'questionText' ? t('respond.questionTextReq') : field}</Label>
+                  <Label className="text-sm">
+                    {field === 'questionText'
+                      ? t('respond.questionTextReq')
+                      : field === 'referenceId' ? t('respond.referenceId') : field}
+                  </Label>
                   <Select
                     value={mappingSelectValue(columnMapping[field])}
                     onValueChange={(v) => setColumnMapping(prev => ({
@@ -2532,18 +2591,20 @@ export default function Respond({ demoOnly = false }) {
           )}
 
           {canUpload && parseError && (
-            <div className="flex items-start gap-3 p-4 rounded-none bg-red-50 border border-red-200 text-red-700">
+            <div className="order-5 flex items-start gap-3 p-4 rounded-none bg-red-50 border border-red-200 text-red-700 sm:order-6">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <p className="text-sm">{parseError}</p>
             </div>
           )}
 
           {canUpload && (
-          <div className="flex gap-3">
+          <div className="order-5 flex gap-3 sm:order-6">
             {file && (
               <Button onClick={parseFile} disabled={parsing} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white">
                 {parsing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('respond.parsing')}</>
-                  : <><FileSpreadsheet className="w-4 h-4 mr-2" />{showMapping ? t('respond.reparse') : t('respond.prepareAnswers')}</>}
+                  : <><FileSpreadsheet className="w-4 h-4 mr-2" />{showMapping
+                    ? t('respond.reparse')
+                    : canGenerate ? t('respond.prepareAnswers') : t('respond.checkQuestionnaire')}</>}
               </Button>
             )}
             {!showMapping && file && !parsing && (
@@ -2556,7 +2617,7 @@ export default function Respond({ demoOnly = false }) {
 
       {/* Readiness Tab */}
       {uploadTab === 'readiness' && (
-        <div className="space-y-3">
+        <div className="order-4 space-y-3">
           <div className="bg-slate-50 border border-slate-200 rounded-none p-4">
             <p className="text-sm font-semibold text-slate-900">{t('respond.testReadiness')}</p>
             <p className="text-xs text-slate-600 mt-1">
@@ -2605,7 +2666,7 @@ export default function Respond({ demoOnly = false }) {
 
       {/* History Tab */}
       {uploadTab === 'history' && (
-        <div className="space-y-3">
+        <div className="order-4 space-y-3">
           {savedResults.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <Clock className="w-10 h-10 mx-auto mb-3 opacity-50" />

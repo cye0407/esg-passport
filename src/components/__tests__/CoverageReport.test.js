@@ -95,11 +95,11 @@ describe('CoverageReport', () => {
     }
   });
 
-  it('says how many answers the sample is showing, so five drafts do not read as all of them', async () => {
+  it('does not sell free visitors a preview made from unverified generated answers', async () => {
     const drafts = Array.from({ length: 9 }, () => draft('workforce', 'medium'));
     await render(drafts);
-    expect(container.textContent).toContain('Your first 5 answers');
-    expect(container.textContent).toContain('4 more questions in this questionnaire');
+    expect(container.textContent).not.toContain('Your first 5 answers');
+    expect(container.textContent).not.toContain('A drafted answer.');
   });
 
   // Grouped the way the customer asking the questions groups them. Confidence is our
@@ -143,7 +143,7 @@ describe('CoverageReport', () => {
       dataValue: '425000', dataUnit: 'kWh',
     });
     const drafted = Array.from({ length: 6 }, () => draft('workforce', 'medium'));
-    await render([...drafted, supported]);
+    await render([...drafted, supported], {}, { tier: 'questionnaire-pass' });
     const text = container.textContent;
     expect(text).toContain('Your first 5 answers');
     expect(text).toContain('425000 kWh');
@@ -158,7 +158,7 @@ describe('CoverageReport', () => {
       answer: 'We do not have quantified Scope 3 emissions on record for this question.',
       dataValue: '68.58000000000001 tCO2e',
     });
-    await render([contradicted]);
+    await render([contradicted], {}, { tier: 'questionnaire-pass' });
     expect(container.textContent).not.toContain('68.58');
     expect(container.textContent).not.toContain('68.6');
 
@@ -166,7 +166,7 @@ describe('CoverageReport', () => {
       answer: 'Our Scope 1 emissions for the reporting period are 68.6 tCO2e.',
       dataValue: '68.58000000000001 tCO2e',
     });
-    await render([stated]);
+    await render([stated], {}, { tier: 'questionnaire-pass' });
     // Rounded, never fifteen decimal places of binary floating point.
     expect(container.textContent).not.toContain('68.58000000000001');
     expect(container.textContent).toContain('68.6 tCO2e');
@@ -181,20 +181,20 @@ describe('CoverageReport', () => {
       primaryDomain: 'energy_electricity',
       suggestedDataPoints: ['Electricity consumption (kWh)'],
     };
-    await render([question], { dataSources: { 'energy.electricityKwh': 'stadtwerke.pdf' } });
+    await render([question], { dataSources: { 'energy.electricityKwh': 'stadtwerke.pdf' } }, { tier: 'questionnaire-pass' });
     expect(container.textContent).toContain('from stadtwerke.pdf');
 
-    await render([question]);
+    await render([question], {}, { tier: 'questionnaire-pass' });
     expect(container.textContent).not.toContain('from stadtwerke.pdf');
   });
 
   // The misleading half of a true number: the engine composes drafts from its template
   // library whether or not the reader has told us anything about their business.
   it('does not claim a draft came from the reader when they have entered nothing', async () => {
-    await render([draft('workforce', 'medium')], { companyData: {} });
+    await render([draft('workforce', 'medium')], { companyData: {} }, { tier: 'questionnaire-pass' });
     expect(container.textContent).toContain('from our answer library');
 
-    await render([draft('workforce', 'medium')], { companyData: { electricityKwh: 42000 } });
+    await render([draft('workforce', 'medium')], { companyData: { electricityKwh: 42000 } }, { tier: 'questionnaire-pass' });
     expect(container.textContent).toContain('exactly as they will look when you finish');
   });
 
@@ -212,7 +212,7 @@ describe('CoverageReport', () => {
         questionText: 'Do you have a code of conduct?',
       }),
     ]);
-    expect(container.textContent).toContain('policy documents these questions ask for');
+    expect(container.textContent).toContain('policy document this questionnaire asks for');
   });
 
   // Non-negotiable: the report describes what the record supports. It never predicts how

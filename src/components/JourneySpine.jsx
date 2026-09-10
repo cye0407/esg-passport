@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Check, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageContext';
 
@@ -9,7 +10,7 @@ import { useLanguage } from '@/components/LanguageContext';
 // A finished step carries its RESULT rather than a bare tick — "36 questions",
 // "2 documents". A tick says you did something; the number says what it got you, which
 // is the question someone actually has when they land back here.
-export default function JourneySpine({ step, questionCount = 0, documentCount = 0 }) {
+export default function JourneySpine({ step, questionCount = 0, documentCount = 0, evidenceSkipped = false }) {
   const { t } = useLanguage();
 
   const steps = [
@@ -20,8 +21,11 @@ export default function JourneySpine({ step, questionCount = 0, documentCount = 
     },
     {
       label: t('spine.evidence'),
-      done: step > 2,
-      result: documentCount > 0 ? t('spine.documents', { count: documentCount }) : null,
+      done: step > 2 && !evidenceSkipped,
+      href: questionCount > 0 && step !== 2 ? '/evidence' : null,
+      result: documentCount > 0
+        ? t('spine.documents', { count: documentCount })
+        : evidenceSkipped ? t('spine.skipped') : null,
     },
     { label: t('spine.answers'), done: false, result: null },
   ];
@@ -62,7 +66,14 @@ export default function JourneySpine({ step, questionCount = 0, documentCount = 
                         : 'whitespace-nowrap text-sm text-slate-400'
                   }
                 >
-                  {item.label}
+                  {item.href ? (
+                    <Link
+                      to={item.href}
+                      className="underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-900 hover:decoration-slate-900"
+                    >
+                      {item.label}
+                    </Link>
+                  ) : item.label}
                   {item.result && <span className="text-slate-500"> — {item.result}</span>}
                 </span>
               </div>
