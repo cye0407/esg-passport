@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { extractFromText } from '@extract/extractors/registry';
+import { extractFleetCsv, extractFromText } from '@extract/extractors/registry';
 import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
 import { readPdfText, isUnreadablePdfText } from '../../web-helpers/pdfReader';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,7 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
   const processFile = useCallback(async (file) => {
     let text = '';
     const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+    const isCsv = file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv');
 
     if (isPdf) {
       try {
@@ -58,7 +59,10 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
       };
     }
 
-    const result = extractFromText(text);
+    // A transaction export is a table, not prose. The generic document matcher can
+    // see hundreds of "ARAL" strings but has no row/column semantics, so it cannot
+    // safely distinguish litres from prices, spend or odometer readings.
+    const result = isCsv ? extractFleetCsv(text) : extractFromText(text);
 
     // Only surface fields we can actually write to the store. A field the
     // extractor produces but that has no EXTRACT_FIELD_MAP entry (e.g.
