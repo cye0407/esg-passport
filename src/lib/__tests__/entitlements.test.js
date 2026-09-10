@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { canActivateAnotherKey, getEntitlements } from '../entitlements';
 
 describe('license entitlements', () => {
-  it('keeps free users restricted to the sample workflow', () => {
+  it('lets free analyse its own questionnaire without finishing it', () => {
     expect(getEntitlements('free')).toEqual({
-      canUploadQuestionnaire: false,
-      canExtractDocuments: false,
+      canUploadQuestionnaire: true,
+      canExtractDocuments: true,
+      canAnalyseCoverage: true,
+      canGenerateAnswers: false,
       canExportResponses: false,
       canBuildPolicies: false,
       canGenerateReport: false,
-      maxQuestionnaires: 0,
-      hasUnlimitedQuestionnaires: false,
     });
   });
 
@@ -18,24 +18,38 @@ describe('license entitlements', () => {
     expect(getEntitlements('questionnaire-pass')).toMatchObject({
       canUploadQuestionnaire: true,
       canExtractDocuments: true,
+      canAnalyseCoverage: true,
+      canGenerateAnswers: true,
       canExportResponses: true,
-      maxQuestionnaires: 1,
-      hasUnlimitedQuestionnaires: false,
     });
   });
 
-  it.each(['pro', 'pro-plus'])('keeps %s Passport users unlimited', tier => {
+  it.each(['pro', 'pro-plus'])('keeps %s Passport users unrestricted', tier => {
     expect(getEntitlements(tier)).toMatchObject({
       canUploadQuestionnaire: true,
       canExtractDocuments: true,
+      canAnalyseCoverage: true,
+      canGenerateAnswers: true,
       canExportResponses: true,
-      maxQuestionnaires: null,
-      hasUnlimitedQuestionnaires: true,
+      canBuildPolicies: true,
+      canGenerateReport: true,
     });
   });
 
   it('fails closed for an unknown tier', () => {
     expect(getEntitlements('mystery')).toEqual(getEntitlements('free'));
+  });
+
+  // The whole point of the split: opening upload to free must not open generation
+  // or export with it. If these ever drift true, free IS the product.
+  it('keeps generation and export behind the paid line for free', () => {
+    const free = getEntitlements('free');
+    expect(free.canGenerateAnswers).toBe(false);
+    expect(free.canExportResponses).toBe(false);
+    for (const tier of ['questionnaire-pass', 'pro', 'pro-plus']) {
+      expect(getEntitlements(tier).canGenerateAnswers).toBe(true);
+      expect(getEntitlements(tier).canExportResponses).toBe(true);
+    }
   });
 
   it('keeps the EUR 499-only capabilities out of the EUR 99 Questionnaire Pass', () => {

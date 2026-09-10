@@ -66,7 +66,9 @@ describe('Layout navigation entitlements', () => {
     await renderLayout();
 
     expect(container.textContent).toContain('Respond');
-    expect(container.textContent).toContain('Example');
+    // No "Example" badge any more. Free reaches the real Respond page with its own
+    // questionnaire; the sample lives at /demo and is no longer what the nav offers.
+    expect(container.textContent).not.toContain('Example');
     expect(container.querySelector('[aria-label="Respond locked"]')).toBeNull();
     expect(container.querySelector('[aria-label="Requests locked"]')).toBeNull();
     expect(container.querySelector('[aria-label="Report locked"]')).not.toBeNull();

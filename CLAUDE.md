@@ -1,7 +1,16 @@
 ﻿# ESG Passport
 
 ## Project Overview
-SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire response capability for suppliers, branded as "ESG for Suppliers." Subscription-based tool where suppliers maintain a living ESG passport they can update and reuse.
+The ESG questionnaire response tool for suppliers, branded as "ESG for Suppliers."
+One-time purchase, local-first — NOT a subscription.
+
+Three tiers, and the line between them is **finishing**, not looking:
+- **free** — upload your own questionnaire, read your own documents, and get a
+  coverage report: what it asks, what your records already answer, which documents
+  would answer the rest. No generated answers, no export, no policy builders.
+- **questionnaire-pass (€99)** — finish and export ONE questionnaire.
+- **pro (€499)** — every questionnaire, the record kept and reused, the nine guided
+  policy builders, the standalone ESG report.
 
 ## Tech Stack
 - Vite + React 19
@@ -11,6 +20,28 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - response-ready (local dependency) — domain-agnostic questionnaire engine + ESG domain pack
 
 ## Current State
+- **Free reads your own questionnaire** (Sept 2026). Until then `free` carried
+  `canUploadQuestionnaire: false` / `canExtractDocuments: false`, so every visitor
+  evaluated the product against `demoData.js`'s fictional company — which is why a year
+  of traffic produced 2 paywall hits. `canUploadQuestionnaire` and `canGenerateAnswers`
+  are now separate flags; the second is the paid line.
+- **Coverage report** — `src/lib/coverage.js` (pure aggregate over engine drafts),
+  `src/lib/coverageFieldMap.js` (data-point label → workspace field → document, one test
+  per row), `src/components/CoverageReport.jsx`. Three groups: answered from your
+  records (high confidence), written for you to check (medium), cannot answer
+  (everything else — a low-confidence draft is NOT presented as an answer). Never a
+  score, a percentage, or a predicted buyer outcome; a test asserts those words are
+  absent. Spec: `COVERAGE-REPORT-SPEC.md`.
+- **PDF and Word uploads confirm the question list first** — the parser finds 22 of ~50
+  questions in a real SAQ, and a wrong denominator makes every number on the report
+  false. Spreadsheets skip the step.
+- **Onboarding is one screen** whose action is the questionnaire. The company profile is
+  deferred to /data.
+- **Extraction records provenance** — the document name is stored in
+  `settings.dataSources`, so the report can say where a figure came from.
+- **Every checkout goes through `checkout.js`** (`checkoutLinkProps` for anchors,
+  `openCheckout` for buttons) and fires `checkout_opened`. It used to fire from one of
+  eleven links.
 - **License gate** — LemonSqueezy license key validation on app launch (src/lib/license.js + src/components/LicenseGate.jsx)
 - Consumes response-ready package (file:../response-ready) for questionnaire engine
 - Engine accessed via lazy singleton: `getEngine()` → `createResponseEngine(esgDomainPack)`
@@ -38,6 +69,9 @@ SaaS version of the ESG Response Generator. Provides ongoing ESG questionnaire r
 - Optional AI enhancement (bring your own Claude or OpenAI API key)
 - License deactivation in Settings (for device transfer)
 - Local-first Questionnaire Pass tier with a persistent one-questionnaire allowance
+- `src/lib/entitlements.js` is the single boundary. Gate on a capability, never on
+  `isPaid` — `isPaid` is true for the €99 tier too, and every bug in this area has been
+  some component asking the wrong question.
 - Build passes successfully
 
 ## License System

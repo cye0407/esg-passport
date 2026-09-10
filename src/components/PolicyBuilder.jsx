@@ -4,7 +4,7 @@ import { useLicense } from '@/components/LicenseContext';
 import { useLanguage } from '@/components/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { track } from '@/lib/track';
-import { PASSPORT_CHECKOUT_URL } from '@/lib/checkout';
+import { PASSPORT_CHECKOUT_URL, checkoutLinkProps } from '@/lib/checkout';
 import {
   getPolicies,
   getCompanyProfile,
@@ -99,7 +99,7 @@ function StatusPill({ status, t }) {
 export default function PolicyBuilder() {
   // Gate on the capability, not on "is any tier paid": a EUR 99 Questionnaire
   // Pass must not unlock the EUR 499 guided builders. COVERAGE-REPORT-SPEC.md.
-  const { entitlements, isChecking } = useLicense();
+  const { entitlements, isChecking, tier } = useLicense();
   const { lang, t } = useLanguage();
   const canBuildPolicies = entitlements.canBuildPolicies;
   const profile = getCompanyProfile();
@@ -510,14 +510,16 @@ export default function PolicyBuilder() {
             <div className="font-semibold text-[15px]">{t('pb.upgrade.title')}</div>
             <div className="text-slate-300 text-[13px]">
               {t('pb.upgrade.body')}
+              {/* A Pass holder reaching this has already paid once; say the arithmetic. */}
+              {tier === 'questionnaire-pass' && (
+                <span className="block mt-2 text-slate-300">{t('upgrade.credit')}</span>
+              )}
             </div>
           </div>
         </div>
         <a
-          href={PASSPORT_CHECKOUT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => track('upgrade_cta_click', { source: 'policy_builder' })}
+          {...checkoutLinkProps(PASSPORT_CHECKOUT_URL, 'policy_builder', tier)}
+          onClickCapture={() => track('upgrade_cta_click', { source: 'policy_builder' })}
           className="flex-shrink-0 inline-flex items-center justify-center gap-2 h-10 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-semibold rounded-sm transition text-[13.5px]"
         >
           {t('pb.upgrade.cta')} <ExternalLink className="w-4 h-4" />
@@ -621,10 +623,8 @@ export default function PolicyBuilder() {
             <LiveDoc id={WORKED_EXAMPLE_ID} answers={workedExampleAnswers(lang)} adopted showUnlock />
           </div>
           <a
-            href={PASSPORT_CHECKOUT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => track('upgrade_cta_click', { source: 'policy_builder_example' })}
+            {...checkoutLinkProps(PASSPORT_CHECKOUT_URL, 'policy_builder_example', tier)}
+            onClickCapture={() => track('upgrade_cta_click', { source: 'policy_builder_example' })}
             className="mt-4 inline-flex items-center justify-center gap-2 h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-sm transition text-[13.5px]"
           >
             {t('pb.example.cta')} <ExternalLink className="w-4 h-4" />

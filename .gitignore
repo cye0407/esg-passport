@@ -30,3 +30,8 @@ dist-ssr
 
 # export harness test artifacts
 /phase0testing/
+
+# Design canvases are assembled from the .dc.html sources beside them; the seeded
+# payload embeds a ~2.5MB editor bundle and is regenerated on every change.
+design/*.html
+!design/*.dc.html

@@ -39,10 +39,11 @@ function CollapsibleSection({ icon: Icon, title, children, defaultOpen = false }
 export default function Settings() {
   const navigate = useNavigate();
   const { lang, setLang, t } = useLanguage();
-  const { activate, isPaid, tier } = useLicense();
-  // Read straight out of the store on first render. These used to be null until
-  // an effect filled them in, which is a second render for data that was already
-  // sitting in localStorage.
+  const { activate, isPaid, tier, entitlements } = useLicense();
+  // Read straight out of the store on first render. These used to be null until an
+  // effect filled them in, which is a second render for data already sitting in
+  // localStorage — and that effect is gone, so lazy initialisers are now the only
+  // thing that fills them.
   const [company, setCompany] = useState(() => getCompanyProfile());
   const [settings, setSettings] = useState(() => getSettings());
   const [saved, setSaved] = useState(false);
@@ -243,9 +244,13 @@ export default function Settings() {
       </CollapsibleSection>
 
       {/* AI Enhancement */}
+      {/* Gated on the capability, not on "has paid something". isPaid is true for every
+          tier, so this was the last place where the boundary was a different shape from
+          the one Respond enforces - and AI enhancement rewrites generated answers, so it
+          belongs with canGenerateAnswers. Keys are the user's own; this costs us nothing. */}
       <CollapsibleSection icon={Sparkles} title={t('settings.aiTitle')}>
         <div className="space-y-4 pt-4">
-          {isPaid ? (
+          {entitlements.canGenerateAnswers ? (
             <>
               <p className="text-sm text-slate-500">
                 {t('settings.aiIntro')}

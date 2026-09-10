@@ -19,6 +19,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 }
 import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
+import Evidence from './pages/Evidence';
 import Data from '@/pages/Data';
 import Requests from '@/pages/Requests';
 import RequestWorkspace from '@/pages/RequestWorkspace';
@@ -110,6 +111,9 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
           <Route path="/data" element={<Data />} />
+          {/* Step two of the journey. Free reaches it: reading your own documents
+              is what the coverage report is made of. */}
+          <Route path="/evidence" element={<Evidence />} />
           <Route path="/policies" element={<Policies />} />
           <Route path="/documents" element={<Documents />} />
           <Route path="/report" element={<PaidRoute feature="ESG Report" capability="canGenerateReport"><Report /></PaidRoute>} />

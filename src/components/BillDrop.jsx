@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { extractFromText } from '@extract/extractors/registry';
 import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
 import { readPdfText, isUnreadablePdfText } from '../../web-helpers/pdfReader';
@@ -11,9 +11,18 @@ import { useLanguage } from '@/components/LanguageContext';
  * BillDrop — drop utility bills to auto-fill ESG data.
  *
  * Props:
- *   onDataExtracted(fields, period) — called with accepted fields to merge into data records
+ *   onDataExtracted(fields, period, fileName) — called with accepted fields to merge into
+ *     data records. fileName is the document the values came out of, so the workspace can
+ *     record where each figure came from rather than losing it at the moment of import.
+ *   onBatchComplete() — called once the whole dropped batch has been reviewed, accepted or
+ *     cancelled. Several files are reviewed one dialog at a time, so a parent that reacts
+ *     to the FIRST onDataExtracted — by navigating away, or by opening a dialog of its own
+ *     over the next review — loses every document after it.
+ *   incoming — files dropped somewhere else (the dashboard) and handed here to read on
+ *     arrival, so the drop and the review are not two different uploaders. Processed
+ *     once; the caller has already consumed its hand-off, so a re-render never re-reads.
  */
-export default function BillDrop({ onDataExtracted }) {
+export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = null }) {
   const { lang, t } = useLanguage();
   const [dragging, setDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -100,6 +109,19 @@ export default function BillDrop({ onDataExtracted }) {
     }
   }, [processFile, t]);
 
+  // Files handed over from another screen. The ref guards against a second pass if the
+  // parent re-renders with the same array — reading a bill twice would ask the user to
+  // confirm the same figures again.
+  const consumedIncoming = useRef(false);
+  useEffect(() => {
+    if (consumedIncoming.current) return;
+    if (!incoming || incoming.length === 0) return;
+    consumedIncoming.current = true;
+    // Deferred a tick: processFiles sets the reading state on its first line, and doing
+    // that synchronously inside an effect makes React re-render mid-commit.
+    queueMicrotask(() => processFiles(incoming));
+  }, [incoming, processFiles]);
+
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     setDragging(false);
@@ -126,14 +148,15 @@ export default function BillDrop({ onDataExtracted }) {
       setQueue(prev => prev.slice(1));
     } else {
       setResults(null);
+      onBatchComplete?.();
     }
-  }, [queue]);
+  }, [queue, onBatchComplete]);
 
   const handleConfirm = useCallback(() => {
     if (!results) return;
     const accepted = results.fields.filter(f => f.accepted);
     if (accepted.length > 0) {
-      onDataExtracted(accepted, results.result?.period);
+      onDataExtracted(accepted, results.result?.period, results.fileName);
     }
     showNext();
   }, [results, onDataExtracted, showNext]);

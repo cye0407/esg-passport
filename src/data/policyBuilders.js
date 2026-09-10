@@ -2308,16 +2308,25 @@ export const matchBuilderId = (text) => {
   // environmental last). Each line now carries the German wording alongside the
   // English: a German questionnaire matched nothing before, so the "build this
   // policy" link on a policy gap simply never appeared for a German supplier.
+  // Widened for the coverage report, which counts these matches and quotes the number
+  // back to the buyer as "N need policies you don't have yet". A question that matches
+  // nothing is simply not counted; a question matched to a builder that does not
+  // actually produce what was asked for would be a fake door with a price on it.
+  //
+  // Deliberately still unmatched: human rights, modern slavery, forced and child
+  // labour, conflict minerals. None of the nine builders writes those documents, and
+  // routing them to the Code of Conduct - which asks about conflicts of interest and
+  // fair competition - would promise a supplier something they would not receive.
   const rules = [
-    [/supplier.*(code|conduct)|supply.?chain.*(code|conduct)|lieferantenkodex|lieferantenverhaltenskodex|verhaltenskodex für lieferanten/, 'supplier_coc'],
-    [/anti[-\s]?bribery|anti[-\s]?corruption|\bbribery\b|\bcorruption\b|facilitation payment|antikorruption|korruptionsbekämpfung|bestechung|\bkorruption\b/, 'anti_corruption'],
-    [/code of conduct|business ethics|verhaltenskodex|verhaltensrichtlinie|geschäftsethik/, 'code_of_conduct'],
+    [/supplier.*(code|conduct)|supply.?chain.*(code|conduct|policy|standard|requirement)|subcontractor.*(code|conduct)|vendor code|responsible (sourcing|procurement)|sustainable (sourcing|procurement)|purchasing policy|lieferantenkodex|lieferantenverhaltenskodex|verhaltenskodex für lieferanten|nachhaltige beschaffung|einkaufsrichtlinie|lieferkette.*(richtlinie|standard)/, 'supplier_coc'],
+    [/anti[-\s]?bribery|anti[-\s]?corruption|\bbribery\b|\bcorruption\b|facilitation payment|money laundering|kickback|gifts and hospitality|antikorruption|korruptionsbekämpfung|bestechung|\bkorruption\b|geldwäsche|geschenke und einladungen/, 'anti_corruption'],
+    [/code of conduct|business ethics|ethics policy|\bintegrity\b|conflicts? of interest|fair competition|anti[-\s]?trust|verhaltenskodex|verhaltensrichtlinie|geschäftsethik|ethikrichtlinie|interessenkonflikt|kartellrecht/, 'code_of_conduct'],
     [/whistle\s?bl|grievance|raise.*concern|report.*(concern|misconduct)|speak.?up|hinweisgeber|beschwerdeverfahren|meldestelle|missstände/, 'whistleblowing'],
-    [/data (privacy|protection)|gdpr|personal data|datenschutz|dsgvo|personenbezogene daten/, 'data_privacy'],
-    [/health.*safety|occupational|\bohs\b|iso ?45001|arbeitsschutz|arbeitssicherheit|gesundheitsschutz/, 'health_safety'],
-    [/equal opportunit|discriminat|diversity|inclusion|\bdei\b|equal pay|chancengleichheit|gleichbehandlung|diskriminierung|vielfalt|entgeltgleichheit/, 'equal_opp'],
+    [/data (privacy|protection)|gdpr|personal data|privacy (policy|notice)|datenschutz|dsgvo|personenbezogene daten/, 'data_privacy'],
+    [/health.*safety|occupational|\bohs\b|iso ?45001|workplace (safety|accident|incident)|arbeitsschutz|arbeitssicherheit|gesundheitsschutz|arbeitsunfall/, 'health_safety'],
+    [/equal opportunit|discriminat|diversity|inclusion|\bdei\b|equal pay|harassment|bullying|chancengleichheit|gleichbehandlung|diskriminierung|vielfalt|entgeltgleichheit|belästigung|mobbing/, 'equal_opp'],
     [/training|development|upskill|schulung|weiterbildung|fortbildung|qualifizierung|personalentwicklung/, 'training'],
-    [/environment|umwelt/, 'environmental'],
+    [/environment|umwelt|energy policy|climate policy|waste policy|iso ?14001|energierichtlinie|klimarichtlinie|abfallrichtlinie/, 'environmental'],
   ];
   for (const [re, id] of rules) if (re.test(s)) return id;
   return null;

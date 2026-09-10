@@ -1,496 +1,342 @@
 import React from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import {
-  getCompanyProfile,
   getReadinessStats,
   getRequests,
   getDataRecords,
-  getAnnualTotals,
   getSettings,
 } from '@/lib/store';
-import { MONTHS } from '@/lib/constants';
 import { useLanguage } from '@/components/LanguageContext';
 import { useLicense } from '@/components/LicenseContext';
 import { track } from '@/lib/track';
-import { formatNumber } from '@/lib/i18n';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import {
-  Database,
-  ShieldCheck,
-  Inbox,
-  ArrowRight,
-  Clock,
-  TrendingUp,
-  Zap,
-  Droplets,
-  Trash2,
-  Users,
-  Sparkles,
-  CalendarPlus,
-  AlertTriangle,
-  Upload,
-  FileText,
-  Info,
-  X,
-  HardDrive,
-  PenLine,
-  FileSpreadsheet,
-  ExternalLink,
-} from 'lucide-react';
+import { ArrowRight, ExternalLink, Shield } from 'lucide-react';
 
-import { PASSPORT_CHECKOUT_URL, marketingUrl } from '@/lib/checkout';
+import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, checkoutLinkProps, marketingUrl } from '@/lib/checkout';
+import QuestionnaireDrop from '@/components/QuestionnaireDrop';
+import DocumentDrop from '@/components/DocumentDrop';
+import JourneySpine from '@/components/JourneySpine';
 import { canActivateAnotherKey } from '@/lib/entitlements';
+import { readCoverageStash } from '@/lib/coverageStash';
+import { documentName } from '@/lib/documentLabels';
+import { HOME_TABS, defaultHomeTab, readLastHomeTab, writeLastHomeTab } from '@/lib/homeTab';
 
+// The dashboard asks one question: what are you holding?
+//
+// It used to ask six. A welcome card with a readiness donut, a hero headline, a
+// questionnaire dropzone, an evidence card, an upgrade banner, a dismissible guide, four
+// stat tiles and a Quick Actions list — ten blocks, six of them styled as "do this", two
+// of them <h1>. And the one path the code did pick ranked "enter your September data"
+// second and "upload a questionnaire" LAST, which is the old living-passport product
+// arguing with the one we sell: a questionnaire lands on someone's desk, and that is the
+// job.
+//
+// So: two doors, both of them a file you already have — the questionnaire, or the bills —
+// one open at a time (see homeTab.js for which). Numbers are a line of text, not a row of
+// tiles. The composite readiness score is gone: it averaged data quality with policy
+// completion, so a free visitor was greeted by a low percentage for work the free tier
+// cannot do, on a product whose coverage report is forbidden from showing scores.
 export default function Home() {
   // Every hook runs before the redirect below. It used to sit between them, so a
-  // render with setup incomplete called one hook and a render with it complete
-  // called three — and React throws "rendered more hooks than during the previous
-  // render" the moment that count changes under a mounted component.
-  const { tier } = useLicense();
-  const { lang, t } = useLanguage();
-  const [showGuide, setShowGuide] = React.useState(() => {
-    return !localStorage.getItem('esg_passport_guide_dismissed');
-  });
-
+  // render with setup incomplete called one hook and a render with it complete called
+  // three — and React throws "rendered more hooks than during the previous render" the
+  // moment that count changes under a mounted component.
+  const { tier, entitlements } = useLicense();
+  const isPassHolder = tier === 'questionnaire-pass';
   const settings = getSettings();
-  if (!settings.setupCompleted) {
-    return <Navigate to="/onboarding" replace />;
-  }
-
-  const dismissGuide = () => {
-    localStorage.setItem('esg_passport_guide_dismissed', 'true');
-    setShowGuide(false);
-  };
+  const { lang, t } = useLanguage();
+  const redirectToOnboarding = !settings.setupCompleted;
 
   const monthLabel = (mm) => t(`month.${mm}`);
-  // Plural helper: picks `${base}.one` or `${base}.other` and interpolates {count}.
   const pt = (count, base, vars = {}) => t(`${base}.${count === 1 ? 'one' : 'other'}`, { count, ...vars });
-  const fmt = (num, decimals = 0) =>
-    num == null ? '-' : formatNumber(num, lang, { maximumFractionDigits: decimals });
 
-  const company = getCompanyProfile();
   const stats = getReadinessStats();
   const requests = getRequests();
   const dataRecords = getDataRecords();
+  const stash = React.useMemo(() => readCoverageStash(), []);
 
   const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
-  const currentPeriod = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-  const annualTotals = getAnnualTotals(currentYear.toString());
+  const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  const currentPeriod = `${currentYear}-${currentMonth}`;
 
   const hasCurrentMonthData = dataRecords.some(r => r.period === currentPeriod);
   const hasAnyData = dataRecords.length > 0;
   const monthsTracked = dataRecords.length;
 
-  const openRequests = requests.filter(r => r.status !== 'closed' && r.status !== 'sent');
-  const upcomingDeadlines = openRequests
-    .filter(r => r.deadline)
-    .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
-    .slice(0, 3);
-
-  const urgentDeadlines = upcomingDeadlines.filter(r => {
-    const days = Math.ceil((new Date(r.deadline) - new Date()) / (1000 * 60 * 60 * 24));
-    return days <= 7;
-  });
-
-  const readinessScore = Math.round(
-    (stats.dataSafePercent * 0.4) +
-    (stats.policyCompletionPercent * 0.4) +
-    ((dataRecords.length > 0 ? 100 : 0) * 0.2)
+  // Each extracted figure records the document it came out of, so the distinct names
+  // ARE the documents read so far.
+  const documentsRead = React.useMemo(
+    () => [...new Set(Object.values(settings?.dataSources || {}).filter(Boolean))].length,
+    [settings],
   );
 
-  const getPrimaryCTA = () => {
-    if (urgentDeadlines.length > 0) {
-      return {
-        type: 'urgent',
-        title: pt(urgentDeadlines.length, 'home.cta.urgentTitle'),
-        description: t('home.cta.urgentDesc', { customer: urgentDeadlines[0].customerName }),
-        action: t('home.cta.viewRequest'),
-        href: `/requests/${urgentDeadlines[0].id}`,
-        icon: AlertTriangle,
-        borderColor: 'border-red-500',
-        iconColor: 'text-red-600',
-        iconBg: 'bg-red-50',
-      };
-    }
-    if (!hasAnyData) {
-      return {
-        type: 'first-time',
-        title: t('home.cta.firstTitle'),
-        description: t('home.cta.firstDesc'),
-        action: t('home.cta.enterDataFor', { month: monthLabel(currentPeriod.split('-')[1]) }),
-        href: '/data',
-        icon: Sparkles,
-        borderColor: 'border-indigo-600',
-        iconColor: 'text-indigo-600',
-        iconBg: 'bg-indigo-50',
-      };
-    }
-    if (!hasCurrentMonthData) {
-      return {
-        type: 'monthly-update',
-        title: t('home.cta.monthlyTitle', { month: monthLabel(String(currentMonth).padStart(2, '0')) }),
-        description: pt(monthsTracked, 'home.cta.monthlyDesc'),
-        action: t('home.cta.enterThisMonth'),
-        href: '/data',
-        icon: CalendarPlus,
-        borderColor: 'border-blue-500',
-        iconColor: 'text-blue-600',
-        iconBg: 'bg-blue-50',
-      };
-    }
-    if (stats.safeToShareDataPoints < stats.totalDataPoints * 0.5) {
-      return {
-        type: 'confidence',
-        title: t('home.cta.confidenceTitle'),
-        description: t('home.cta.confidenceDesc', { safe: stats.safeToShareDataPoints, total: stats.totalDataPoints }),
-        action: t('home.cta.reviewQuality'),
-        href: '/data',
-        icon: ShieldCheck,
-        borderColor: 'border-amber-500',
-        iconColor: 'text-amber-600',
-        iconBg: 'bg-amber-50',
-      };
-    }
-    if (openRequests.length > 0) {
-      return {
-        type: 'requests',
-        title: pt(openRequests.length, 'home.cta.requestsTitle'),
-        description: t('home.cta.requestsDesc'),
-        action: t('home.cta.viewRequests'),
-        href: '/requests',
-        icon: Inbox,
-        borderColor: 'border-purple-500',
-        iconColor: 'text-purple-600',
-        iconBg: 'bg-purple-50',
-      };
-    }
-    return {
-      type: 'ready',
-      title: t('home.cta.readyTitle'),
-      description: t('home.cta.readyDesc'),
-      action: t('home.cta.uploadQuestionnaire'),
-      href: '/respond',
-      icon: Upload,
-      borderColor: 'border-green-500',
-      iconColor: 'text-green-600',
-      iconBg: 'bg-green-50',
-    };
+  const openRequests = requests.filter(r => r.status !== 'closed' && r.status !== 'sent');
+  const nextDeadline = openRequests
+    .filter(r => r.deadline)
+    .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))[0] || null;
+  const daysToDeadline = nextDeadline
+    ? Math.ceil((new Date(nextDeadline.deadline) - new Date()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const wanted = (stash?.missingDocuments || []).filter(entry => documentName(t, entry.document));
+  const unlockable = wanted.reduce((sum, entry) => sum + (entry.unlocks || 0), 0);
+
+  const [tab, setTab] = React.useState(() => defaultHomeTab({
+    hasAnyData,
+    hasCurrentMonthData,
+    missingDocumentCount: wanted.length,
+    lastTab: readLastHomeTab(),
+  }));
+
+  const chooseTab = (next) => {
+    if (next === tab) return;
+    setTab(next);
+    writeLastHomeTab(next);
+    track('home_tab_switched', { tab: next });
   };
 
-  const primaryCTA = getPrimaryCTA();
+  if (redirectToOnboarding) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  const tabClass = (name) => [
+    'pb-2.5 text-sm transition-colors',
+    tab === name
+      ? 'font-medium text-slate-900 shadow-[inset_0_-1px_0_0_theme(colors.slate.900)]'
+      : 'text-slate-400 hover:text-slate-600',
+  ].join(' ');
 
   return (
-    <div className="space-y-6">
-      {/* Welcome + Primary CTA */}
-      <div className="bg-white border border-slate-200 rounded-none p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-slate-900 mb-1">
-              {company?.tradingName || company?.legalName || t('home.welcome')}
-            </h1>
-            <p className="text-slate-500 text-sm">{t('home.subtitle')}</p>
-          </div>
+    <>
+      <JourneySpine
+        step={stash ? 2 : 1}
+        questionCount={stash?.questionCount || 0}
+        documentCount={documentsRead}
+      />
 
-          <div className="flex items-center gap-4">
-            <div className="relative w-16 h-16">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle cx="50%" cy="50%" r="45%" stroke="currentColor" strokeWidth="6" fill="none" className="text-slate-200" />
-                <circle cx="50%" cy="50%" r="45%" stroke="#4F46E5" strokeWidth="6" fill="none" strokeLinecap="round" strokeDasharray={`${readinessScore * 1.76} 176`} className="transition-all duration-1000" />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-lg font-bold text-slate-900">{readinessScore}%</span>
-              </div>
-            </div>
-            <div className="text-sm">
-              <p className="font-medium text-slate-900">{t('home.responseReady')}</p>
-              <p className="text-slate-500">{stats.safeToShareDataPoints}/{stats.totalDataPoints} {t('home.metrics')}</p>
-            </div>
-          </div>
+      <div className="mx-auto flex max-w-2xl flex-col gap-7 pb-6">
+
+        {/* The numbers, as a line. Only what exists is said — four zeros in a row told a
+            first-time visitor nothing except that they had not started. */}
+        <div className="flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1.5 text-xs text-slate-400">
+          {!hasAnyData && !stash && <span>{t('home.status.nothing')}</span>}
+          {stash && (
+            <span>{pt(stash.questionCount || 0, 'home.status.questions')}</span>
+          )}
+          {hasAnyData && (
+            <>
+              {stash && <span aria-hidden="true" className="text-slate-200">·</span>}
+              <span>{pt(monthsTracked, 'home.status.months')}</span>
+              <span aria-hidden="true" className="text-slate-200">·</span>
+              <span>{t('home.status.safe', { safe: stats.safeToShareDataPoints, total: stats.totalDataPoints })}</span>
+            </>
+          )}
+          {!hasCurrentMonthData && hasAnyData && (
+            <>
+              <span aria-hidden="true" className="text-slate-200">·</span>
+              <Link to="/data" className="text-amber-700 underline-offset-2 hover:underline">
+                {t('home.status.monthMissing', { month: monthLabel(currentMonth) })}
+              </Link>
+            </>
+          )}
+          {documentsRead > 0 && (
+            <>
+              <span aria-hidden="true" className="text-slate-200">·</span>
+              <span>{pt(documentsRead, 'home.status.documents')}</span>
+            </>
+          )}
+          {nextDeadline && daysToDeadline !== null && (
+            <>
+              <span aria-hidden="true" className="text-slate-200">·</span>
+              <Link to={`/requests/${nextDeadline.id}`} className="text-amber-700 underline-offset-2 hover:underline">
+                {daysToDeadline < 0
+                  ? t('home.status.overdue', { customer: nextDeadline.customerName })
+                  : t('home.status.due', { customer: nextDeadline.customerName, days: daysToDeadline })}
+              </Link>
+            </>
+          )}
         </div>
 
-        {/* Primary CTA */}
-        <div className={cn('mt-6 p-4 rounded-none border-l-4 bg-slate-50 border border-slate-200', primaryCTA.borderColor)}>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', primaryCTA.iconBg)}>
-              <primaryCTA.icon className={cn('w-5 h-5', primaryCTA.iconColor)} />
+        {/* What the report asked for. This is the strongest free moment in the product —
+            the reader's own questionnaire has just named which document answers how many
+            questions — so it outranks both doors when it exists. */}
+        {wanted.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <div>
+              <h2 className="text-[17px] font-medium leading-snug tracking-tight text-slate-900">
+                {t('home.docsTitle', { count: unlockable })}{' '}
+                <span className="align-middle text-[10px] uppercase tracking-[0.1em] text-indigo-600">{t('home.free')}</span>
+              </h2>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-slate-500">{t('home.docsBody')}</p>
             </div>
-            <div className="flex-1">
-              <h2 className="text-base font-semibold text-slate-900">{primaryCTA.title}</h2>
-              <p className="text-slate-500 text-sm">{primaryCTA.description}</p>
+            <div>
+              {wanted.map((entry) => (
+                <div
+                  key={entry.document}
+                  className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 border-t border-slate-100 py-2.5 last:border-b last:border-slate-100"
+                >
+                  <span className="min-w-[5.5rem] text-xs tabular-nums text-slate-400">
+                    {t('evidence.answersCount', { count: entry.unlocks })}
+                  </span>
+                  <span className="text-[13px] text-slate-900">{documentName(t, entry.document)}</span>
+                </div>
+              ))}
             </div>
-            <Link to={primaryCTA.href}>
-              <Button className="bg-slate-900 hover:bg-slate-800 text-white w-full sm:w-auto">
-                {primaryCTA.action}
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Upgrade banner — anyone who still has something to buy. Keyed off the
-          capability, not isPaid: isPaid is true for the €99 Questionnaire Pass too,
-          so the €499 upgrade was invisible to exactly the people closest to it. */}
-      {canActivateAnotherKey(tier) && (
-        <div className="bg-slate-900 text-white rounded-none p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="w-10 h-10 bg-white/10 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-base font-semibold">{t('home.upgradeTitle')}</h2>
-              <p className="text-slate-300 text-sm">
-                {tier === 'questionnaire-pass' ? t('home.upgradeBodyPass') : t('home.upgradeBody')}
-              </p>
-            </div>
-            <div className="flex flex-col sm:items-end gap-1.5">
-              <a
-                href={PASSPORT_CHECKOUT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => track('upgrade_cta_click', { source: 'dashboard', from_tier: tier })}
-                className="inline-flex items-center justify-center gap-2 px-5 h-10 bg-white text-slate-900 font-medium hover:bg-slate-100 transition-colors"
+            <div className="flex flex-wrap items-center gap-4">
+              <Link
+                to="/evidence"
+                onClick={() => track('home_documents_cta', { documents: wanted.length })}
+                className="inline-flex h-9 items-center gap-2 bg-slate-900 px-4 text-xs font-medium text-white transition-colors hover:bg-slate-800"
               >
-                {t('home.upgradeCta')}
-                <ExternalLink className="w-4 h-4" />
-              </a>
-              <a
-                href={marketingUrl('/passport', lang)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-slate-400 underline hover:text-slate-200"
-              >
-                {t('home.upgradeMore')}
-              </a>
+                {t('home.docsCta')}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+              <Link to="/respond" className="text-xs font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
+                {t('home.backToReport')}
+              </Link>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Getting Started Guide */}
-      {showGuide && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-none p-6 relative">
-          <button onClick={dismissGuide} className="absolute top-4 right-4 text-indigo-400 hover:text-indigo-600" aria-label={t('home.dismissGuide')}>
-            <X className="w-4 h-4" />
-          </button>
-          <h2 className="text-lg font-semibold text-slate-900 mb-1 flex items-center gap-2">
-            <Info className="w-5 h-5 text-indigo-600" />
-            {t('home.guideTitle')}
-          </h2>
-          <p className="text-sm text-slate-600 mb-4">{t('home.guideSub')}</p>
-          <div className="grid sm:grid-cols-3 gap-4">
-            <div className="bg-white p-4 border border-indigo-100">
-              <PenLine className="w-5 h-5 text-indigo-600 mb-2" />
-              <h3 className="font-medium text-slate-900 text-sm mb-1">{t('home.guide1Title')}</h3>
-              <p className="text-xs text-slate-600">{t('home.guide1Body')}</p>
-            </div>
-            <div className="bg-white p-4 border border-indigo-100">
-              <HardDrive className="w-5 h-5 text-indigo-600 mb-2" />
-              <h3 className="font-medium text-slate-900 text-sm mb-1">{t('home.guide2Title')}</h3>
-              <p className="text-xs text-slate-600">{t('home.guide2Body')}</p>
-            </div>
-            <div className="bg-white p-4 border border-indigo-100">
-              <FileSpreadsheet className="w-5 h-5 text-indigo-600 mb-2" />
-              <h3 className="font-medium text-slate-900 text-sm mb-1">{t('home.guide3Title')}</h3>
-              <p className="text-xs text-slate-600">{t('home.guide3Body')}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link to="/data" className="bg-white border border-slate-200 rounded-none p-4 hover:border-slate-300 transition-colors">
-          <div className="flex items-center justify-between mb-2">
-            <Database className="w-5 h-5 text-slate-400" />
-            {!hasCurrentMonthData && <span className="w-2 h-2 rounded-full bg-amber-500" title={t('home.currentMonthMissing')} />}
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{monthsTracked}</p>
-          <p className="text-sm text-slate-500">{t('home.monthsTracked')}</p>
-        </Link>
-
-        <Link to="/data" className="bg-white border border-slate-200 rounded-none p-4 hover:border-slate-300 transition-colors">
-          <div className="flex items-center justify-between mb-2">
-            <ShieldCheck className="w-5 h-5 text-slate-400" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{stats.safeToShareDataPoints}/{stats.totalDataPoints}</p>
-          <p className="text-sm text-slate-500">{t('home.safeToShare')}</p>
-        </Link>
-
-        <Link to="/policies" className="bg-white border border-slate-200 rounded-none p-4 hover:border-slate-300 transition-colors">
-          <div className="flex items-center justify-between mb-2">
-            <ShieldCheck className="w-5 h-5 text-slate-400" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{stats.approvedPolicies}/{stats.totalPolicies}</p>
-          <p className="text-sm text-slate-500">{t('home.policiesAvailable')}</p>
-        </Link>
-
-        <Link to="/requests" className="bg-white border border-slate-200 rounded-none p-4 hover:border-slate-300 transition-colors">
-          <div className="flex items-center justify-between mb-2">
-            <Inbox className="w-5 h-5 text-slate-400" />
-            {openRequests.length > 0 && <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-xs rounded-full font-medium">{openRequests.length}</span>}
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{openRequests.length}</p>
-          <p className="text-sm text-slate-500">{t('home.openRequests')}</p>
-        </Link>
-      </div>
-
-      {/* Two Column Layout */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Quick Actions */}
-        <div className="bg-white border border-slate-200 rounded-none p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">{t('home.quickActions')}</h2>
-          <div className="space-y-1">
-            <Link to="/data" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors group">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
-                <Database className="w-4 h-4 text-slate-600" />
+        {/* Something part-finished. The stash keeps the questionnaire, never the answers,
+            so this says what was read — not a count of drafts nobody paid for. */}
+        {stash && (
+          <div className="flex flex-col gap-2 border-t border-slate-100 pt-5">
+            <span className="text-[10px] uppercase tracking-[0.12em] text-slate-400">{t('home.inProgress')}</span>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[13px] font-medium text-slate-900">{stash.name}</p>
+                <p className="mt-0.5 text-xs text-slate-400">{pt(stash.questionCount || 0, 'home.status.questions')}</p>
               </div>
-              <div className="flex-1">
-                <p className="font-medium text-slate-900 text-sm">{t('home.enterMonthlyData')}</p>
-                <p className="text-xs text-slate-500">
-                  {hasCurrentMonthData ? t('home.updateEntries') : t('home.addMonthData', { month: monthLabel(String(currentMonth).padStart(2, '0')) })}
+              <Link to="/respond" className="text-xs font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
+                {t('home.resumeOpen')}
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* The two doors. Both are the same gesture — hand us a file you already have. */}
+        <div className="flex flex-col gap-6">
+          <div role="tablist" aria-label={t('home.tabsLabel')} className="flex justify-center gap-7 border-b border-slate-100">
+            <button
+              type="button"
+              role="tab"
+              id="home-tab-questionnaire"
+              aria-selected={tab === HOME_TABS.questionnaire}
+              aria-controls="home-panel-questionnaire"
+              onClick={() => chooseTab(HOME_TABS.questionnaire)}
+              className={tabClass(HOME_TABS.questionnaire)}
+            >
+              {t('home.tab.questionnaire')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="home-tab-bills"
+              aria-selected={tab === HOME_TABS.bills}
+              aria-controls="home-panel-bills"
+              onClick={() => chooseTab(HOME_TABS.bills)}
+              className={tabClass(HOME_TABS.bills)}
+            >
+              {t('home.tab.bills')}
+            </button>
+          </div>
+
+          {tab === HOME_TABS.questionnaire ? (
+            <div
+              role="tabpanel"
+              id="home-panel-questionnaire"
+              aria-labelledby="home-tab-questionnaire"
+              className="flex flex-col gap-5"
+            >
+              <div className="text-center">
+                <h1 className="text-[19px] font-medium leading-snug tracking-tight text-slate-900">{t('home.heroTitle')}</h1>
+                <p className="mx-auto mt-1.5 max-w-lg text-[13px] leading-relaxed text-slate-500">
+                  {entitlements.canGenerateAnswers ? t('home.heroBodyPaid') : t('home.heroBodyFree')}
                 </p>
               </div>
-              <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all" />
-            </Link>
 
-            <Link to="/respond" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors group">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
-                <Upload className="w-4 h-4 text-slate-600" />
+              <QuestionnaireDrop />
+
+              <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400">
+                <span className="text-slate-500">{t('home.flowUpload')}</span>
+                <ArrowRight className="h-3 w-3 text-slate-300" />
+                <span className="text-slate-500">{t('home.flowSee')}</span>
+                <ArrowRight className="h-3 w-3 text-slate-300" />
+                <span className="text-slate-500">{t('home.flowReview')}</span>
               </div>
-              <div className="flex-1">
-                <p className="font-medium text-slate-900 text-sm">{t('home.uploadQuestionnaire')}</p>
-                <p className="text-xs text-slate-500">{t('home.prepareAnswers')}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all" />
-            </Link>
-
-            <Link to="/report" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors group">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
-                <FileText className="w-4 h-4 text-slate-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-slate-900 text-sm">{t('home.sharePassport')}</p>
-                <p className="text-xs text-slate-500">{t('home.shareSub')}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all" />
-            </Link>
-
-            <Link to="/requests" className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors group">
-              <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
-                <Inbox className="w-4 h-4 text-slate-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-slate-900 text-sm">{t('home.logRequest')}</p>
-                <p className="text-xs text-slate-500">{t('home.logRequestSub')}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all" />
-            </Link>
-          </div>
-        </div>
-
-        {/* Deadlines / Requests */}
-        <div className="bg-white border border-slate-200 rounded-none p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-slate-400" />
-            {upcomingDeadlines.length > 0 ? t('home.upcomingDeadlines') : t('home.recentRequests')}
-          </h2>
-
-          {requests.length > 0 ? (
-            <div className="space-y-3">
-              {(upcomingDeadlines.length > 0 ? upcomingDeadlines : requests.slice(0, 3)).map((request) => {
-                const daysUntil = request.deadline
-                  ? Math.ceil((new Date(request.deadline) - new Date()) / (1000 * 60 * 60 * 24))
-                  : null;
-                const isUrgent = daysUntil !== null && daysUntil <= 7;
-
-                return (
-                  <Link
-                    key={request.id}
-                    to={`/requests/${request.id}`}
-                    className="block p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-slate-900 text-sm truncate">{request.customerName}</p>
-                        <p className="text-xs text-slate-500">{request.platform || t('home.customRequest')}</p>
-                      </div>
-                      {daysUntil !== null && (
-                        <div className={cn(
-                          'px-2 py-0.5 rounded text-xs font-medium flex-shrink-0',
-                          daysUntil < 0 ? 'bg-red-50 text-red-700' :
-                          isUrgent ? 'bg-amber-50 text-amber-700' :
-                          'bg-slate-100 text-slate-600'
-                        )}>
-                          {daysUntil < 0 ? t('home.overdue') : t('home.daysShort', { days: daysUntil })}
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-                );
-              })}
-
-              {requests.length > 3 && (
-                <Link to="/requests" className="block text-center text-sm text-slate-500 hover:text-slate-700 py-2">
-                  {t('home.viewAllRequests', { count: requests.length })}
-                </Link>
-              )}
             </div>
           ) : (
-            <div className="text-center py-8 text-slate-400">
-              <Inbox className="w-10 h-10 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">{t('home.noRequests')}</p>
-              <Link to="/requests">
-                <Button variant="link" className="text-indigo-600 mt-2 text-sm">{t('home.logFirstRequest')}</Button>
-              </Link>
+            <div
+              role="tabpanel"
+              id="home-panel-bills"
+              aria-labelledby="home-tab-bills"
+              className="flex flex-col gap-5"
+            >
+              <div className="text-center">
+                <h1 className="text-[19px] font-medium leading-snug tracking-tight text-slate-900">
+                  {t('home.billsTitle')}{' '}
+                  <span className="align-middle text-[10px] uppercase tracking-[0.1em] text-indigo-600">{t('home.free')}</span>
+                </h1>
+                <p className="mx-auto mt-1.5 max-w-lg text-[13px] leading-relaxed text-slate-500">{t('home.billsBody')}</p>
+              </div>
+
+              <DocumentDrop />
+
+              <p className="text-center text-xs text-slate-400">
+                {t('home.nothingToHand')}{' '}
+                <Link to="/data" className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
+                  {t('evidence.typeInstead')}
+                </Link>
+              </p>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Key Metrics — only show if there's actual data with values */}
-      {hasAnyData && annualTotals.totalEnergyKwh > 0 && (
-        <div className="bg-white border border-slate-200 rounded-none p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-slate-400" />
-            {t('home.keyMetrics', { year: currentYear })}
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="p-4 rounded-lg bg-slate-50">
-              <Zap className="w-4 h-4 text-slate-400 mb-2" />
-              <p className="text-lg font-bold text-slate-900">{fmt(annualTotals.totalEnergyKwh)}</p>
-              <p className="text-xs text-slate-500">{t('home.unitEnergy')}</p>
+        {/* The one colour block on the screen, and the only thing on it that is asking
+            for money. Keyed off the capability, not isPaid: isPaid is true for the €99
+            Pass too, so the €499 upgrade was invisible to the people closest to it.
+            Free is offered the €99 rung, a Pass holder the Passport. */}
+        {canActivateAnotherKey(tier) && (
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-indigo-50 p-5">
+            <div>
+              <p className="text-[13px] font-semibold text-indigo-950">
+                {isPassHolder ? t('home.upgradeTitle') : t('home.upgradeTitleFree')}
+              </p>
+              <p className="mt-1 max-w-lg text-xs leading-relaxed text-indigo-900/70">
+                {isPassHolder ? t('home.upgradeBodyPass') : t('home.upgradeBodyFree')}
+              </p>
+              {isPassHolder && <p className="mt-1 text-[11px] text-indigo-900/60">{t('upgrade.credit')}</p>}
             </div>
-            <div className="p-4 rounded-lg bg-slate-50">
-              <div className="w-4 h-4 text-slate-400 mb-2 font-bold text-[10px] flex items-center">CO2</div>
-              <p className="text-lg font-bold text-slate-900">{fmt((annualTotals.scope1Tco2e || 0) + (annualTotals.scope2Tco2e || 0), 1)}</p>
-              <p className="text-xs text-slate-500">{t('home.unitScope12')}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-slate-50">
-              <Droplets className="w-4 h-4 text-slate-400 mb-2" />
-              <p className="text-lg font-bold text-slate-900">{fmt(annualTotals.waterM3)}</p>
-              <p className="text-xs text-slate-500">{t('home.unitWater')}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-slate-50">
-              <Trash2 className="w-4 h-4 text-slate-400 mb-2" />
-              <p className="text-lg font-bold text-slate-900">{fmt((annualTotals.totalWasteKg || 0) / 1000, 1)}</p>
-              <p className="text-xs text-slate-500">{t('home.unitWaste')}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-slate-50">
-              <Users className="w-4 h-4 text-slate-400 mb-2" />
-              <p className="text-lg font-bold text-slate-900">{fmt(annualTotals.totalEmployees) || '-'}</p>
-              <p className="text-xs text-slate-500">{t('home.unitEmployees')}</p>
-            </div>
-            <div className="p-4 rounded-lg bg-slate-50">
-              <ShieldCheck className="w-4 h-4 text-slate-400 mb-2" />
-              <p className="text-lg font-bold text-slate-900">{fmt(annualTotals.workAccidents ?? 0)}</p>
-              <p className="text-xs text-slate-500">{t('home.unitAccidents')}</p>
-            </div>
+            <a
+              {...checkoutLinkProps(
+                isPassHolder ? PASSPORT_CHECKOUT_URL : QUESTIONNAIRE_PASS_CHECKOUT_URL,
+                'dashboard',
+                tier,
+              )}
+              onClickCapture={() => track('upgrade_cta_click', { source: 'dashboard', from_tier: tier })}
+              className="inline-flex h-9 shrink-0 items-center gap-2 bg-indigo-700 px-4 text-xs font-medium text-white transition-colors hover:bg-indigo-800"
+            >
+              {isPassHolder ? t('home.upgradeCta') : t('home.upgradeCtaFree')}
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
           </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-slate-400">
+          <span className="inline-flex items-center gap-1.5">
+            <Shield className="h-3 w-3" />
+            {t('onboard.privacy')}
+          </span>
+          <a
+            href={marketingUrl('/passport', lang)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-slate-200 underline-offset-4 hover:decoration-slate-400"
+          >
+            {t('home.upgradeMore')}
+          </a>
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }

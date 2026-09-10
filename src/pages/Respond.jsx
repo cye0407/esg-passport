@@ -6,11 +6,18 @@ import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getD
 import { loadDemoData } from '@/lib/demoData';
 import { QUESTIONNAIRE_TEMPLATES, templateToParseResult, templateName, templateDescription } from '@/data/questionnaire-templates';
 import { matchBuilderId } from '@/data/policyBuilders';
+import { summarizeCoverage } from '@/lib/coverage';
+import { figureWithUnit, answerStatesFigure } from '@/lib/figures';
+import { takeHandoff } from '@/lib/handoff';
+import { writeCoverageStash, takeCoverageStash, clearCoverageStash } from '@/lib/coverageStash';
+import JourneySpine from '@/components/JourneySpine';
+import CoverageReport from '@/components/CoverageReport';
+import ResultsViewSwitch from '@/components/ResultsViewSwitch';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
 import { LANGUAGES, isOfferedAnswerLanguage, localizeAnswerDrafts, translateAnswer } from '@/lib/translations';
 import { localizeEngineMessages } from '@/lib/engineMessages';
-import { PASSPORT_CHECKOUT_URL } from '@/lib/checkout';
+import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, openCheckout, checkoutLinkProps } from '@/lib/checkout';
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { track } from '@/lib/track';
@@ -89,9 +96,16 @@ export default function Respond({ demoOnly = false }) {
   const { tier, entitlements, licenseKeyId } = useLicense();
   const { t, lang } = useLanguage();
   const dateLocale = lang === 'de' ? 'de-DE' : 'en-GB';
-  const canRespond = entitlements.canUploadQuestionnaire && !demoOnly;
+  // Free may put its OWN questionnaire in (canUploadQuestionnaire) but may not finish
+  // it (canGenerateAnswers). Those were one flag until now, so opening upload to free
+  // would have handed over the whole product. canUpload drives the file/parse surfaces;
+  // canGenerate drives everything that turns a parsed questionnaire into answers a
+  // supplier could send. isDemo tracks the paid line, so the preview limit and the buy
+  // CTAs are unchanged - what changes is that the questions and the data are now theirs.
+  const canUpload = entitlements.canUploadQuestionnaire && !demoOnly;
+  const canGenerate = entitlements.canGenerateAnswers && !demoOnly;
   const canExport = entitlements.canExportResponses && !demoOnly;
-  const isDemo = !canRespond;
+  const isDemo = !canGenerate;
   const [searchParams] = useSearchParams();
   const requestId = searchParams.get('requestId');
   const linkedRequest = requestId ? getRequestById(requestId) : null;
@@ -119,6 +133,9 @@ export default function Respond({ demoOnly = false }) {
   const [passClaim, setPassClaim] = useState(() => getQuestionnairePassClaim(licenseKeyId));
   const [pendingPassClaim, setPendingPassClaim] = useState(null);
   const [passBlock, setPassBlock] = useState(null);
+  // The question list awaiting the user's confirmation, and which of them they kept.
+  const [pendingConfirm, setPendingConfirm] = useState(null);
+  const [confirmedIds, setConfirmedIds] = useState(() => new Set());
 
   const requests = getRequests().filter(r => r.status !== 'closed' && r.status !== 'sent');
   const [selectedRequestId, setSelectedRequestId] = useState(requestId || '');
@@ -135,6 +152,43 @@ export default function Respond({ demoOnly = false }) {
   useEffect(() => {
     setPassClaim(getQuestionnairePassClaim(licenseKeyId));
   }, [licenseKeyId]);
+
+  // A questionnaire dropped on the dashboard arrives here as a File. Parsing, the
+  // question-confirmation step and the Pass claim all live on this page, so the drop
+  // hands over the file rather than a half-processed result.
+  useEffect(() => {
+    const handoff = takeHandoff('questionnaire');
+    if (!handoff?.file) return;
+    track('respond_handoff_received');
+    validateAndSetFile(handoff.file);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A free coverage report is not saved (saveResults is gated on canExport, and storing
+  // the full drafts would put the paid artefact on disk for someone who has not bought
+  // it). But the report's strongest call to action sends the reader to /data to add a
+  // bill - and without this they would come back to an empty upload screen and have to
+  // find the file again, which is exactly the moment the loop breaks.
+  //
+  // So the QUESTIONNAIRE is kept, not the answers, and re-running is the point: they
+  // added a document, so the counts should move. Session-scoped, because it is a
+  // return-trip aid and not a saved result.
+  useEffect(() => {
+    if (canGenerate || demoOnly || phase !== 'upload') return;
+    const stored = takeCoverageStash();
+    if (!stored) return;
+    try {
+      const { parseResult: stashed, name } = stored;
+      if (stashed?.questions?.length) {
+        track('coverage_resumed', { questions: stashed.questions.length });
+        processConfirmedQuestionnaire(stashed, name, false);
+        showFeedback(t('respond.coverageResumed', { name }));
+      }
+    } catch {
+      // A malformed stash is not worth surfacing; the upload screen is the fallback.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-resume sample after user returns from entering data via the nudge
   useEffect(() => {
@@ -153,6 +207,48 @@ export default function Respond({ demoOnly = false }) {
   const [framework, setFramework] = useState(null);
   const [parseResult, setParseResult] = useState(null);
   const [pipelineError, setPipelineError] = useState(null);
+
+  // Must sit below the state it reads: a dependency array is evaluated during render,
+  // so referencing parseResult from above its useState threw on every render and took
+  // the whole Respond page down.
+  // Computed once and used twice: the report renders it, and the stash below carries
+  // what it asked for over to the evidence page.
+  // Every tier that reached results, not just free. The report was built as the free
+  // tier's consolation for not getting answers, which was the wrong idea: it is the
+  // questionnaire's status view, and a paid buyer chasing a colleague for the waste
+  // manifest before a deadline needs it more than a free visitor does. /demo is still
+  // excluded - a coverage report about a fictional company's documents tells nobody
+  // anything.
+  // Which face of the results a paid reader is looking at: the drafts they bought, or
+  // the report on what is still open before they send.
+  const [resultsView, setResultsView] = useState('answers');
+
+  const coverage = useMemo(() => {
+    if (demoOnly || phase !== 'results') return null;
+    return summarizeCoverage(answerDrafts, {
+      companyData,
+      dataSources: getSettings()?.dataSources || {},
+    });
+  }, [demoOnly, phase, answerDrafts, companyData]);
+
+  // Keep the questionnaire the moment a free report exists, not only when its "add
+  // documents" button is used. People leave a screen the way they like - the nav, the
+  // back button, the dashboard - and every one of those routes came back to an empty
+  // upload screen and looked like the work had been thrown away.
+  //
+  // It carries what the report asked for too, so the evidence page can name the
+  // documents this questionnaire wants rather than being a blank uploader.
+  useEffect(() => {
+    if (canGenerate || demoOnly) return;
+    if (phase !== 'results' || !parseResult?.questions?.length) return;
+    writeCoverageStash({
+      parseResult,
+      name: questionnaireName,
+      questionCount: parseResult.questions.length,
+      missingDocuments: coverage?.missingDocuments || [],
+    });
+  }, [canGenerate, demoOnly, phase, parseResult, questionnaireName, coverage]);
+
   const [filterConfidence, setFilterConfidence] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [language, setLanguage] = useState(() => {
@@ -270,8 +366,35 @@ export default function Respond({ demoOnly = false }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // Formats where the question list has to be confirmed before anything is counted.
+  // A spreadsheet has rows, and the parser already reports totalRows against
+  // parsedRows; a PDF has prose, and the parser found 22 of roughly 50 questions in a
+  // real Drive Sustainability SAQ. Reporting "18 of 22 substantiated" against a
+  // denominator that wrong makes every number on the coverage report false, and
+  // confidently so. Better to make the failure visible than to hide it in a total.
+  const NEEDS_QUESTION_CONFIRMATION = /\.(pdf|docx?)$/i;
+
   function beginQuestionnaireProcessing(pr, name, { isBuiltInSample = false } = {}) {
     const builtInSample = isBuiltInSample || pr?.metadata?.source === 'built-in-sample';
+
+    // Confirmation comes before the Questionnaire Pass claim: nobody should spend
+    // their one allowance on a question list that was read wrong.
+    if (!builtInSample && NEEDS_QUESTION_CONFIRMATION.test(pr?.metadata?.fileName || name || '')) {
+      setPendingConfirm({ parseResult: pr, name });
+      setConfirmedIds(new Set((pr?.questions || []).map(q => q.id)));
+      setPhase('confirm');
+      track('questionnaire_confirm_shown', { questions: pr?.questions?.length || 0 });
+      return;
+    }
+
+    processConfirmedQuestionnaire(pr, name, builtInSample);
+  }
+
+  function processConfirmedQuestionnaire(pr, name, builtInSample) {
+    // Every branch below except the pipeline itself renders on the upload screen -
+    // a parse error or a pass dialog left behind a confirmation step would be
+    // invisible. runPipeline moves us on to 'generating' from here.
+    setPhase('upload');
     const decision = getQuestionnairePassDecision({
       tier,
       licenseKeyId,
@@ -308,6 +431,40 @@ export default function Respond({ demoOnly = false }) {
     runPipeline(pr, name, {
       questionnaireFingerprint: builtInSample ? null : decision.fingerprint,
     });
+  }
+
+  const toggleConfirmedQuestion = (id) => {
+    setConfirmedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  function confirmQuestionList() {
+    if (!pendingConfirm || confirmedIds.size === 0) return;
+    const { parseResult, name } = pendingConfirm;
+    const questions = parseResult.questions.filter(q => confirmedIds.has(q.id));
+    // The corrected list becomes the questionnaire. parsedRows follows it, so the
+    // denominator on every later screen is the one the user actually confirmed.
+    const corrected = {
+      ...parseResult,
+      questions,
+      metadata: { ...parseResult.metadata, parsedRows: questions.length },
+    };
+    track('questionnaire_confirmed', {
+      kept: questions.length,
+      dropped: parseResult.questions.length - questions.length,
+    });
+    setPendingConfirm(null);
+    processConfirmedQuestionnaire(corrected, name, false);
+  }
+
+  function cancelQuestionList() {
+    setPendingConfirm(null);
+    setConfirmedIds(new Set());
+    setPhase('upload');
+    removeFile();
   }
 
   async function confirmQuestionnairePassClaim() {
@@ -420,7 +577,7 @@ export default function Respond({ demoOnly = false }) {
     setParseResult(saved.parseResult || null);
     setAnswerDrafts(saved.answers.map(normalizeDraft));
     setCompanyData(buildCompanyData());
-    setDemoLibraryUsed(isDemo && getSettings()?.demoLibrarySeeded === true);
+    setDemoLibraryUsed(demoOnly && getSettings()?.demoLibrarySeeded === true);
     setPhase('results');
   };
 
@@ -472,6 +629,7 @@ export default function Respond({ demoOnly = false }) {
   async function runPipeline(pr, name, {
     questionnaireFingerprint = null,
     shouldClaimPass = false,
+    onComplete = null,
   } = {}) {
     setPhase('generating');
     setPipelineError(null);
@@ -480,29 +638,42 @@ export default function Respond({ demoOnly = false }) {
     track('respond_generation_started', { questions: pr?.questions?.length || 0 });
 
     try {
-      const shouldUseExampleData = isDemo && !hasUsableWorkspaceData();
+      // Example data is for the /demo route ONLY. A free user who has uploaded their
+      // own questionnaire must never be answered out of Hartmann's workspace - that
+      // is the whole defect this change exists to remove. Keyed on demoOnly, not on
+      // the paid line: free is now allowed its own file.
+      const shouldUseExampleData = demoOnly && !hasUsableWorkspaceData();
       let cd;
       let profile;
 
       if (shouldUseExampleData) {
+        // loadDemoData() does a destructive resetData() on the single workspace slot,
+        // so the visitor's own data is snapshotted and restored around it. The restore
+        // sits in a finally: a throw in between used to strand a real user inside the
+        // sample company permanently.
         const previousWorkspace = window.localStorage.getItem(PASSPORT_DATA_KEY);
-        loadDemoData();
-        setDemoLibraryUsed(true);
-        // `name` is the questionnaire's own name, which on an upload is the customer's
-        // file name. What the funnel actually needs is whether the example workspace was
-        // seeded for a built-in sample or for something they brought.
-        track('respond_demo_library_loaded', {
-          source: questionnaireFingerprint ? 'upload' : 'built_in',
-        });
-        cd = buildCompanyData();
-        profile = buildCompanyProfile();
-        if (previousWorkspace === null) {
-          window.localStorage.removeItem(PASSPORT_DATA_KEY);
-        } else {
-          window.localStorage.setItem(PASSPORT_DATA_KEY, previousWorkspace);
+        try {
+          loadDemoData();
+          setDemoLibraryUsed(true);
+          // `name` is the questionnaire's own name, which on an upload is the customer's
+          // file name. What the funnel actually needs is whether the example workspace was
+          // seeded for a built-in sample or for something they brought.
+          track('respond_demo_library_loaded', {
+            source: questionnaireFingerprint ? 'upload' : 'built_in',
+          });
+          cd = buildCompanyData();
+          profile = buildCompanyProfile();
+        } finally {
+          // Restore even if seeding threw: otherwise a throw here leaves the customer
+          // looking at demo figures where their own records used to be.
+          if (previousWorkspace === null) {
+            window.localStorage.removeItem(PASSPORT_DATA_KEY);
+          } else {
+            window.localStorage.setItem(PASSPORT_DATA_KEY, previousWorkspace);
+          }
         }
       } else {
-        setDemoLibraryUsed(isDemo && getSettings()?.demoLibrarySeeded === true);
+        setDemoLibraryUsed(demoOnly && getSettings()?.demoLibrarySeeded === true);
         cd = buildCompanyData();
         profile = buildCompanyProfile();
       }
@@ -576,6 +747,7 @@ export default function Respond({ demoOnly = false }) {
       setGeneratingProgress({ step: t('respond.progSaving'), percent: 95 });
       track('respond_answers_generated', { count: normalizedDrafts.length, framework: fw || 'none' });
       setPhase('results');
+      onComplete?.(normalizedDrafts);
     } catch (err) {
       console.error('Pipeline error:', err);
       track('respond_generation_failed', { error: err?.name || 'unknown' });
@@ -678,6 +850,17 @@ export default function Respond({ demoOnly = false }) {
       return true;
     });
   }, [answerDrafts, filterConfidence, filterType]);
+
+  // A figure is shown only when the answer actually states it, and only after the
+  // floating-point artefact is rounded off. The engine attaches dataValue to a draft
+  // whether or not the template it chose used the number, so an answer saying the data
+  // is missing was being rendered with a figure underneath it.
+  const shownFigure = (draft) => {
+    const text = draft.verifiedAnswer || draft.answer || '';
+    return answerStatesFigure(text, draft.dataValue)
+      ? figureWithUnit(draft.dataValue, draft.dataUnit)
+      : null;
+  };
 
   const getDisplayedVerified = (draft) => draft.verifiedAnswer || draft.answer || '';
   const getDisplayedDraft = (draft) => {
@@ -847,14 +1030,48 @@ export default function Respond({ demoOnly = false }) {
     };
   };
 
-  const handleReprepare = () => {
+  // Regenerate against the CURRENT workspace data. Two things were wrong here:
+  //
+  // It routed through beginQuestionnaireProcessing, which now sends PDF and Word
+  // questionnaires to the confirmation screen — so re-preparing a PDF asked the user to
+  // approve a question list they had already approved, and looked like the button had
+  // thrown their answers away.
+  //
+  // And it gave no feedback. Regeneration preserves answers the user has edited (by
+  // design — losing an edit to a refresh would be worse), so on an unchanged workspace
+  // it correctly produces the same text and read as a dead button. It now says what it
+  // did, including when the honest answer is "nothing changed".
+  const handleReprepare = async () => {
     const repreparePayload = buildRepreparePayload();
     if (!repreparePayload?.questions?.length) {
       showFeedback(t('respond.reprepareUnavailable'));
       return;
     }
     setPipelineError(null);
-    beginQuestionnaireProcessing(repreparePayload, questionnaireName);
+    // Compare only the drafts the user has NOT edited: applyGeneratedDrafts keeps an
+    // edited answer as it is, so counting those as "changed" would report work that did
+    // not reach the screen.
+    const editedIds = new Set(answerDrafts.filter(d => d._edited).map(d => d.questionId));
+    const before = new Map(
+      answerDrafts.filter(d => !editedIds.has(d.questionId)).map(d => [d.questionId, d.answer]),
+    );
+    const edited = editedIds.size;
+    track('respond_reprepare', { questions: repreparePayload.questions.length });
+    await runPipeline(repreparePayload, questionnaireName, {
+      questionnaireFingerprint: passClaim?.fingerprint || null,
+      onComplete: (drafts) => {
+        const changed = drafts.filter(
+          d => !editedIds.has(d.questionId) && before.get(d.questionId) !== d.answer,
+        ).length;
+        showFeedback(
+          changed > 0
+            ? t('respond.reprepareChanged', { count: changed })
+            : edited > 0
+              ? t('respond.reprepareKeptEdits', { count: edited })
+              : t('respond.reprepareUnchanged'),
+        );
+      },
+    });
   };
 
   const buildExportMetadata = (data, exportLanguage, exportFramework, creator = 'ESG Passport') => {
@@ -998,6 +1215,8 @@ export default function Respond({ demoOnly = false }) {
   }, [answerDrafts]);
 
   const resetToUpload = () => {
+    // Forget the stash too, or "use a different questionnaire" hands back the old one.
+    clearCoverageStash();
     setPhase('upload');
     setDemoLibraryUsed(false);
     setFile(null);
@@ -1172,6 +1391,57 @@ export default function Respond({ demoOnly = false }) {
     );
   }
 
+  // ============ RENDER: CONFIRM THE QUESTION LIST ============
+  if (phase === 'confirm' && pendingConfirm) {
+    const parsed = pendingConfirm.parseResult.questions;
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{t('confirm.title')}</h1>
+          <p className="text-slate-600 mt-2 leading-relaxed">
+            {t('confirm.body', { count: parsed.length, fileName: pendingConfirm.name })}
+          </p>
+        </div>
+
+        <div className="border border-slate-200 bg-white divide-y divide-slate-100">
+          {parsed.map((question, index) => (
+            <label
+              key={question.id}
+              className="flex items-start gap-3 p-3 cursor-pointer hover:bg-slate-50"
+            >
+              <input
+                type="checkbox"
+                checked={confirmedIds.has(question.id)}
+                onChange={() => toggleConfirmedQuestion(question.id)}
+                className="mt-1 shrink-0"
+              />
+              <span className="text-sm text-slate-700">
+                <span className="text-slate-400 mr-2">{index + 1}.</span>
+                {question.text}
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            onClick={confirmQuestionList}
+            disabled={confirmedIds.size === 0}
+            className="bg-slate-900 hover:bg-slate-800 text-white rounded-none"
+          >
+            {t('confirm.cta')}
+          </Button>
+          <span className="text-sm text-slate-500">
+            {t('confirm.selected', { count: confirmedIds.size, total: parsed.length })}
+          </span>
+          <button onClick={cancelQuestionList} className="text-sm text-slate-500 hover:text-slate-700 underline ml-auto">
+            {t('confirm.back')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ============ RENDER: RESULTS ============
   if (phase === 'results') {
     if (pipelineError) {
@@ -1185,10 +1455,54 @@ export default function Respond({ demoOnly = false }) {
       );
     }
 
+    // Free, on their own questionnaire: the coverage report, not a truncated preview
+    // of answers they cannot use. /demo keeps the sample preview - a coverage report
+    // about a fictional company's documents would tell the reader nothing.
+    if (!canGenerate && !demoOnly) {
+      return (
+        <div className="space-y-6">
+          <JourneySpine
+            step={3}
+            questionCount={parseResult?.questions?.length || 0}
+            documentCount={new Set(Object.values(getSettings()?.dataSources || {}).filter(Boolean)).size}
+          />
+          <CoverageReport
+            coverage={coverage}
+            questionnaireName={questionnaireName}
+            questions={parseResult?.questions || []}
+            tier={tier}
+            onStartOver={resetToUpload}
+          />
+        </div>
+      );
+    }
+
     const activeFilterCount = (filterConfidence !== 'all' ? 1 : 0) + (filterType !== 'all' ? 1 : 0);
+
+    // Paid, looking at the report rather than the drafts. Same component the free
+    // reader sees; the footer is what differs.
+    if (resultsView === 'report' && coverage) {
+      return (
+        <div className="space-y-6">
+          <ResultsViewSwitch value={resultsView} onChange={setResultsView} t={t} />
+          <CoverageReport
+            coverage={coverage}
+            questionnaireName={questionnaireName}
+            questions={parseResult?.questions || []}
+            tier={tier}
+            onStartOver={resetToUpload}
+          />
+        </div>
+      );
+    }
 
     return (
       <div className={cn('space-y-0', isDemo && 'pb-44 sm:pb-32')}>
+        {coverage && !isDemo && (
+          <div className="mb-6">
+            <ResultsViewSwitch value={resultsView} onChange={setResultsView} t={t} />
+          </div>
+        )}
         {/* Feedback toast */}
         {savedFeedback && (
           <div className="fixed top-20 right-4 bg-green-100 text-green-800 px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
@@ -1224,7 +1538,7 @@ export default function Respond({ demoOnly = false }) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {canRespond && (
+              {canGenerate && (
                 <>
                   <Button variant="outline" size="sm" onClick={handleReprepare}>
                     <RefreshCw className="w-4 h-4 mr-1.5" /> {t('respond.reprepare')}
@@ -1236,7 +1550,7 @@ export default function Respond({ demoOnly = false }) {
               )}
               <Button
                 size="sm"
-                onClick={canExport ? handleExport : () => window.open(PASSPORT_CHECKOUT_URL, '_blank')}
+                onClick={canExport ? handleExport : () => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'respond_export', tier)}
                 className="bg-slate-900 hover:bg-slate-800 text-white"
                 title={canExport ? t('respond.titleExport') : t('respond.titleUnlockExport')}
               >
@@ -1300,17 +1614,17 @@ export default function Respond({ demoOnly = false }) {
                 </Select>
                 {/* AI Enhance All */}
                 <Button
-                  onClick={canRespond ? handleEnhanceAll : () => window.open(PASSPORT_CHECKOUT_URL, '_blank')}
+                  onClick={canGenerate ? handleEnhanceAll : () => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'respond_ai_enhance', tier)}
                   disabled={enhancingAll}
                   variant="outline"
                   size="sm"
                   className="text-xs"
-                  title={canRespond ? '' : t('respond.titleUnlockAi')}
+                  title={canGenerate ? '' : t('respond.titleUnlockAi')}
                 >
                   {enhancingAll ? (
                     <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> {enhanceProgress.done}/{enhanceProgress.total}</>
                   ) : (
-                    <><Sparkles className="w-3 h-3 mr-1.5" /> {canRespond ? t('respond.aiEnhance') : t('respond.aiEnhancePassport')}</>
+                    <><Sparkles className="w-3 h-3 mr-1.5" /> {canGenerate ? t('respond.aiEnhance') : t('respond.aiEnhancePassport')}</>
                   )}
                 </Button>
               </div>
@@ -1365,7 +1679,7 @@ export default function Respond({ demoOnly = false }) {
             </div>
           )}
 
-          {(canRespond ? filtered : filtered.slice(0, FREE_PREVIEW_LIMIT)).map((draft, i) => {
+          {(canGenerate ? filtered : filtered.slice(0, FREE_PREVIEW_LIMIT)).map((draft, i) => {
             const conf = CONFIDENCE_CONFIG[draft.answerConfidence] || CONFIDENCE_CONFIG.none;
             const support = SUPPORT_CONFIG[draft.supportLevel || 'draft'] || SUPPORT_CONFIG.draft;
             const isExpanded = showDetails.has(draft.questionId);
@@ -1397,17 +1711,17 @@ export default function Respond({ demoOnly = false }) {
                   <div className="pr-4 min-w-0">
                     {/* Question */}
                     <p className="text-sm font-medium text-slate-900 leading-relaxed">{draft.questionText}</p>
-                    {(draft.category || draft.dataValue) && (
+                    {(draft.category || shownFigure(draft)) && (
                       <Link
                         to={draft.dataPeriod ? `/data?period=${encodeURIComponent(draft.dataPeriod)}` : '/data'}
                         className="text-[11px] text-slate-400 hover:text-indigo-600 mt-0.5 inline-flex items-center gap-1.5 transition-colors"
-                        title={draft.dataValue ? `${t('respond.labelSource')} ${draft.dataValue}${draft.dataUnit ? ' ' + draft.dataUnit : ''}${draft.dataPeriod ? ' (' + draft.dataPeriod + ')' : ''}` : t('respond.viewSourceData')}
+                        title={shownFigure(draft) ? `${t('respond.labelSource')} ${shownFigure(draft)}${draft.dataPeriod ? ' (' + draft.dataPeriod + ')' : ''}` : t('respond.viewSourceData')}
                       >
                         {draft.category && <span>{draft.category}</span>}
-                        {draft.category && draft.dataValue && <span className="text-slate-300">·</span>}
-                        {draft.dataValue && (
+                        {draft.category && shownFigure(draft) && <span className="text-slate-300">·</span>}
+                        {shownFigure(draft) && (
                           <span>
-                            {draft.dataValue}{draft.dataUnit && ` ${draft.dataUnit}`}
+                            {shownFigure(draft)}
                             {draft.dataPeriod && ` (${draft.dataPeriod})`}
                           </span>
                         )}
@@ -1518,7 +1832,7 @@ export default function Respond({ demoOnly = false }) {
                           </div>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2 pt-2">
-                            {canRespond && (
+                            {canGenerate && (
                             <button
                               onClick={() => draft._markedNA ? toggleNA(draft.questionId) : setNaEditing(draft.questionId)}
                               className={cn(
@@ -1529,7 +1843,7 @@ export default function Respond({ demoOnly = false }) {
                               <Ban className="w-3 h-3 inline mr-1" />{draft._markedNA ? t('respond.undoNA') : t('respond.markNA')}
                             </button>
                             )}
-                            {canRespond && (draft.answerConfidence !== 'none' || draft.supportLevel === 'supported') && !draft._markedNA && (
+                            {canGenerate && (draft.answerConfidence !== 'none' || draft.supportLevel === 'supported') && !draft._markedNA && (
                               <button
                                 onClick={() => handleSaveAsMaster(draft)}
                                 disabled={savedMasterIds.has(draft.questionId)}
@@ -1615,7 +1929,7 @@ export default function Respond({ demoOnly = false }) {
 
                   {/* Actions */}
                   <div className="flex items-start justify-end gap-1 pt-0.5">
-                    {canRespond && !draft._markedNA && (draft.answerConfidence !== 'none' || draft.supportLevel === 'supported') && (
+                    {canGenerate && !draft._markedNA && (draft.answerConfidence !== 'none' || draft.supportLevel === 'supported') && (
                       <button
                         onClick={() => handleEnhanceSingle(draft)}
                         disabled={isEnhancing || draft._enhanced}
@@ -1628,7 +1942,7 @@ export default function Respond({ demoOnly = false }) {
                         {isEnhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                       </button>
                     )}
-                    {canRespond && (
+                    {canGenerate && (
                       <button
                         onClick={() => startEditing(draft)}
                         className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
@@ -1696,7 +2010,7 @@ export default function Respond({ demoOnly = false }) {
               {t('respond.bottomSummary', { supported: stats?.supported, total: stats?.total, drafts: stats?.drafted, readiness: stats?.readinessPercent })}
             </p>
             <Button
-              onClick={canExport ? handleExport : () => window.open(PASSPORT_CHECKOUT_URL, '_blank')}
+              onClick={canExport ? handleExport : () => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'respond_export', tier)}
               className="bg-slate-900 hover:bg-slate-800 text-white"
               title={canExport ? '' : t('respond.titleUnlockExportBottom')}
             >
@@ -1723,19 +2037,21 @@ export default function Respond({ demoOnly = false }) {
                 </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {/* Was a link back to /onboarding, which bounces straight to the
+                    dashboard once setup is marked complete - so from the sample the
+                    button went nowhere. The real next step is the reader's own file,
+                    which free may now bring. */}
                 <Link
-                  to="/onboarding"
+                  to="/respond"
                   className="inline-flex h-10 items-center justify-center bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
                 >
-                  {t('onboard.startPreview')}
+                  {t('respond.useMyOwn')}
                 </Link>
                 <a
-                  href={PASSPORT_CHECKOUT_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  {...checkoutLinkProps(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'demo_bottom_bar', tier)}
                   className="inline-flex h-10 items-center justify-center border border-slate-300 px-4 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
                 >
-                  {t('respond.buyPassport')}
+                  {t('respond.buyPass')}
                 </a>
                 <Link to="/settings" className="text-center text-xs text-slate-500 underline underline-offset-2">
                   {t('respond.alreadyPurchased')}
@@ -1886,31 +2202,33 @@ export default function Respond({ demoOnly = false }) {
 
   // ============ RENDER: UPLOAD ============
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="space-y-6">
+      <JourneySpine step={1} />
+      <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-900">{canRespond ? t('respond.titleRespond') : t('respond.titleExample')}</h1>
-          {isDemo && (
+          <h1 className="text-2xl font-bold text-slate-900">{canUpload ? t('respond.titleRespond') : t('respond.titleExample')}</h1>
+          {demoOnly && (
             <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
               {t('respond.example')}
             </span>
           )}
         </div>
         <p className="text-slate-500 mt-1">
-          {canRespond
+          {canUpload
             ? t('respond.subtitlePaid')
             : t('respond.subtitleDemo')}
         </p>
       </div>
 
-      {canRespond && linkedRequest && (
+      {canUpload && linkedRequest && (
         <div className="bg-white border border-slate-200 rounded-none p-4 border-l-4 border-l-indigo-600">
           <p className="text-sm text-slate-500">{t('respond.linkedToRequest')}</p>
           <p className="font-medium text-slate-900">{linkedRequest.customerName} - {linkedRequest.platform}</p>
         </div>
       )}
 
-      {canRespond && (
+      {canUpload && (
         <div className="flex gap-1 bg-slate-100 rounded-none p-1">
           {[
             { id: 'upload', label: t('respond.tabUpload'), icon: UploadIcon },
@@ -1932,7 +2250,7 @@ export default function Respond({ demoOnly = false }) {
       )}
 
       {/* Data nudge — warn users with empty/sparse Data store before they upload */}
-      {canRespond && setupSkipped && (
+      {canUpload && setupSkipped && (
         <div className="bg-white border border-slate-200 rounded-none p-3 flex items-center gap-3">
           <Shield className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
@@ -1947,7 +2265,7 @@ export default function Respond({ demoOnly = false }) {
         </div>
       )}
 
-      {canRespond && (() => {
+      {canUpload && (() => {
         const hasAnyData = hasUsableWorkspaceData();
         if (hasAnyData) return null;
         return (
@@ -1978,9 +2296,9 @@ export default function Respond({ demoOnly = false }) {
               <div className="bg-indigo-50 border border-indigo-200 rounded-none p-5 flex items-start gap-4">
                 <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900">{canRespond ? t('respond.noQHandy') : t('respond.tryExample')}</p>
+                  <p className="text-sm font-medium text-slate-900">{canUpload ? t('respond.noQHandy') : t('respond.tryExample')}</p>
                   <p className="text-xs text-slate-600 mt-0.5">
-                    {canRespond
+                    {canUpload
                       ? t('respond.samplePaid', { count: sample.questionCount, framework: sample.framework })
                       : t('respond.sampleDemo', { count: sample.questionCount, framework: sample.framework, limit: FREE_PREVIEW_LIMIT })}
                   </p>
@@ -1991,7 +2309,7 @@ export default function Respond({ demoOnly = false }) {
                   onClick={() => runSampleTemplate(sample.id)}
                   className="border-indigo-300 text-indigo-700 hover:bg-indigo-100 flex-shrink-0"
                 >
-                  {canRespond ? t('respond.trySample') : t('respond.viewExample')}
+                  {canUpload ? t('respond.trySample') : t('respond.viewExample')}
                 </Button>
               </div>
             );
@@ -2020,25 +2338,30 @@ export default function Respond({ demoOnly = false }) {
                         {t('respond.passReopen')}
                       </Button>
                     )}
-                    <a
-                      href={PASSPORT_CHECKOUT_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => track('questionnaire_pass_upgrade_clicked', {
-                        tier: 'questionnaire-pass',
-                        source: 'second_questionnaire_block',
-                      })}
+                    <button
+                      onClick={() => {
+                        track('questionnaire_pass_upgrade_clicked', {
+                          tier: 'questionnaire-pass',
+                          source: 'second_questionnaire_block',
+                        });
+                        openCheckout(PASSPORT_CHECKOUT_URL, 'second_questionnaire_block', tier);
+                      }}
                       className="inline-flex items-center justify-center h-9 px-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-none"
                     >
                       {t('respond.passUpgrade')}
-                    </a>
+                    </button>
                   </div>
+                  {/* The highest-intent moment there is: a second questionnaire has
+                      arrived and they have already paid once. The one thing worth saying
+                      here is the arithmetic, because "have I now paid twice?" is the
+                      objection standing between them and the button above. */}
+                  <p className="mt-3 text-xs text-slate-600">{t('upgrade.credit')}</p>
                 </div>
               </div>
             </div>
           )}
 
-          {canRespond ? (
+          {canUpload ? (
             <div
               className={cn(
                 'bg-white border-2 border-dashed rounded-none p-8 transition-all cursor-pointer',
@@ -2073,23 +2396,24 @@ export default function Respond({ demoOnly = false }) {
             )}
             </div>
           ) : (
+            /* Only /demo reaches this now. It used to say a real questionnaire
+               needs the Passport and sell one; that is no longer true, so it
+               points at the thing the reader can actually do instead. */
             <div className="bg-white border border-slate-200 rounded-none p-5">
-              <p className="text-sm font-medium text-slate-900">{t('respond.ownNeedsPassport')}</p>
+              <p className="text-sm font-medium text-slate-900">{t('respond.ownIsFree')}</p>
               <p className="mt-1 text-sm text-slate-500">
-                {t('respond.ownNeedsBody')}
+                {t('respond.ownIsFreeBody')}
               </p>
-              <a
-                href={PASSPORT_CHECKOUT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to="/respond"
                 className="mt-4 inline-flex items-center justify-center h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-none"
               >
-                {t('respond.unlockPassport')}
-              </a>
+                {t('respond.useMyOwn')}
+              </Link>
             </div>
           )}
 
-          {canRespond && !linkedRequest && requests.length > 0 && (
+          {canUpload && !linkedRequest && requests.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-none p-4">
               <Label className="text-sm text-slate-600 mb-2 block">{t('respond.linkRequest')}</Label>
               <Select value={selectedRequestId} onValueChange={setSelectedRequestId}>
@@ -2104,7 +2428,7 @@ export default function Respond({ demoOnly = false }) {
             </div>
           )}
 
-          {canRespond && showMapping && mappingColumns && (
+          {canUpload && showMapping && mappingColumns && (
             <div className="bg-white border border-slate-200 rounded-none p-4 space-y-3">
               <h3 className="font-medium text-slate-900">{t('respond.columnMapping')}</h3>
               <p className="text-sm text-slate-500">{t('respond.mappingBody')}</p>
@@ -2125,14 +2449,14 @@ export default function Respond({ demoOnly = false }) {
             </div>
           )}
 
-          {canRespond && parseError && (
+          {canUpload && parseError && (
             <div className="flex items-start gap-3 p-4 rounded-none bg-red-50 border border-red-200 text-red-700">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <p className="text-sm">{parseError}</p>
             </div>
           )}
 
-          {canRespond && (
+          {canUpload && (
           <div className="flex gap-3">
             {file && (
               <Button onClick={parseFile} disabled={parsing} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white">
@@ -2390,6 +2714,7 @@ export default function Respond({ demoOnly = false }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

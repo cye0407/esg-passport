@@ -129,10 +129,55 @@ const EVENT_SCHEMA = {
     periodType: ENTRY_MODE,
     extractedPeriod: period(),
     lead_field: slug(),
+    // How many staged bills were applied together — the annual path batches a year.
+    documents: count(),
   },
+
+  // Data entry: CSV import
+  csv_import_started: {},
+  csv_import_cancelled: {},
+  csv_import_succeeded: { rows: count(), format: slug() },
+  csv_import_failed: { error: slug() },
+
+  // The dashboard's two drop targets, and the switcher between them. `tab` is the one
+  // number that says whether the default-selection rules in homeTab.js are right: a
+  // switch immediately after landing means the wrong door was open.
+  dashboard_questionnaire_dropped: {},
+  dashboard_questionnaire_rejected: { ext: UPLOAD_EXT },
+  dashboard_documents_dropped: { documents: count() },
+  dashboard_document_rejected: { ext: UPLOAD_EXT },
+  home_tab_switched: { tab: slug() },
+  home_documents_cta: { documents: count() },
+
+  // Evidence
+  evidence_page_viewed: { wanted: count() },
+  evidence_documents_extracted: { documents: count(), fields: count() },
+
+  // Confirming the parsed question list. The parser finds 22 of ~50 questions in a real
+  // SAQ, and a wrong denominator makes every number on the coverage report false — so
+  // `kept` and `dropped` are the pair that says whether this step is earning its place.
+  questionnaire_confirm_shown: { questions: count() },
+  questionnaire_confirmed: { kept: count(), dropped: count() },
+
+  // The coverage report. `coverage_report_viewed` is the number that says the free tier
+  // change worked: over the previous year the funnel recorded two paywall hits, because
+  // nobody could get far enough to see one.
+  coverage_report_viewed: {
+    questions: count(),
+    from_records: count(),
+    written: count(),
+    unanswerable: count(),
+    policy_gaps: count(),
+  },
+  coverage_resumed: { questions: count() },
+  coverage_add_documents_click: { document: slug() },
+  coverage_enter_figures_click: { document: slug() },
+  coverage_checklist_downloaded: { documents: count() },
 
   // Respond
   respond_page_viewed: {},
+  respond_handoff_received: {},
+  respond_reprepare: { questions: count() },
   respond_upload_started: { ext: UPLOAD_EXT },
   respond_upload_rejected: { ext: UPLOAD_EXT },
   respond_generation_started: { questions: count() },

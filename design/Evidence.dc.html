@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #4f46e5; text-decoration: none; } a:hover { color: #4338ca; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; min-height: 1020px; background: #f8fafc; color: #0f172a; display: flex; flex-direction: column;">
+
+  <div style="background: #ffffff; border-bottom: 1px solid #e2e8f0;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; gap: 12px;">
+      <div style="width: 40px; height: 40px; background: #1e293b; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div style="font-size: 20px; font-weight: 700; color: #1e293b;">ESG Passport</div>
+    </div>
+  </div>
+
+  <!-- Spine: step 2 active -->
+  <div style="background: #ffffff; border-bottom: 1px solid #e2e8f0;">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 22px; height: 22px; background: #059669; display: flex; align-items: center; justify-content: center;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <span style="font-size: 14px; color: #475569;">Your questionnaire &mdash; 36 questions</span>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 22px; height: 22px; background: #0f172a; color: #ffffff; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center;">2</div>
+        <span style="font-size: 14px; font-weight: 600;">Your evidence</span>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 22px; height: 22px; border: 1px solid #cbd5e1; color: #94a3b8; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center;">3</div>
+        <span style="font-size: 14px; color: #94a3b8;">What you can answer</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width: 880px; margin: 0 auto; padding: 48px 24px; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px;">
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <h1 style="margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.01em;">Add the documents your questionnaire needs</h1>
+      <p style="margin: 0; font-size: 15px; color: #64748b; line-height: 1.6;">We read the figures out of them so they can answer questions for you. You check every value before it is saved, and nothing leaves your browser.</p>
+    </div>
+
+    <!-- What is being asked for, restated so the page is not a blank uploader -->
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; padding: 16px;">
+        <div style="font-size: 14px; font-weight: 600;">HR or payroll summary</div>
+        <div style="font-size: 13px; color: #64748b; margin-top: 3px;">answers 10 questions</div>
+        <div style="font-size: 12px; color: #94a3b8; margin-top: 8px; line-height: 1.5;">Headcount, gender split, turnover</div>
+      </div>
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; padding: 16px;">
+        <div style="font-size: 14px; font-weight: 600;">Waste manifest</div>
+        <div style="font-size: 13px; color: #64748b; margin-top: 3px;">answers 4 questions</div>
+        <div style="font-size: 12px; color: #94a3b8; margin-top: 8px; line-height: 1.5;">Total waste, hazardous, recycled</div>
+      </div>
+      <div style="background: #ffffff; border: 1px solid #e2e8f0; padding: 16px;">
+        <div style="font-size: 14px; font-weight: 600;">Health &amp; safety log</div>
+        <div style="font-size: 13px; color: #64748b; margin-top: 3px;">answers 2 questions</div>
+        <div style="font-size: 12px; color: #94a3b8; margin-top: 8px; line-height: 1.5;">Recordable incidents, hours worked</div>
+      </div>
+    </div>
+
+    <div style="background: #ffffff; border: 2px dashed #cbd5e1; padding: 44px 32px; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+      <div style="font-size: 17px; font-weight: 600;">Drop your bills and records here</div>
+      <div style="font-size: 14px; color: #64748b;">Several at once is fine &nbsp;·&nbsp; pdf &nbsp;·&nbsp; csv &nbsp;·&nbsp; txt</div>
+    </div>
+
+    <!-- Added so far -->
+    <div style="background: #ffffff; border: 1px solid #e2e8f0;">
+      <div style="padding: 14px 20px; border-bottom: 1px solid #f1f5f9; font-size: 14px; font-weight: 600;">Added so far</div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #f1f5f9;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        <span style="font-size: 14px; font-weight: 500;">stadtwerke-2024.pdf</span>
+        <span style="font-size: 13px; color: #64748b;">electricity 425,000 kWh &nbsp;·&nbsp; 2024</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #f1f5f9;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        <span style="font-size: 14px; font-weight: 500;">wasserwerke-2024.pdf</span>
+        <span style="font-size: 13px; color: #64748b;">water 3,100 m&sup3; &nbsp;·&nbsp; 2024</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        <span style="font-size: 14px; font-weight: 500;">abfall-2024.pdf</span>
+        <span style="font-size: 13px; color: #92400e;">shows a year but no month &mdash; needs a moment of your attention</span>
+        <span style="margin-left: auto; font-size: 13px; color: #4f46e5;">Review</span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <div style="display: flex; align-items: center; height: 48px; padding: 0 24px; background: #0f172a; color: #ffffff; font-size: 15px; font-weight: 500;">Back to my questionnaire</div>
+      <span style="font-size: 14px; color: #64748b;">2 documents added &mdash; that is 6 more answers</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   getDataRecords,
   saveDataRecord,
@@ -13,12 +13,13 @@ import { FIELD_UNITS } from '@/lib/units';
 import { useLanguage } from '@/components/LanguageContext';
 import { track, trackOnce } from '@/lib/track';
 import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
+import { takeHandoff } from '@/lib/handoff';
+import { groupAnnualBills, mergeAnnualValues } from '@/lib/annualBills';
 import { detectNumberFormat, parseNumber, parsePeriod, buildColumnMap } from '@/lib/csvImport';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import CompanyProfileSection from '@/components/CompanyProfileSection';
 import BillDrop from '@/components/BillDrop';
-import ExtractorUpgradeCard from '@/components/ExtractorUpgradeCard';
 import { useLicense } from '@/components/LicenseContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -45,7 +46,7 @@ import {
 } from 'lucide-react';
 
 export default function Data() {
-  const { tier, entitlements } = useLicense();
+  const { entitlements } = useLicense();
   const { lang, t } = useLanguage();
   // Honor ?period=YYYY-MM query param from deep links on Respond answer cards
   const initialYear = (() => {
@@ -80,7 +81,21 @@ export default function Data() {
   const [showClearYearDialog, setShowClearYearDialog] = useState(false);
   // Bill extracted with a bare-year period, awaiting confirmation before we switch to
   // annual mode and overwrite that year's values. { year, fields, extractedPeriod } or null.
-  const [pendingAnnualBill, setPendingAnnualBill] = useState(null);
+  // A QUEUE, not one slot. Dropping three bills for the same past year staged each one
+  // in turn and every stage overwrote the last, so two of the three were silently
+  // dropped and only the final document was ever applied.
+  const [pendingAnnualBills, setPendingAnnualBills] = useState([]);
+  // BillDrop reviews a dropped batch one dialog at a time. Opening the annual
+  // confirmation on the first staged document would stack it on top of the review still
+  // running for the second, so it waits for the batch to finish.
+  const [annualReviewReady, setAnnualReviewReady] = useState(false);
+  // Values read out of a document were written into this page's form and left there
+  // unsaved. The reader had already confirmed every one of them in the review dialog, so
+  // the second, unlabelled press of Save was a step nobody knew to take - and until they
+  // took it the store still held nothing, so the coverage report kept asking for the very
+  // bill they had just uploaded. Requested here, run by the effect below once React has
+  // flushed the writes.
+  const [autoSaveRequested, setAutoSaveRequested] = useState(false);
 
   // Per-metric source notes — "where I find this number each month"
   // Keyed by `${section}.${field}`. One source per metric, edited inline.
@@ -252,7 +267,45 @@ export default function Data() {
     setSaved(false);
   };
 
-  const handleBillExtracted = useCallback((fields, extractedPeriod) => {
+  // Record which document a figure came out of. Extraction used to write the value and
+  // throw the filename away, so an answer built on an uploaded bill was indistinguishable
+  // from one someone typed - and the coverage report cannot honestly say "we found this in
+  // the records you uploaded" about a number whose origin was never kept. A label the user
+  // typed themselves always wins; we never overwrite their own note.
+  const recordExtractionSources = useCallback((fields, fileName) => {
+    if (!fileName) return;
+    const current = getSettings()?.dataSources || {};
+    const next = { ...current };
+    let changed = false;
+    for (const f of fields) {
+      const mapping = EXTRACT_FIELD_MAP[f.field];
+      if (!mapping) continue;
+      const key = `${mapping.section}.${mapping.field}`;
+      if (next[key]) continue;
+      next[key] = fileName;
+      changed = true;
+    }
+    if (!changed) return;
+    setDataSources(next);
+    saveSettings({ dataSources: next });
+  }, []);
+
+  // A document extracted on the dashboard hands its ACCEPTED fields over here, because
+  // applying them needs this page's records state and the bare-year confirmation dialog.
+  // The review dialog already happened on the dashboard; this is only the write.
+  useEffect(() => {
+    const handoff = takeHandoff('extraction');
+    if (!handoff?.items?.length) return;
+    for (const item of handoff.items) {
+      handleBillExtracted(item.fields, item.period, item.fileName);
+    }
+    // Nothing further is coming: the review already happened on the dashboard, so the
+    // annual confirmation can open as soon as these are staged.
+    setAnnualReviewReady(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleBillExtracted = useCallback((fields, extractedPeriod, fileName) => {
     // Determine where extracted values belong.
     // YYYY-MM documents map to a monthly record.
     // A YYYY-only period is an ambiguous guess: the extractor's bare-year fallback
@@ -260,7 +313,11 @@ export default function Data() {
     // Switching to annual mode and overwriting that year's values is destructive, so
     // stage it for explicit confirmation instead of applying it silently.
     if (extractedPeriod && /^\d{4}$/.test(extractedPeriod)) {
-      setPendingAnnualBill({ year: parseInt(extractedPeriod, 10), fields, extractedPeriod });
+      setAnnualReviewReady(false);
+      setPendingAnnualBills(prev => [
+        ...prev,
+        { year: parseInt(extractedPeriod, 10), fields, extractedPeriod, fileName },
+      ]);
       return;
     }
 
@@ -278,6 +335,8 @@ export default function Data() {
       if (isNaN(val)) continue;
       updateField(targetPeriod, mapping.section, mapping.field, val);
     }
+    recordExtractionSources(fields, fileName);
+    setAutoSaveRequested(true);
 
     track('bill_extracted', {
       fields: fields.length,
@@ -285,36 +344,57 @@ export default function Data() {
       extractedPeriod: extractedPeriod || 'fallback_current_month',
       lead_field: fields[0]?.field || 'unknown',
     });
-  }, [selectedYear, updateField]);
+  }, [selectedYear, updateField, recordExtractionSources]);
 
   // User confirmed the bare-year annual interpretation → switch to annual mode for that
   // year and write the extracted values (the previously-silent behavior, now gated).
-  const applyAnnualBill = useCallback(() => {
-    if (!pendingAnnualBill) return;
-    const { year, fields, extractedPeriod } = pendingAnnualBill;
+  // Annual values are held for the SELECTED year and distributed across its months on
+  // save, so a year is the unit of work. Everything staged for the year being confirmed
+  // is applied together; anything for a different year stays queued and the dialog
+  // reopens for it.
+  const applyAnnualBills = useCallback(() => {
+    if (pendingAnnualBills.length === 0) return;
+    const year = pendingAnnualBills[0].year;
+    const forThisYear = pendingAnnualBills.filter(bill => bill.year === year);
+
     setSelectedYear(year);
     setEntryMode('annual');
-    setAnnualValues(prev => {
-      const next = { ...prev };
-      for (const f of fields) {
-        const mapping = EXTRACT_FIELD_MAP[f.field];
-        if (!mapping) continue;
-        const val = typeof f.value === 'number' ? f.value : parseFloat(f.value);
-        if (isNaN(val)) continue;
-        next[`${mapping.section}.${mapping.field}`] = String(val);
-      }
-      return next;
-    });
+    setAnnualValues(prev => ({ ...prev, ...mergeAnnualValues(forThisYear) }));
+    // Per document, so a figure is attributed to the file it actually came out of.
+    for (const bill of forThisYear) recordExtractionSources(bill.fields, bill.fileName);
+    setAutoSaveRequested(true);
+
     setHasChanges(true);
     setSaved(false);
     track('bill_extracted', {
-      fields: fields.length,
+      fields: forThisYear.reduce((n, bill) => n + bill.fields.length, 0),
       periodType: 'annual',
-      extractedPeriod,
-      lead_field: fields[0]?.field || 'unknown',
+      extractedPeriod: String(year),
+      documents: forThisYear.length,
+      lead_field: forThisYear[0]?.fields?.[0]?.field || 'unknown',
     });
-    setPendingAnnualBill(null);
-  }, [pendingAnnualBill]);
+    setPendingAnnualBills(prev => prev.filter(bill => bill.year !== year));
+  }, [pendingAnnualBills, recordExtractionSources]);
+
+  // What the confirmation dialog is about: the first pending year, every document
+  // staged for it, and any field two of them both report. See lib/annualBills.
+  const annualBatch = useMemo(() => groupAnnualBills(pendingAnnualBills), [pendingAnnualBills]);
+
+  // Cancel drops only the year on screen. Discarding documents the user has not been
+  // shown yet would repeat the bug this dialog exists to fix.
+  const dismissAnnualBills = useCallback(() => {
+    setPendingAnnualBills(prev => prev.filter(bill => bill.year !== annualBatch.year));
+  }, [annualBatch.year]);
+
+  // Runs after the extraction's writes have landed in state, which is why this is an
+  // effect and not a call at the end of handleBillExtracted: handleSave reads `records`,
+  // and inside that callback it still holds the values from before the document.
+  useEffect(() => {
+    if (!autoSaveRequested) return;
+    setAutoSaveRequested(false);
+    handleSave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSaveRequested]);
 
   const getValue = (period, section, field) => {
     const record = records[period];
@@ -919,14 +999,16 @@ export default function Data() {
       {/* Company Profile (collapsible) */}
       <CompanyProfileSection />
 
-      {/* Document extraction — paid feature (single €499 Passport SKU). Free users
-          see the upgrade card. The old `tier === 'pro-plus'` gate stranded every
-          buyer once the Pro/Pro+ split was retired — a €499 license resolves to
-          'pro', so extraction was locked for the people who paid for it. */}
-      {entitlements.canExtractDocuments ? (
-        <BillDrop onDataExtracted={handleBillExtracted} />
-      ) : (
-        <ExtractorUpgradeCard tier={tier} />
+      {/* Document extraction is free as of the coverage-report change: reading your own
+          bills is how you find out whether Passport can answer anything, and forbidding
+          it is what left every visitor evaluating the product on a fictional company's
+          numbers. The paid line is generating and exporting answers, not looking. The
+          capability check stays so the boundary lives in one file. */}
+      {entitlements.canExtractDocuments && (
+        <BillDrop
+          onDataExtracted={handleBillExtracted}
+          onBatchComplete={() => setAnnualReviewReady(true)}
+        />
       )}
 
       {/* CSV Import / Template Toolbar */}
@@ -1599,18 +1681,51 @@ export default function Data() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!pendingAnnualBill} onOpenChange={(open) => { if (!open) setPendingAnnualBill(null); }}>
+      <Dialog
+        open={pendingAnnualBills.length > 0 && annualReviewReady}
+        onOpenChange={(open) => { if (!open) dismissAnnualBills(); }}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{t('bill.annualConfirmTitle', { year: pendingAnnualBill?.year })}</DialogTitle>
+            <DialogTitle>{t('bill.annualConfirmTitle', { year: annualBatch.year })}</DialogTitle>
             <DialogDescription>
-              {t('bill.annualConfirmDesc', { year: pendingAnnualBill?.year })}
+              {t('bill.annualConfirmDesc', { year: annualBatch.year })}
             </DialogDescription>
           </DialogHeader>
+
+          {/* Name every document being applied. One dialog covering three files that
+              silently says nothing about which is exactly how two of them got lost. */}
+          <ul className="text-sm text-slate-700 space-y-1">
+            {annualBatch.bills.map((bill, i) => (
+              <li key={`${bill.fileName}-${i}`} className="flex gap-2">
+                <span className="text-slate-400">—</span>
+                <span className="truncate">
+                  {bill.fileName}
+                  <span className="text-slate-400"> · {t('bill.annualFieldCount', { count: bill.fields.length })}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          {/* Two documents reporting the same figure for the same year is ambiguous, and
+              quietly keeping one of them is the kind of silent choice this app does not
+              make. Say which, and which value wins. */}
+          {annualBatch.conflicts.length > 0 && (
+            <p className="text-sm text-amber-700">
+              {t('bill.annualConflict', { fields: annualBatch.conflicts.join(', ') })}
+            </p>
+          )}
+
+          {annualBatch.remaining > 0 && (
+            <p className="text-xs text-slate-500">
+              {t('bill.annualMoreYears', { count: annualBatch.remaining })}
+            </p>
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingAnnualBill(null)}>{t('csv.cancel')}</Button>
-            <Button onClick={applyAnnualBill}>
-              {t('bill.annualConfirmApply', { year: pendingAnnualBill?.year })}
+            <Button variant="outline" onClick={dismissAnnualBills}>{t('csv.cancel')}</Button>
+            <Button onClick={applyAnnualBills}>
+              {t('bill.annualConfirmApply', { year: annualBatch.year })}
             </Button>
           </DialogFooter>
         </DialogContent>
