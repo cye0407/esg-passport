@@ -9,7 +9,7 @@ import { useLanguage } from '@/components/LanguageContext';
 // A finished step carries its RESULT rather than a bare tick — "36 questions",
 // "2 documents". A tick says you did something; the number says what it got you, which
 // is the question someone actually has when they land back here.
-export default function JourneySpine({ step, questionCount = 0, documentCount = 0 }) {
+export default function JourneySpine({ step, questionCount = 0, documentCount = 0, evidenceSkipped = false }) {
   const { t } = useLanguage();
 
   const steps = [
@@ -20,8 +20,10 @@ export default function JourneySpine({ step, questionCount = 0, documentCount = 
     },
     {
       label: t('spine.evidence'),
-      done: step > 2,
-      result: documentCount > 0 ? t('spine.documents', { count: documentCount }) : null,
+      done: step > 2 && !evidenceSkipped,
+      result: documentCount > 0
+        ? t('spine.documents', { count: documentCount })
+        : evidenceSkipped ? t('spine.skipped') : null,
     },
     { label: t('spine.answers'), done: false, result: null },
   ];

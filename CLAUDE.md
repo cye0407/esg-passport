@@ -38,6 +38,10 @@ Three tiers, and the line between them is **finishing**, not looking:
 - **Parser health telemetry is content-free** — upload extension, outcome, question/row
   counts, confidence, manual-mapping use and the thin-parse flag. Filenames and question
   text remain blocked by the analytics allowlist.
+- **The free upload flow names the outcome honestly** — it offers to check the
+  questionnaire, puts the upload target before preparation nudges on mobile, and marks
+  evidence as skipped rather than completed when no documents were added. Build SHAs live
+  under Settings support details instead of in the customer-facing footer.
 - **Onboarding is one screen** whose action is the questionnaire. The company profile is
   deferred to /data.
 - **Extraction records provenance** — the document name is stored in

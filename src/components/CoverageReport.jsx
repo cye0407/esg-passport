@@ -464,7 +464,12 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                   {policyGaps.builders.length > 0 && (
                     <li className="flex gap-2.5 text-sm font-medium leading-relaxed text-slate-900">
                       <span className="text-slate-400">•</span>
-                      <span>{t('coverage.passportPolicies', { count: policyGaps.builders.length })}</span>
+                      <span>{t(
+                        policyGaps.builders.length === 1
+                          ? 'coverage.passportPolicyOne'
+                          : 'coverage.passportPolicies',
+                        { count: policyGaps.builders.length },
+                      )}</span>
                     </li>
                   )}
                   <li className="flex gap-2.5 text-sm leading-relaxed text-slate-600">

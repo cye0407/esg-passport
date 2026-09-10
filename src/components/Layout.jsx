@@ -4,7 +4,6 @@ import { useLicense } from '@/components/LicenseContext';
 import { useT } from '@/components/LanguageContext';
 import { cn } from '@/lib/utils';
 import { APP_VERSION, checkForUpdate } from '@/lib/versionCheck';
-import buildInfo from '@/buildInfo.json';
 import {
   ArrowUpCircle,
   ClipboardCheck,
@@ -20,8 +19,6 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-
-const PASSPORT_SHA = typeof __PASSPORT_SHA__ === 'string' ? __PASSPORT_SHA__ : 'dev';
 
 // `name` is a stable, language-independent identifier (used as a fallback and for
 // logic); `labelKey` is the i18n key rendered to the user.
@@ -200,11 +197,6 @@ export default function Layout() {
           <p className="text-center text-sm text-slate-400">
             {t('layout.footer', { version: APP_VERSION })}
           </p>
-          {buildInfo?.passportVersion && buildInfo.passportVersion !== 'dev' && (
-            <p className="mt-1 text-right text-[10px] text-slate-400">
-              v{buildInfo.passportVersion} · pass@{PASSPORT_SHA} · ext@{buildInfo.extractSha} · eng@{buildInfo.engineSha}
-            </p>
-          )}
         </div>
       </footer>
     </div>

@@ -212,7 +212,7 @@ describe('CoverageReport', () => {
         questionText: 'Do you have a code of conduct?',
       }),
     ]);
-    expect(container.textContent).toContain('policy documents these questions ask for');
+    expect(container.textContent).toContain('policy document this questionnaire asks for');
   });
 
   // Non-negotiable: the report describes what the record supports. It never predicts how
