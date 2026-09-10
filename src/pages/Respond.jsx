@@ -262,6 +262,8 @@ export default function Respond({ demoOnly = false }) {
       name: questionnaireName,
       questionCount: parseResult.questions.length,
       missingDocuments: coverage?.missingDocuments || [],
+      topics: coverage?.topics || [],
+      policyGaps: coverage?.policyGaps || { questions: 0, builders: [] },
     });
   }, [canGenerate, demoOnly, phase, parseResult, questionnaireName, coverage]);
 
@@ -420,6 +422,8 @@ export default function Respond({ demoOnly = false }) {
         name,
         questionCount: pr.questions.length,
         missingDocuments: [],
+        topics: [],
+        policyGaps: { questions: 0, builders: [] },
       });
       setPendingEvidence({ parseResult: pr, name });
       setPhase('evidence');
