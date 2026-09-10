@@ -9,6 +9,7 @@ import { setHandoff, takeHandoff } from '@/lib/handoff';
 import { getExtractionReceipts, getSettings } from '@/lib/store';
 import { readCoverageStash } from '@/lib/coverageStash';
 import { documentName, documentHolds } from '@/lib/documentLabels';
+import { COVERAGE_FIELD_MAP } from '@/lib/coverageFieldMap';
 
 function topicName(t, topic) {
   const keys = { environmental: 'topic.environmental', social: 'topic.social', governance: 'topic.governance', other: 'topic.other' };
@@ -49,11 +50,16 @@ export default function Evidence() {
 
   // Each figure records the document it came out of, so the distinct names ARE the
   // documents added so far.
+  const sources = useMemo(() => getSettings()?.dataSources || {}, []);
   const added = useMemo(() => {
-    const sources = getSettings()?.dataSources || {};
     return [...new Set(Object.values(sources).filter(Boolean))];
-  }, []);
+  }, [sources]);
   const receipts = useMemo(() => getExtractionReceipts(), []);
+  const satisfiedDocuments = useMemo(() => new Set(
+    COVERAGE_FIELD_MAP
+      .filter(row => row.storeFields.some(field => sources[field]))
+      .map(row => row.document),
+  ), [sources]);
 
   // Applying extracted values needs the Data page's records state and its bare-year
   // confirmation, so the accepted fields are handed over rather than written here.
@@ -73,8 +79,11 @@ export default function Evidence() {
     navigate('/data');
   }, [navigate, stash]);
 
-  const wanted = stash?.missingDocuments || [];
-  const topics = stash?.topics || [];
+  const wanted = (stash?.missingDocuments || []).filter(entry => !satisfiedDocuments.has(entry.document));
+  const topics = (stash?.topics || []).map(bucket => ({
+    ...bucket,
+    documents: (bucket.documents || []).filter(document => !satisfiedDocuments.has(document)),
+  }));
   const documentAdded = stash && searchParams.get('added') === '1';
 
   return (
