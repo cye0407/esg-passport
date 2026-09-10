@@ -7,6 +7,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Upload, FileText, Check, X, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageContext';
 
+function fieldLabel(t, field) {
+  const key = `bill.field.${field}`;
+  const translated = t(key);
+  return translated === key ? field.replace(/([a-z])([A-Z])/g, '$1 $2') : translated;
+}
+
+function documentTypeLabel(t, type) {
+  const known = {
+    fleet_fuel_report: 'bill.type.fleetFuel', electricity_bill: 'bill.type.electricity',
+    gas_invoice: 'bill.type.gas', water_bill: 'bill.type.water',
+    waste_manifest: 'bill.type.waste', payroll_summary: 'bill.type.payroll',
+  };
+  return t(known[type] || 'bill.type.document');
+}
+
+function extractionExplanation(t, field, result, reasons = []) {
+  if (field === 'dieselLiters' && result?.documentType === 'fleet_fuel_report') {
+    const count = reasons.join(' ').match(/Summed (\d+) rows/)?.[1];
+    if (count && result.period) return t('bill.fleetSummary', { count, period: result.period });
+  }
+  return reasons.slice(0, 2).join(' · ');
+}
+
 /**
  * BillDrop — drop utility bills to auto-fill ESG data.
  *
@@ -233,10 +256,11 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
               <p className="text-sm text-amber-800">{results.error}</p>
             </div>
           ) : results?.fields?.length > 0 ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
-                <span className="font-medium">
-                  {results.result?.documentType?.replace(/_/g, ' ')}
+            <div className="space-y-4">
+              <p className="text-sm leading-relaxed text-slate-600">{t('bill.reviewIntro')}</p>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                <span className="font-medium text-slate-700">
+                  {documentTypeLabel(t, results.result?.documentType)}
                 </span>
                 {results.result?.provider && (
                   <span>— {results.result.provider}</span>
@@ -262,11 +286,11 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
 
               {results.fields.map((f, i) => {
                 const rawDiffers = f.rawValueText && f.rawValueText !== String(f.value);
-                const topReasons = (f.reasons || []).slice(0, 2).join(' · ');
+                const explanation = extractionExplanation(t, f.field, results.result, f.reasons);
                 return (
                   <div
                     key={i}
-                    className={`flex items-center gap-3 p-2 rounded-lg border transition-all ${
+                    className={`flex items-start gap-4 rounded-lg border p-4 transition-all ${
                       f.accepted ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-50'
                     }`}
                   >
@@ -274,25 +298,26 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
                       type="checkbox"
                       checked={f.accepted}
                       onChange={() => toggleField(i)}
-                      className="shrink-0"
+                      aria-label={fieldLabel(t, f.field)}
+                      className="mt-1 shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-900">{f.field}</span>
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${confColor(f.confidence)}`}>
-                          {f.confidence}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-slate-900">{fieldLabel(t, f.field)}</span>
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${confColor(f.confidence)}`}>
+                          {t(`bill.confidence.${f.confidence}`)}
                         </span>
                       </div>
-                      {topReasons && (
-                        <p className="text-[10px] text-slate-500 mt-0.5">{topReasons}</p>
+                      {explanation && (
+                        <p className="mt-2 text-xs leading-relaxed text-slate-600">{explanation}</p>
                       )}
-                      <p className="text-xs text-slate-400 truncate">{f.source?.rawText}</p>
+                      <p className="mt-2 border-t border-slate-100 pt-2 text-[11px] text-slate-400">{t('bill.foundAs')} {f.source?.rawText}</p>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-sm font-mono font-semibold text-slate-900">
+                    <div className="shrink-0 pt-8 text-right">
+                      <span className="text-xl font-semibold tabular-nums text-slate-900">
                         {typeof f.value === 'number' ? f.value.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB') : f.value}
                       </span>
-                      <span className="text-xs text-slate-400 ml-1">{f.unit}</span>
+                      <span className="ml-1 text-sm font-medium text-slate-500">{f.unit}</span>
                       {rawDiffers && (
                         <p className="text-[10px] text-slate-400 font-mono mt-0.5">
                           {t('bill.raw')} {f.rawValueText}{f.rawUnitText ? ` ${f.rawUnitText}` : ''}
