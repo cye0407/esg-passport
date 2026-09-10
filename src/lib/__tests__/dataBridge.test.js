@@ -107,6 +107,24 @@ describe('buildCompanyData', () => {
     const data = buildCompanyData('2025');
     expect(data.electricityKwh).toBe(60000); // 5000 * 12
     expect(data.dieselLiters).toBe(6000);    // 500 * 12
+    expect(data.dataCoverage.electricityKwh).toMatchObject({ monthsCovered: 12, expectedMonths: 12, complete: true });
+  });
+
+  it('keeps a one-month bill explicitly partial instead of turning it into annual data', () => {
+    seedProfile({ numberOfFacilities: '' });
+    seedMonthlyData('2025', 3, { energy: { electricityKwh: 198000 } });
+    const data = buildCompanyData('2025');
+    expect(data.electricityKwh).toBe(198000);
+    expect(data.dataCoverage.electricityKwh).toEqual({
+      periods: ['2025-03'], monthsCovered: 1, expectedMonths: 12, complete: false,
+    });
+    expect(data.numberOfSites).toBeUndefined();
+  });
+
+  it('does not infer one operating site when the profile has no facility count', () => {
+    seedProfile({ numberOfFacilities: '' });
+    expect(buildCompanyData('2025').numberOfSites).toBeUndefined();
+    expect(buildCompanyProfile().numberOfSites).toBeUndefined();
   });
 
   it('converts natural gas from kWh to m³', () => {

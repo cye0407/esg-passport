@@ -86,6 +86,30 @@ const policyStatusToTriState = (status) => {
 };
 const GAS_M3_TO_KWH = 10.55; // kWh per m³ natural gas
 
+// Annual totals are sums of monthly records. Keep the denominator alongside the
+// number so one invoice can never silently acquire twelve months of meaning.
+const COVERAGE_FIELDS = {
+  electricityKwh: ['energy', 'electricityKwh'],
+  naturalGasM3: ['energy', 'naturalGasKwh'],
+  dieselLiters: ['energy', 'vehicleFuelLiters'],
+  waterM3: ['water', 'consumptionM3'],
+  totalWasteKg: ['waste', 'totalKg'],
+  recyclingPercent: ['waste', 'totalKg'],
+  hazardousWasteKg: ['waste', 'hazardousKg'],
+  scope1Tco2e: ['emissions', 'scope1Tco2e'],
+  scope2Tco2e: ['emissions', 'scope2Tco2e'],
+};
+
+function buildDataCoverage(records, reportingYear) {
+  const yearRecords = records.filter(record => String(record.period || '').startsWith(`${reportingYear}-`));
+  return Object.fromEntries(Object.entries(COVERAGE_FIELDS).map(([metric, [section, field]]) => {
+    const periods = [...new Set(yearRecords
+      .filter(record => record?.[section]?.[field] !== undefined && record?.[section]?.[field] !== null && record?.[section]?.[field] !== '')
+      .map(record => record.period))].sort();
+    return [metric, { periods, monthsCovered: periods.length, expectedMonths: 12, complete: periods.length === 12 }];
+  }));
+}
+
 /**
  * Country code → full name mapping for the Response Generator engine
  * (which uses full country names for emission factor lookup).
@@ -108,11 +132,11 @@ Object.assign(CODE_TO_NAME, {
  */
 export function buildCompanyData(year) {
   const profile = getCompanyProfile();
+  const records = getDataRecords();
   let reportingYear = year || profile?.baselineYear;
 
   // Auto-detect: use the most recent year that has data records
   if (!reportingYear) {
-    const records = getDataRecords();
     if (records.length > 0) {
       const years = [...new Set(records.map(r => r.period.slice(0, 4)))];
       years.sort().reverse();
@@ -123,6 +147,7 @@ export function buildCompanyData(year) {
   }
 
   const totals = getAnnualTotals(reportingYear);
+  const dataCoverage = buildDataCoverage(records, reportingYear);
   const policies = getPolicies().map(normalizePolicy);
   const settings = getSettings();
   const notApplicableFields = settings?.notApplicableFields || {};
@@ -205,8 +230,10 @@ export function buildCompanyData(year) {
     industry: profile?.industrySector || '',
     country: countryName,
     employeeCount: totalEmp || parseInt(profile?.totalEmployees) || 0,
-    numberOfSites: parseInt(profile?.numberOfFacilities) || 1,
+    // A bill identifies an account or meter, not how many facilities the company runs.
+    numberOfSites: profile?.numberOfFacilities ? parseInt(profile.numberOfFacilities) || undefined : undefined,
     reportingPeriod: reportingYear,
+    dataCoverage,
     revenueBand: profile?.revenueBand || profile?.annualRevenue || '',
 
     // Extended company profile fields (from collapsible Company Profile section)
@@ -307,7 +334,7 @@ export function buildCompanyProfile() {
     ? (CODE_TO_NAME[profile.countryOfIncorporation] || profile.countryOfIncorporation)
     : '';
   const employeeCount = parseInt(profile?.totalEmployees) || 0;
-  const numberOfSites = parseInt(profile?.numberOfFacilities) || 1;
+  const numberOfSites = profile?.numberOfFacilities ? parseInt(profile.numberOfFacilities) || undefined : undefined;
   const reportingPeriod = profile?.baselineYear || new Date().getFullYear().toString();
   const revenueBand = profile?.annualRevenue || '';
 
