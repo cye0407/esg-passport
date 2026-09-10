@@ -470,6 +470,50 @@ function mergeSplitTableRows(lines) {
     }
     return merged;
 }
+// A question numbered in its own table column arrives with the marker stranded on a line
+// of its own:
+//
+//   12.
+//   What was your total water consumption in cubic
+//   metres during the reporting year?
+//
+// Every wrap heuristic below keys off the HEAD line, and a bare "12." is neither
+// interrogative nor imperative, so the head was discarded and the tail lines read as
+// prose — measured at 1 question recovered out of 44 (see parseRecall.test.ts). The same
+// questionnaire with the marker left attached to the first line scored 44 of 44, so the
+// wrap machinery was never the problem: the orphan was.
+//
+// Reattaching is done before anything else looks at the lines, and a reference code
+// rejoins with column spacing so extractQuestionFromSpacedRow still lifts its id out.
+const ORPHAN_ENUMERATOR = /^\(?\d{1,3}(?:\.\d{1,2})*[.)]?$/;
+function isOrphanMarker(line) {
+    const t = line.trim();
+    if (!t || t.length > 12)
+        return false;
+    return ORPHAN_ENUMERATOR.test(t) || ROW_REFERENCE.test(t);
+}
+function mergeOrphanMarkers(lines) {
+    const merged = [];
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const next = lines[i + 1];
+        if (isOrphanMarker(line)
+            && next
+            && !isOrphanMarker(next)
+            && !next.trim().startsWith('|')
+            && !isTableSeparator(next)
+            && !TOC_LINE.test(next)) {
+            // Three spaces for a reference code, one for a plain enumerator: the spaced-row
+            // extractor reads columns, the numbered-question branch reads a sentence.
+            const joiner = ROW_REFERENCE.test(line.trim()) ? '   ' : ' ';
+            merged.push(`${line.trim()}${joiner}${next.trim()}`);
+            i++;
+            continue;
+        }
+        merged.push(line);
+    }
+    return merged;
+}
 // ============================================
 // Text-to-Questions (shared by PDF + DOCX)
 // ============================================
@@ -479,7 +523,7 @@ function mergeSplitTableRows(lines) {
  * testing them through a generated PDF would test pdf.js, not this.
  */
 export function questionsFromText(text, fileName) {
-    const lines = mergeSplitTableRows(text.split('\n').map(l => l.trim()).filter(l => l.length > 0));
+    const lines = mergeSplitTableRows(mergeOrphanMarkers(text.split('\n').map(l => l.trim()).filter(l => l.length > 0)));
     const questions = [];
     let currentCategory;
     for (let i = 0; i < lines.length; i++) {
