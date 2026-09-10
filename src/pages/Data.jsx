@@ -57,6 +57,10 @@ export default function Data() {
     return new Date().getFullYear();
   })();
   const [records, setRecords] = useState({});
+  // React Strict Mode runs mount effects twice in development. Without this guard the
+  // second initial load can replace values just applied from the one-shot extraction
+  // handoff with the older persisted snapshot before autosave gets a chance to run.
+  const recordsLoadedRef = useRef(false);
   const [selectedYear, setSelectedYear] = useState(initialYear);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -199,6 +203,8 @@ export default function Data() {
   const monthsToShow = getMonthsForYear(selectedYear);
 
   useEffect(() => {
+    if (recordsLoadedRef.current) return;
+    recordsLoadedRef.current = true;
     loadRecords();
   }, []);
 
