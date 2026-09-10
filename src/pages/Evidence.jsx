@@ -135,8 +135,8 @@ export default function Evidence() {
       <BillDrop
         inputId="evidence-file-input"
         incoming={dropped}
-        onDataExtracted={(fields, period, fileName) => {
-          batch.current.push({ fields, period, fileName });
+        onDataExtracted={(fields, period, fileName, periodMeta) => {
+          batch.current.push({ fields, period, fileName, ...periodMeta });
         }}
         onBatchComplete={() => {
           const items = batch.current;
