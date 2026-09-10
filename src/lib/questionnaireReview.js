@@ -1,4 +1,13 @@
 const QUESTIONNAIRE_EXTENSIONS = new Set(['.xlsx', '.xls', '.csv', '.pdf', '.docx']);
+export const SKIP_COLUMN_VALUE = '__skip__';
+
+export function mappingSelectValue(value) {
+  return value || SKIP_COLUMN_VALUE;
+}
+
+export function mappingColumnValue(value) {
+  return value === SKIP_COLUMN_VALUE ? '' : value;
+}
 
 export function questionnaireExtension(fileName = '') {
   const match = String(fileName).toLowerCase().match(/\.[^.]+$/);

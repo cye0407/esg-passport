@@ -32,7 +32,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   questionnaireExtension,
+  mappingColumnValue,
+  mappingSelectValue,
   requiresQuestionConfirmation,
+  SKIP_COLUMN_VALUE,
   thinParseSummary,
 } from '@/lib/questionnaireReview';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -482,12 +485,19 @@ export default function Respond({ demoOnly = false }) {
   // button renders only while a file is loaded.
   function remapQuestionColumn() {
     const columns = pendingConfirm?.parseResult?.metadata?.availableColumns || [];
+    const detected = pendingConfirm?.parseResult?.metadata?.columnMapping || {};
     setPendingConfirm(null);
     setConfirmedIds(new Set());
     setPhase('upload');
     setParseError(null);
     setPassBlock(null);
     setMappingColumns(columns);
+    setColumnMapping({
+      questionText: detected.questionText || '',
+      category: detected.category || '',
+      subcategory: detected.subcategory || '',
+      referenceId: detected.referenceId || '',
+    });
     setShowMapping(true);
     track('questionnaire_remap_opened', { columns: columns.length });
   }
@@ -2496,10 +2506,16 @@ export default function Respond({ demoOnly = false }) {
               {['questionText', 'category', 'subcategory', 'referenceId'].map(field => (
                 <div key={field}>
                   <Label className="text-sm capitalize">{field === 'questionText' ? t('respond.questionTextReq') : field}</Label>
-                  <Select value={columnMapping[field]} onValueChange={(v) => setColumnMapping(prev => ({ ...prev, [field]: v }))}>
+                  <Select
+                    value={mappingSelectValue(columnMapping[field])}
+                    onValueChange={(v) => setColumnMapping(prev => ({
+                      ...prev,
+                      [field]: mappingColumnValue(v),
+                    }))}
+                  >
                     <SelectTrigger><SelectValue placeholder={t('respond.selectColumn')} /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">{t('respond.skip')}</SelectItem>
+                      <SelectItem value={SKIP_COLUMN_VALUE}>{t('respond.skip')}</SelectItem>
                       {mappingColumns.map(col => (
                         <SelectItem key={col} value={col}>{col}</SelectItem>
                       ))}
