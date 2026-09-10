@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   getDataRecords,
   saveDataRecord,
@@ -7,6 +7,7 @@ import {
   getCompanyProfile,
   getAnnualTotals,
   saveSettings,
+  saveExtractionReceipt,
 } from '@/lib/store';
 import { EMISSION_FACTORS } from '@/lib/constants';
 import { getIndustryMetrics } from '@/data/industry-metrics';
@@ -26,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { cn } from '@/lib/utils';
 import {
   Database,
+  FileText,
   Save,
   ChevronLeft,
   ChevronRight,
@@ -103,6 +105,7 @@ export default function Data() {
   // flushed the writes.
   const [autoSaveRequested, setAutoSaveRequested] = useState(false);
   const extractionReturnTo = useRef(null);
+  const pendingExtractionReceipts = useRef([]);
 
   // Per-metric source notes — "where I find this number each month"
   // Keyed by `${section}.${field}`. One source per metric, edited inline.
@@ -354,6 +357,13 @@ export default function Data() {
       updateField(targetPeriod, mapping.section, mapping.field, val);
     }
     recordExtractionSources(fields, fileName);
+    pendingExtractionReceipts.current.push({
+      fields,
+      fileName,
+      sourcePeriod: extractedPeriod || '',
+      savedPeriod: targetPeriod,
+      annual: false,
+    });
     setAutoSaveRequested(true);
 
     track('bill_extracted', {
@@ -380,6 +390,13 @@ export default function Data() {
     setAnnualValues(prev => ({ ...prev, ...mergeAnnualValues(forThisYear) }));
     // Per document, so a figure is attributed to the file it actually came out of.
     for (const bill of forThisYear) recordExtractionSources(bill.fields, bill.fileName);
+    pendingExtractionReceipts.current.push(...forThisYear.map(bill => ({
+      fields: bill.fields,
+      fileName: bill.fileName,
+      sourcePeriod: bill.extractedPeriod,
+      savedPeriod: String(year),
+      annual: true,
+    })));
     setAutoSaveRequested(true);
 
     setHasChanges(true);
@@ -615,6 +632,12 @@ export default function Data() {
     setSaving(false);
     trackOnce('data_first_save');
     track('data_saved', { mode: entryMode });
+    // A receipt says values were added, so write it only after the records above save.
+    pendingExtractionReceipts.current.forEach(receipt => saveExtractionReceipt({
+      ...receipt,
+      allocationMonths: receipt.annual ? (monthsToShow.filter(month => !month.isFuture).length || 1) : null,
+    }));
+    pendingExtractionReceipts.current = [];
     if (extractionReturnTo.current) {
       const destination = extractionReturnTo.current;
       extractionReturnTo.current = null;
@@ -974,6 +997,9 @@ export default function Data() {
           <p className="text-slate-500 text-sm mt-1">
             {t('data.subtitle').replace('{mode}', entryMode === 'monthly' ? t('btn.monthly').toLowerCase() : t('btn.annual').toLowerCase()).replace('{year}', selectedYear)}
           </p>
+          <Link to="/evidence" className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline">
+            <FileText className="h-4 w-4" /> {t('data.viewSources')}
+          </Link>
         </div>
 
         <div className="flex items-center gap-2">

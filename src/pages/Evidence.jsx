@@ -1,14 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, FileText } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, FileText, Shield, Upload } from 'lucide-react';
 import BillDrop from '@/components/BillDrop';
 import JourneySpine from '@/components/JourneySpine';
 import { useLanguage } from '@/components/LanguageContext';
 import { track } from '@/lib/track';
 import { setHandoff, takeHandoff } from '@/lib/handoff';
-import { getSettings } from '@/lib/store';
+import { getExtractionReceipts, getSettings } from '@/lib/store';
 import { readCoverageStash } from '@/lib/coverageStash';
 import { documentName, documentHolds } from '@/lib/documentLabels';
+import { COVERAGE_FIELD_MAP } from '@/lib/coverageFieldMap';
+
+function topicName(t, topic) {
+  const keys = { environmental: 'topic.environmental', social: 'topic.social', governance: 'topic.governance', other: 'topic.other' };
+  return keys[topic] ? t(keys[topic]) : null;
+}
+
+function extractedFieldLabel(t, field) {
+  const key = `bill.field.${field}`;
+  const label = t(key);
+  return label === key ? field.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()) : label;
+}
 
 // Step two, with a page of its own.
 //
@@ -38,10 +50,16 @@ export default function Evidence() {
 
   // Each figure records the document it came out of, so the distinct names ARE the
   // documents added so far.
+  const sources = useMemo(() => getSettings()?.dataSources || {}, []);
   const added = useMemo(() => {
-    const sources = getSettings()?.dataSources || {};
     return [...new Set(Object.values(sources).filter(Boolean))];
-  }, []);
+  }, [sources]);
+  const receipts = useMemo(() => getExtractionReceipts(), []);
+  const satisfiedDocuments = useMemo(() => new Set(
+    COVERAGE_FIELD_MAP
+      .filter(row => row.storeFields.some(field => sources[field]))
+      .map(row => row.document),
+  ), [sources]);
 
   // Applying extracted values needs the Data page's records state and its bare-year
   // confirmation, so the accepted fields are handed over rather than written here.
@@ -61,7 +79,11 @@ export default function Evidence() {
     navigate('/data');
   }, [navigate, stash]);
 
-  const wanted = stash?.missingDocuments || [];
+  const wanted = (stash?.missingDocuments || []).filter(entry => !satisfiedDocuments.has(entry.document));
+  const topics = (stash?.topics || []).map(bucket => ({
+    ...bucket,
+    documents: (bucket.documents || []).filter(document => !satisfiedDocuments.has(document)),
+  }));
   const documentAdded = stash && searchParams.get('added') === '1';
 
   return (
@@ -114,7 +136,40 @@ export default function Evidence() {
       {/* What the questionnaire actually asked for, so this is not a blank uploader.
           Only shown when a questionnaire has been read — inventing a wish list without
           one would be guessing at the reader's situation. */}
-      {wanted.length > 0 && (
+      {topics.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">{t('evidence.byTopicTitle')}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t('evidence.byTopicBody')}</p>
+          </div>
+          <div className="divide-y divide-slate-100 border border-slate-200 bg-white">
+            {topics.map(bucket => (
+              <div key={bucket.topic} className="grid gap-3 px-5 py-4 sm:grid-cols-[180px_1fr]">
+                <div>
+                  <p className="font-semibold text-slate-900">{topicName(t, bucket.topic)}</p>
+                  <p className="mt-0.5 text-sm text-slate-500">{bucket.total === 1 ? t('coverage.topicQuestion', { count: bucket.total }) : t('coverage.topicQuestions', { count: bucket.total })}</p>
+                </div>
+                <div className="space-y-2">
+                  {bucket.documents?.map(item => (
+                    <div key={item} className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 px-3 py-2.5">
+                      <div><p className="text-sm font-medium text-slate-900">{documentName(t, item)}</p><p className="text-xs text-slate-500">{documentHolds(t, item)}</p></div>
+                      <button type="button" onClick={() => document.getElementById('evidence-file-input')?.click()} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-800 hover:underline"><Upload className="h-4 w-4" />{t('coverage.docUpload')}</button>
+                    </div>
+                  ))}
+                  {bucket.needsPolicy > 0 && (
+                    <Link to="/policies" className="flex items-center justify-between gap-3 border border-violet-200 bg-violet-50 px-3 py-2.5 text-sm font-medium text-violet-900 hover:bg-violet-100">
+                      <span className="inline-flex items-center gap-2"><Shield className="h-4 w-4" />{t('evidence.policyNeeded', { count: bucket.needsPolicy })}</span><ArrowRight className="h-4 w-4" />
+                    </Link>
+                  )}
+                  {!bucket.documents?.length && !bucket.needsPolicy && <p className="text-sm text-slate-400">{t('evidence.noUploadNeeded')}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {topics.length === 0 && wanted.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {wanted.map((entry) => {
             const name = documentName(t, entry.document);
@@ -132,6 +187,11 @@ export default function Evidence() {
         </div>
       )}
 
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-slate-200 bg-slate-50 p-4">
+        <div><p className="text-sm font-semibold text-slate-900">{t('evidence.policiesTitle')}</p><p className="mt-0.5 text-sm text-slate-500">{t('evidence.policiesBody')}</p></div>
+        <div className="flex flex-wrap gap-2"><Link to="/documents" className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('evidence.registerPolicy')}</Link><Link to="/policies" className="inline-flex h-10 items-center bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">{t('evidence.createPolicy')}</Link></div>
+      </div>
+
       <BillDrop
         inputId="evidence-file-input"
         incoming={dropped}
@@ -145,7 +205,28 @@ export default function Evidence() {
         }}
       />
 
-      {added.length > 0 && (
+      {receipts.length > 0 && (
+        <section className="border border-slate-200 bg-white">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+            <p className="text-sm font-semibold text-slate-900">{t('evidence.receiptsTitle')}</p>
+            <Link to="/data" className="text-sm font-medium text-slate-600 hover:underline">{t('evidence.viewData')}</Link>
+          </div>
+          {receipts.map(receipt => (
+            <div key={receipt.id} className="border-b border-slate-100 px-5 py-4 last:border-b-0">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-900">{receipt.fileName || t('evidence.unnamedDocument')}</p>
+                <p className="text-xs text-slate-400">{new Date(receipt.createdAt).toLocaleString()}</p>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">{receipt.annual ? t('evidence.savedAnnual', { period: receipt.savedPeriod, count: receipt.allocationMonths || 12 }) : t('evidence.savedPeriod', { period: receipt.savedPeriod })}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {receipt.fields.map(field => <span key={field.field} className="bg-emerald-50 px-2.5 py-1 text-xs text-emerald-900">{extractedFieldLabel(t, field.field)}: {field.value.toLocaleString()} {field.unit}</span>)}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {receipts.length === 0 && added.length > 0 && (
         <div className="border border-slate-200 bg-white">
           <p className="border-b border-slate-100 px-5 py-3.5 text-sm font-semibold text-slate-900">
             {t('evidence.addedTitle')}
