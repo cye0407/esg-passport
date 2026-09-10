@@ -14,7 +14,11 @@ const COLUMN_PATTERNS = {
         'question', 'questions', 'query', 'text', 'description',
         'indicator', 'metric', 'requirement', 'disclosure',
         'question text', 'question_text', 'questiontext',
-        'ask', 'item', 'criteria', 'criterion'
+        'ask', 'item', 'criteria', 'criterion',
+        // German buyer workbooks. Without these the mapping fell through to the
+        // longest-text-column fallback, which found "Frage" by luck rather than by name.
+        'frage', 'fragen', 'fragestellung', 'anforderung', 'anforderungen',
+        'kriterium', 'kriterien', 'beschreibung', 'angabe', 'abfrage', 'pruefpunkt', 'prüfpunkt'
     ],
     category: [
         'category', 'topic', 'theme', 'section', 'pillar',
@@ -50,6 +54,38 @@ const FRAMEWORK_PATTERNS = {
     'RAINFOREST_ALLIANCE': [/rainforest\s*alliance/i, /\butz\b/i, /\bra[\s-]cert/i],
     'FAIRTRADE': [/\bfairtrade\b/i, /\bfair\s*trade\b.*(?:certif|standard|audit|premium)/i, /\bflo\b.*(?:standard|certif)/i],
 };
+/**
+ * Which row holds the column headers.
+ *
+ * The parser used to assume row one, and buyer workbooks routinely open with a title and
+ * an instruction before the table starts:
+ *
+ *   Supplier Sustainability Questionnaire 2026
+ *   Complete all mandatory fields
+ *   (blank)
+ *   ID | Question | Response
+ *
+ * With row one as the header, the "columns" are the title and two empty cells, the
+ * mapping falls through to its last resort (the first column), and every question row is
+ * read as empty. Measured on exactly that shape: 0 questions out of 3.
+ *
+ * So look for the first row within `limit` whose cells actually name questionnaire
+ * columns — at least two non-empty cells, one of which matches a known question header.
+ * Nothing found means the old behaviour: row one, unchanged.
+ */
+function findHeaderRow(rows, limit = 30) {
+    const scanned = Math.min(rows.length, limit);
+    for (let i = 0; i < scanned; i++) {
+        const cells = (rows[i] || []).map(c => String(c ?? '').toLowerCase().trim());
+        const filled = cells.filter(Boolean);
+        if (filled.length < 2)
+            continue;
+        const namesQuestionColumn = filled.some(cell => COLUMN_PATTERNS.questionText.some(p => cell === p || cell.includes(p)));
+        if (namesQuestionColumn)
+            return i;
+    }
+    return 0;
+}
 function detectColumnMapping(headers, sampleRows) {
     const mapping = { questionText: '' };
     const normalizedHeaders = headers.map(h => h?.toLowerCase().trim() || '');
@@ -58,10 +94,17 @@ function detectColumnMapping(headers, sampleRows) {
             const header = normalizedHeaders[i];
             if (patterns.some(p => header.includes(p) || header === p)) {
                 mapping[field] = headers[i];
+                if (field === 'questionText')
+                    mapping.questionTextFromHeader = true;
                 break;
             }
         }
     }
+    // The fallback below and the last-resort first column are GUESSES; only a header match
+    // above earns the benefit of the doubt for its cells. Recorded rather than inferred,
+    // because "did a human label this column?" is the whole basis for lowering the bar.
+    if (!mapping.questionText)
+        mapping.questionTextFromHeader = false;
     if (!mapping.questionText && headers.length > 0 && sampleRows && sampleRows.length > 0) {
         let bestCol = '';
         let bestScore = 0;
@@ -87,6 +130,27 @@ function detectColumnMapping(headers, sampleRows) {
         mapping.questionText = headers[0];
     }
     return mapping;
+}
+/**
+ * Identity for de-duplication.
+ *
+ * Keying on text alone collapsed rows that a buyer deliberately repeated: three
+ * site-specific rows with refs E1.1 / E1.2 / E1.3 and identical wording became one
+ * question, so the supplier answered once and the returned form was missing two required
+ * answers. That is the only failure in this parser that is silently WRONG rather than
+ * visibly thin, which is what makes it the worst one.
+ *
+ * A reference id, a sheet or a category is what distinguishes a repeat that matters from
+ * an echo that does not. Where a document offers none of them, text is still the key —
+ * a sentence repeated in prose with nothing to tell the copies apart is an echo (a
+ * contents entry, a running header), and merging those is the behaviour we want.
+ */
+function questionIdentity(q) {
+    const text = q.text.toLowerCase().trim().replace(/\s+/g, ' ');
+    const marks = [q.referenceId, q.category, q.subcategory]
+        .map(v => (v || '').toLowerCase().trim())
+        .filter(Boolean);
+    return marks.length > 0 ? `${marks.join('|')}::${text}` : text;
 }
 function detectFramework(questions) {
     const allText = questions.map(q => `${q.text} ${q.category || ''} ${q.referenceId || ''}`).join(' ');
@@ -139,6 +203,17 @@ const IMPERATIVE_START = /^(describe|explain|provide|list|report|disclose|specif
 // total headcount". Stripped before the verb tests so "Please state/provide/indicate/…" prompts
 // aren't dropped as non-questions.
 const PLEASE_PREFIX = /^please[,:]?\s+/i;
+// German questionnaires reached the parser only through ENDS_WITH_QUESTION: "Wie hoch war
+// Ihr Stromverbrauch?" parsed, "Beschreiben Sie Ihre Umweltmanagementsysteme." did not,
+// and neither did "Bitte geben Sie Ihren Gesamtstromverbrauch an." Measured before this:
+// 4 of 8 German shapes recovered, and 2 of 4 rows in a German "Frage" column.
+//
+// The Sie-imperative is matched by SHAPE rather than by a verb list — a verb in -en
+// followed by "Sie" is the German polite imperative, and the literal " Sie" is what keeps
+// this from firing on English prose.
+const GERMAN_BITTE_PREFIX = /^bitte[,:]?\s+/i;
+const GERMAN_SIE_IMPERATIVE = /^[\p{L}]+en\s+Sie/u;
+const GERMAN_INTERROGATIVE_START = /^(wie|was|welche[rsnm]?|wann|wo|warum|weshalb|wer|wessen|wieviel|haben|hat|habt|ist|sind|gibt|verf[üu]g(?:en|t)|besteht|bestehen|k[öo]nnen|kann|werden|wird|wurde|wurden|liegt|liegen|existiert|existieren|f[üu]hr(?:en|t)|nutz(?:en|t)|setz(?:en|t)|erfolgt|betr[äa]gt|besitzen|besitzt|planen|plant)/i;
 const REFERENCE_ID = /^(C\d+[\.\-]\d|E\d[\.\-]|S\d[\.\-]|G\d[\.\-]|GRI\s*\d{3}|ESRS\s*[ESGO]\d|SASB|Q\d{1,3}[\.\-])/i;
 const ENDS_WITH_QUESTION = /\?\s*[)"\u201D]?\s*$/;
 // A source citation, not an instruction: "Report 2024, p. 44\u2026", "See 2023 Annual Report".
@@ -190,7 +265,12 @@ function looksLikeQuestion(raw) {
     // its evidence guidance on the same line runs past 300 characters and was dropped
     // whole, question and all.
     const text = trimGuidance(raw);
-    if (text.length > 300)
+    // 300 dropped real questions: a CDP or EcoVadis prompt that asks for governance,
+    // process, remediation and monitoring in one item runs past 380 characters even after
+    // its guidance is trimmed, and it was rejected question and all. A questionnaire item
+    // long enough to fail 700 is a guidance paragraph, and SKIP_PATTERNS is what catches
+    // those - not an arbitrary width.
+    if (text.length > 700)
         return false;
     if (/^[a-z]/.test(text))
         return false;
@@ -213,10 +293,14 @@ function looksLikeQuestion(raw) {
         return false;
     // SKIP_PATTERNS above already caught instruction prefixes like "please select"; a remaining
     // "Please …" is a politely-phrased question, so test the verb without the prefix.
-    const probe = text.replace(PLEASE_PREFIX, '');
+    const probe = text.replace(PLEASE_PREFIX, '').replace(GERMAN_BITTE_PREFIX, '');
     if (INTERROGATIVE_START.test(probe))
         return true;
     if (IMPERATIVE_START.test(probe))
+        return true;
+    if (GERMAN_INTERROGATIVE_START.test(probe))
+        return true;
+    if (GERMAN_SIE_IMPERATIVE.test(probe))
         return true;
     if (REFERENCE_ID.test(text))
         return true;
@@ -570,7 +654,22 @@ export function questionsFromText(text, fileName) {
             i = merged.endIdx;
             continue;
         }
-        if (line.length < 50 && !line.includes('?') && !line.match(/^\d+[\.\)]/) && !STRUCTURED_NUMBERING.test(line)) {
+        // A short unpunctuated line is usually a section heading — but "usually" was doing a
+        // lot of work here. At under 50 characters without a question mark, this branch also
+        // swallowed every short prompt that does not end in "?":
+        //
+        //   Beschreiben Sie Ihre Umweltmanagementsysteme.   (45 chars)
+        //   Wie hoch war Ihr Stromverbrauch im Berichtsjahr (47 chars)
+        //
+        // German questionnaires are full of both, so German items reached the parser only
+        // when they happened to carry a question mark, and the verb tests below were never
+        // consulted. Asking whether the line reads as a question first costs one call and
+        // leaves real headings ("Environment", "Energy and emissions") exactly where they were.
+        if (line.length < 50
+            && !line.includes('?')
+            && !line.match(/^\d+[\.\)]/)
+            && !STRUCTURED_NUMBERING.test(line)
+            && !looksLikeQuestion(line)) {
             currentCategory = line.replace(/[:.]$/, '').trim();
             continue;
         }
@@ -602,7 +701,7 @@ export function questionsFromText(text, fileName) {
     const seen = new Set();
     const deduped = [];
     for (const q of questions) {
-        const key = q.text.toLowerCase().trim().replace(/\s+/g, ' ');
+        const key = questionIdentity(q);
         if (!seen.has(key)) {
             seen.add(key);
             deduped.push(q);
@@ -723,8 +822,37 @@ function parseSheetData(jsonData, columnMapping, sheetLabel) {
         const questionText = String(row[columnMapping.questionText] || '').trim();
         if (!questionText)
             continue;
-        if (!looksLikeQuestion(questionText))
+        // A column the buyer LABELLED "Question" (or "Frage", or "Anforderung") has already
+        // told us what its cells are, so the shape test that free text needs is the wrong
+        // question to ask of them. It cost real rows: "Gesamtabfallmenge im Berichtsjahr
+        // (kg)" and "Total electricity consumption in kWh:" are questionnaire items in a
+        // question column and nothing else, but neither is interrogative or imperative, so
+        // both were dropped — 2 of 4 rows lost from a German workbook.
+        //
+        // The bar is not removed, only lowered to what a cell must clear to be an item at
+        // all: not an answer, not a spreadsheet label, not a bare number. Where the column
+        // was GUESSED (the longest-text fallback), the full test still applies, because then
+        // nothing has vouched for the column.
+        if (columnMapping.questionTextFromHeader) {
+            if (questionText.length < 6)
+                continue;
+            // Still a guidance paragraph rather than an item, however the column is labelled.
+            if (trimGuidance(questionText).length > 700)
+                continue;
+            // Case is the one signal that survives translation: a buyer's note sitting in the
+            // question column ("this is just a note about the above question") opens lowercase,
+            // while a field label does not — "Gesamtabfallmenge im Berichtsjahr (kg)" and
+            // "Total electricity consumption in kWh:" are both capitalised.
+            if (/^[a-z]/.test(questionText))
+                continue;
+            if (ANSWER_TOKEN.test(questionText))
+                continue;
+            if (SKIP_PATTERNS.some(p => p.test(questionText)))
+                continue;
+        }
+        else if (!looksLikeQuestion(questionText)) {
             continue;
+        }
         const question = { id: uuid(), rowIndex: i + 2, text: questionText, rawRow: row };
         if (columnMapping.category)
             question.category = String(row[columnMapping.category] || '').trim() || undefined;
@@ -794,7 +922,16 @@ async function parseSpreadsheetFile(file) {
                 break;
             }
             const sheet = workbook.Sheets[sheetName];
-            const allRows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+            // Find the header row before reading the sheet into objects: sheet_to_json takes
+            // whichever row it starts on as the keys, so starting a row too high turns a title
+            // banner into the column names and every real row into empty cells.
+            const grid = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false, blankrows: false });
+            const headerRow = findHeaderRow(grid);
+            const allRows = XLSX.utils.sheet_to_json(sheet, {
+                defval: '',
+                raw: false,
+                ...(headerRow > 0 ? { range: headerRow } : {}),
+            });
             const jsonData = allRows.slice(0, Math.min(MAX_ROWS_PER_SHEET, MAX_TOTAL_ROWS - totalRows));
             if (allRows.length > jsonData.length) {
                 errors.push(`Sheet "${sheetName}" has ${allRows.length.toLocaleString('en-GB')} rows; only the first ${jsonData.length.toLocaleString('en-GB')} were read.`);
@@ -817,7 +954,7 @@ async function parseSpreadsheetFile(file) {
         const seen = new Set();
         const dedupedQuestions = [];
         for (const q of allQuestions) {
-            const key = q.text.toLowerCase().trim().replace(/\s+/g, ' ');
+            const key = questionIdentity(q);
             if (!seen.has(key)) {
                 seen.add(key);
                 dedupedQuestions.push(q);

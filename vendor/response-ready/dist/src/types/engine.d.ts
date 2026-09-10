@@ -32,6 +32,14 @@ export interface ColumnMapping {
     subcategory?: string;
     referenceId?: string;
     required?: string;
+    /**
+     * True when the question column was found by its HEADER ("Question", "Frage",
+     * "Anforderung"), false when it was guessed by looking for the column with the most
+     * text. A labelled column has already told us its cells are questionnaire items, so
+     * the parser can accept cells that no shape test would recognise — a noun-phrase field
+     * or a colon-ended label. A guessed column has vouched for nothing.
+     */
+    questionTextFromHeader?: boolean;
 }
 /** A rule that maps keywords to a domain + topics. Domain packs provide arrays of these. */
 export interface KeywordRule {
