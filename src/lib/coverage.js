@@ -22,6 +22,18 @@ function isPresent(value) {
 }
 
 /**
+ * A value can exist without answering an annual question. Flow metrics from one bill
+ * are deliberately kept as gaps until all twelve monthly periods are represented.
+ * Snapshot/rate metrics have no dataCoverage entry and remain satisfied by a real
+ * recorded value (including zero).
+ */
+export function companyDataKeyIsCovered(companyData, key) {
+  if (!isPresent(companyData?.[key])) return false;
+  const coverage = companyData?.dataCoverage?.[key];
+  return coverage ? coverage.complete === true : true;
+}
+
+/**
  * Which of a draft's suggested data points are still missing from the workspace,
  * as map rows. Labels with no row are skipped: we cannot name a document for them.
  */
@@ -31,7 +43,7 @@ function missingRowsFor(draft, companyData) {
   for (const label of labels) {
     const row = rowForLabel(label);
     if (!row) continue;
-    const satisfied = row.companyDataKeys.some(key => isPresent(companyData?.[key]));
+    const satisfied = row.companyDataKeys.some(key => companyDataKeyIsCovered(companyData, key));
     if (!satisfied) rows.push(row);
   }
   return rows;
@@ -107,6 +119,18 @@ export function hasOwnData(companyData) {
   return COVERAGE_FIELD_MAP.some(row => row.companyDataKeys.some(key => isPresent(companyData?.[key])));
 }
 
+/** Recheck a stashed requirement against the workspace after a document was saved. */
+export function remainingMissingDocuments(entries, companyData) {
+  return (Array.isArray(entries) ? entries : []).filter(entry => {
+    // Old session stashes did not carry requirements. Keep showing them rather than
+    // guessing that an unrelated upload satisfied them.
+    if (!Array.isArray(entry.requirements) || entry.requirements.length === 0) return true;
+    return entry.requirements.some(requirement =>
+      !(requirement.companyDataKeys || []).some(key => companyDataKeyIsCovered(companyData, key))
+    );
+  });
+}
+
 /**
  * The questionnaire grouped the way the customer asking it thinks - environmental,
  * social, governance, and what is really just company profile - with the documents that
@@ -163,6 +187,7 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
 
   // Questions per document, counted once each however many of its fields they want.
   const unlocksByDocument = new Map();
+  const requirementsByDocument = new Map();
   const policyBuilders = new Set();
   let policyQuestions = 0;
 
@@ -187,11 +212,18 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
     const documents = new Set(missingRowsFor(draft, companyData).map(row => row.document));
     for (const document of documents) {
       unlocksByDocument.set(document, (unlocksByDocument.get(document) || 0) + 1);
+      const requirements = requirementsByDocument.get(document) || [];
+      for (const row of missingRowsFor(draft, companyData).filter(candidate => candidate.document === document)) {
+        if (!requirements.some(item => item.label === row.label)) {
+          requirements.push({ label: row.label, companyDataKeys: [...row.companyDataKeys] });
+        }
+      }
+      requirementsByDocument.set(document, requirements);
     }
   }
 
   const missingDocuments = [...unlocksByDocument.entries()]
-    .map(([document, unlocks]) => ({ document, unlocks }))
+    .map(([document, unlocks]) => ({ document, unlocks, requirements: requirementsByDocument.get(document) || [] }))
     // Most answers first; ties by name so the order is stable between runs.
     .sort((a, b) => b.unlocks - a.unlocks || a.document.localeCompare(b.document));
 

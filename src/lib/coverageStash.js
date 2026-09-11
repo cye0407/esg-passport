@@ -14,7 +14,7 @@
 // documents this questionnaire actually wants instead of being a blank uploader.
 const KEY = 'respond_coverage_questionnaire';
 
-/** @param {{parseResult: object, name: string, questionCount: number, missingDocuments: Array}} value */
+/** @param {{parseResult: object, name: string, questionCount: number, missingDocuments: Array, reportingPeriod?: string}} value */
 export function writeCoverageStash(value) {
   try {
     sessionStorage.setItem(KEY, JSON.stringify(value));

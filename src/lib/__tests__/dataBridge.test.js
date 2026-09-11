@@ -110,6 +110,14 @@ describe('buildCompanyData', () => {
     expect(data.dataCoverage.electricityKwh).toMatchObject({ monthsCovered: 12, expectedMonths: 12, complete: true });
   });
 
+  it('exposes the Total FTE key used by questionnaire coverage', () => {
+    seedProfile();
+    seedFullYear('2025');
+    const data = buildCompanyData('2025');
+    expect(data.totalEmployees).toBe(data.employeeCount);
+    expect(data.totalEmployees).toBeGreaterThan(0);
+  });
+
   it('keeps a one-month bill explicitly partial instead of turning it into annual data', () => {
     seedProfile({ numberOfFacilities: '' });
     seedMonthlyData('2025', 3, { energy: { electricityKwh: 198000 } });
@@ -119,6 +127,18 @@ describe('buildCompanyData', () => {
       periods: ['2025-03'], monthsCovered: 1, expectedMonths: 12, complete: false,
     });
     expect(data.numberOfSites).toBeUndefined();
+  });
+
+  it('requires total and recycled waste in every month before calling diversion coverage complete', () => {
+    seedProfile();
+    for (let month = 1; month <= 12; month += 1) {
+      seedMonthlyData('2025', month, {
+        waste: { totalKg: 1000, ...(month === 1 ? { recycledKg: 600 } : {}) },
+      });
+    }
+    const data = buildCompanyData('2025');
+    expect(data.recyclingPercent).toBeDefined();
+    expect(data.dataCoverage.recyclingPercent).toMatchObject({ monthsCovered: 1, complete: false });
   });
 
   it('does not infer one operating site when the profile has no facility count', () => {
