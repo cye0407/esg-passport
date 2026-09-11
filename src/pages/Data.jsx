@@ -13,7 +13,7 @@ import { getIndustryMetrics } from '@/data/industry-metrics';
 import { FIELD_UNITS } from '@/lib/units';
 import { useLanguage } from '@/components/LanguageContext';
 import { track, trackOnce } from '@/lib/track';
-import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
+import { allocateExtraction, extractionAssignments } from '@/lib/extractionWrite';
 import { takeHandoff } from '@/lib/handoff';
 import { groupAnnualBills, mergeAnnualValues } from '@/lib/annualBills';
 import { detectNumberFormat, parseNumber, parsePeriod, buildColumnMap } from '@/lib/csvImport';
@@ -280,17 +280,15 @@ export default function Data() {
   // throw the filename away, so an answer built on an uploaded bill was indistinguishable
   // from one someone typed - and the coverage report cannot honestly say "we found this in
   // the records you uploaded" about a number whose origin was never kept. A label the user
-  // typed themselves always wins; we never overwrite their own note.
+  // typed themselves always wins unless another extraction replaces the value. The source
+  // and value must move together; retaining the first filename while later documents
+  // replace the number creates false provenance.
   const recordExtractionSources = useCallback((fields, fileName) => {
     if (!fileName) return;
     const current = getSettings()?.dataSources || {};
     const next = { ...current };
     let changed = false;
-    for (const f of fields) {
-      const mapping = EXTRACT_FIELD_MAP[f.field];
-      if (!mapping) continue;
-      const key = `${mapping.section}.${mapping.field}`;
-      if (next[key]) continue;
+    for (const { key } of extractionAssignments(fields)) {
       next[key] = fileName;
       changed = true;
     }
@@ -315,7 +313,7 @@ export default function Data() {
       .find(Boolean);
     if (importedYear) setSelectedYear(Number(importedYear));
     for (const item of handoff.items) {
-      handleBillExtracted(item.fields, item.period, item.fileName);
+      handleBillExtracted(item.fields, item.period, item.fileName, item.coveredMonths);
     }
     // Nothing further is coming: the review already happened on the dashboard, so the
     // annual confirmation can open as soon as these are staged.
@@ -323,7 +321,7 @@ export default function Data() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleBillExtracted = useCallback((fields, extractedPeriod, fileName) => {
+  const handleBillExtracted = useCallback((fields, extractedPeriod, fileName, coveredMonths) => {
     // Determine where extracted values belong.
     // YYYY-MM documents map to a monthly record.
     // A YYYY-only period is an ambiguous guess: the extractor's bare-year fallback
@@ -339,6 +337,25 @@ export default function Data() {
       return;
     }
 
+    const allocated = allocateExtraction(fields, coveredMonths);
+    if (allocated.length > 0) {
+      for (const write of allocated) {
+        for (const assignment of write.assignments) {
+          updateField(write.period, assignment.section, assignment.field, assignment.value);
+        }
+      }
+      recordExtractionSources(fields, fileName);
+      setAutoSaveRequested(true);
+      track('bill_extracted', {
+        fields: fields.length,
+        periodType: 'multi_month',
+        extractedPeriod: extractedPeriod || 'range',
+        months: allocated.length,
+        lead_field: fields[0]?.field || 'unknown',
+      });
+      return;
+    }
+
     let targetPeriod;
     if (extractedPeriod && /^\d{4}-\d{2}$/.test(extractedPeriod)) {
       targetPeriod = extractedPeriod;
@@ -346,12 +363,8 @@ export default function Data() {
       targetPeriod = `${selectedYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
     }
 
-    for (const f of fields) {
-      const mapping = EXTRACT_FIELD_MAP[f.field];
-      if (!mapping) continue;
-      const val = typeof f.value === 'number' ? f.value : parseFloat(f.value);
-      if (isNaN(val)) continue;
-      updateField(targetPeriod, mapping.section, mapping.field, val);
+    for (const assignment of extractionAssignments(fields)) {
+      updateField(targetPeriod, assignment.section, assignment.field, assignment.value);
     }
     recordExtractionSources(fields, fileName);
     setAutoSaveRequested(true);
@@ -545,7 +558,12 @@ export default function Data() {
         const emissions = calculateEmissions(record);
         const totalWaste = parseFloat(record.waste?.totalKg) || 0;
         const recycledWaste = parseFloat(record.waste?.recycledKg) || 0;
-        const recyclingRate = totalWaste > 0 ? Math.round((recycledWaste / totalWaste) * 100) : null;
+        // Prefer a rate derived from weights when both are available. Some waste reports
+        // provide only the audited diversion percentage; accepting that value in review
+        // and replacing it with null here made the success path silently lose it.
+        const recyclingRate = totalWaste > 0 && numberOrNull(record.waste?.recycledKg) != null
+          ? Math.round((recycledWaste / totalWaste) * 100)
+          : numberOrNull(record.waste?.recyclingRate);
 
         // Gather industry-specific sections dynamically
         const extraSections = {};
@@ -588,6 +606,7 @@ export default function Data() {
             grievanceMechanismExists: record.workforce?.grievanceMechanismExists === 'yes' || record.workforce?.grievanceMechanismExists === true || null,
             grievancesReported: integerOrNull(record.workforce?.grievancesReported),
             newHires: integerOrNull(record.workforce?.newHires),
+            departures: integerOrNull(record.workforce?.departures),
           },
           healthSafety: {
             // workAccidents kept for backward compatibility (aliased to recordableIncidents on read)
@@ -648,6 +667,7 @@ export default function Data() {
     { section: 'energy', field: 'renewablePercent', label: t('data.renewablePercent') || 'Renewable %', noSum: true },
     { section: 'water', field: 'consumptionM3', label: t('data.water') || 'Water (m\u00B3)' },
     { section: 'waste', field: 'recycledKg', label: t('data.recycled') || 'Recycled (kg)' },
+    { section: 'waste', field: 'recyclingRate', label: t('data.recyclingRate'), noSum: true },
     { section: 'waste', field: 'hazardousKg', label: t('data.hazardous') || 'Hazardous (kg)' },
     { section: 'workforce', field: 'femaleEmployees', label: t('data.female') || 'Female', noSum: true },
     { section: 'workforce', field: 'maleEmployees', label: t('data.male') || 'Male', noSum: true },
@@ -658,6 +678,7 @@ export default function Data() {
     { section: 'workforce', field: 'collectiveBargainingPercent', label: t('data.collectiveBargaining'), noSum: true, tooltip: t('data.tip.collectiveBargaining') },
     { section: 'workforce', field: 'grievancesReported', label: t('data.grievances'), tooltip: t('data.tip.grievances') },
     { section: 'workforce', field: 'newHires', label: t('data.newHires'), tooltip: t('data.tip.newHires') },
+    { section: 'workforce', field: 'departures', label: t('data.departures') },
     { section: 'energy', field: 'energySavingsKwh', label: t('data.energySavings'), tooltip: t('data.tip.energySavings') },
     { section: 'water', field: 'waterSourceMunicipalPercent', label: t('data.municipalWater'), noSum: true, tooltip: t('data.tip.municipalWater') },
     { section: 'supplyChain', field: 'suppliersAssessedPercent', label: t('data.suppliersAssessed'), noSum: true, tooltip: t('data.tip.suppliersAssessed') },

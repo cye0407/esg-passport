@@ -31,8 +31,7 @@ vi.mock('../../../web-helpers/pdfReader', () => ({
 import Respond from '../Respond';
 import Home from '../Home';
 import Data from '../Data';
-import { saveSettings } from '@/lib/store';
-import { getDataRecords } from '@/lib/store';
+import { getDataRecords, getSettings, saveSettings } from '@/lib/store';
 import { setHandoff } from '@/lib/handoff';
 
 const TIERS = {
@@ -201,6 +200,84 @@ describe('the other pages I changed render', () => {
 
     expect(container.textContent).toContain('2025');
     expect(getDataRecords().find(record => record.period === '2025-03')?.energy?.electricityKwh).toBe(198000);
+  });
+
+  it('persists diesel and petrol as their combined reviewed fleet total', async () => {
+    setHandoff({
+      kind: 'extraction',
+      items: [{
+        period: '2025-03',
+        fileName: 'fleet-march.csv',
+        fields: [
+          { field: 'dieselLiters', value: 120 },
+          { field: 'petrolLiters', value: 30 },
+        ],
+      }],
+    });
+
+    await mount(Data);
+    await act(async () => {});
+
+    expect(getDataRecords().find(record => record.period === '2025-03')?.energy?.vehicleFuelLiters).toBe(150);
+    expect(getSettings().dataSources['energy.vehicleFuelLiters']).toBe('fleet-march.csv');
+  });
+
+  it('does not discard accepted HR departures or a standalone recycling rate', async () => {
+    setHandoff({
+      kind: 'extraction',
+      items: [{
+        period: '2025-06',
+        fileName: 'hr-and-waste.csv',
+        fields: [
+          { field: 'departures', value: 7 },
+          { field: 'recyclingRate', value: 68 },
+        ],
+      }],
+    });
+
+    await mount(Data);
+    await act(async () => {});
+
+    const record = getDataRecords().find(item => item.period === '2025-06');
+    expect(record?.workforce?.departures).toBe(7);
+    expect(record?.waste?.recyclingRate).toBe(68);
+  });
+
+  it('stores a quarterly document across its covered months without inflating its total', async () => {
+    setHandoff({
+      kind: 'extraction',
+      items: [{
+        period: '2025-01',
+        coveredMonths: ['2025-01', '2025-02', '2025-03'],
+        fileName: 'water-q1.txt',
+        fields: [{ field: 'waterM3', value: 2200 }],
+      }],
+    });
+
+    await mount(Data);
+    await act(async () => {});
+
+    const quarter = getDataRecords().filter(record => /^2025-0[1-3]$/.test(record.period));
+    expect(quarter).toHaveLength(3);
+    expect(quarter.reduce((sum, record) => sum + record.water.consumptionM3, 0)).toBeCloseTo(2200);
+  });
+
+  it('keeps provenance aligned when a later extraction replaces a metric', async () => {
+    saveSettings({ dataSources: { 'energy.electricityKwh': 'old-bill.pdf' } });
+    setHandoff({
+      kind: 'extraction',
+      items: [{
+        period: '2025-03',
+        fileName: 'corrected-bill.pdf',
+        fields: [{ field: 'electricityKwh', value: 222 }],
+      }],
+    });
+
+    await mount(Data);
+    await act(async () => {});
+
+    expect(getDataRecords().find(record => record.period === '2025-03')?.energy?.electricityKwh).toBe(222);
+    expect(getSettings().dataSources['energy.electricityKwh']).toBe('corrected-bill.pdf');
   });
 
   it('returns questionnaire evidence to the questionnaire after saving', async () => {

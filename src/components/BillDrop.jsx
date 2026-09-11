@@ -183,7 +183,11 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
     if (!results) return;
     const accepted = results.fields.filter(f => f.accepted);
     if (accepted.length > 0) {
-      onDataExtracted(accepted, results.result?.period, results.fileName);
+      onDataExtracted(accepted, results.result?.period, results.fileName, {
+        coveredMonths: results.result?.coveredMonths,
+        periodStart: results.result?.periodStart,
+        periodEnd: results.result?.periodEnd,
+      });
     }
     showNext();
   }, [results, onDataExtracted, showNext]);
