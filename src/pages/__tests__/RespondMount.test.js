@@ -31,9 +31,10 @@ vi.mock('../../../web-helpers/pdfReader', () => ({
 import Respond from '../Respond';
 import Home from '../Home';
 import Data from '../Data';
-import { saveSettings } from '@/lib/store';
+import { saveDataRecord, saveSettings } from '@/lib/store';
 import { getDataRecords } from '@/lib/store';
 import { setHandoff } from '@/lib/handoff';
+import { writeCoverageStash } from '@/lib/coverageStash';
 
 const TIERS = {
   free: {
@@ -71,6 +72,7 @@ describe('Respond renders', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -147,6 +149,7 @@ describe('the other pages I changed render', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     mockEntitlements.mockReturnValue({
       tier: 'free',
       entitlements: TIERS.free,
@@ -246,5 +249,43 @@ describe('the other pages I changed render', () => {
     const { default: Evidence } = await import('../Evidence');
     await mount(Evidence);
     expect(container.querySelectorAll('input[type="file"]').length).toBeGreaterThan(0);
+  });
+
+  it('keeps an HR report in still-needed when only one of its requested figures was added', async () => {
+    writeCoverageStash({
+      questionCount: 2,
+      reportingPeriod: '2025',
+      missingDocuments: [{
+        document: 'hrReport',
+        unlocks: 2,
+        requirements: [
+          { label: 'Total FTE', companyDataKeys: ['totalEmployees'] },
+          { label: 'Turnover rate', companyDataKeys: ['turnoverRate'] },
+        ],
+      }],
+    });
+    saveDataRecord({ period: '2025-12', workforce: { turnoverRate: 8.5 } });
+    const { default: Evidence } = await import('../Evidence');
+    await mount(Evidence);
+    expect(container.textContent).toContain('Your HR or payroll summary');
+  });
+
+  it('removes an HR report from still-needed after all requested figures are saved', async () => {
+    writeCoverageStash({
+      questionCount: 2,
+      reportingPeriod: '2025',
+      missingDocuments: [{
+        document: 'hrReport',
+        unlocks: 2,
+        requirements: [
+          { label: 'Total FTE', companyDataKeys: ['totalEmployees'] },
+          { label: 'Turnover rate', companyDataKeys: ['turnoverRate'] },
+        ],
+      }],
+    });
+    saveDataRecord({ period: '2025-12', workforce: { totalEmployees: 42, turnoverRate: 8.5 } });
+    const { default: Evidence } = await import('../Evidence');
+    await mount(Evidence);
+    expect(container.textContent).not.toContain('Your HR or payroll summary');
   });
 });

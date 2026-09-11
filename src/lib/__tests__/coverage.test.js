@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { esgDomainPack } from 'response-ready/domain-packs/esg';
 import { COVERAGE_FIELD_MAP, rowForLabel } from '../coverageFieldMap';
 import { EXTRACT_FIELD_MAP } from '../extractFieldMap';
-import { summarizeCoverage } from '../coverage';
+import { remainingMissingDocuments, summarizeCoverage } from '../coverage';
 
 const draft = (id, answerConfidence, suggestedDataPoints = [], extra = {}) => ({
   questionId: id,
@@ -83,8 +83,8 @@ describe('summarizeCoverage', () => {
       ],
       { companyData: {} }
     );
-    expect(result.missingDocuments[0]).toEqual({ document: 'wasteManifest', unlocks: 3 });
-    expect(result.missingDocuments[1]).toEqual({ document: 'waterBill', unlocks: 1 });
+    expect(result.missingDocuments[0]).toMatchObject({ document: 'wasteManifest', unlocks: 3 });
+    expect(result.missingDocuments[1]).toMatchObject({ document: 'waterBill', unlocks: 1 });
   });
 
   it('counts a question once for a document however many of its fields it wants', () => {
@@ -92,7 +92,7 @@ describe('summarizeCoverage', () => {
       [draft('a', 'none', ['Total waste (kg)', 'Hazardous waste', 'Diversion rate'])],
       { companyData: {} }
     );
-    expect(result.missingDocuments).toEqual([{ document: 'wasteManifest', unlocks: 1 }]);
+    expect(result.missingDocuments).toMatchObject([{ document: 'wasteManifest', unlocks: 1 }]);
   });
 
   it('stops asking for a document once the workspace holds the figure', () => {
@@ -101,6 +101,41 @@ describe('summarizeCoverage', () => {
     expect(
       summarizeCoverage(questions, { companyData: { waterM3: 4200 } }).missingDocuments
     ).toHaveLength(0);
+  });
+
+  it('keeps asking for an annual flow when only part of the year is covered', () => {
+    const questions = [draft('a', 'none', ['Water withdrawal (m3)'])];
+    const partial = { waterM3: 2200, dataCoverage: { waterM3: { monthsCovered: 3, expectedMonths: 12, complete: false } } };
+    const complete = { waterM3: 8000, dataCoverage: { waterM3: { monthsCovered: 12, expectedMonths: 12, complete: true } } };
+    expect(summarizeCoverage(questions, { companyData: partial }).missingDocuments).toHaveLength(1);
+    expect(summarizeCoverage(questions, { companyData: complete }).missingDocuments).toHaveLength(0);
+  });
+
+  it.each(COVERAGE_FIELD_MAP)(
+    'rechecks the exact $label requirement after extraction',
+    row => {
+      const entry = summarizeCoverage(
+        [draft('a', 'none', [row.label])],
+        { companyData: {} },
+      ).missingDocuments[0];
+      const key = row.companyDataKeys[0];
+      expect(remainingMissingDocuments([entry], { [key]: 0 })).toEqual([]);
+      expect(remainingMissingDocuments([entry], {})).toEqual([entry]);
+    },
+  );
+
+  it('does not clear a whole HR report when the uploaded file supplied only turnover', () => {
+    const entry = summarizeCoverage([
+      draft('fte', 'none', ['Total FTE']),
+      draft('turnover', 'none', ['Turnover rate']),
+    ], { companyData: {} }).missingDocuments[0];
+    expect(remainingMissingDocuments([entry], { turnoverRate: 8.5 })).toEqual([entry]);
+    expect(remainingMissingDocuments([entry], { turnoverRate: 8.5, totalEmployees: 42 })).toEqual([]);
+  });
+
+  it('does not silently clear requirements from an older session stash', () => {
+    const legacy = { document: 'hrReport', unlocks: 2 };
+    expect(remainingMissingDocuments([legacy], { totalEmployees: 42 })).toEqual([legacy]);
   });
 
   // A recorded zero is a figure, not a gap — the same rule the engine settled on.

@@ -262,8 +262,9 @@ export default function Respond({ demoOnly = false }) {
       name: questionnaireName,
       questionCount: parseResult.questions.length,
       missingDocuments: coverage?.missingDocuments || [],
+      reportingPeriod: companyData?.reportingPeriod,
     });
-  }, [canGenerate, demoOnly, phase, parseResult, questionnaireName, coverage]);
+  }, [canGenerate, demoOnly, phase, parseResult, questionnaireName, coverage, companyData]);
 
   const [filterConfidence, setFilterConfidence] = useState('all');
   const [filterType, setFilterType] = useState('all');
@@ -420,6 +421,7 @@ export default function Respond({ demoOnly = false }) {
         name,
         questionCount: pr.questions.length,
         missingDocuments: [],
+        reportingPeriod: companyData?.reportingPeriod,
       });
       setPendingEvidence({ parseResult: pr, name });
       setPhase('evidence');

@@ -9,6 +9,8 @@ import { setHandoff, takeHandoff } from '@/lib/handoff';
 import { getSettings } from '@/lib/store';
 import { readCoverageStash } from '@/lib/coverageStash';
 import { documentName, documentHolds } from '@/lib/documentLabels';
+import { buildCompanyData } from '@/lib/dataBridge';
+import { remainingMissingDocuments } from '@/lib/coverage';
 
 // Step two, with a page of its own.
 //
@@ -61,7 +63,13 @@ export default function Evidence() {
     navigate('/data');
   }, [navigate, stash]);
 
-  const wanted = stash?.missingDocuments || [];
+  // The stash describes what was missing before the upload. Recheck its exact data
+  // requirements against the now-saved workspace; a filename alone cannot prove that
+  // every figure normally found in (say) an HR report was actually extracted.
+  const wanted = useMemo(
+    () => remainingMissingDocuments(stash?.missingDocuments, buildCompanyData(stash?.reportingPeriod)),
+    [stash],
+  );
   const documentAdded = stash && searchParams.get('added') === '1';
 
   return (

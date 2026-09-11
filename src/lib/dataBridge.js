@@ -89,22 +89,28 @@ const GAS_M3_TO_KWH = 10.55; // kWh per m³ natural gas
 // Annual totals are sums of monthly records. Keep the denominator alongside the
 // number so one invoice can never silently acquire twelve months of meaning.
 const COVERAGE_FIELDS = {
-  electricityKwh: ['energy', 'electricityKwh'],
-  naturalGasM3: ['energy', 'naturalGasKwh'],
-  dieselLiters: ['energy', 'vehicleFuelLiters'],
-  waterM3: ['water', 'consumptionM3'],
-  totalWasteKg: ['waste', 'totalKg'],
-  recyclingPercent: ['waste', 'totalKg'],
-  hazardousWasteKg: ['waste', 'hazardousKg'],
-  scope1Tco2e: ['emissions', 'scope1Tco2e'],
-  scope2Tco2e: ['emissions', 'scope2Tco2e'],
+  electricityKwh: [['energy', 'electricityKwh']],
+  naturalGasM3: [['energy', 'naturalGasKwh']],
+  dieselLiters: [['energy', 'vehicleFuelLiters']],
+  waterM3: [['water', 'consumptionM3']],
+  totalWasteKg: [['waste', 'totalKg']],
+  // A full year of total waste plus one recycled figure is not a full-year
+  // diversion rate. Both inputs must exist in every covered period.
+  recyclingPercent: [['waste', 'totalKg'], ['waste', 'recycledKg']],
+  hazardousWasteKg: [['waste', 'hazardousKg']],
+  scope1Tco2e: [['energy', 'scope1Tco2e']],
+  scope2Tco2e: [['energy', 'scope2Tco2e']],
 };
 
 function buildDataCoverage(records, reportingYear) {
   const yearRecords = records.filter(record => String(record.period || '').startsWith(`${reportingYear}-`));
-  return Object.fromEntries(Object.entries(COVERAGE_FIELDS).map(([metric, [section, field]]) => {
+  return Object.fromEntries(Object.entries(COVERAGE_FIELDS).map(([metric, paths]) => {
     const periods = [...new Set(yearRecords
-      .filter(record => record?.[section]?.[field] !== undefined && record?.[section]?.[field] !== null && record?.[section]?.[field] !== '')
+      .filter(record => paths.every(([section, field]) =>
+        record?.[section]?.[field] !== undefined
+        && record?.[section]?.[field] !== null
+        && record?.[section]?.[field] !== ''
+      ))
       .map(record => record.period))].sort();
     return [metric, { periods, monthsCovered: periods.length, expectedMonths: 12, complete: periods.length === 12 }];
   }));
@@ -230,6 +236,10 @@ export function buildCompanyData(year) {
     industry: profile?.industrySector || '',
     country: countryName,
     employeeCount: totalEmp || parseInt(profile?.totalEmployees) || 0,
+    // Coverage suggestions call this figure "Total FTE" and key it as
+    // totalEmployees. Keep the engine's employeeCount field and expose the canonical
+    // coverage key too; otherwise an HR report can never satisfy its own requirement.
+    totalEmployees: totalEmp || (profile?.totalEmployees ? parseInt(profile.totalEmployees) || undefined : undefined),
     // A bill identifies an account or meter, not how many facilities the company runs.
     numberOfSites: profile?.numberOfFacilities ? parseInt(profile.numberOfFacilities) || undefined : undefined,
     reportingPeriod: reportingYear,
