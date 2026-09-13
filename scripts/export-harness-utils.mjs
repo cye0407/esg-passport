@@ -44,10 +44,15 @@ async function ensureResponseReadyBundle() {
 }
 
 export async function createEngine() {
+  const { createResponseEngine, esgDomainPack } = await loadHarness();
+  return createResponseEngine(esgDomainPack);
+}
+
+/** Everything scripts/harness-entry.ts exports, built fresh from ../response-ready source. */
+export async function loadHarness() {
   await ensureResponseReadyBundle();
   delete require.cache[RESPONSE_READY_BUNDLE];
-  const { createResponseEngine, esgDomainPack } = require(RESPONSE_READY_BUNDLE);
-  return createResponseEngine(esgDomainPack);
+  return require(RESPONSE_READY_BUNDLE);
 }
 
 export function ensureDir(dir) {
