@@ -5,9 +5,12 @@
 import type { ExtractionResult, ExtractionConfig, Issue } from '../types';
 import { extractWithGenericPatterns } from '../matchers/patterns';
 import { adjustConfidence } from '../matchers/confidence';
+import { detectReportingPeriod, detectReportingPeriodDetails } from '../matchers/period';
 
 /** Detect billing period from text */
 function detectPeriod(text: string): string | undefined {
+  const sharedPeriod = detectReportingPeriod(text);
+  if (sharedPeriod) return sharedPeriod;
   // ISO date range: 2025-01-01 to 2025-01-31
   const isoRange = /(\d{4}-\d{2})-\d{2}\s*(?:to|bis|au|–|-)\s*(\d{4}-\d{2})-\d{2}/i;
   const isoMatch = isoRange.exec(text);
@@ -94,6 +97,7 @@ export function extractEnergy(
     : detectEnergyType(text);
   const provider = detectProvider(text);
   const period = detectPeriod(text);
+  const periodDetails = detectReportingPeriodDetails(text);
 
   // Run generic pattern matching
   let fields = extractWithGenericPatterns(text);
@@ -182,6 +186,9 @@ export function extractEnergy(
     documentType: finalDocType,
     provider,
     period,
+    periodStart: periodDetails?.periodStart,
+    periodEnd: periodDetails?.periodEnd,
+    coveredMonths: periodDetails?.coveredMonths,
     fields,
     issues,
     gaps,

@@ -5,9 +5,12 @@
 import type { ExtractionResult, ExtractedField, ExtractionConfig, Issue } from '../types';
 import { parseNumber, detectUnit, convertToCanonical } from '../matchers/units';
 import { adjustConfidence } from '../matchers/confidence';
+import { detectReportingPeriod, detectReportingPeriodDetails } from '../matchers/period';
 
 /** Detect billing/collection period */
 function detectPeriod(text: string): string | undefined {
+  const sharedPeriod = detectReportingPeriod(text);
+  if (sharedPeriod) return sharedPeriod;
   const isoRange = /(\d{4}-\d{2})-\d{2}\s*(?:to|bis|au|-)\s*(\d{4}-\d{2})-\d{2}/i;
   const isoMatch = isoRange.exec(text);
   if (isoMatch) return isoMatch[1];
@@ -106,6 +109,7 @@ export function extractWaste(
 ): ExtractionResult {
   const provider = detectProvider(text);
   const period = detectPeriod(text);
+  const periodDetails = detectReportingPeriodDetails(text);
   let fields: ExtractedField[] = [];
 
   for (const pattern of WASTE_PATTERNS) {
@@ -200,6 +204,9 @@ export function extractWaste(
     documentType: 'waste_manifest',
     provider,
     period,
+    periodStart: periodDetails?.periodStart,
+    periodEnd: periodDetails?.periodEnd,
+    coveredMonths: periodDetails?.coveredMonths,
     fields,
     issues,
     gaps,

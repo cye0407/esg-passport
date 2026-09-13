@@ -1,10 +1,16 @@
 export { createResponseEngine } from './create';
 export type { ResponseEngine } from './create';
-export type { ConfidenceLevel, DataSource, ParsedQuestion, ParseResult, ColumnMapping, KeywordRule, MatchResult, RetrievedDataPoint, DataContext, ClassificationResult, SignalRule, AnswerDraft, AnswerTemplate, GenerationConfig, ResponseSession, MetricKey, MappingRule, ScrubRule, ExportSheetConfig, ExportMetadata, SheetData, Playbook, PlaybookDetectionInput, PlaybookDetectionResult, PlaybookFieldType, PlaybookIntakeField, PlaybookOutput, PlaybookOutputType, PlaybookReviewCheck, PlaybookUploadSlot, BusinessLibraryItem, EvidenceItem, EvidenceItemType, LibraryApprovalStatus, LibraryItemType, LibraryMatch, LibraryMatchOptions, ResponseLibrary, } from './types';
+export type { ConfidenceLevel, DataSource, ParsedQuestion, QuestionLocation, AnswerCellSource, AnswerSource, Staleness, ParseResult, ColumnMapping, KeywordRule, MatchResult, RetrievedDataPoint, DataContext, ClassificationResult, SignalRule, AnswerDraft, AnswerTemplate, GenerationConfig, ResponseSession, MetricKey, MappingRule, ScrubRule, ExportSheetConfig, ExportMetadata, SheetData, Playbook, PlaybookDetectionInput, PlaybookDetectionResult, PlaybookFieldType, PlaybookIntakeField, PlaybookOutput, PlaybookOutputType, PlaybookReviewCheck, PlaybookUploadSlot, BusinessLibraryItem, EvidenceItem, EvidenceItemType, LibraryApprovalStatus, LibraryItemType, LibraryMatch, LibraryMatchOptions, ResponseLibrary, } from './types';
 export type { DomainPack, IndustryContext, IndustryContextProvider, MaturityResolver, MatrixGenerator, InformalPracticeHandler, Calculator, } from './types/domain-pack';
 export { addIfPresent, deduplicatePoints, emptyDataContext, } from './engine/dataRetrieval';
 export { buildDataMap, val, has, num, str, fmt, } from './engine/answerGenerator';
 export { parseCSV, parseCSVLine, } from './engine/configLoader';
+export { RESPONSE_PACK_FORMAT, RESPONSE_PACK_VERSION, RESPONSE_PACK_EXTENSION, ENCRYPTED_PACK_EXTENSION, RESPONSE_PACK_README, ResponsePackError, createResponsePack, serializeResponsePack, parseResponsePack, mergeResponsePacks, encryptResponsePack, decryptResponsePack, openResponsePack, isEncryptedPack, passphraseStrength, responsePackFileName, normalizeAnswerKey, hashText, } from './engine/responsePack';
+export type { ResponsePack, PackAnswer, PackFact, PackPolicy, PackCertificate, PackPassClaim, PackDocument, PackRejection, PackSource, PackErrorCode } from './engine/responsePack';
+export { writeAnswersIntoWorkbook, completedFileName } from './engine/workbookWriter';
+export type { AnswerWrite, WriteReport, WriteRefusal, RefusalReason, WriteOptions, XmlDom } from './engine/workbookWriter';
+export { priorAnswersFromQuestions, matchPriorAnswers, applyPriorAnswers, assessStaleness } from './engine/priorAnswers';
+export type { PriorAnswer, PriorMatch, PriorMatchOptions, PriorSourceMeta, MatchTier } from './engine/priorAnswers';
 export { registerPack, getRegisteredPacks, getPackByName, detectPack, clearRegistry, } from './engine/packRegistry';
 export type { PackRegistryEntry, PackDetectionResult, } from './engine/packRegistry';
 export { SME_PLAYBOOKS } from './playbooks/sme';

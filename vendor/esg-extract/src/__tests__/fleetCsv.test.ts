@@ -10,6 +10,9 @@ describe('fleet CSV extraction', () => {
     expect(result.success).toBe(true);
     expect(result.provider).toBe('ARAL');
     expect(result.period).toBe('2025');
+    expect(result.periodStart).toBe('2025-01');
+    expect(result.periodEnd).toBe('2025-12');
+    expect(result.coveredMonths).toHaveLength(12);
     expect(result.fields).toEqual(expect.arrayContaining([
       expect.objectContaining({ field: 'dieselLiters', value: 36680, unit: 'L', confidence: 'high' }),
     ]));

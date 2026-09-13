@@ -5,8 +5,11 @@
 import type { ExtractionResult, ExtractedField, ExtractionConfig, Issue } from '../types';
 import { parseNumber } from '../matchers/units';
 import { adjustConfidence } from '../matchers/confidence';
+import { detectReportingPeriod, detectReportingPeriodDetails } from '../matchers/period';
 
 function detectPeriod(text: string): string | undefined {
+  const sharedPeriod = detectReportingPeriod(text);
+  if (sharedPeriod) return sharedPeriod;
   const monthYear = /\b(jan(?:uar[iy]?)?|feb(?:ruar[iy]?)?|m[aä]r[czs]?|apr(?:il)?|ma[iy]|jun[ei]?|jul[iy]?|aug(?:ust)?|sep(?:tember)?|o[ck]t(?:ober)?|nov(?:ember)?|de[czs](?:ember)?)\s*(\d{4})\b/i;
   const myMatch = monthYear.exec(text);
   if (myMatch) {
@@ -80,7 +83,8 @@ const WORKFORCE_PATTERNS: { field: string; patterns: RegExp[]; unit: string }[] 
     field: 'trainingHours',
     patterns: [
       /(?:total\s*)?(?:training|schulung|formation)\s*(?:hours?|stunden|heures)[\s:]*([0-9.,\s]+)/i,
-      /(?:schulungsstunden|heures?\s*de\s*formation)[\s:]*([0-9.,\s]+)/i,
+      /(?:schulungsstunden|heures?\s*de\s*formation)\s*(?:total|gesamt)?[\s:]*([0-9.,\s]+)/i,
+      /(?:training|schulung|formation)\s*(?:hours?|stunden|heures)\s*(?:total|gesamt)?[\s:]*([0-9.,\s]+)/i,
       /([0-9.,\s]+)\s*(?:hours?|stunden|heures)\s*(?:of\s*)?(?:training|schulung|formation)/i,
     ],
     unit: 'hours',
@@ -106,8 +110,23 @@ const WORKFORCE_PATTERNS: { field: string; patterns: RegExp[]; unit: string }[] 
     patterns: [
       /(?:total\s*)?(?:hours?\s*worked|arbeitsstunden|heures?\s*travaillées?)[\s:]*([0-9.,\s]+)/i,
       /([0-9.,\s]+)\s*(?:hours?\s*worked|arbeitsstunden)/i,
+      /(?:hours?\s*worked|arbeitsstunden|heures?\s*travaill[ée]es?)\s*(?:total|gesamt)?[\s:]*([0-9.,\s]+)/i,
     ],
     unit: 'hours',
+  },
+  {
+    field: 'fatalities',
+    patterns: [
+      /(?:fatalities|fatal\s*(?:injuries|accidents)|t[oö]dliche\s*arbeitsunf[aä]lle|accidents?\s*mortels?)[\s:]*([0-9.,\s]+)/i,
+    ],
+    unit: 'count',
+  },
+  {
+    field: 'trir',
+    patterns: [
+      /(?:trir|total\s*recordable\s*incident\s*rate)(?:\s*\([^)]*\))?[\s:]*([0-9.,]+)/i,
+    ],
+    unit: 'rate',
   },
 ];
 
@@ -119,6 +138,7 @@ export function extractWorkforce(
   config?: ExtractionConfig,
 ): ExtractionResult {
   const period = detectPeriod(text);
+  const periodDetails = detectReportingPeriodDetails(text);
   let fields: ExtractedField[] = [];
 
   for (const pattern of WORKFORCE_PATTERNS) {
@@ -201,6 +221,9 @@ export function extractWorkforce(
     documentType: 'payroll_summary',
     provider: undefined,
     period,
+    periodStart: periodDetails?.periodStart,
+    periodEnd: periodDetails?.periodEnd,
+    coveredMonths: periodDetails?.coveredMonths,
     fields,
     issues,
     gaps,

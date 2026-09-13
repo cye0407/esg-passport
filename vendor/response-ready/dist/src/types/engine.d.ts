@@ -1,7 +1,23 @@
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 export type DataSource = string;
+/** Where a question sits in the file it came from, and where its answer belongs. */
+export interface QuestionLocation {
+    sheet: string;
+    /** 1-based sheet row, as Excel shows it. */
+    row: number;
+    /** Column letter of the question text. */
+    questionCol?: string;
+    /** Cell the answer belongs in, e.g. "D13". Undefined when nothing could be identified. */
+    answerCell?: string;
+}
+export type AnswerCellSource = 'header' | 'style' | 'adjacent-empty' | 'user';
 export interface ParsedQuestion {
     id: string;
+    /**
+     * @deprecated Header-relative index kept for compatibility (it is 2 for the first data
+     * row under the header, whatever row the header sits on). Use `location.row` for the
+     * sheet row.
+     */
     rowIndex: number;
     text: string;
     category?: string;
@@ -10,6 +26,18 @@ export interface ParsedQuestion {
     framework?: string;
     required?: boolean;
     rawRow: Record<string, unknown>;
+    /** Spreadsheet sources only. Absent for PDF, DOCX and free text. */
+    location?: QuestionLocation;
+    /** How `location.answerCell` was identified. */
+    answerCellSource?: AnswerCellSource;
+    /** Non-empty content already in the answer cell (a buyer's "N/A", a prior answer). */
+    existingAnswer?: string | number;
+    /**
+     * Every further place the same question appears (an identical row repeated under
+     * several sections). The first occurrence is `location`; these are the rest. Write-back
+     * writes the same answer to all of them.
+     */
+    locations?: QuestionLocation[];
 }
 export interface ParseResult {
     success: boolean;
@@ -32,6 +60,8 @@ export interface ColumnMapping {
     subcategory?: string;
     referenceId?: string;
     required?: string;
+    /** Column holding answers, when a header names one ("Answer", "Antwort", "Supplier response"). */
+    answerColumn?: string;
     /**
      * True when the question column was found by its HEADER ("Question", "Frage",
      * "Anforderung"), false when it was guessed by looking for the column with the most
@@ -142,7 +172,28 @@ export interface AnswerDraft {
     isEstimate: boolean;
     isDrafted: boolean;
     hasDataGaps: boolean;
+    /**
+     * Where the answer came from, when it did not come from this run's generation:
+     * 'previous' = recovered from an earlier completed questionnaire. Set by
+     * applyPriorAnswers; absent on drafts the generator produced.
+     */
+    source?: AnswerSource;
+    /** For 'previous': the file, sheet and row the answer was taken from. */
+    sourceRef?: {
+        file: string;
+        sheet?: string;
+        row?: number;
+        referenceId?: string;
+    };
+    /** ISO date the source questionnaire was completed, when known. */
+    sourceDate?: string;
+    /** 0–1 similarity between this question and the source question. 1 = identical text. */
+    matchScore?: number;
+    /** Why a recovered answer must be checked before it is reused. 'clear' = nothing flagged. */
+    staleness?: Staleness;
 }
+export type AnswerSource = 'previous' | 'record' | 'document' | 'suggested' | 'none';
+export type Staleness = 'clear' | 'check-figures' | 'check-period';
 /** Result returned by an answer template generator. */
 export type TemplateResult = string | {
     answer: string;
