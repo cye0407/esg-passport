@@ -3,6 +3,11 @@ import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Mounts the Data page; 3 s alone, 7–8 s inside the parallel suite on a busy machine,
+// against vitest's 5 s default. The limit is for the machine, not the code (same as
+// RespondMount.test.js).
+vi.setConfig({ testTimeout: 20_000 });
+
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock('@/components/LicenseContext', () => ({

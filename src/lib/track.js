@@ -200,6 +200,8 @@ const EVENT_SCHEMA = {
   respond_generation_failed: { error: errorName() },
   respond_answer_language_regenerated: { language: LANGUAGE },
   respond_batch_export_completed: { templates: count() },
+  // The buyer's own workbook handed back with answers in its cells. Counts only.
+  download_original_attempted: { written: count(), blank: count(), kept: count(), no_cell: count() },
   respond_demo_library_loaded: { source: slug() },
 
   // Policies

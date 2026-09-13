@@ -20,6 +20,7 @@ import { localizeEngineMessages } from '@/lib/engineMessages';
 import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, openCheckout, checkoutLinkProps } from '@/lib/checkout';
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
+import { canReturnOriginal, fillOriginalWorkbook, describeAnswerPlacement } from '@/lib/originalWorkbook';
 import { track } from '@/lib/track';
 import { clearDynamicImportRecovery, isDynamicImportFailure, recoverFromDynamicImportFailure } from '@/lib/dynamicImportRecovery';
 import {
@@ -102,6 +103,29 @@ const SUPPORT_CONFIG = {
   estimated: { color: 'text-amber-700', bg: 'bg-amber-50', dot: 'bg-amber-500', labelKey: 'support.estimated' },
   draft: { color: 'text-violet-700', bg: 'bg-violet-50', dot: 'bg-violet-500', labelKey: 'support.draft' },
 };
+
+// The export formats, once. The buyer's own file leads whenever it can come back — that is
+// the job — and the others follow as the summary formats they are.
+function ExportFormatChoices({ exportFormat, setExportFormat, originalAvailable, t }) {
+  const option = (value, label, desc, highlight = false) => (
+    <label className={`flex items-start gap-2 rounded border p-3 cursor-pointer ${highlight ? 'border-slate-900 bg-slate-50 col-span-2' : 'border-slate-200'}`}>
+      <RadioGroupItem value={value} className="mt-0.5" />
+      <span className="text-sm text-slate-700">
+        <span className="block font-medium text-slate-900">{label}</span>
+        <span className="block text-xs text-slate-500">{desc}</span>
+      </span>
+    </label>
+  );
+  return (
+    <RadioGroup value={exportFormat} onValueChange={setExportFormat} className="grid grid-cols-2 gap-3">
+      {originalAvailable && option('original', t('respond.fmtOriginal'), t('respond.fmtOriginalDesc'), true)}
+      {option('xlsx', 'Excel', t('respond.fmtExcelDesc'))}
+      {option('pdf', 'PDF', t('respond.fmtPdfDesc'))}
+      {option('doc', 'Word', t('respond.fmtWordDesc'))}
+      {option('html', 'HTML', t('respond.fmtHtmlDesc'))}
+    </RadioGroup>
+  );
+}
 
 export default function Respond({ demoOnly = false }) {
   const { tier, entitlements, licenseKeyId } = useLicense();
@@ -1089,14 +1113,19 @@ export default function Respond({ demoOnly = false }) {
     });
   };
 
+  // The original workbook can only come back while its bytes are still here (they are
+  // never stored) and when the parser found somewhere to write into.
+  const originalAvailable = canReturnOriginal(file, parseResult?.questions);
+
   const handleExport = () => {
     setExportReviewConfirmed(false);
-    setExportFormat('xlsx');
+    setExportFormat(originalAvailable ? 'original' : 'xlsx');
     setShowExportDialog(true);
   };
 
   const getExportFormatLabel = (format) => (
-    format === 'xlsx' ? 'Excel'
+    format === 'original' ? t('respond.fmtOriginal')
+      : format === 'xlsx' ? 'Excel'
       : format === 'pdf' ? 'PDF'
       : format === 'doc' ? 'Word'
       : 'HTML'
@@ -1218,7 +1247,13 @@ export default function Respond({ demoOnly = false }) {
     try {
       const exportMetadata = buildExportMetadata(companyData, language, framework);
 
-      if (exportFormat === 'xlsx') {
+      if (exportFormat === 'original') {
+        const engine = await import('response-ready');
+        const result = await fillOriginalWorkbook({ file, questions: parseResult.questions, drafts: answerDrafts, engine });
+        saveAs(new Blob([result.bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), result.fileName);
+        track('download_original_attempted', { written: result.written, blank: result.leftBlank, kept: result.kept, no_cell: result.noCell });
+        showFeedback(t('respond.dlOriginal', { written: result.written, blank: result.leftBlank + result.noCell, kept: result.kept }));
+      } else if (exportFormat === 'xlsx') {
         await exportWorkbook({
           drafts: answerDrafts,
           metadata: exportMetadata,
@@ -1411,36 +1446,7 @@ export default function Respond({ demoOnly = false }) {
 
             <div className="border-t border-slate-100 pt-4">
               <p className="text-sm font-semibold text-slate-900 mb-2">{t('respond.exportFormat')}</p>
-              <RadioGroup value={exportFormat} onValueChange={setExportFormat} className="grid grid-cols-2 gap-3">
-                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                  <RadioGroupItem value="xlsx" className="mt-0.5" />
-                  <span className="text-sm text-slate-700">
-                    <span className="block font-medium text-slate-900">Excel</span>
-                    <span className="block text-xs text-slate-500">{t('respond.fmtExcelDesc')}</span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                  <RadioGroupItem value="pdf" className="mt-0.5" />
-                  <span className="text-sm text-slate-700">
-                    <span className="block font-medium text-slate-900">PDF</span>
-                    <span className="block text-xs text-slate-500">{t('respond.fmtPdfDesc')}</span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                  <RadioGroupItem value="doc" className="mt-0.5" />
-                  <span className="text-sm text-slate-700">
-                    <span className="block font-medium text-slate-900">Word</span>
-                    <span className="block text-xs text-slate-500">{t('respond.fmtWordDesc')}</span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                  <RadioGroupItem value="html" className="mt-0.5" />
-                  <span className="text-sm text-slate-700">
-                    <span className="block font-medium text-slate-900">HTML</span>
-                    <span className="block text-xs text-slate-500">{t('respond.fmtHtmlDesc')}</span>
-                  </span>
-                </label>
-              </RadioGroup>
+              <ExportFormatChoices exportFormat={exportFormat} setExportFormat={setExportFormat} originalAvailable={originalAvailable} t={t} />
             </div>
 
             {!exportWarnings.allGood && (
@@ -1484,6 +1490,7 @@ export default function Respond({ demoOnly = false }) {
     const parsed = pendingConfirm.parseResult.questions;
     const sourceRows = pendingConfirm.review?.rows || parsed.length;
     const detectedColumn = pendingConfirm.parseResult?.metadata?.columnMapping?.questionText;
+    const placement = describeAnswerPlacement(parsed);
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
@@ -1513,6 +1520,13 @@ export default function Respond({ demoOnly = false }) {
                 <p className="mt-1 text-sm leading-relaxed text-slate-500">
                   {t('confirm.summaryBody', { rows: sourceRows })}
                   {detectedColumn ? ` ${t('confirm.detectedColumn', { column: detectedColumn })}` : ''}
+                </p>
+                {/* Where the answers will land in THEIR file — the thing someone wants to know
+                    before paying for them. */}
+                <p className="mt-2 text-sm leading-relaxed text-slate-700">
+                  {placement.kind === 'boxes' && t('confirm.placementBoxes', { count: placement.count, total: placement.total })}
+                  {placement.kind === 'column' && t('confirm.placementColumn', { count: placement.count, total: placement.total, columns: placement.columns.join(', ') })}
+                  {placement.kind === 'none' && t('confirm.placementNone')}
                 </p>
               </div>
               <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" />
@@ -1550,6 +1564,9 @@ export default function Respond({ demoOnly = false }) {
                   <span className="text-sm text-slate-700">
                     <span className="mr-2 text-slate-400">{index + 1}.</span>
                     {question.text}
+                    {question.location?.answerCell && (
+                      <span className="ml-2 whitespace-nowrap font-mono text-xs text-slate-400">→ {question.location.answerCell}</span>
+                    )}
                   </span>
                 </label>
               ))}
@@ -2276,36 +2293,7 @@ export default function Respond({ demoOnly = false }) {
 
             <div className="border-t border-slate-100 pt-4">
               <p className="text-sm font-semibold text-slate-900 mb-2">{t('respond.exportFormat')}</p>
-              <RadioGroup value={exportFormat} onValueChange={setExportFormat} className="grid grid-cols-2 gap-3">
-                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                  <RadioGroupItem value="xlsx" className="mt-0.5" />
-                  <span className="text-sm text-slate-700">
-                    <span className="block font-medium text-slate-900">Excel</span>
-                    <span className="block text-xs text-slate-500">{t('respond.fmtExcelDesc')}</span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                  <RadioGroupItem value="pdf" className="mt-0.5" />
-                  <span className="text-sm text-slate-700">
-                    <span className="block font-medium text-slate-900">PDF</span>
-                    <span className="block text-xs text-slate-500">{t('respond.fmtPdfDesc')}</span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                  <RadioGroupItem value="doc" className="mt-0.5" />
-                  <span className="text-sm text-slate-700">
-                    <span className="block font-medium text-slate-900">Word</span>
-                    <span className="block text-xs text-slate-500">{t('respond.fmtWordDesc')}</span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                  <RadioGroupItem value="html" className="mt-0.5" />
-                  <span className="text-sm text-slate-700">
-                    <span className="block font-medium text-slate-900">HTML</span>
-                    <span className="block text-xs text-slate-500">{t('respond.fmtHtmlDesc')}</span>
-                  </span>
-                </label>
-              </RadioGroup>
+              <ExportFormatChoices exportFormat={exportFormat} setExportFormat={setExportFormat} originalAvailable={originalAvailable} t={t} />
             </div>
 
             {!exportWarnings.allGood && (
@@ -2807,36 +2795,7 @@ export default function Respond({ demoOnly = false }) {
 
           <div className="border-t border-slate-100 pt-4">
             <p className="text-sm font-semibold text-slate-900 mb-2">{t('respond.exportFormat')}</p>
-            <RadioGroup value={exportFormat} onValueChange={setExportFormat} className="grid grid-cols-2 gap-3">
-              <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                <RadioGroupItem value="xlsx" className="mt-0.5" />
-                <span className="text-sm text-slate-700">
-                  <span className="block font-medium text-slate-900">Excel</span>
-                  <span className="block text-xs text-slate-500">{t('respond.fmtExcelDesc')}</span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                <RadioGroupItem value="pdf" className="mt-0.5" />
-                <span className="text-sm text-slate-700">
-                  <span className="block font-medium text-slate-900">PDF</span>
-                  <span className="block text-xs text-slate-500">{t('respond.fmtPdfDesc')}</span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                <RadioGroupItem value="doc" className="mt-0.5" />
-                <span className="text-sm text-slate-700">
-                  <span className="block font-medium text-slate-900">Word</span>
-                  <span className="block text-xs text-slate-500">{t('respond.fmtWordDesc')}</span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2 rounded border border-slate-200 p-3 cursor-pointer">
-                <RadioGroupItem value="html" className="mt-0.5" />
-                <span className="text-sm text-slate-700">
-                  <span className="block font-medium text-slate-900">HTML</span>
-                  <span className="block text-xs text-slate-500">{t('respond.fmtHtmlDesc')}</span>
-                </span>
-              </label>
-            </RadioGroup>
+            <ExportFormatChoices exportFormat={exportFormat} setExportFormat={setExportFormat} originalAvailable={originalAvailable} t={t} />
           </div>
 
           {!exportWarnings.allGood && (
