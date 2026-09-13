@@ -203,6 +203,8 @@ const EVENT_SCHEMA = {
   respond_batch_export_completed: { templates: count() },
   // The buyer's own workbook handed back with answers in its cells. Counts only.
   download_original_attempted: { written: count(), blank: count(), kept: count(), no_cell: count() },
+  // The original was re-selected after a redirect or reload and matched the questionnaire.
+  original_file_reselected: { questions: count() },
   // Last year's (or another customer's) completed questionnaire read in. Counts only.
   previous_questionnaire_added: { questions: count(), priors: count(), recovered: count(), flagged: count() },
   // Results generated while another questionnaire's results were already saved on this device.

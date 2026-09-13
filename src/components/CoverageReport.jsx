@@ -650,7 +650,10 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 </ul>
                 <ul className="space-y-2.5">
                   {[
-                    t('coverage.quoteDeliverable', { count: total }),
+                    // The best line the product has, said only when it is true of THIS file.
+                    (questions || []).some(q => q.location?.answerCell)
+                      ? t('coverage.quoteDeliverableFile', { count: total })
+                      : t('coverage.quoteDeliverable', { count: total }),
                     t('coverage.quoteFigures', { supported: fromRecords.length, review: Math.max(0, total - fromRecords.length) }),
                     t('coverage.quotePrivacy'),
                     t('coverage.quotePayment'),

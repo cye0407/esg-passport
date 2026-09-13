@@ -22,7 +22,8 @@ import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { canReturnOriginal, fillOriginalWorkbook, describeAnswerPlacement } from '@/lib/originalWorkbook';
 import { priorApi, readPriorQuestionnaire, recoverAnswers, rejectRecovered } from '@/lib/priorQuestionnaire';
-import { packAnswersInStore, priorAnswersFromPack } from '@/lib/responsePack';
+import { packAnswersInStore, priorAnswersFromPack, saveResponsePackFile } from '@/lib/responsePack';
+import { fingerprintQuestionnaire } from '@/lib/questionnairePass';
 import { track } from '@/lib/track';
 import { clearDynamicImportRecovery, isDynamicImportFailure, recoverFromDynamicImportFailure } from '@/lib/dynamicImportRecovery';
 import {
@@ -250,6 +251,13 @@ export default function Respond({ demoOnly = false }) {
   const [priorError, setPriorError] = useState(null);
   const [rejectedPriors, setRejectedPriors] = useState(() => new Set());
   const priorInputRef = useRef(null);
+  // The original file's bytes are never stored, so after the checkout redirect (or any
+  // reload) `file` is null while the parsed questions still know their answer cells. The
+  // export dialog then asks for the file again and checks it is the same questionnaire.
+  const originalInputRef = useRef(null);
+  const [rehydrateError, setRehydrateError] = useState(null);
+  const [showSavePackNudge, setShowSavePackNudge] = useState(false);
+  const [savePackBusy, setSavePackBusy] = useState(false);
   const [companyData, setCompanyData] = useState(null);
   const [questionnaireName, setQuestionnaireName] = useState('');
   const [framework, setFramework] = useState(null);
@@ -1171,9 +1179,48 @@ export default function Respond({ demoOnly = false }) {
     setAnswerDrafts(prev => prev.map(d => (d.questionId === questionId ? draft : d)));
   };
 
+  // Re-select the original after a redirect or reload. Refused unless it is the same
+  // questionnaire (by fingerprint of the question texts), so the wrong workbook can never
+  // receive this questionnaire's answers.
+  const handleRehydrateOriginal = async (event) => {
+    const f = event.target.files?.[0];
+    event.target.value = '';
+    if (!f || !parseResult) return;
+    setRehydrateError(null);
+    try {
+      const engine = await getEngine();
+      const parsed = await engine.parseFile(f);
+      const same = parsed.success && fingerprintQuestionnaire(parsed.questions) === fingerprintQuestionnaire(parseResult.questions);
+      if (!same) { setRehydrateError(t('respond.rehydrateMismatch', { fileName: f.name })); return; }
+      setFile(f);
+      setExportFormat('original');
+      track('original_file_reselected', { questions: parsed.questions.length });
+    } catch (err) {
+      console.error('Re-select original failed:', err);
+      setRehydrateError(t('respond.rehydrateMismatch', { fileName: f.name }));
+    }
+  };
+
+  const handleSavePackNow = async () => {
+    setSavePackBusy(true);
+    try {
+      const mod = await import('response-ready');
+      const result = await saveResponsePackFile(mod);
+      track('response_pack_saved', { answers: result.answers, facts: result.facts, claims: result.passClaims, encrypted: false });
+      showFeedback(t('pack.saved', { fileName: result.fileName, answers: result.answers }));
+      setShowSavePackNudge(false);
+    } catch (err) {
+      console.error('Response pack save failed:', err);
+      showFeedback(t('pack.saveFailed'));
+    } finally {
+      setSavePackBusy(false);
+    }
+  };
+
   // The original workbook can only come back while its bytes are still here (they are
   // never stored) and when the parser found somewhere to write into.
   const originalAvailable = canReturnOriginal(file, parseResult?.questions);
+  const originalPossible = !!parseResult?.questions?.some(q => q.location?.answerCell);
 
   const handleExport = () => {
     setExportReviewConfirmed(false);
@@ -1329,6 +1376,7 @@ export default function Respond({ demoOnly = false }) {
         showFeedback(t('respond.dlPdf'));
       }
       setShowExportDialog(false);
+      if (canExport) setShowSavePackNudge(true);
     } catch (err) {
       console.error('Export error:', err);
       showFeedback(t('respond.exportFailed'));
@@ -1504,6 +1552,16 @@ export default function Respond({ demoOnly = false }) {
 
             <div className="border-t border-slate-100 pt-4">
               <p className="text-sm font-semibold text-slate-900 mb-2">{t('respond.exportFormat')}</p>
+              {originalPossible && !originalAvailable && (
+                <div className="mb-3 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <p>{t('respond.rehydrateBody')}</p>
+                  <input ref={originalInputRef} type="file" accept=".xlsx,.xlsm" className="hidden" onChange={handleRehydrateOriginal} />
+                  <button type="button" onClick={() => originalInputRef.current?.click()} className="mt-2 font-medium underline decoration-amber-400 underline-offset-4 hover:decoration-amber-900">
+                    {t('respond.rehydrateCta')}
+                  </button>
+                  {rehydrateError && <p className="mt-1 text-red-700">{rehydrateError}</p>}
+                </div>
+              )}
               <ExportFormatChoices exportFormat={exportFormat} setExportFormat={setExportFormat} originalAvailable={originalAvailable} t={t} />
             </div>
 
@@ -1738,6 +1796,23 @@ export default function Respond({ demoOnly = false }) {
               )}
             </div>
             <button onClick={() => setEnhanceError(null)} className="text-red-400 hover:text-red-600"><XIcon className="w-4 h-4" /></button>
+          </div>
+        )}
+
+        {/* ===== SAVE FOR NEXT TIME (after an export) ===== */}
+        {showSavePackNudge && (
+          <div className="mb-4 flex flex-col gap-3 border-2 border-emerald-700 bg-emerald-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-emerald-900">{t('pack.nudgeTitle')}</p>
+              <p className="mt-0.5 text-sm text-emerald-900/80">{t('pack.nudgeBody')}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <Button onClick={handleSavePackNow} disabled={savePackBusy} className="rounded-none bg-emerald-800 text-white hover:bg-emerald-900">
+                <Download className="w-4 h-4 mr-1.5" />{t('pack.save')}
+              </Button>
+              <Link to="/settings" className="text-sm text-emerald-900 underline decoration-emerald-300 underline-offset-4 hover:decoration-emerald-900">{t('pack.nudgeSettings')}</Link>
+              <button type="button" onClick={() => setShowSavePackNudge(false)} className="text-sm text-emerald-900/70 hover:text-emerald-900">{t('layout.dismiss')}</button>
+            </div>
           </div>
         )}
 
@@ -2413,6 +2488,16 @@ export default function Respond({ demoOnly = false }) {
 
             <div className="border-t border-slate-100 pt-4">
               <p className="text-sm font-semibold text-slate-900 mb-2">{t('respond.exportFormat')}</p>
+              {originalPossible && !originalAvailable && (
+                <div className="mb-3 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <p>{t('respond.rehydrateBody')}</p>
+                  <input ref={originalInputRef} type="file" accept=".xlsx,.xlsm" className="hidden" onChange={handleRehydrateOriginal} />
+                  <button type="button" onClick={() => originalInputRef.current?.click()} className="mt-2 font-medium underline decoration-amber-400 underline-offset-4 hover:decoration-amber-900">
+                    {t('respond.rehydrateCta')}
+                  </button>
+                  {rehydrateError && <p className="mt-1 text-red-700">{rehydrateError}</p>}
+                </div>
+              )}
               <ExportFormatChoices exportFormat={exportFormat} setExportFormat={setExportFormat} originalAvailable={originalAvailable} t={t} />
             </div>
 
@@ -2915,7 +3000,17 @@ export default function Respond({ demoOnly = false }) {
 
           <div className="border-t border-slate-100 pt-4">
             <p className="text-sm font-semibold text-slate-900 mb-2">{t('respond.exportFormat')}</p>
-            <ExportFormatChoices exportFormat={exportFormat} setExportFormat={setExportFormat} originalAvailable={originalAvailable} t={t} />
+            {originalPossible && !originalAvailable && (
+                <div className="mb-3 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <p>{t('respond.rehydrateBody')}</p>
+                  <input ref={originalInputRef} type="file" accept=".xlsx,.xlsm" className="hidden" onChange={handleRehydrateOriginal} />
+                  <button type="button" onClick={() => originalInputRef.current?.click()} className="mt-2 font-medium underline decoration-amber-400 underline-offset-4 hover:decoration-amber-900">
+                    {t('respond.rehydrateCta')}
+                  </button>
+                  {rehydrateError && <p className="mt-1 text-red-700">{rehydrateError}</p>}
+                </div>
+              )}
+              <ExportFormatChoices exportFormat={exportFormat} setExportFormat={setExportFormat} originalAvailable={originalAvailable} t={t} />
           </div>
 
           {!exportWarnings.allGood && (
