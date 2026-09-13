@@ -108,6 +108,11 @@ function summarize(draft, dataSources, companyData) {
     confidence: draft.answerConfidence,
     topic: topicForDomain(draft?.matchResult?.primaryDomain),
     dataCoverage: periodCoverageForDraft(draft, companyData),
+    // Set when the answer came from a questionnaire the company already completed.
+    source: draft.source,
+    sourceRef: draft.sourceRef,
+    sourceDate: draft.sourceDate,
+    staleness: draft.staleness,
   };
 }
 
@@ -148,7 +153,8 @@ export function selectBestCoverageAnswers(answers, limit = 5) {
  * @param {Object} options.dataSources   settings.dataSources — field path → document name
  * @returns {{
  *   total: number,
- *   fromRecords: Array, written: Array, unanswerable: Array,
+ *   recovered: Array, recoveredFlagged: number,
+ *   fromRecords: Array, partial: Array, written: Array, unanswerable: Array,
  *   missingDocuments: Array<{document: string, unlocks: number}>,
  *   policyGaps: {questions: number, builders: string[]}
  * }}
@@ -217,6 +223,7 @@ function summarizeTopics(list, companyData) {
 
 export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} } = {}) {
   const list = Array.isArray(drafts) ? drafts : [];
+  const recovered = [];
   const fromRecords = [];
   const partial = [];
   const written = [];
@@ -232,6 +239,15 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
     if (builder) {
       policyQuestions += 1;
       policyBuilders.add(builder);
+    }
+
+    // An answer recovered from a questionnaire the company already completed is its own
+    // group, first: it is what the company actually said, with the file it came from. A
+    // flagged one (a figure, a year, a different reporting period) is still recovered —
+    // the flag travels with it and the report says how many carry one.
+    if (draft?.source === 'previous') {
+      recovered.push(summarize(draft, dataSources, companyData));
+      continue;
     }
 
     const confidence = draft?.answerConfidence;
@@ -260,6 +276,8 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
 
   return {
     total: list.length,
+    recovered,
+    recoveredFlagged: recovered.filter(a => a.staleness && a.staleness !== 'clear').length,
     fromRecords,
     partial,
     written,

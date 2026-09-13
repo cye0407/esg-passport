@@ -65,6 +65,25 @@ describe('summarizeCoverage', () => {
     ).toBe(result.total);
   });
 
+  // An answer recovered from a questionnaire the company already completed is neither
+  // "from your records" nor "written for you": it is what they said last time. Its own
+  // group, first, and still part of the partition.
+  it('puts a recovered answer in its own group, whatever its confidence, and keeps the partition', () => {
+    const result = summarizeCoverage([
+      { ...draft('a', 'medium'), source: 'previous', staleness: 'check-figures', sourceRef: { file: 'last-year.xlsx', row: 7 } },
+      { ...draft('b', 'high'), source: 'previous', staleness: 'clear' },
+      draft('c', 'high'),
+      draft('d', 'none'),
+    ]);
+    expect(result.recovered).toHaveLength(2);
+    expect(result.recoveredFlagged).toBe(1);
+    expect(result.fromRecords).toHaveLength(1);
+    expect(result.unanswerable).toHaveLength(1);
+    expect(
+      result.recovered.length + result.fromRecords.length + result.partial.length + result.written.length + result.unanswerable.length
+    ).toBe(result.total);
+  });
+
   // The engine emits text for low-confidence questions. Showing it as an answer is how
   // a supplier signs something that is not true, so it is counted as unanswered.
   it('reports a low-confidence draft as unanswered, not as written', () => {

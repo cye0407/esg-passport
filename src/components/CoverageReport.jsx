@@ -294,7 +294,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   const [policyUploadFile, setPolicyUploadFile] = React.useState(null);
   const [policyUploadBuilder, setPolicyUploadBuilder] = React.useState('');
   const {
-    total, fromRecords, partial = [], written, unanswerable, missingDocuments, policyGaps, hasOwnData, topics,
+    total, recovered = [], recoveredFlagged = 0, fromRecords, partial = [], written, unanswerable, missingDocuments, policyGaps, hasOwnData, topics,
   } = coverage;
   const { canGenerateAnswers } = getEntitlements(tier);
 
@@ -303,13 +303,14 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   React.useEffect(() => {
     track('coverage_report_viewed', {
       questions: total,
+      recovered: recovered.length,
       from_records: fromRecords.length,
       partial: partial.length,
       written: written.length,
       unanswerable: unanswerable.length,
       policy_gaps: policyGaps.builders.length,
     });
-  }, [total, fromRecords.length, partial.length, written.length, unanswerable.length, policyGaps.builders.length]);
+  }, [total, recovered.length, fromRecords.length, partial.length, written.length, unanswerable.length, policyGaps.builders.length]);
 
   // Answered-from-records first: those carry the reader's own numbers and are the only
   // part of this page no one else could have produced.
@@ -395,9 +396,11 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 border border-slate-200 bg-white sm:grid-cols-5">
+      <dl className={`grid grid-cols-2 border border-slate-200 bg-white ${recovered.length > 0 ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
         {[
           [t('checklist.total'), total, 'text-slate-900'],
+          // First, when there is one: what the company already answered last time.
+          ...(recovered.length > 0 ? [[t('coverage.topicRecovered'), recovered.length, 'text-emerald-700']] : []),
           [t('coverage.topicFromRecords'), fromRecords.length, 'text-emerald-700'],
           [t('coverage.topicPartial'), partial.length, 'text-amber-700'],
           [t('checklist.written'), written.length, 'text-slate-900'],
@@ -414,6 +417,14 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           </div>
         ))}
       </dl>
+
+      {recovered.length > 0 && (
+        <p className="text-sm leading-relaxed text-slate-600">
+          {recoveredFlagged > 0
+            ? t('coverage.recoveredLineFlagged', { count: recovered.length, flagged: recoveredFlagged })
+            : t('coverage.recoveredLine', { count: recovered.length })}
+        </p>
+      )}
 
       {bestNextDocument && (
         <section className="border-2 border-slate-900 bg-white p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">

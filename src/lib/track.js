@@ -170,6 +170,7 @@ const EVENT_SCHEMA = {
   // nobody could get far enough to see one.
   coverage_report_viewed: {
     questions: count(),
+    recovered: count(),
     from_records: count(),
     written: count(),
     unanswerable: count(),
@@ -202,6 +203,10 @@ const EVENT_SCHEMA = {
   respond_batch_export_completed: { templates: count() },
   // The buyer's own workbook handed back with answers in its cells. Counts only.
   download_original_attempted: { written: count(), blank: count(), kept: count(), no_cell: count() },
+  // Last year's (or another customer's) completed questionnaire read in. Counts only.
+  previous_questionnaire_added: { questions: count(), priors: count(), recovered: count(), flagged: count() },
+  // Results generated while another questionnaire's results were already saved on this device.
+  second_questionnaire_processed: { saved_before: count() },
   respond_demo_library_loaded: { source: slug() },
 
   // Policies

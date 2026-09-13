@@ -21,6 +21,7 @@ import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, openCheckout, c
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { canReturnOriginal, fillOriginalWorkbook, describeAnswerPlacement } from '@/lib/originalWorkbook';
+import { priorApi, readPriorQuestionnaire, recoverAnswers, rejectRecovered } from '@/lib/priorQuestionnaire';
 import { track } from '@/lib/track';
 import { clearDynamicImportRecovery, isDynamicImportFailure, recoverFromDynamicImportFailure } from '@/lib/dynamicImportRecovery';
 import {
@@ -242,6 +243,12 @@ export default function Respond({ demoOnly = false }) {
 
   // --- Results State ---
   const [answerDrafts, setAnswerDrafts] = useState([]);
+  // Last year's questionnaire: what was read from it, and which of its suggestions the
+  // user has declined (so they are not offered again on a re-run).
+  const [priorBatch, setPriorBatch] = useState(null);      // { priors, questions, fileName, applied, recovered, flagged }
+  const [priorError, setPriorError] = useState(null);
+  const [rejectedPriors, setRejectedPriors] = useState(() => new Set());
+  const priorInputRef = useRef(null);
   const [companyData, setCompanyData] = useState(null);
   const [questionnaireName, setQuestionnaireName] = useState('');
   const [framework, setFramework] = useState(null);
@@ -729,6 +736,7 @@ export default function Respond({ demoOnly = false }) {
         draftRisk: d.draftRisk, draftReason: d.draftReason, consistencyFlags: d.consistencyFlags,
         assumptions: d.assumptions, limitations: d.limitations,
         matchedKeywords: d.matchResult?.matchedKeywords,
+        source: d.source, sourceRef: d.sourceRef, sourceDate: d.sourceDate, matchScore: d.matchScore, staleness: d.staleness,
       })),
     });
 
@@ -875,7 +883,11 @@ export default function Respond({ demoOnly = false }) {
       const editedMap = new Map(prev.filter(d => d._edited).map(d => [d.questionId, d]));
       return normalizedDrafts.map(d => editedMap.has(d.questionId) ? { ...editedMap.get(d.questionId) } : d);
     });
-    if (canExport) saveResults(normalizedDrafts, name, fw, pr, questionnaireFingerprint);
+    if (canExport) {
+      const savedBefore = (loadData().savedResults || []).filter(r => r.questionnaireFingerprint && r.questionnaireFingerprint !== questionnaireFingerprint).length;
+      if (savedBefore > 0) track('second_questionnaire_processed', { saved_before: savedBefore });
+      saveResults(normalizedDrafts, name, fw, pr, questionnaireFingerprint);
+    }
   }
 
   // Answer-language switch. The engine generates en/de natively (highest quality), so a switch
@@ -1111,6 +1123,42 @@ export default function Respond({ demoOnly = false }) {
       const existing = prev[questionId] || [];
       return { ...prev, [questionId]: existing.filter(id => id !== docId) };
     });
+  };
+
+  // ---- last year's questionnaire ----
+  const handlePriorFile = async (event) => {
+    const f = event.target.files?.[0];
+    event.target.value = '';
+    if (!f) return;
+    setPriorError(null);
+    try {
+      const api = priorApi(await getEngine(), await import('response-ready'));
+      const read = await readPriorQuestionnaire(api, f);
+      if (!read.ok || read.priors.length === 0) { setPriorError(t('prior.errNoAnswers', { fileName: f.name })); return; }
+      setPriorBatch({ ...read, applied: false });
+    } catch (err) {
+      console.error('Prior questionnaire error:', err);
+      setPriorError(t('prior.errNoAnswers', { fileName: f.name }));
+    }
+  };
+
+  const applyPriorBatch = async () => {
+    if (!priorBatch || !parseResult) return;
+    const api = priorApi(await getEngine(), await import('response-ready'));
+    const reportingYear = Number(String(companyData?.reportingPeriod || '').slice(0, 4)) || undefined;
+    const result = recoverAnswers(api, parseResult.questions, answerDrafts, priorBatch.priors, { reportingYear, rejected: rejectedPriors });
+    setAnswerDrafts(result.drafts);
+    setPriorBatch(prev => ({ ...prev, applied: true, recovered: result.recovered, flagged: result.flagged }));
+    track('previous_questionnaire_added', { questions: parseResult.questions.length, priors: priorBatch.priors.length, recovered: result.recovered, flagged: result.flagged });
+    showFeedback(t('prior.applied', { count: result.recovered }));
+  };
+
+  const dismissRecovered = (questionId) => {
+    const current = answerDrafts.find(d => d.questionId === questionId);
+    if (!current) return;
+    const { draft, rejectedKey } = rejectRecovered(current);
+    if (rejectedKey) setRejectedPriors(set => new Set([...set, rejectedKey]));
+    setAnswerDrafts(prev => prev.map(d => (d.questionId === questionId ? draft : d)));
   };
 
   // The original workbook can only come back while its bytes are still here (they are
@@ -1683,6 +1731,46 @@ export default function Respond({ demoOnly = false }) {
           </div>
         )}
 
+        {/* ===== LAST YEAR'S QUESTIONNAIRE ===== */}
+        {canGenerate && !isDemo && parseResult?.questions?.length > 0 && (
+          <div className="mb-4 border border-slate-200 bg-white px-5 py-4">
+            <input ref={priorInputRef} type="file" accept=".xlsx,.xlsm,.xls,.csv" className="hidden" onChange={handlePriorFile} />
+            {!priorBatch && (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{t('prior.title')}</p>
+                  <p className="mt-0.5 text-sm text-slate-600">{t('prior.body')}</p>
+                  {priorError && <p className="mt-1 text-sm text-red-700">{priorError}</p>}
+                </div>
+                <Button variant="outline" className="rounded-none shrink-0" onClick={() => priorInputRef.current?.click()}>
+                  <UploadIcon className="w-4 h-4 mr-1.5" />{t('prior.cta')}
+                </Button>
+              </div>
+            )}
+            {priorBatch && !priorBatch.applied && (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-slate-700">{t('prior.found', { count: priorBatch.priors.length, fileName: priorBatch.fileName })}</p>
+                <div className="flex gap-2 shrink-0">
+                  <Button className="rounded-none bg-slate-900 text-white hover:bg-slate-800" onClick={applyPriorBatch}>{t('prior.use')}</Button>
+                  <Button variant="ghost" className="rounded-none" onClick={() => setPriorBatch(null)}>{t('respond.cancel')}</Button>
+                </div>
+              </div>
+            )}
+            {priorBatch?.applied && (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-slate-700">
+                  {priorBatch.flagged > 0
+                    ? t('prior.appliedFlagged', { count: priorBatch.recovered, flagged: priorBatch.flagged, fileName: priorBatch.fileName })
+                    : t('prior.appliedLine', { count: priorBatch.recovered, fileName: priorBatch.fileName })}
+                </p>
+                <button type="button" className="text-sm font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900 shrink-0" onClick={() => priorInputRef.current?.click()}>
+                  {t('prior.addAnother')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ===== REPORT HEADER ===== */}
         <div className="bg-white border border-slate-200 rounded-none px-6 py-5">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -1887,6 +1975,21 @@ export default function Respond({ demoOnly = false }) {
                           </span>
                         )}
                       </Link>
+                    )}
+
+                    {draft.source === 'previous' && (
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                        <span className="inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-800">
+                          {t('prior.badge', { fileName: draft.sourceRef?.file || '', row: draft.sourceRef?.row ?? '' })}
+                        </span>
+                        {draft.staleness === 'check-figures' && <span className="text-amber-700">{t('prior.checkFigures')}</span>}
+                        {draft.staleness === 'check-period' && <span className="text-amber-700">{t('prior.checkPeriod')}</span>}
+                        {!isEditing && (
+                          <button type="button" onClick={() => dismissRecovered(draft.questionId)} className="text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-slate-900">
+                            {t('prior.dontUse')}
+                          </button>
+                        )}
+                      </div>
                     )}
 
                     {/* Answer */}
