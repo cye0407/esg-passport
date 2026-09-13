@@ -1,0 +1,81 @@
+{
+  "$comment": "Ground truth for Gate 2 (DESIGN-original-workbook-and-reuse.md §5). Each pair takes a COMPLETED twin as the prior questionnaire and a different questionnaire as the new one. For every new question: `correct` lists prior questions whose answer genuinely answers it; `acceptable` lists priors that are close enough to be a useful starting point but not the same question (neither correct nor incorrect); anything else recovered is INCORRECT. `mustNot` are traps: priors that share most words with the new question and would put a wrong claim in the buyer's file. Written 2026-09-13 before any matcher tuning; do not edit to make a run pass.",
+  "sameForm": [
+    { "prior": "01-retailer-supplier-form-completed-2025", "new": "01-retailer-supplier-form" },
+    { "prior": "03-platform-offline-sheet-completed-2025", "new": "03-platform-offline-sheet" },
+    { "prior": "04-automotive-saq-completed-2025", "new": "04-automotive-saq" },
+    { "prior": "05-multisheet-qa-form-completed-2025", "new": "05-multisheet-qa-form" },
+    { "prior": "07-retailer-wide-layout-completed-2025", "new": "07-retailer-wide-layout" }
+  ],
+  "crossForm": [
+    {
+      "prior": "03-platform-offline-sheet-completed-2025",
+      "new": "01-retailer-supplier-form",
+      "labels": {
+        "Does your company have a written environmental policy?": { "correct": ["Does your company have a formal environmental policy covering its own operations?"] },
+        "Working hours are recorded for all production staff": { "correct": ["Are working hours recorded for all employees, including temporary staff?"] },
+        "A documented grievance mechanism is available to workers": { "correct": ["Is there a documented mechanism for employees to raise grievances confidentially?"] },
+        "Freedom of association is respected at all sites": { "correct": ["Is freedom of association respected at all sites?"] },
+        "Do you measure Scope 1 and Scope 2 greenhouse gas emissions?": { "correct": ["Do you measure Scope 1 and Scope 2 GHG emissions?"] },
+        "Proportion of your own suppliers covered by a code of conduct": { "correct": ["What proportion of your direct suppliers (by spend) have signed it?"], "acceptable": ["Do you have a supplier code of conduct?"] },
+        "Primary approach to supplier due diligence": { "acceptable": ["Do you assess the sustainability performance of your suppliers?"] },
+        "Recruitment fees are never charged to workers": { "acceptable": ["Do you have a policy prohibiting child labour and forced labour?"] },
+        "Total Scope 1 + 2 emissions (tCO2e)": { "mustNot": ["What was your total energy consumption in the last reporting year (MWh)?"] },
+        "Date the environmental policy was last reviewed": { "mustNot": ["Does your company have a formal environmental policy covering its own operations?"] }
+      }
+    },
+    {
+      "prior": "03-platform-offline-sheet-completed-2025",
+      "new": "07-retailer-wide-layout",
+      "labels": {
+        "Do you have an environmental policy?": { "correct": ["Does your company have a formal environmental policy covering its own operations?"] },
+        "Do you have an anti-bribery policy?": { "correct": ["Do you have an anti-corruption and anti-bribery policy?"] },
+        "Total energy consumption (MWh)": { "correct": ["What was your total energy consumption in the last reporting year (MWh)?"] },
+        "Do you require your own suppliers to sign a code of conduct?": { "correct": ["Do you have a supplier code of conduct?"], "acceptable": ["What proportion of your direct suppliers (by spend) have signed it?"] },
+        "Do you have a code of conduct covering labour and human rights?": { "acceptable": ["Do you have a policy prohibiting child labour and forced labour?"] },
+        "Are workers free to leave employment with reasonable notice and without penalty?": { "acceptable": ["Do you have a policy prohibiting child labour and forced labour?"] },
+        "Scope 1 emissions (tCO2e)": { "mustNot": ["Do you measure Scope 1 and Scope 2 GHG emissions?", "What was your total energy consumption in the last reporting year (MWh)?"] },
+        "Scope 2 emissions (tCO2e)": { "mustNot": ["Do you measure Scope 1 and Scope 2 GHG emissions?", "What was your total energy consumption in the last reporting year (MWh)?"] },
+        "Have any sites supplying us been audited against a social standard in the last 24 months? Give the standard and date.": { "mustNot": ["Have you conducted on-site audits of any suppliers in the last two years?"] }
+      }
+    },
+    {
+      "prior": "07-retailer-wide-layout-completed-2025",
+      "new": "01-retailer-supplier-form",
+      "labels": {
+        "Does your company have a written environmental policy?": { "correct": ["Do you have an environmental policy?"] },
+        "What percentage of your workforce is engaged on temporary or agency contracts?": { "correct": ["Percentage of agency or temporary workers"] },
+        "Number of employees (FTE, most recent financial year)": { "acceptable": ["Total number of workers at sites supplying us"] },
+        "Which of the following does your company hold? Tick all that apply.": { "acceptable": ["Do you have any environmental certifications? List them with expiry dates."] },
+        "Proportion of your own suppliers covered by a code of conduct": { "acceptable": ["Do you require your own suppliers to sign a code of conduct?"] },
+        "Describe any labour-related non-conformities raised in the last 24 months and the remediation undertaken.": { "acceptable": ["Number of open non-conformances from that audit"], "mustNot": ["Have any sites supplying us been audited against a social standard in the last 24 months? Give the standard and date."] },
+        "Date the environmental policy was last reviewed": { "mustNot": ["Date of last review of the code of conduct"] },
+        "Total Scope 1 + 2 emissions (tCO2e)": { "mustNot": ["Scope 1 emissions (tCO2e)", "Scope 2 emissions (tCO2e)", "Total energy consumption (MWh)"] },
+        "Country of incorporation": { "mustNot": ["Countries of production"] }
+      }
+    },
+    {
+      "prior": "04-automotive-saq-completed-2025",
+      "new": "03-platform-offline-sheet",
+      "labels": {
+        "Do you measure Scope 1 and Scope 2 GHG emissions?": { "correct": ["4.3  Does your company calculate its carbon footprint (Scope 1 and 2)?"] },
+        "Do you have an anti-corruption and anti-bribery policy?": { "correct": ["2.1  Does your company have a code of conduct covering corruption, conflicts of interest and fair competition?"] },
+        "Is there a whistleblowing channel available to employees and third parties?": { "correct": ["2.2  Is there a confidential channel for reporting suspected violations?"] },
+        "Do you have a supplier code of conduct?": { "correct": ["5.1  Do you require your suppliers to comply with a supplier code of conduct?"] },
+        "Do you assess the sustainability performance of your suppliers?": { "correct": ["5.2  Do you conduct risk assessments of your suppliers regarding sustainability?"] },
+        "Have you set a quantified GHG reduction target?": { "acceptable": ["1.1.1  Does the strategy include measurable targets with deadlines?"] },
+        "Do you have a written health and safety policy?": { "acceptable": ["3.4  Does your company have a health and safety management system?"] },
+        "Is there a documented mechanism for employees to raise grievances confidentially?": { "acceptable": ["2.2  Is there a confidential channel for reporting suspected violations?"] },
+        "Do you have a policy prohibiting child labour and forced labour?": { "acceptable": ["3.1  Does your company have a written policy on human rights?", "3.3  Are recruitment fees ever charged to workers, directly or through agencies?"] },
+        "Have you received any environmental fines or sanctions in the last three years?": { "mustNot": ["2.3  Has your company been convicted of, or investigated for, corruption in the last five years?"] },
+        "Have you conducted on-site audits of any suppliers in the last two years?": { "mustNot": ["5.2  Do you conduct risk assessments of your suppliers regarding sustainability?"] }
+      }
+    },
+    {
+      "prior": "05-multisheet-qa-form-completed-2025",
+      "new": "06-german-bank-form",
+      "$comment": "English priors against a German questionnaire: nothing should be recovered. Every match here is incorrect.",
+      "labels": {}
+    }
+  ]
+}
