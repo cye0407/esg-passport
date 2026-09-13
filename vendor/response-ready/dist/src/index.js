@@ -8,6 +8,12 @@ export { createResponseEngine } from './create';
 export { addIfPresent, deduplicatePoints, emptyDataContext, } from './engine/dataRetrieval';
 export { buildDataMap, val, has, num, str, fmt, } from './engine/answerGenerator';
 export { parseCSV, parseCSVLine, } from './engine/configLoader';
+// The company's portable record
+export { RESPONSE_PACK_FORMAT, RESPONSE_PACK_VERSION, RESPONSE_PACK_EXTENSION, ENCRYPTED_PACK_EXTENSION, RESPONSE_PACK_README, ResponsePackError, createResponsePack, serializeResponsePack, parseResponsePack, mergeResponsePacks, encryptResponsePack, decryptResponsePack, openResponsePack, isEncryptedPack, passphraseStrength, responsePackFileName, normalizeAnswerKey, hashText, } from './engine/responsePack';
+// Writing answers back into the buyer's original workbook
+export { writeAnswersIntoWorkbook, completedFileName } from './engine/workbookWriter';
+// Recovering answers from a questionnaire the company already completed
+export { priorAnswersFromQuestions, matchPriorAnswers, applyPriorAnswers, assessStaleness } from './engine/priorAnswers';
 // Pack registry (for multi-pack consumers)
 export { registerPack, getRegisteredPacks, getPackByName, detectPack, clearRegistry, } from './engine/packRegistry';
 // Playbooks

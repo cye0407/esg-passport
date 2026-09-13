@@ -20,6 +20,9 @@ export { createAnswerGenerator, buildDataMap, val, has, num, str, fmt } from './
 export { createRewriter } from './defensiveRewriter';
 // Excel Exporter
 export { exportToExcel, exportToBuffer } from './excelExporter';
+export { RESPONSE_PACK_FORMAT, RESPONSE_PACK_VERSION, RESPONSE_PACK_EXTENSION, ENCRYPTED_PACK_EXTENSION, RESPONSE_PACK_README, ResponsePackError, createResponsePack, serializeResponsePack, parseResponsePack, mergeResponsePacks, encryptResponsePack, decryptResponsePack, openResponsePack, isEncryptedPack, passphraseStrength, responsePackFileName, normalizeAnswerKey, hashText, } from './responsePack';
+export { writeAnswersIntoWorkbook, completedFileName } from './workbookWriter';
+export { priorAnswersFromQuestions, matchPriorAnswers, applyPriorAnswers, assessStaleness } from './priorAnswers';
 // Playbook Registry
 export { registerPlaybook, getRegisteredPlaybooks, getDefaultPlaybooks, getPlaybookById, clearPlaybooks, resetPlaybooks, scorePlaybooks, detectPlaybook, } from './playbookRegistry';
 // Business Library

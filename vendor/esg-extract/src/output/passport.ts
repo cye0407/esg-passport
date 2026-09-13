@@ -45,6 +45,9 @@ export function toPassportRecord(result: ExtractionResult): PassportDataRecord {
       case 'recycledWasteKg':
         record.waste = { ...record.waste, recycledKg: val };
         break;
+      case 'recyclingRate':
+        record.waste = { ...record.waste, recyclingPercent: val };
+        break;
       case 'totalEmployees':
         record.workforce = { ...record.workforce, totalEmployees: val };
         break;
@@ -57,8 +60,14 @@ export function toPassportRecord(result: ExtractionResult): PassportDataRecord {
       case 'newHires':
         record.workforce = { ...record.workforce, newHires: val };
         break;
+      case 'departures':
+        record.workforce = { ...record.workforce, departures: val };
+        break;
       case 'turnoverRate':
         record.workforce = { ...record.workforce, turnoverRate: val };
+        break;
+      case 'femalePercent':
+        record.workforce = { ...record.workforce, femalePercent: val };
         break;
       case 'trainingHours':
         record.training = { ...record.training, trainingHours: val };
@@ -74,6 +83,9 @@ export function toPassportRecord(result: ExtractionResult): PassportDataRecord {
         break;
       case 'fatalities':
         record.healthSafety = { ...record.healthSafety, fatalities: val };
+        break;
+      case 'trir':
+        record.healthSafety = { ...record.healthSafety, trir: val };
         break;
     }
   }

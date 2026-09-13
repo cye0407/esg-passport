@@ -63,6 +63,12 @@ export interface ExtractionResult {
   provider?: string;
   /** Billing/reporting period if detected */
   period?: string;
+  /** Inclusive first month covered by the source. */
+  periodStart?: string;
+  /** Inclusive last month covered by the source. */
+  periodEnd?: string;
+  /** Every calendar month represented by the extracted totals. */
+  coveredMonths?: string[];
   /** All extracted fields */
   fields: ExtractedField[];
   /** Structured issues for review UX */
@@ -145,19 +151,23 @@ export interface PassportDataRecord {
     totalKg?: number;
     recycledKg?: number;
     hazardousKg?: number;
+    recyclingPercent?: number;
   };
   workforce?: {
     totalEmployees?: number;
     femaleEmployees?: number;
     maleEmployees?: number;
     newHires?: number;
+    departures?: number;
     turnoverRate?: number;
+    femalePercent?: number;
   };
   healthSafety?: {
     recordableIncidents?: number;
     lostTimeIncidents?: number;
     fatalities?: number;
     hoursWorked?: number;
+    trir?: number;
   };
   training?: {
     trainingHours?: number;

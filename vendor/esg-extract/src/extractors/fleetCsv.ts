@@ -54,12 +54,16 @@ export function extractFleetCsv(text: string): ExtractionResult {
   }
 
   const period = fullYear ? [...years][0] : [...periods][0];
+  const coveredMonths = [...periods].sort();
   const value = +total.toFixed(2);
   return {
     success: true,
     documentType: 'fleet_fuel_report',
     provider: /\baral\b/i.test(text) ? 'ARAL' : undefined,
     period,
+    periodStart: coveredMonths[0],
+    periodEnd: coveredMonths[coveredMonths.length - 1],
+    coveredMonths,
     fields: [{
       field: 'dieselLiters', value, unit: 'L', confidence: 'high', score: 0.99,
       reasons: [`Summed ${transactions} rows from the litres column`, `${periods.size} month${periods.size === 1 ? '' : 's'} covered`],

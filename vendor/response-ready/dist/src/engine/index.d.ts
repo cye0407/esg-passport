@@ -13,6 +13,12 @@ export { createRewriter } from './defensiveRewriter';
 export type { RewriterInstance } from './defensiveRewriter';
 export { exportToExcel, exportToBuffer } from './excelExporter';
 export type { ExportOptions } from './excelExporter';
+export { RESPONSE_PACK_FORMAT, RESPONSE_PACK_VERSION, RESPONSE_PACK_EXTENSION, ENCRYPTED_PACK_EXTENSION, RESPONSE_PACK_README, ResponsePackError, createResponsePack, serializeResponsePack, parseResponsePack, mergeResponsePacks, encryptResponsePack, decryptResponsePack, openResponsePack, isEncryptedPack, passphraseStrength, responsePackFileName, normalizeAnswerKey, hashText, } from './responsePack';
+export type { ResponsePack, PackAnswer, PackFact, PackPolicy, PackCertificate, PackPassClaim, PackDocument, PackRejection, PackSource, PackErrorCode } from './responsePack';
+export { writeAnswersIntoWorkbook, completedFileName } from './workbookWriter';
+export type { AnswerWrite, WriteReport, WriteRefusal, RefusalReason, WriteOptions, XmlDom } from './workbookWriter';
+export { priorAnswersFromQuestions, matchPriorAnswers, applyPriorAnswers, assessStaleness } from './priorAnswers';
+export type { PriorAnswer, PriorMatch, PriorMatchOptions, PriorSourceMeta, MatchTier } from './priorAnswers';
 export { registerPlaybook, getRegisteredPlaybooks, getDefaultPlaybooks, getPlaybookById, clearPlaybooks, resetPlaybooks, scorePlaybooks, detectPlaybook, } from './playbookRegistry';
 export { findLibraryMatches } from './libraryMatcher';
 //# sourceMappingURL=index.d.ts.map

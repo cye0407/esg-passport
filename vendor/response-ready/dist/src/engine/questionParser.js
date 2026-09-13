@@ -812,15 +812,202 @@ async function parseDocxFile(file) {
         };
     }
 }
-// ============================================
-// Excel / CSV Parsing
-// ============================================
-function parseSheetData(jsonData, columnMapping, sheetLabel) {
+const EMPTY_CELL = { text: '', formula: false, empty: true };
+function colLetter(index) {
+    let n = index + 1;
+    let s = '';
+    while (n > 0) {
+        n--;
+        s = String.fromCharCode(65 + (n % 26)) + s;
+        n = Math.floor(n / 26);
+    }
+    return s;
+}
+function readGrid(sheet, name) {
+    const ref = sheet['!ref'];
+    if (!ref)
+        return { name, rows: [], cols: 0, merges: [] };
+    const range = XLSX.utils.decode_range(ref);
+    const cols = range.e.c + 1;
+    const rows = [];
+    for (let r = 0; r <= range.e.r; r++) {
+        const row = [];
+        for (let c = 0; c < cols; c++) {
+            const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+            if (!cell) {
+                row.push(EMPTY_CELL);
+                continue;
+            }
+            // An empty cell that carries a fill comes back as a stub (t: 'z', no value). The
+            // fill is the whole point — it is how a form says "answer here" — so read the style
+            // before deciding the cell is empty.
+            const style = cell.s;
+            const fill = style?.fgColor?.rgb ? style.fgColor.rgb.toUpperCase().replace(/^(00|FF)(?=[0-9A-F]{6}$)/, '') : undefined;
+            const hasValue = cell.v !== undefined && cell.v !== null;
+            const text = hasValue ? String(cell.w ?? cell.v ?? '').trim() : '';
+            row.push({ text, fill, formula: !!cell.f, empty: text === '' });
+        }
+        rows.push(row);
+    }
+    const merges = (sheet['!merges'] || []).map(m => [m.s.r, m.s.c, m.e.r, m.e.c]);
+    return { name, rows, cols, merges };
+}
+/** Width in columns of the merge starting at (r, c), or 1. */
+function mergeWidthAt(grid, r, c) {
+    const m = grid.merges.find(([r0, c0]) => r0 === r && c0 === c);
+    return m ? m[3] - m[1] + 1 : 1;
+}
+function isWideBand(grid, r, c) {
+    const width = mergeWidthAt(grid, r, c);
+    return width > 1 && width >= Math.ceil(grid.cols / 2);
+}
+// ---- header-mode row objects, keyed the way sheet_to_json keys them, so the mapping
+// dialog in the app (which shows `availableColumns` and sends a mapping back) sees the
+// same names it always did: blank headers are __EMPTY, __EMPTY_1…, repeats get _1, _2.
+function headerKeys(cells) {
+    const keys = [];
+    const seen = new Map();
+    let empties = 0;
+    for (const cell of cells) {
+        let key = cell.text;
+        if (!key) {
+            key = empties === 0 ? '__EMPTY' : `__EMPTY_${empties}`;
+            empties++;
+        }
+        const n = seen.get(key) ?? 0;
+        seen.set(key, n + 1);
+        keys.push(n === 0 ? key : `${key}_${n}`);
+    }
+    return keys;
+}
+function rowsUnderHeader(grid, headerIdx) {
+    const keys = headerKeys(grid.rows[headerIdx] || []);
+    const rows = [];
+    for (let r = headerIdx + 1; r < grid.rows.length; r++) {
+        const cells = grid.rows[r];
+        if (!cells.some(c => !c.empty))
+            continue;
+        const values = {};
+        keys.forEach((k, i) => { values[k] = cells[i]?.text ?? ''; });
+        rows.push({ row: r + 1, values, cells });
+    }
+    return { keys, rows };
+}
+// ---- the answer cell
+const ANSWER_HEADER_PATTERNS = [
+    'answer', 'answers', 'response', 'responses', 'reply', 'your answer', 'supplier response',
+    'supplier answer', 'vendor response', 'antwort', 'antworten', 'ihre antwort', 'rückmeldung',
+    'eingabe', 'réponse', 'respuesta',
+];
+const WEAK_ANSWER_HEADER_PATTERNS = ['comment', 'comments', 'kommentar', 'bemerkung', 'remarks', 'input'];
+// A column ABOUT answers is not the answer column: "Answer options", "Response type",
+// "Answer format" describe the box, they are not it.
+const NOT_AN_ANSWER_COLUMN = /(option|options|type|format|guidance|scale|weight|score|points|max|maximum|required)/;
+function detectAnswerColumn(keys, questionKey) {
+    const norm = keys.map(k => k.toLowerCase().trim());
+    const qi = keys.indexOf(questionKey);
+    const candidates = norm.map((n, i) => ({ n, i })).filter(({ n, i }) => i !== qi && !n.startsWith('__empty') && !NOT_AN_ANSWER_COLUMN.test(n));
+    // Exact names first ("Your answer" beats "Answer options" even when the latter comes
+    // first), then a header that merely opens with one.
+    const exact = (patterns) => candidates.find(({ n }) => patterns.includes(n));
+    const prefix = (patterns) => candidates.find(({ n }) => patterns.some(p => n.startsWith(p + ' ') || n.startsWith(p + '/') || n.startsWith(p + ':') || n.startsWith(p + ' (')));
+    const hit = exact(ANSWER_HEADER_PATTERNS) ?? prefix(ANSWER_HEADER_PATTERNS) ?? exact(WEAK_ANSWER_HEADER_PATTERNS) ?? prefix(WEAK_ANSWER_HEADER_PATTERNS);
+    return hit ? keys[hit.i] : undefined;
+}
+/**
+ * The fill a form uses to say "write here". Counted over non-formula cells that sit to
+ * the right of a row's first text cell and carry a fill that cell does not — empty or
+ * already written in, because a completed form keeps its boxes. Fills that also colour
+ * the header row are a column's decoration, not a box. Needs to recur — one coloured
+ * cell is decoration, three are a convention.
+ */
+function detectAnswerFill(grid, headerIdx = -1) {
+    const headerFills = new Set((headerIdx >= 0 ? grid.rows[headerIdx] || [] : []).map(c => c.fill).filter(Boolean));
+    const counts = new Map();
+    for (let r = 0; r < grid.rows.length; r++) {
+        if (r === headerIdx)
+            continue;
+        const cells = grid.rows[r];
+        const firstText = cells.findIndex(c => !c.empty && !c.formula);
+        if (firstText < 0)
+            continue;
+        for (let c = firstText + 1; c < cells.length; c++) {
+            const cell = cells[c];
+            if (cell.formula || !cell.fill || headerFills.has(cell.fill))
+                continue;
+            if (cell.fill === cells[firstText].fill)
+                continue;
+            counts.set(cell.fill, (counts.get(cell.fill) ?? 0) + 1);
+        }
+    }
+    let best;
+    let bestN = 0;
+    for (const [fill, n] of counts)
+        if (n > bestN) {
+            best = fill;
+            bestN = n;
+        }
+    return bestN >= 3 ? best : undefined;
+}
+function answerCellByStyle(cells, fromCol, fill) {
+    for (let c = fromCol + 1; c < cells.length; c++) {
+        if (cells[c].fill === fill && !cells[c].formula)
+            return c;
+    }
+    return -1;
+}
+function answerCellAdjacentEmpty(cells, fromCol, cols) {
+    for (let c = fromCol + 1; c < cols; c++) {
+        const cell = cells[c] ?? EMPTY_CELL;
+        if (cell.empty && !cell.formula)
+            return c;
+    }
+    return -1;
+}
+function existingAnswerOf(cell) {
+    if (!cell || cell.empty || cell.formula)
+        return undefined;
+    const n = Number(cell.text.replace(',', '.'));
+    return cell.text !== '' && !Number.isNaN(n) && /^-?\d+(?:[.,]\d+)?$/.test(cell.text) ? n : cell.text;
+}
+// ---- table mode
+function parseTableRows(grid, keys, rows, columnMapping, sheetLabel, answerFill) {
     const questions = [];
-    for (let i = 0; i < jsonData.length; i++) {
-        const row = jsonData[i];
-        const questionText = String(row[columnMapping.questionText] || '').trim();
+    const qCol = keys.indexOf(columnMapping.questionText);
+    const aCol = columnMapping.answerColumn ? keys.indexOf(columnMapping.answerColumn) : -1;
+    const catCol = columnMapping.category ? keys.indexOf(columnMapping.category) : -1;
+    let carriedCategory;
+    // When the sheet marks its answer boxes with a fill and most item rows carry one, the
+    // box is what makes a row an item — the same rule a form uses. It is what separates
+    // "A target is measurable when…" (guidance, no box) from "3.5 Number of work-related
+    // fatalities" (item, box) when both sit in a column labelled "Item". Only applied when
+    // the convention is consistent: a sheet that shades a handful of rows is decorating.
+    const hasBox = (cells) => qCol >= 0 && !!answerFill && answerCellByStyle(cells, qCol, answerFill) >= 0;
+    let requireBox = false;
+    if (answerFill && qCol >= 0) {
+        const textRows = rows.filter(r => String(r.values[columnMapping.questionText] || '').trim() && !isWideBand(grid, r.row - 1, qCol));
+        const boxed = textRows.filter(r => hasBox(r.cells)).length;
+        requireBox = textRows.length > 0 && boxed / textRows.length >= 0.5;
+    }
+    for (let i = 0; i < rows.length; i++) {
+        const { row, values, cells } = rows[i];
+        const questionText = String(values[columnMapping.questionText] || '').trim();
+        // A merged category cell only carries its text on its first row; the rows beneath it
+        // belong to the same category (fixture 07). Track it before the row is judged.
+        if (catCol >= 0) {
+            const cat = String(values[columnMapping.category] || '').trim();
+            if (cat)
+                carriedCategory = cat;
+        }
         if (!questionText)
+            continue;
+        // A section band merged across the table is a heading, not an item, whatever column
+        // its text happens to start in.
+        if (qCol >= 0 && isWideBand(grid, row - 1, qCol)) {
+            carriedCategory = questionText;
+            continue;
+        }
+        if (requireBox && !hasBox(cells))
             continue;
         // A column the buyer LABELLED "Question" (or "Frage", or "Anforderung") has already
         // told us what its cells are, so the shape test that free text needs is the wrong
@@ -836,7 +1023,6 @@ function parseSheetData(jsonData, columnMapping, sheetLabel) {
         if (columnMapping.questionTextFromHeader) {
             if (questionText.length < 6)
                 continue;
-            // Still a guidance paragraph rather than an item, however the column is labelled.
             if (trimGuidance(questionText).length > 700)
                 continue;
             // Case is the one signal that survives translation: a buyer's note sitting in the
@@ -853,22 +1039,123 @@ function parseSheetData(jsonData, columnMapping, sheetLabel) {
         else if (!looksLikeQuestion(questionText)) {
             continue;
         }
-        const question = { id: uuid(), rowIndex: i + 2, text: questionText, rawRow: row };
-        if (columnMapping.category)
-            question.category = String(row[columnMapping.category] || '').trim() || undefined;
+        const question = { id: uuid(), rowIndex: i + 2, text: questionText, rawRow: values };
+        if (catCol >= 0)
+            question.category = carriedCategory;
         if (!question.category && sheetLabel)
             question.category = sheetLabel;
         if (columnMapping.subcategory)
-            question.subcategory = String(row[columnMapping.subcategory] || '').trim() || undefined;
+            question.subcategory = String(values[columnMapping.subcategory] || '').trim() || undefined;
         if (columnMapping.referenceId)
-            question.referenceId = String(row[columnMapping.referenceId] || '').trim() || undefined;
+            question.referenceId = String(values[columnMapping.referenceId] || '').trim() || undefined;
         if (columnMapping.required)
-            question.required = parseRequired(row[columnMapping.required]);
+            question.required = parseRequired(values[columnMapping.required]);
+        question.location = { sheet: grid.name, row, questionCol: qCol >= 0 ? colLetter(qCol) : undefined };
+        let a = -1;
+        if (aCol >= 0) {
+            a = aCol;
+            question.answerCellSource = 'header';
+        }
+        else if (answerFill && qCol >= 0) {
+            a = answerCellByStyle(cells, qCol, answerFill);
+            if (a >= 0)
+                question.answerCellSource = 'style';
+        }
+        if (a >= 0) {
+            question.location.answerCell = `${colLetter(a)}${row}`;
+            question.existingAnswer = existingAnswerOf(cells[a]);
+        }
         questions.push(question);
     }
     return questions;
 }
-const SKIP_SHEET_PATTERN = /^(intro|guidance|instruction|definition|dropdown|option|admin|validation|response.?status|summary|about|help|readme|cover|glossary|reference|changelog|version|menu|list|lookup|data.?valid|mapping|config|translation|language)/i;
+// ---- form mode
+const LABEL_ENDING = /:\s*$/;
+const NUMBERING_CELL = /^(?:\(?\d{1,3}(?:\.\d{1,3})*[.)]?|[A-Z]{1,4}[-.]?\d{1,3}(?:\.\d{1,3})*)$/;
+const OPTION_ROW = /^(?:[-–•·]|\[\s*\]|☐|☑|✓|\(\s*\))\s*/;
+const LOWERCASE_START = /^[a-zà-ÿ]/;
+/**
+ * Read a sheet that has no header row. A question is a text cell with an empty shaded
+ * answer cell to its right; a section band is a wide merge; a number in a cell to the
+ * left is the reference id; a row that opens lowercase is the rest of the row above.
+ *
+ * Only used when the sheet carries a style signal — without one, "empty cell to the
+ * right" is true of every instruction line ever written.
+ */
+function parseFormRows(grid, answerFill, sheetLabel) {
+    const questions = [];
+    let category;
+    let pending = null;
+    let ordinal = 0;
+    // `row` is where the question starts; `answerRow` is where its box is — the same row
+    // except for a question wrapped over two rows whose box sits on the second (01, Q8).
+    const emit = (text, row, qCol, referenceId, aCol, answerRow, cells) => {
+        ordinal++;
+        const q = {
+            id: uuid(), rowIndex: ordinal + 1, text, rawRow: Object.fromEntries(cells.map((c, i) => [colLetter(i), c.text])),
+            category: category ?? sheetLabel, referenceId,
+            location: { sheet: grid.name, row, questionCol: colLetter(qCol), answerCell: `${colLetter(aCol)}${answerRow}` },
+            answerCellSource: 'style',
+            existingAnswer: existingAnswerOf(cells[aCol]),
+        };
+        questions.push(q);
+    };
+    for (let r = 0; r < grid.rows.length; r++) {
+        const cells = grid.rows[r];
+        const firstText = cells.findIndex(c => !c.empty && !c.formula && !/^[\d.,\s%]+$/.test(c.text));
+        if (firstText < 0) {
+            pending = null;
+            continue;
+        }
+        const text = cells[firstText].text;
+        if (isWideBand(grid, r, firstText)) {
+            // Banner, section band, instructions block, signature line. Short upper-case-ish
+            // bands name the section; the rest is ignored.
+            if (wordCount(text) <= 8 && !ENDS_WITH_QUESTION.test(text))
+                category = text.replace(/^(section|abschnitt|teil|part)\s+[A-Z0-9]+\s*[-–:.]\s*/i, '').trim() || category;
+            pending = null;
+            continue;
+        }
+        const aCol = answerCellByStyle(cells, firstText, answerFill);
+        const continuation = LOWERCASE_START.test(text) && pending && pending.row === r;
+        if (continuation && pending) {
+            pending.text = `${pending.text} ${text}`;
+            if (aCol >= 0) {
+                emit(pending.text, pending.row, pending.qCol, pending.referenceId, aCol, r + 1, cells);
+                pending = null;
+            }
+            else
+                pending.row = r + 1;
+            continue;
+        }
+        pending = null;
+        if (OPTION_ROW.test(text) || /^\s/.test(cells[firstText].text))
+            continue;
+        if (LABEL_ENDING.test(text) && wordCount(text) < 6)
+            continue;
+        if (wordCount(text) < 3 && !ENDS_WITH_QUESTION.test(text))
+            continue;
+        if (SKIP_PATTERNS.some(p => p.test(text)))
+            continue;
+        if (trimGuidance(text).length > 700)
+            continue;
+        let referenceId;
+        for (let c = firstText - 1; c >= 0; c--) {
+            const left = cells[c].text;
+            if (left && NUMBERING_CELL.test(left)) {
+                referenceId = left.replace(/[.)]$/, '');
+                break;
+            }
+        }
+        if (aCol >= 0)
+            emit(text, r + 1, firstText, referenceId, aCol, r + 1, cells);
+        else
+            pending = { text, row: r + 1, qCol: firstText, referenceId };
+    }
+    return questions;
+}
+// ---- sheets
+const SKIP_SHEET_PATTERN = /^(intro|guidance|instruction|definition|dropdown|option|admin|validation|response.?status|summary|about|help|read\s?me|cover|glossary|reference|changelog|version|menu|list|lookup|data.?valid|mapping|config|translation|language|scoring|hinweis|anleitung|erl[äa]uterung)/i;
 function shouldSkipSheet(name) {
     return SKIP_SHEET_PATTERN.test(name.trim());
 }
@@ -877,11 +1164,11 @@ function shouldSkipSheet(name) {
 // ("beschäftigen" → "beschÃ¤ftigen"). Strip a UTF-8 BOM and decode as UTF-8, falling back to
 // Windows-1252 for legacy exports whose bytes aren't valid UTF-8 (German Excel's default "CSV"
 // on a German-locale machine). Binary formats (xlsx/xls) store their own encoding, so they are
-// read as bytes unchanged.
+// read as bytes unchanged — with cell styles, because a form says "answer here" with a fill.
 async function readWorkbook(file) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (getFileExtension(file.name) !== 'csv') {
-        return XLSX.read(bytes, { type: 'array' });
+        return XLSX.read(bytes, { type: 'array', cellStyles: true });
     }
     const body = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? bytes.subarray(3) : bytes;
     let text;
@@ -892,6 +1179,56 @@ async function readWorkbook(file) {
         text = new TextDecoder('windows-1252').decode(body);
     }
     return XLSX.read(text, { type: 'string' });
+}
+function parseSheet(grid, sheetLabel, rowCap, errors) {
+    if (grid.rows.length === 0)
+        return null;
+    const valueGrid = grid.rows.map(r => r.map(c => c.text));
+    const headerIdx = findHeaderRow(valueGrid);
+    // findHeaderRow answers 0 both for "the header is row one" and "there is no header";
+    // only a row that actually names a question column counts as a header here.
+    const headerNamed = headerIdx > 0 || ((valueGrid[0] || []).filter(Boolean).length >= 2 && (valueGrid[0] || []).some(cell => COLUMN_PATTERNS.questionText.some(p => { const c = String(cell).toLowerCase().trim(); return c === p || c.includes(p); })));
+    const answerFill = detectAnswerFill(grid, headerNamed ? headerIdx : -1);
+    // FORM: nothing names a column, but the sheet has a "write here" fill. Row one is not
+    // a header, it is the first row of the form.
+    if (!headerNamed && answerFill) {
+        const questions = parseFormRows(grid, answerFill, sheetLabel);
+        if (questions.length > 0) {
+            const rowsRead = Math.min(grid.rows.filter(r => r.some(c => !c.empty)).length, rowCap);
+            return { questions, rowsRead, keys: headerKeys(grid.rows[0] || []), mapping: { questionText: '', questionTextFromHeader: false }, mode: 'form' };
+        }
+    }
+    // TABLE: the header row (found or assumed to be row one) names the columns.
+    const { keys, rows } = rowsUnderHeader(grid, headerIdx);
+    const data = rows.slice(0, rowCap);
+    if (rows.length > data.length) {
+        errors.push(`Sheet "${grid.name}" has ${rows.length.toLocaleString('en-GB')} rows; only the first ${data.length.toLocaleString('en-GB')} were read.`);
+    }
+    if (data.length === 0)
+        return null;
+    const mapping = detectColumnMapping(keys, data.slice(0, 10).map(r => r.values));
+    if (!mapping.questionText)
+        return { questions: [], rowsRead: data.length, keys, mapping, mode: 'table' };
+    mapping.answerColumn = detectAnswerColumn(keys, mapping.questionText);
+    const questions = parseTableRows(grid, keys, data, mapping, sheetLabel, answerFill);
+    return { questions, rowsRead: data.length, keys, mapping, mode: 'table' };
+}
+/** Collapse repeats to one question per identity, keeping every location. */
+function dedupeKeepingLocations(all) {
+    const byKey = new Map();
+    const out = [];
+    for (const q of all) {
+        const key = questionIdentity(q);
+        const first = byKey.get(key);
+        if (!first) {
+            byKey.set(key, q);
+            out.push(q);
+            continue;
+        }
+        if (q.location)
+            (first.locations ??= []).push(q.location);
+    }
+    return out;
 }
 async function parseSpreadsheetFile(file) {
     const errors = [];
@@ -904,62 +1241,32 @@ async function parseSpreadsheetFile(file) {
         let primaryMapping = { questionText: '' };
         let totalRows = 0;
         let availableColumns = [];
-        let sheetsSkipped = 0;
-        // A workbook is attacker-shaped input: sheet_to_json materialises every row of
-        // every sheet into objects before anything looks at them, so the caps have to bite
-        // here rather than after. Anything trimmed is reported, never dropped silently.
+        // A workbook is attacker-shaped input, so the caps bite per sheet, before anything
+        // is materialised. Anything trimmed is reported, never dropped silently.
         const sheetNames = workbook.SheetNames.slice(0, MAX_SHEETS);
         if (workbook.SheetNames.length > MAX_SHEETS) {
             errors.push(`This workbook has ${workbook.SheetNames.length} sheets; only the first ${MAX_SHEETS} were read.`);
         }
         for (const sheetName of sheetNames) {
-            if (sheetNames.length > 1 && shouldSkipSheet(sheetName)) {
-                sheetsSkipped++;
+            if (sheetNames.length > 1 && shouldSkipSheet(sheetName))
                 continue;
-            }
             if (totalRows >= MAX_TOTAL_ROWS) {
                 errors.push(`Stopped after ${MAX_TOTAL_ROWS.toLocaleString('en-GB')} rows. Later sheets were not read.`);
                 break;
             }
-            const sheet = workbook.Sheets[sheetName];
-            // Find the header row before reading the sheet into objects: sheet_to_json takes
-            // whichever row it starts on as the keys, so starting a row too high turns a title
-            // banner into the column names and every real row into empty cells.
-            const grid = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false, blankrows: false });
-            const headerRow = findHeaderRow(grid);
-            const allRows = XLSX.utils.sheet_to_json(sheet, {
-                defval: '',
-                raw: false,
-                ...(headerRow > 0 ? { range: headerRow } : {}),
-            });
-            const jsonData = allRows.slice(0, Math.min(MAX_ROWS_PER_SHEET, MAX_TOTAL_ROWS - totalRows));
-            if (allRows.length > jsonData.length) {
-                errors.push(`Sheet "${sheetName}" has ${allRows.length.toLocaleString('en-GB')} rows; only the first ${jsonData.length.toLocaleString('en-GB')} were read.`);
-            }
-            if (jsonData.length === 0)
-                continue;
-            const headers = Object.keys(jsonData[0]);
-            if (availableColumns.length === 0)
-                availableColumns = headers;
-            const columnMapping = detectColumnMapping(headers, jsonData.slice(0, 10));
-            if (!primaryMapping.questionText && columnMapping.questionText) {
-                primaryMapping = columnMapping;
-            }
-            if (!columnMapping.questionText)
-                continue;
-            totalRows += jsonData.length;
+            const grid = readGrid(workbook.Sheets[sheetName], sheetName);
             const useSheetLabel = workbook.SheetNames.length > 1 ? sheetName : undefined;
-            allQuestions.push(...parseSheetData(jsonData, columnMapping, useSheetLabel));
+            const outcome = parseSheet(grid, useSheetLabel, Math.min(MAX_ROWS_PER_SHEET, MAX_TOTAL_ROWS - totalRows), errors);
+            if (!outcome)
+                continue;
+            if (availableColumns.length === 0)
+                availableColumns = outcome.keys;
+            if (!primaryMapping.questionText && outcome.mapping.questionText)
+                primaryMapping = outcome.mapping;
+            totalRows += outcome.rowsRead;
+            allQuestions.push(...outcome.questions);
         }
-        const seen = new Set();
-        const dedupedQuestions = [];
-        for (const q of allQuestions) {
-            const key = questionIdentity(q);
-            if (!seen.has(key)) {
-                seen.add(key);
-                dedupedQuestions.push(q);
-            }
-        }
+        const dedupedQuestions = dedupeKeepingLocations(allQuestions);
         let autoDetectionConfidence = 'high';
         if (dedupedQuestions.length === 0) {
             autoDetectionConfidence = 'low';
@@ -1005,19 +1312,30 @@ async function parseSpreadsheetFile(file) {
 // ============================================
 // Re-parse with Manual Mapping
 // ============================================
+/**
+ * The user has named the columns. Row one is the header, as it always was for this
+ * path; the mapping keys are the same sheet_to_json-style names the app showed them.
+ * A named question column is trusted the way a labelled one is (`questionTextFromHeader`
+ * is set unless the caller says otherwise), and the answer cell is still looked up by
+ * header or by fill.
+ */
 export async function reprocessWithMapping(file, manualMapping) {
     try {
         const workbook = await readWorkbook(file);
         const allQuestions = [];
         let totalRows = 0;
+        const mapping = { questionTextFromHeader: true, ...manualMapping };
         for (const sheetName of workbook.SheetNames) {
-            const sheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
-            if (jsonData.length === 0)
+            const grid = readGrid(workbook.Sheets[sheetName], sheetName);
+            if (grid.rows.length === 0)
                 continue;
-            totalRows += jsonData.length;
+            const { keys, rows } = rowsUnderHeader(grid, 0);
+            if (rows.length === 0 || !keys.includes(mapping.questionText))
+                continue;
+            totalRows += rows.length;
             const useSheetLabel = workbook.SheetNames.length > 1 ? sheetName : undefined;
-            allQuestions.push(...parseSheetData(jsonData, manualMapping, useSheetLabel));
+            const sheetMapping = { ...mapping, answerColumn: mapping.answerColumn ?? detectAnswerColumn(keys, mapping.questionText) };
+            allQuestions.push(...parseTableRows(grid, keys, rows, sheetMapping, useSheetLabel, detectAnswerFill(grid)));
         }
         const detectedFramework = detectFramework(allQuestions);
         if (detectedFramework)
@@ -1025,7 +1343,7 @@ export async function reprocessWithMapping(file, manualMapping) {
         return {
             success: allQuestions.length > 0, questions: allQuestions,
             errors: allQuestions.length === 0 ? ['No questions found with the selected column mapping.'] : [],
-            metadata: { fileName: file.name, totalRows, parsedRows: allQuestions.length, detectedFramework, columnMapping: manualMapping },
+            metadata: { fileName: file.name, totalRows, parsedRows: allQuestions.length, detectedFramework, columnMapping: mapping },
         };
     }
     catch (error) {

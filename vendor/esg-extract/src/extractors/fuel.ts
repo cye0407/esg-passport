@@ -5,6 +5,7 @@
 import type { ExtractionResult, ExtractedField, ExtractionConfig, Issue } from '../types';
 import { parseNumber } from '../matchers/units';
 import { adjustConfidence } from '../matchers/confidence';
+import { detectReportingPeriod, detectReportingPeriodDetails } from '../matchers/period';
 
 function parseFuelNumber(raw: string): number | null {
   const normalized = raw.replace(/[OoCc]/g, '0').replace(/[Il]/g, '1').trim();
@@ -45,6 +46,8 @@ function deriveDieselLitersFromPriceAndAmount(text: string): ExtractedField | un
 }
 
 function detectPeriod(text: string): string | undefined {
+  const sharedPeriod = detectReportingPeriod(text);
+  if (sharedPeriod) return sharedPeriod;
   const monthYear = /\b(jan(?:uar[iy]?)?|feb(?:ruar[iy]?)?|m[aä]r[czs]?|apr(?:il)?|ma[iy]|jun[ei]?|jul[iy]?|aug(?:ust)?|sep(?:tember)?|o[ck]t(?:ober)?|nov(?:ember)?|de[czs](?:ember)?)\s*(\d{4})\b/i;
   const myMatch = monthYear.exec(text);
   if (myMatch) {
@@ -88,6 +91,7 @@ export function extractFuel(
   config?: ExtractionConfig,
 ): ExtractionResult {
   const period = detectPeriod(text);
+  const periodDetails = detectReportingPeriodDetails(text);
   let fields: ExtractedField[] = [];
 
   for (const pattern of FUEL_PATTERNS) {
@@ -163,9 +167,12 @@ export function extractFuel(
 
   return {
     success: fields.length > 0,
-    documentType: 'gas_invoice', // reuse closest type
+    documentType: 'fleet_fuel_report',
     provider: undefined,
     period,
+    periodStart: periodDetails?.periodStart,
+    periodEnd: periodDetails?.periodEnd,
+    coveredMonths: periodDetails?.coveredMonths,
     fields,
     issues,
     gaps: fields.length === 0 ? ['dieselLiters'] : [],

@@ -32,6 +32,10 @@ describe('SME clean-stack periods through the real extractor', () => {
     for (const [file, period] of expected) {
       const result = await extractFromPdf(readFileSync(join(CLEAN, file)));
       expect(result.period, file).toBe(period);
+      expect(result.periodStart, file).toBe(period);
+      expect(result.periodEnd, file).toBe(`${period.slice(0, 5)}${String(Number(period.slice(5)) + 2).padStart(2, '0')}`);
+      expect(result.coveredMonths, file).toEqual(Array.from({ length: 3 }, (_, offset) =>
+        `${period.slice(0, 5)}${String(Number(period.slice(5)) + offset).padStart(2, '0')}`));
     }
   });
 });
