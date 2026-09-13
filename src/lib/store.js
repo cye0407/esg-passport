@@ -35,6 +35,8 @@ const getDefaultData = () => ({
   documents: [],
   masterAnswers: [],
   savedResults: [],
+  // Answers imported from a response pack; prior answers for the next questionnaire.
+  responsePackAnswers: [],
   settings: {
     gridCountry: 'EU_AVERAGE',
     currency: 'EUR',

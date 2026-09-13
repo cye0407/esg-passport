@@ -22,6 +22,7 @@ import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
 import { canReturnOriginal, fillOriginalWorkbook, describeAnswerPlacement } from '@/lib/originalWorkbook';
 import { priorApi, readPriorQuestionnaire, recoverAnswers, rejectRecovered } from '@/lib/priorQuestionnaire';
+import { packAnswersInStore, priorAnswersFromPack } from '@/lib/responsePack';
 import { track } from '@/lib/track';
 import { clearDynamicImportRecovery, isDynamicImportFailure, recoverFromDynamicImportFailure } from '@/lib/dynamicImportRecovery';
 import {
@@ -1153,6 +1154,15 @@ export default function Respond({ demoOnly = false }) {
     showFeedback(t('prior.applied', { count: result.recovered }));
   };
 
+  // Answers already in the user's response pack need no file: offer them as the batch.
+  const packAnswerCount = packAnswersInStore().length;
+  const usePackAnswers = () => {
+    const priors = priorAnswersFromPack(packAnswersInStore());
+    if (priors.length === 0) return;
+    setPriorError(null);
+    setPriorBatch({ ok: true, priors, questions: priors.length, fileName: t('prior.packName'), applied: false });
+  };
+
   const dismissRecovered = (questionId) => {
     const current = answerDrafts.find(d => d.questionId === questionId);
     if (!current) return;
@@ -1742,9 +1752,16 @@ export default function Respond({ demoOnly = false }) {
                   <p className="mt-0.5 text-sm text-slate-600">{t('prior.body')}</p>
                   {priorError && <p className="mt-1 text-sm text-red-700">{priorError}</p>}
                 </div>
-                <Button variant="outline" className="rounded-none shrink-0" onClick={() => priorInputRef.current?.click()}>
-                  <UploadIcon className="w-4 h-4 mr-1.5" />{t('prior.cta')}
-                </Button>
+                <div className="flex flex-wrap gap-2 shrink-0">
+                  {packAnswerCount > 0 && (
+                    <Button variant="outline" className="rounded-none" onClick={usePackAnswers}>
+                      {t('prior.usePack', { count: packAnswerCount })}
+                    </Button>
+                  )}
+                  <Button variant="outline" className="rounded-none" onClick={() => priorInputRef.current?.click()}>
+                    <UploadIcon className="w-4 h-4 mr-1.5" />{t('prior.cta')}
+                  </Button>
+                </div>
               </div>
             )}
             {priorBatch && !priorBatch.applied && (

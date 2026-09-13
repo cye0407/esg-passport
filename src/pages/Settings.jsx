@@ -17,6 +17,7 @@ import { deactivateLicense, getStoredLicense } from '@/lib/license';
 import { canActivateAnotherKey } from '@/lib/entitlements';
 import { serializeBackup, mergeImportedBackup } from '@/lib/backup';
 import { useLicense } from '@/components/LicenseContext';
+import ResponsePackSection from '@/components/settings/ResponsePackSection';
 import buildInfo from '@/buildInfo.json';
 
 const PASSPORT_SHA = typeof __PASSPORT_SHA__ === 'string' ? __PASSPORT_SHA__ : 'dev';
@@ -297,6 +298,9 @@ export default function Settings() {
           )}
         </div>
       </CollapsibleSection>
+
+      {/* Your response pack — the record you keep instead of an account */}
+      <ResponsePackSection />
 
       {/* Data Management */}
       <div className="bg-white border border-slate-200 rounded-none p-6">

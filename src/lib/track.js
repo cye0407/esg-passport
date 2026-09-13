@@ -207,6 +207,9 @@ const EVENT_SCHEMA = {
   previous_questionnaire_added: { questions: count(), priors: count(), recovered: count(), flagged: count() },
   // Results generated while another questionnaire's results were already saved on this device.
   second_questionnaire_processed: { saved_before: count() },
+  // The response pack — the record kept as a file. Counts only; never its contents.
+  response_pack_saved: { answers: count(), facts: count(), claims: count(), encrypted: bool() },
+  response_pack_opened: { answers: count(), claims: count(), policies: count() },
   respond_demo_library_loaded: { source: slug() },
 
   // Policies

@@ -57,6 +57,30 @@ export function getQuestionnairePassClaim(licenseKeyId) {
   return readClaims().claims[String(licenseKeyId)] || null;
 }
 
+/** Every pass claim on this device, keyed by licence reference — what a response pack carries. */
+export function listQuestionnairePassClaims() {
+  const { claims } = readClaims();
+  return Object.entries(claims).map(([licenceRef, claim]) => ({ licenceRef, ...claim }));
+}
+
+/**
+ * Re-enter claims from a response pack. A licence reference already claimed on this
+ * device keeps what it has; the pack never overrides a live claim. Returns how many
+ * were added.
+ */
+export function importQuestionnairePassClaims(claims) {
+  const state = readClaims();
+  let added = 0;
+  for (const c of claims || []) {
+    const key = String(c?.licenceRef || '');
+    if (!key || !c?.fingerprint || state.claims[key]) continue;
+    state.claims[key] = { fingerprint: c.fingerprint, displayName: String(c.displayName || 'Customer questionnaire'), claimedAt: c.claimedAt || new Date().toISOString() };
+    added += 1;
+  }
+  if (added > 0) localStorage.setItem(QUESTIONNAIRE_PASS_STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, claims: state.claims }));
+  return added;
+}
+
 export function claimQuestionnaire({ licenseKeyId, fingerprint, displayName, claimedAt }) {
   if (!licenseKeyId || !fingerprint) {
     throw new Error('Questionnaire Pass claim identity is unavailable. Revalidate the license and try again.');
