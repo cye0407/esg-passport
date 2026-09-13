@@ -3,6 +3,12 @@ import { createRoot } from 'react-dom/client';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Every test here mounts a full page — the Data page alone is 1,800 lines — inside the
+// parallel suite, and on a busy machine that takes 5–7 s against vitest's 5 s default;
+// alone each takes 1–3 s. The longer limit is for the machine, not the code: measured
+// 2026-09-13 on main, same result before and after the engine re-vendor.
+vi.setConfig({ testTimeout: 20_000 });
+
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 // A smoke test, deliberately shallow in what it asserts and deliberately real in what it
