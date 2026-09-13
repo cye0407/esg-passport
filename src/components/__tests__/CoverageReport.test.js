@@ -128,7 +128,7 @@ describe('CoverageReport', () => {
     expect(container.textContent).toContain('During 2025, electricity consumption across our reporting boundary was 425000 kWh.');
     expect(container.textContent).toContain('€99');
     expect(container.textContent).not.toContain('€499');
-    expect(container.textContent).toContain('After payment, you return to this page with your answers filled in.');
+    expect(container.textContent).toContain('After payment you return here, confirm which questionnaire your pass covers, and see your answers filled in.');
   });
 
   it('does not promote a strong-looking answer without a named source document', async () => {

@@ -20,10 +20,9 @@ import { localizeEngineMessages } from '@/lib/engineMessages';
 import { PASSPORT_CHECKOUT_URL, QUESTIONNAIRE_PASS_CHECKOUT_URL, openCheckout, checkoutLinkProps } from '@/lib/checkout';
 import { enhanceAnswer, enhanceBatch } from '@/lib/aiEnhancer';
 import { exportAnswersAsHtml, exportAnswersAsWord, printAnswersAsPdf } from '@/lib/respondExport';
-import { canReturnOriginal, fillOriginalWorkbook, describeAnswerPlacement } from '@/lib/originalWorkbook';
+import { canReturnOriginal, fillOriginalWorkbook, describeAnswerPlacement, originalMatchesQuestionnaire } from '@/lib/originalWorkbook';
 import { priorApi, readPriorQuestionnaire, recoverAnswers, rejectRecovered } from '@/lib/priorQuestionnaire';
 import { packAnswersInStore, priorAnswersFromPack, saveResponsePackFile } from '@/lib/responsePack';
-import { fingerprintQuestionnaire } from '@/lib/questionnairePass';
 import { track } from '@/lib/track';
 import { clearDynamicImportRecovery, isDynamicImportFailure, recoverFromDynamicImportFailure } from '@/lib/dynamicImportRecovery';
 import {
@@ -109,7 +108,10 @@ const SUPPORT_CONFIG = {
 
 // The export formats, once. The buyer's own file leads whenever it can come back — that is
 // the job — and the others follow as the summary formats they are.
-function ExportFormatChoices({ exportFormat, setExportFormat, originalAvailable, t }) {
+function ExportFormatChoices({ exportFormat, setExportFormat, originalAvailable, originalPossible, onReselectOriginal, rehydrateError, t }) {
+  // The original's bytes are never kept, so after the checkout redirect or a reload the
+  // file is gone while the questions still know their cells: ask for it again, here.
+  const reselectRef = useRef(null);
   const option = (value, label, desc, highlight = false) => (
     <label className={`flex items-start gap-2 rounded border p-3 cursor-pointer ${highlight ? 'border-slate-900 bg-slate-50 col-span-2' : 'border-slate-200'}`}>
       <RadioGroupItem value={value} className="mt-0.5" />
@@ -120,6 +122,17 @@ function ExportFormatChoices({ exportFormat, setExportFormat, originalAvailable,
     </label>
   );
   return (
+    <>
+      {originalPossible && !originalAvailable && (
+        <div className="mb-3 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p>{t('respond.rehydrateBody')}</p>
+          <input ref={reselectRef} type="file" accept=".xlsx,.xlsm" className="hidden" onChange={onReselectOriginal} />
+          <button type="button" onClick={() => reselectRef.current?.click()} className="mt-2 font-medium underline decoration-amber-400 underline-offset-4 hover:decoration-amber-900">
+            {t('respond.rehydrateCta')}
+          </button>
+          {rehydrateError && <p className="mt-1 text-red-700">{rehydrateError}</p>}
+        </div>
+      )}
     <RadioGroup value={exportFormat} onValueChange={setExportFormat} className="grid grid-cols-2 gap-3">
       {originalAvailable && option('original', t('respond.fmtOriginal'), t('respond.fmtOriginalDesc'), true)}
       {option('xlsx', 'Excel', t('respond.fmtExcelDesc'))}
@@ -127,6 +140,7 @@ function ExportFormatChoices({ exportFormat, setExportFormat, originalAvailable,
       {option('doc', 'Word', t('respond.fmtWordDesc'))}
       {option('html', 'HTML', t('respond.fmtHtmlDesc'))}
     </RadioGroup>
+    </>
   );
 }
 
@@ -254,7 +268,6 @@ export default function Respond({ demoOnly = false }) {
   // The original file's bytes are never stored, so after the checkout redirect (or any
   // reload) `file` is null while the parsed questions still know their answer cells. The
   // export dialog then asks for the file again and checks it is the same questionnaire.
-  const originalInputRef = useRef(null);
   const [rehydrateError, setRehydrateError] = useState(null);
   const [showSavePackNudge, setShowSavePackNudge] = useState(false);
   const [savePackBusy, setSavePackBusy] = useState(false);
@@ -1190,7 +1203,8 @@ export default function Respond({ demoOnly = false }) {
     try {
       const engine = await getEngine();
       const parsed = await engine.parseFile(f);
-      const same = parsed.success && fingerprintQuestionnaire(parsed.questions) === fingerprintQuestionnaire(parseResult.questions);
+      // Not a fingerprint: the page holds the confirmed list, the file has every row.
+      const same = parsed.success && originalMatchesQuestionnaire(parsed.questions, parseResult.questions);
       if (!same) { setRehydrateError(t('respond.rehydrateMismatch', { fileName: f.name })); return; }
       setFile(f);
       setExportFormat('original');
@@ -1552,17 +1566,15 @@ export default function Respond({ demoOnly = false }) {
 
             <div className="border-t border-slate-100 pt-4">
               <p className="text-sm font-semibold text-slate-900 mb-2">{t('respond.exportFormat')}</p>
-              {originalPossible && !originalAvailable && (
-                <div className="mb-3 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  <p>{t('respond.rehydrateBody')}</p>
-                  <input ref={originalInputRef} type="file" accept=".xlsx,.xlsm" className="hidden" onChange={handleRehydrateOriginal} />
-                  <button type="button" onClick={() => originalInputRef.current?.click()} className="mt-2 font-medium underline decoration-amber-400 underline-offset-4 hover:decoration-amber-900">
-                    {t('respond.rehydrateCta')}
-                  </button>
-                  {rehydrateError && <p className="mt-1 text-red-700">{rehydrateError}</p>}
-                </div>
-              )}
-              <ExportFormatChoices exportFormat={exportFormat} setExportFormat={setExportFormat} originalAvailable={originalAvailable} t={t} />
+              <ExportFormatChoices
+                exportFormat={exportFormat}
+                setExportFormat={setExportFormat}
+                originalAvailable={originalAvailable}
+                originalPossible={originalPossible}
+                onReselectOriginal={handleRehydrateOriginal}
+                rehydrateError={rehydrateError}
+                t={t}
+              />
             </div>
 
             {!exportWarnings.allGood && (
@@ -2488,17 +2500,15 @@ export default function Respond({ demoOnly = false }) {
 
             <div className="border-t border-slate-100 pt-4">
               <p className="text-sm font-semibold text-slate-900 mb-2">{t('respond.exportFormat')}</p>
-              {originalPossible && !originalAvailable && (
-                <div className="mb-3 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  <p>{t('respond.rehydrateBody')}</p>
-                  <input ref={originalInputRef} type="file" accept=".xlsx,.xlsm" className="hidden" onChange={handleRehydrateOriginal} />
-                  <button type="button" onClick={() => originalInputRef.current?.click()} className="mt-2 font-medium underline decoration-amber-400 underline-offset-4 hover:decoration-amber-900">
-                    {t('respond.rehydrateCta')}
-                  </button>
-                  {rehydrateError && <p className="mt-1 text-red-700">{rehydrateError}</p>}
-                </div>
-              )}
-              <ExportFormatChoices exportFormat={exportFormat} setExportFormat={setExportFormat} originalAvailable={originalAvailable} t={t} />
+              <ExportFormatChoices
+                exportFormat={exportFormat}
+                setExportFormat={setExportFormat}
+                originalAvailable={originalAvailable}
+                originalPossible={originalPossible}
+                onReselectOriginal={handleRehydrateOriginal}
+                rehydrateError={rehydrateError}
+                t={t}
+              />
             </div>
 
             {!exportWarnings.allGood && (
@@ -3000,17 +3010,15 @@ export default function Respond({ demoOnly = false }) {
 
           <div className="border-t border-slate-100 pt-4">
             <p className="text-sm font-semibold text-slate-900 mb-2">{t('respond.exportFormat')}</p>
-            {originalPossible && !originalAvailable && (
-                <div className="mb-3 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  <p>{t('respond.rehydrateBody')}</p>
-                  <input ref={originalInputRef} type="file" accept=".xlsx,.xlsm" className="hidden" onChange={handleRehydrateOriginal} />
-                  <button type="button" onClick={() => originalInputRef.current?.click()} className="mt-2 font-medium underline decoration-amber-400 underline-offset-4 hover:decoration-amber-900">
-                    {t('respond.rehydrateCta')}
-                  </button>
-                  {rehydrateError && <p className="mt-1 text-red-700">{rehydrateError}</p>}
-                </div>
-              )}
-              <ExportFormatChoices exportFormat={exportFormat} setExportFormat={setExportFormat} originalAvailable={originalAvailable} t={t} />
+            <ExportFormatChoices
+                exportFormat={exportFormat}
+                setExportFormat={setExportFormat}
+                originalAvailable={originalAvailable}
+                originalPossible={originalPossible}
+                onReselectOriginal={handleRehydrateOriginal}
+                rehydrateError={rehydrateError}
+                t={t}
+              />
           </div>
 
           {!exportWarnings.allGood && (

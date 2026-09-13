@@ -68,8 +68,10 @@ export function LicenseProvider({ children }) {
           tier: result.tier || getLicenseTier(),
         });
         setIsChecking(false);
+        // The buyer has just paid to see the answers. The report is the page they were
+        // looking at before paying; landing there again reads as "nothing happened".
         if (result.valid && readCoverageStash()) {
-          window.location.hash = '#/respond?view=report';
+          window.location.hash = '#/respond?view=answers';
         }
         return;
       }

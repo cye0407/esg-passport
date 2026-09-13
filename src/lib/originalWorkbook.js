@@ -80,6 +80,21 @@ export async function fillOriginalWorkbook({ file, questions, drafts, engine }) 
   };
 }
 
+/**
+ * Is a freshly parsed file the questionnaire on this page? The page holds the CONFIRMED
+ * list — the user may have unticked junk rows at the confirm step, and the thin-parse
+ * warning tells them to — so the fresh, full parse is a superset, never an exact match.
+ * The test is: every confirmed question is in the file. A different buyer's form fails
+ * it; the same form with its instruction rows still in passes it.
+ */
+export function originalMatchesQuestionnaire(freshQuestions, confirmedQuestions) {
+  const norm = t => String(t || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+  const fresh = new Set((freshQuestions || []).map(q => norm(q.text)));
+  const confirmed = (confirmedQuestions || []).map(q => norm(q.text)).filter(Boolean);
+  if (confirmed.length === 0 || fresh.size === 0) return false;
+  return confirmed.every(t => fresh.has(t));
+}
+
 /** One plain sentence for the confirm step: where the answers will go. */
 export function describeAnswerPlacement(questions) {
   const located = (questions || []).filter(q => q.location?.answerCell);

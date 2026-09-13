@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildOriginalWrites, canReturnOriginal, describeAnswerPlacement } from '../originalWorkbook';
+import { buildOriginalWrites, canReturnOriginal, describeAnswerPlacement, originalMatchesQuestionnaire } from '../originalWorkbook';
 
 // Which drafts may be written into the buyer's file. The engine can write any text into
 // any cell; this is where "should it" is decided, and the rules are the product's honesty
@@ -69,5 +69,24 @@ describe('describeAnswerPlacement', () => {
     expect(describeAnswerPlacement([q('a', 'D13', { answerCellSource: 'style' }), q('b', 'C15', { answerCellSource: 'style' })])).toEqual({ kind: 'boxes', count: 2, total: 2, columns: ['C', 'D'] });
     expect(describeAnswerPlacement([q('a', 'F11', { answerCellSource: 'header' }), q('b', 'F12', { answerCellSource: 'header' })])).toEqual({ kind: 'column', count: 2, total: 2, columns: ['F'] });
     expect(describeAnswerPlacement([{ id: 'a', text: 'a' }])).toEqual({ kind: 'none', count: 0, total: 1 });
+  });
+});
+
+describe('originalMatchesQuestionnaire', () => {
+  const fresh = [{ text: 'Registered legal entity name' }, { text: 'Answer in the shaded box.' }, { text: 'Number of employees (FTE)' }, { text: 'Do you measure Scope 1 and Scope 2 emissions?' }];
+
+  it('accepts the same file after the user unticked junk rows at the confirm step', () => {
+    const confirmed = [{ text: 'Registered legal entity name' }, { text: 'Number of employees (FTE)' }, { text: 'Do you measure Scope 1 and Scope 2 emissions?' }];
+    expect(originalMatchesQuestionnaire(fresh, confirmed)).toBe(true);
+  });
+
+  it('is indifferent to case and spacing, which a re-parse may change', () => {
+    expect(originalMatchesQuestionnaire(fresh, [{ text: '  registered   legal entity NAME ' }])).toBe(true);
+  });
+
+  it("refuses a different buyer's form, and an empty page", () => {
+    expect(originalMatchesQuestionnaire(fresh, [{ text: 'Do you have a supplier code of conduct?' }, { text: 'Number of employees (FTE)' }])).toBe(false);
+    expect(originalMatchesQuestionnaire(fresh, [])).toBe(false);
+    expect(originalMatchesQuestionnaire([], [{ text: 'x' }])).toBe(false);
   });
 });
