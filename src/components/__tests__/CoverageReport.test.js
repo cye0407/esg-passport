@@ -100,6 +100,46 @@ describe('CoverageReport', () => {
     await render(drafts);
     expect(container.textContent).not.toContain('Your first 5 answers');
     expect(container.textContent).not.toContain('A drafted answer.');
+    expect(container.textContent).toContain('No strong answer preview yet');
+  });
+
+  it('rejects a nominally supported but poor answer and makes evidence the only next step', async () => {
+    const poor = draft('energy_electricity', 'high', {
+      answer: 'Electricity data is not available.',
+      dataValue: 425000,
+      dataUnit: 'kWh',
+    });
+    await render([poor]);
+    expect(container.textContent).not.toContain('Your strongest 1 answers');
+    expect(container.textContent).toContain('Upload data for a real answer');
+    expect(container.textContent).not.toContain('€99');
+    expect(container.textContent).not.toContain('Show a clearly labelled example');
+  });
+
+  it('shows free visitors a strongest-answer preview only when their records support it', async () => {
+    const supported = draft('energy_electricity', 'high', {
+      answer: 'During 2025, electricity consumption across our reporting boundary was 425000 kWh.',
+      dataValue: 425000,
+      dataUnit: 'kWh',
+    });
+    supported.matchResult = { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] };
+    await render([supported], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } });
+    expect(container.textContent).toContain('Your strongest answer');
+    expect(container.textContent).toContain('During 2025, electricity consumption across our reporting boundary was 425000 kWh.');
+    expect(container.textContent).toContain('€99');
+    expect(container.textContent).not.toContain('€499');
+    expect(container.textContent).toContain('After payment, you return to this page with your answers filled in.');
+  });
+
+  it('does not promote a strong-looking answer without a named source document', async () => {
+    const answer = draft('energy_electricity', 'high', {
+      answer: 'During 2025, electricity consumption across our reporting boundary was 425000 kWh.',
+      dataValue: 425000,
+      dataUnit: 'kWh',
+    });
+    await render([answer]);
+    expect(container.textContent).toContain('No strong answer preview yet');
+    expect(container.textContent).not.toContain('Your strongest answer');
   });
 
   // Grouped the way the customer asking the questions groups them. Confidence is our
@@ -120,6 +160,14 @@ describe('CoverageReport', () => {
     expect(text).not.toContain('we cannot answer');
   });
 
+  it('opens About your company in place instead of navigating away', async () => {
+    await render([draft('site', 'medium')]);
+    const about = [...container.querySelectorAll('button')].find(button => button.textContent.includes('Add your company details'));
+    expect(about).toBeTruthy();
+    await act(async () => about.click());
+    expect(document.body.textContent).toContain('Save and refresh analysis');
+  });
+
   it('labels topic counts as questions without repeating the missing-document list', async () => {
     await render([needing('waste', ['Total waste (kg)'])], { companyData: {} });
     expect(container.textContent).toContain('1 question');
@@ -131,6 +179,7 @@ describe('CoverageReport', () => {
   it('offers both ways of supplying a missing document', async () => {
     await render([needing('workforce', ['Total FTE'])], { companyData: {} });
     const labels = [...container.querySelectorAll('button')].map(b => b.textContent);
+    expect(container.textContent).toContain('Documents that commonly answer this');
     expect(labels.some(l => l.includes('Upload'))).toBe(true);
     // Typing four numbers beats fighting a scanned PDF, and some of these documents are
     // awkward.
@@ -145,9 +194,45 @@ describe('CoverageReport', () => {
     const drafted = Array.from({ length: 6 }, () => draft('workforce', 'medium'));
     await render([...drafted, supported], {}, { tier: 'questionnaire-pass' });
     const text = container.textContent;
-    expect(text).toContain('Your first 5 answers');
+    expect(text).toContain('Your strongest 5 answers');
     expect(text).toContain('425000 kWh');
     expect(text).toContain('2 more questions in this questionnaire');
+  });
+
+  it('does not call one month of annual data fully supported', async () => {
+    const electricity = needing('energy_electricity', ['Electricity consumption (kWh)'], 'high');
+    electricity.answer = 'Electricity consumption was 18000 kWh.';
+    electricity.dataValue = 18000;
+    electricity.dataUnit = 'kWh';
+    const coverage = await render([electricity], {
+      companyData: {
+        electricityKwh: 18000,
+        dataCoverage: {
+          electricityKwh: { periods: ['2025-03'], monthsCovered: 1, expectedMonths: 12, complete: false },
+        },
+      },
+      dataSources: { 'energy.electricityKwh': 'march-electricity.pdf' },
+    }, { tier: 'questionnaire-pass' });
+
+    expect(coverage.fromRecords).toHaveLength(0);
+    expect(coverage.partial).toHaveLength(1);
+    expect(coverage.unanswerable).toHaveLength(0);
+    expect(coverage.missingDocuments).toEqual([{ document: 'electricityBill', unlocks: 1 }]);
+    expect(container.textContent).toContain('Partial period');
+    expect(container.textContent).not.toContain('Your strongest 1 answers');
+  });
+
+  it('selects the strongest evidence-backed answers instead of the first rows', async () => {
+    const weak = Array.from({ length: 5 }, () => draft('workforce', 'medium'));
+    const strong = draft('energy_electricity', 'high', {
+      questionText: 'Strong electricity answer',
+      answer: 'Electricity consumption was 425000 kWh.',
+      dataValue: 425000,
+      dataUnit: 'kWh',
+    });
+    await render([...weak, strong], {}, { tier: 'questionnaire-pass' });
+    expect(container.textContent).toContain('Strong electricity answer');
+    expect(container.textContent).toContain('Your strongest 5 answers');
   });
 
   // The engine attaches a figure to a draft whether or not the answer it chose rests on
@@ -198,21 +283,11 @@ describe('CoverageReport', () => {
     expect(container.textContent).toContain('exactly as they will look when you finish');
   });
 
-  it('offers both prices, and only claims policies when a builder would write them', async () => {
+  it('holds back the offer until a real answer exists and does not pitch Passport here', async () => {
     const plain = await render([draft('workforce', 'medium')]);
     expect(plain.policyGaps.builders).toHaveLength(0);
-    expect(container.textContent).toContain('€99');
-    expect(container.textContent).toContain('€499');
-    expect(container.textContent).not.toContain('policy documents these questions ask for');
-
-    await render([
-      draft('buyer_requirements', 'medium', {
-        questionType: 'POLICY',
-        confidenceSource: 'drafted',
-        questionText: 'Do you have a code of conduct?',
-      }),
-    ]);
-    expect(container.textContent).toContain('policy document this questionnaire asks for');
+    expect(container.textContent).not.toContain('€99');
+    expect(container.textContent).not.toContain('€499');
   });
 
   // Non-negotiable: the report describes what the record supports. It never predicts how

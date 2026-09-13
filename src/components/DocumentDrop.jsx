@@ -4,6 +4,7 @@ import { FileText, Upload } from 'lucide-react';
 import { track } from '@/lib/track';
 import { setHandoff } from '@/lib/handoff';
 import { useLanguage } from '@/components/LanguageContext';
+import { dropSurfaceClass } from '@/lib/dropSurface';
 
 // Drop the bills where you land, not three tabs away.
 //
@@ -51,9 +52,7 @@ export default function DocumentDrop() {
         role="button"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
-        className={`mx-auto max-w-md cursor-pointer border border-dashed p-8 text-center transition-colors ${
-          dragging ? 'border-slate-900 bg-slate-50' : 'border-slate-300 bg-slate-50/60 hover:border-slate-400'
-        }`}
+        className={dropSurfaceClass({ active: dragging })}
       >
         <input
           ref={inputRef}
@@ -63,7 +62,7 @@ export default function DocumentDrop() {
           className="hidden"
           onChange={(e) => accept(e.target.files)}
         />
-        <Upload className="mx-auto mb-2 h-5 w-5 text-indigo-600" />
+        <Upload className="mx-auto mb-3 h-8 w-8 text-slate-400" />
         <p className="text-sm font-medium text-slate-900">{t('drop.documentsTitle')}</p>
         <p className="mt-1 text-xs text-slate-500">{t('drop.documentsBody')}</p>
         <p className="mt-2 inline-flex items-center gap-1 text-xs text-slate-400">

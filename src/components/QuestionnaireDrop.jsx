@@ -4,6 +4,7 @@ import { Upload, FileText } from 'lucide-react';
 import { track } from '@/lib/track';
 import { setHandoff } from '@/lib/handoff';
 import { useLanguage } from '@/components/LanguageContext';
+import { dropSurfaceClass } from '@/lib/dropSurface';
 
 // Drop the questionnaire where you land, not three tabs away.
 //
@@ -43,9 +44,7 @@ export default function QuestionnaireDrop({ compact = false }) {
         role="button"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
-        className={`cursor-pointer border-2 border-dashed p-6 text-center transition-colors ${
-          dragging ? 'border-slate-900 bg-slate-50' : 'border-slate-300 hover:border-slate-400'
-        }`}
+        className={dropSurfaceClass({ active: dragging, className: compact ? 'min-h-[150px] p-6' : '' })}
       >
         <input
           ref={inputRef}

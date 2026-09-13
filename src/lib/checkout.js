@@ -27,14 +27,11 @@ export const PASSPORT_PRICE = '€499';
 // analytics recorded a single opened checkout - and why nobody should have read that
 // number as evidence about demand.
 //
-// Two helpers because both shapes exist and each has to stay honest: a real anchor
-// keeps middle-click and "open in new tab" working, so it must only TRACK on click,
-// never open a second window; a button has no href, so it opens.
+// Two helpers because both shapes exist. Anchors navigate normally; buttons assign the
+// current location so checkout and activation return in the tab holding the work.
 export function checkoutLinkProps(url, source, tier) {
   return {
     href: url,
-    target: '_blank',
-    rel: 'noopener noreferrer',
     onClick: () => track('checkout_opened', { source, from_tier: tier }),
   };
 }
@@ -42,7 +39,7 @@ export function checkoutLinkProps(url, source, tier) {
 export function openCheckout(url, source, tier) {
   if (!url) return;
   track('checkout_opened', { source, from_tier: tier });
-  window.open(url, '_blank', 'noopener,noreferrer');
+  window.location.assign(url);
 }
 
 const MARKETING_BASE = 'https://esgforsuppliers.com';

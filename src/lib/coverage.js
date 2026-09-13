@@ -21,6 +21,35 @@ function isPresent(value) {
   return value !== undefined && value !== null && value !== '';
 }
 
+function rowCoverage(row, companyData) {
+  const coverage = companyData?.dataCoverage || {};
+  const entries = row.companyDataKeys.map(key => coverage[key]).filter(Boolean);
+  if (!entries.length) return null;
+  const best = entries.sort((a, b) => (b.monthsCovered || 0) - (a.monthsCovered || 0))[0];
+  return {
+    monthsCovered: Number(best.monthsCovered || 0),
+    expectedMonths: Number(best.expectedMonths || 12),
+    complete: best.complete === true,
+    periods: best.periods || [],
+  };
+}
+
+function rowIsSatisfied(row, companyData) {
+  const present = row.companyDataKeys.some(key => isPresent(companyData?.[key]));
+  if (!present) return false;
+  const coverage = rowCoverage(row, companyData);
+  return !coverage || coverage.complete;
+}
+
+export function periodCoverageForDraft(draft, companyData) {
+  const rows = (draft?.matchResult?.suggestedDataPoints || [])
+    .map(rowForLabel)
+    .filter(Boolean);
+  const entries = rows.map(row => rowCoverage(row, companyData)).filter(Boolean);
+  if (!entries.length) return null;
+  return entries.sort((a, b) => (a.monthsCovered / a.expectedMonths) - (b.monthsCovered / b.expectedMonths))[0];
+}
+
 /**
  * Which of a draft's suggested data points are still missing from the workspace,
  * as map rows. Labels with no row are skipped: we cannot name a document for them.
@@ -31,7 +60,7 @@ function missingRowsFor(draft, companyData) {
   for (const label of labels) {
     const row = rowForLabel(label);
     if (!row) continue;
-    const satisfied = row.companyDataKeys.some(key => isPresent(companyData?.[key]));
+    const satisfied = rowIsSatisfied(row, companyData);
     if (!satisfied) rows.push(row);
   }
   return rows;
@@ -67,7 +96,7 @@ function policyBuilderFor(draft) {
   return matchBuilderId(`${draft.questionText || ''} ${draft.category || ''}`);
 }
 
-function summarize(draft, dataSources) {
+function summarize(draft, dataSources, companyData) {
   return {
     questionId: draft.questionId,
     questionText: draft.questionText,
@@ -76,7 +105,38 @@ function summarize(draft, dataSources) {
     unit: draft.dataUnit,
     period: draft.dataPeriod,
     document: documentFor(draft, dataSources),
+    confidence: draft.answerConfidence,
+    topic: topicForDomain(draft?.matchResult?.primaryDomain),
+    dataCoverage: periodCoverageForDraft(draft, companyData),
   };
+}
+
+export function selectBestCoverageAnswers(answers, limit = 5) {
+  const candidates = (Array.isArray(answers) ? answers : [])
+    .filter(answer => !answer.dataCoverage || answer.dataCoverage.complete)
+    .map((answer, index) => ({
+      answer,
+      index,
+      score: (answer.confidence === 'high' ? 100 : answer.confidence === 'medium' ? 50 : 0)
+        + (isPresent(answer.value) ? 20 : 0)
+        + (answer.document ? 10 : 0),
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  const selected = [];
+  const topics = new Set();
+  for (const candidate of candidates) {
+    if (selected.length >= limit) break;
+    if (!topics.has(candidate.answer.topic)) {
+      selected.push(candidate.answer);
+      topics.add(candidate.answer.topic);
+    }
+  }
+  for (const candidate of candidates) {
+    if (selected.length >= limit) break;
+    if (!selected.includes(candidate.answer)) selected.push(candidate.answer);
+  }
+  return selected;
 }
 
 /**
@@ -130,7 +190,7 @@ function summarizeTopics(list, companyData) {
     const bucket = byTopic.get(topicForDomain(draft?.matchResult?.primaryDomain));
     bucket.total += 1;
 
-    if (draft?.answerConfidence === 'high') {
+    if (draft?.answerConfidence === 'high' && periodCoverageForDraft(draft, companyData)?.complete !== false) {
       bucket.fromRecords += 1;
       // An answered question is not still asking for the document that answered it.
       continue;
@@ -158,6 +218,7 @@ function summarizeTopics(list, companyData) {
 export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} } = {}) {
   const list = Array.isArray(drafts) ? drafts : [];
   const fromRecords = [];
+  const partial = [];
   const written = [];
   const unanswerable = [];
 
@@ -174,15 +235,17 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
     }
 
     const confidence = draft?.answerConfidence;
-    if (confidence === 'high') {
-      fromRecords.push(summarize(draft, dataSources));
+    const periodCoverage = periodCoverageForDraft(draft, companyData);
+    if (confidence === 'high' && periodCoverage?.complete === false) {
+      partial.push(summarize(draft, dataSources, companyData));
+    } else if (confidence === 'high') {
+      fromRecords.push(summarize(draft, dataSources, companyData));
       continue;
-    }
-    if (confidence === 'medium') {
-      written.push(summarize(draft, dataSources));
-    } else {
+    } else if (confidence === 'medium') {
+      written.push(summarize(draft, dataSources, companyData));
+    } else if (confidence !== 'high') {
       // low, none, unknown, absent — all reported as "we can't answer this".
-      unanswerable.push(summarize(draft, dataSources));
+      unanswerable.push(summarize(draft, dataSources, companyData));
     }
     const documents = new Set(missingRowsFor(draft, companyData).map(row => row.document));
     for (const document of documents) {
@@ -198,6 +261,7 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
   return {
     total: list.length,
     fromRecords,
+    partial,
     written,
     unanswerable,
     missingDocuments,

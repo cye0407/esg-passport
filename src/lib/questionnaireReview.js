@@ -24,10 +24,12 @@ export function requiresQuestionConfirmation(fileName = '') {
  * support a precise recall estimate. It can still identify extreme shapes where showing
  * a polished coverage report without asking the user to look would be irresponsible.
  */
-export function thinParseSummary(parseResult) {
+export function thinParseSummary(parseResult, fileName = parseResult?.metadata?.fileName || '') {
   const questions = Number(parseResult?.questions?.length || 0);
   const rows = Number(parseResult?.metadata?.totalRows || 0);
+  const extension = questionnaireExtension(fileName);
+  const tabular = extension === '.xlsx' || extension === '.xls' || extension === '.csv';
   const thin = (rows >= 12 && questions <= 2)
-    || (rows >= 40 && questions / rows < 0.05);
-  return { thin, questions, rows };
+    || (tabular && rows >= 20 && questions / rows < 0.5);
+  return { thin, questions, rows, extension };
 }

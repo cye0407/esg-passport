@@ -1,11 +1,19 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, ChevronDown, Download, Lock, Upload } from 'lucide-react';
+import { ArrowRight, Building2, ChevronDown, Download, Leaf, Lock, ShieldCheck, Upload, Users } from 'lucide-react';
 import { track } from '@/lib/track';
 import { useLanguage } from '@/components/LanguageContext';
 import { documentName, documentHolds } from '@/lib/documentLabels';
 import { getEntitlements } from '@/lib/entitlements';
 import { figureWithUnit, answerStatesFigure } from '@/lib/figures';
+import { selectBestCoverageAnswers } from '@/lib/coverage';
+import { getCompanyProfile, getPolicies, saveCompanyProfile, saveDocument, updatePolicyFileLocation, updatePolicyStatus } from '@/lib/store';
+import { POLICY_BUILDERS, builderName } from '@/data/policyBuilders';
+import PolicyBuilder from '@/components/PolicyBuilder';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import {
   buildChecklistHtml,
   checklistFileName,
@@ -13,10 +21,8 @@ import {
   workspaceUrl,
 } from '@/lib/coverageChecklist';
 import {
-  PASSPORT_CHECKOUT_URL,
   QUESTIONNAIRE_PASS_CHECKOUT_URL,
   PASS_PRICE,
-  PASSPORT_PRICE,
   openCheckout,
 } from '@/lib/checkout';
 
@@ -109,6 +115,65 @@ function SupportBadge({ supported, t }) {
   );
 }
 
+function commonTopicDocuments(t, topic) {
+  switch (topic) {
+    case 'environmental': return [
+      t('coverage.commonEnvironmental1'),
+      t('coverage.commonEnvironmental2'),
+      t('coverage.commonEnvironmental3'),
+      t('coverage.commonEnvironmental4'),
+    ];
+    case 'social': return [
+      t('coverage.commonSocial1'),
+      t('coverage.commonSocial2'),
+      t('coverage.commonSocial3'),
+      t('coverage.commonSocial4'),
+    ];
+    case 'governance': return [
+      t('coverage.commonGovernance1'),
+      t('coverage.commonGovernance2'),
+      t('coverage.commonGovernance3'),
+      t('coverage.commonGovernance4'),
+    ];
+    case 'other': return [
+      t('coverage.commonCompany1'),
+      t('coverage.commonCompany2'),
+      t('coverage.commonCompany3'),
+    ];
+    default: return [];
+  }
+}
+
+function TopicIcon({ topic }) {
+  const styles = {
+    environmental: { Icon: Leaf, box: 'bg-emerald-50 text-emerald-700' },
+    social: { Icon: Users, box: 'bg-sky-50 text-sky-700' },
+    governance: { Icon: ShieldCheck, box: 'bg-violet-50 text-violet-700' },
+    other: { Icon: Building2, box: 'bg-amber-50 text-amber-700' },
+  };
+  const { Icon, box } = styles[topic] || styles.other;
+  return <span className={`flex h-10 w-10 shrink-0 items-center justify-center ${box}`}><Icon className="h-5 w-5" /></span>;
+}
+
+const BUILDER_POLICY_IDS = {
+  code_of_conduct: 'code_of_conduct', anti_corruption: 'anti_corruption', whistleblowing: 'whistleblower',
+  data_privacy: 'data_privacy', supplier_coc: 'supplier_code', health_safety: 'health_safety_policy',
+  equal_opp: 'anti_discrimination', environmental: 'environmental_policy',
+};
+
+function isPreviewWorthy(answer) {
+  const text = String(answer?.answer || '').trim();
+  const negative = /\b(no data|not available|do not have|don't have|not tracked|unable to|cannot provide|not currently)\b/i;
+  return answer?.confidence === 'high'
+    && answer?.value !== undefined
+    && answer?.value !== null
+    && answer?.value !== ''
+    && text.length >= 45
+    && answerStatesFigure(text, answer.value)
+    && Boolean(answer.document)
+    && !negative.test(text);
+}
+
 
 // Supporting detail: the answer preview, portable checklist, and raw questions.
 // Status sits above both columns so it is the first thing at every viewport.
@@ -121,10 +186,9 @@ function SupportBadge({ supported, t }) {
 // every number here false. Reachable, not resident.
 // `fromRecords` is still needed — SupportBadge asks whether a given draft is in it. The
 // other counts moved to the stat band above both columns and are no longer read here.
-function ReferencePanel({
-  t, fromRecords, questions, sample, remaining, hasOwnData, onDownloadChecklist,
-}) {
+function ReferencePanel({ t, fromRecords, questions, sample, remaining, hasOwnData }) {
   const [showQuestions, setShowQuestions] = React.useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col border border-slate-200 bg-white">
@@ -135,23 +199,10 @@ function ReferencePanel({
           sticky — the panel stopped being sticky when the status band moved above both
           columns — so it scrolls away like everything else. If people turn out to leave
           without it, that is the first thing to change. */}
-      <div className="order-2 border-b border-slate-100 p-5">
-        <p className="text-sm font-semibold text-slate-900">{t('coverage.takeawayTitle')}</p>
-        <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{t('coverage.takeawayBody')}</p>
-        <button
-          onClick={onDownloadChecklist}
-          className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-        >
-          <Download className="h-4 w-4" />
-          {t('coverage.takeawayDownload')}
-        </button>
-        <p className="mt-2.5 text-xs leading-relaxed text-slate-400">{t('coverage.takeawaySaved')}</p>
-      </div>
-
       {sample.length > 0 && (
-        <div className="order-1 border-b border-slate-100">
+        <div className="border-b border-slate-100">
           <p className="px-5 pt-4 text-[13px] font-semibold text-slate-900">
-            {t('coverage.sampleTitle', { count: sample.length })}
+            {t(sample.length === 1 ? 'coverage.sampleTitleOne' : 'coverage.sampleTitle', { count: sample.length })}
           </p>
           {/* Whose numbers these are. Without their own data the drafts rest on the
               example workspace, and a sample that does not say so reads as a claim
@@ -196,8 +247,20 @@ function ReferencePanel({
         </div>
       )}
 
+      {sample.length === 0 && (
+        <div className="border-b border-slate-100 px-5 py-5">
+          <p className="font-semibold text-slate-900">{t('coverage.noStrongPreviewTitle')}</p>
+          <p className="mt-1 text-sm leading-relaxed text-slate-500">{t('coverage.noStrongPreviewBody')}</p>
+          <div className="mt-4">
+            <button type="button" onClick={() => navigate('/evidence')} className="inline-flex h-10 items-center gap-2 bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
+              <Upload className="h-4 w-4" />{t('coverage.noStrongPreviewCta')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {questions.length > 0 && (
-        <div className="order-3">
+        <div>
           <button
             onClick={() => setShowQuestions(v => !v)}
             className="flex w-full items-center justify-between px-5 py-3.5 text-left text-[13px] text-slate-500 transition-colors hover:text-slate-700"
@@ -221,11 +284,17 @@ function ReferencePanel({
   );
 }
 
-export default function CoverageReport({ coverage, questionnaireName, questions = [], tier, onStartOver }) {
-  const { t } = useLanguage();
+export default function CoverageReport({ coverage, questionnaireName, questions = [], tier, onStartOver, onRefresh }) {
+  const { t, lang } = useLanguage();
   const navigate = useNavigate();
+  const [companyOpen, setCompanyOpen] = React.useState(false);
+  const [companyDraft, setCompanyDraft] = React.useState(() => getCompanyProfile() || {});
+  const [policyBuilderId, setPolicyBuilderId] = React.useState(null);
+  const [policyUploadOpen, setPolicyUploadOpen] = React.useState(false);
+  const [policyUploadFile, setPolicyUploadFile] = React.useState(null);
+  const [policyUploadBuilder, setPolicyUploadBuilder] = React.useState('');
   const {
-    total, fromRecords, written, unanswerable, missingDocuments, policyGaps, hasOwnData, topics,
+    total, fromRecords, partial = [], written, unanswerable, missingDocuments, policyGaps, hasOwnData, topics,
   } = coverage;
   const { canGenerateAnswers } = getEntitlements(tier);
 
@@ -235,11 +304,12 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
     track('coverage_report_viewed', {
       questions: total,
       from_records: fromRecords.length,
+      partial: partial.length,
       written: written.length,
       unanswerable: unanswerable.length,
       policy_gaps: policyGaps.builders.length,
     });
-  }, [total, fromRecords.length, written.length, unanswerable.length, policyGaps.builders.length]);
+  }, [total, fromRecords.length, partial.length, written.length, unanswerable.length, policyGaps.builders.length]);
 
   // Answered-from-records first: those carry the reader's own numbers and are the only
   // part of this page no one else could have produced.
@@ -247,14 +317,43 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   // absence into confident-sounding prose (or a partial-period bill into an annual
   // statement). Do not use that output as a sales preview. Paid workspaces retain the
   // answer panel because it is part of the product they already have access to.
+  // Free visitors need proof of the paid outcome, but only when it is grounded in
+  // their own records. Generic drafts and partial-period figures stay out; if only two
+  // answers are genuinely supported, showing two is more trustworthy than padding five.
   const sample = canGenerateAnswers
-    ? [...fromRecords, ...written].slice(0, SAMPLE_ANSWERS)
-    : [];
-  const remaining = canGenerateAnswers ? Math.max(0, total - sample.length) : 0;
+    ? selectBestCoverageAnswers([...fromRecords, ...written], SAMPLE_ANSWERS)
+    : selectBestCoverageAnswers(fromRecords.filter(isPreviewWorthy), SAMPLE_ANSWERS);
+  const remaining = Math.max(0, total - sample.length);
 
   const documents = missingDocuments
     .map(entry => ({ ...entry, name: documentName(t, entry.document) }))
     .filter(entry => entry.name);
+  const bestNextDocument = [...documents].sort((a, b) => b.unlocks - a.unlocks)[0];
+
+  const openCompany = () => {
+    setCompanyDraft(getCompanyProfile() || {});
+    setCompanyOpen(true);
+  };
+
+  const saveCompany = () => {
+    saveCompanyProfile(companyDraft);
+    setCompanyOpen(false);
+    onRefresh?.();
+  };
+
+  const saveUploadedPolicy = () => {
+    if (!policyUploadFile || !policyUploadBuilder) return;
+    const policyId = BUILDER_POLICY_IDS[policyUploadBuilder];
+    saveDocument({ name: policyUploadFile.name, category: 'policy', notes: t('coverage.policyUploadedFromAnalysis') });
+    getPolicies();
+    if (policyId) {
+      updatePolicyStatus(policyId, 'available');
+      updatePolicyFileLocation(policyId, policyUploadFile.name);
+    }
+    setPolicyUploadOpen(false);
+    setPolicyUploadFile(null);
+    onRefresh?.();
+  };
 
   const handleDownloadChecklist = () => {
     const generatedAt = new Date();
@@ -272,7 +371,8 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
-      <div>
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
           {/* The count lives in the sticky panel, not here. This heading scrolls away;
               the panel does not, and a status number you cannot see is not a status. */}
@@ -285,12 +385,21 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-slate-600">
           {t('coverage.lead')}
         </p>
+        </div>
+        <div className="w-full border border-slate-200 bg-white p-4 sm:w-72 sm:shrink-0">
+          <p className="text-sm font-semibold text-slate-900">{t('coverage.takeawayTitle')}</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">{t('coverage.takeawayBody')}</p>
+          <button onClick={handleDownloadChecklist} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800">
+            <Download className="h-4 w-4" />{t('coverage.takeawayDownload')}
+          </button>
+        </div>
       </div>
 
-      <dl className="grid grid-cols-2 border border-slate-200 bg-white sm:grid-cols-4">
+      <dl className="grid grid-cols-2 border border-slate-200 bg-white sm:grid-cols-5">
         {[
           [t('checklist.total'), total, 'text-slate-900'],
           [t('coverage.topicFromRecords'), fromRecords.length, 'text-emerald-700'],
+          [t('coverage.topicPartial'), partial.length, 'text-amber-700'],
           [t('checklist.written'), written.length, 'text-slate-900'],
           [t('checklist.unanswerable'), unanswerable.length, 'text-slate-900'],
         ].map(([label, value, tone], index) => (
@@ -306,28 +415,33 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         ))}
       </dl>
 
+      {bestNextDocument && (
+        <section className="border-2 border-slate-900 bg-white p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.nextActionEyebrow')}</p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-900">{bestNextDocument.name}</h2>
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+              {documentHolds(t, bestNextDocument.document)} · {t('coverage.docUnlocks', { count: bestNextDocument.unlocks })}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { track('coverage_primary_next_click', { document: bestNextDocument.document, unlocks: bestNextDocument.unlocks }); navigate('/evidence'); }}
+            className="mt-4 inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800 sm:mt-0 sm:w-auto"
+          >
+            <Upload className="h-4 w-4" /> {t('coverage.nextActionCta')}
+          </button>
+        </section>
+      )}
+
       {/* Desktop keeps supporting detail in a compact second column. Mobile gets the
           same panel inline after the actionable gaps and before the purchase choice.
           Both instances are mounted and one is display:none per breakpoint — the panel
           has to sit in a different COLUMN on desktop and mid-flow on mobile, which no
           amount of ordering can do from one node. Only the visible copy is in the
           accessibility tree, so the duplicate buttons are not announced twice. */}
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        {/* RIGHT - supporting detail */}
-        <aside className="hidden lg:col-start-2 lg:row-start-1 lg:block">
-          <ReferencePanel
-            t={t}
-            fromRecords={fromRecords}
-            questions={questions}
-            sample={sample}
-            remaining={remaining}
-            hasOwnData={hasOwnData}
-            onDownloadChecklist={handleDownloadChecklist}
-          />
-        </aside>
-
-        {/* LEFT - the work, in the order someone acts on it */}
-        <div className="flex flex-col gap-10 lg:col-start-1 lg:row-start-1">
+      <div>
+        <div className="flex flex-col gap-10">
           {/* Missing items are ordered first: outcome to action. Topic context follows. */}
           {topics.length > 0 && (
             <div className="order-2 space-y-4">
@@ -337,31 +451,94 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 body={t('coverage.topicsBody', { count: total })}
               />
 
-              {/* One block of rows rather than four cards. Each card used to repeat the
-                  same status breakdown the panel already gives - "answered from your
-                  records" appeared three times on one screen - so the rows are gone and
-                  these say what they are for: how much of each subject was asked, and
-                  which documents speak to it. */}
-              <div className="divide-y divide-slate-100 border border-slate-200 bg-white">
-                {topics.map((bucket) => {
+              <div className="grid gap-4 md:grid-cols-2">
+                {[...topics].sort((a, b) => b.total - a.total).map((bucket) => {
                   const name = topicName(t, bucket.topic);
                   if (!name) return null;
-                  const share = total > 0 ? Math.max(4, Math.round((bucket.total / total) * 100)) : 0;
+                  const commonDocuments = commonTopicDocuments(t, bucket.topic);
+                  const recommendedDocument = (bucket.documents || [])
+                    .map(documentId => ({ documentId, entry: documents.find(item => item.document === documentId) }))
+                    .filter(item => item.entry)
+                    .sort((a, b) => b.entry.unlocks - a.entry.unlocks)[0];
+                  const showDocumentRecommendation = recommendedDocument?.entry?.unlocks >= 2;
                   return (
-                    <div key={bucket.topic} className="px-5 py-4">
-                      <div className="flex items-baseline justify-between gap-4">
-                        <div className="min-w-0">
-                        <p className="text-[15px] font-semibold text-slate-900">{name}</p>
-                        <p className="text-[13px] leading-relaxed text-slate-500">{topicSubtitle(t, bucket.topic)}</p>
+                    <div key={bucket.topic} className="relative flex flex-col overflow-hidden border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+                      <div className="flex flex-grow flex-col p-5 pb-24">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex min-w-0 gap-3">
+                          <TopicIcon topic={bucket.topic} />
+                          <div>
+                          <h3 className="text-base font-semibold text-slate-900">{name}</h3>
+                          <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{topicSubtitle(t, bucket.topic)}</p>
+                          </div>
                         </div>
-                        <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-700">
+                        <p className="shrink-0 bg-slate-100 px-2.5 py-1 text-xs font-semibold tabular-nums text-slate-700">
                           {bucket.total === 1
                             ? t('coverage.topicQuestion', { count: bucket.total })
                             : t('coverage.topicQuestions', { count: bucket.total })}
                         </p>
                       </div>
-                      <div className="mt-3 h-1.5 overflow-hidden bg-slate-100" aria-hidden="true">
-                        <div className="h-full bg-slate-700" style={{ width: `${share}%` }} />
+                      <div className="mt-5 flex flex-grow flex-col border-t border-slate-100 pt-4">
+                          {showDocumentRecommendation && (
+                              <div className="mb-4 bg-emerald-50 px-3.5 py-3">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.startHere')}</p>
+                                <p className="mt-1 text-sm font-semibold text-emerald-950">{recommendedDocument.entry.name}</p>
+                                <p className="mt-0.5 text-xs leading-relaxed text-emerald-900/70">{documentHolds(t, recommendedDocument.documentId)} · {t('coverage.docUnlocks', { count: recommendedDocument.entry.unlocks })}</p>
+                              </div>
+                          )}
+                          {!showDocumentRecommendation && bucket.needsPolicy > 0 && (
+                            <div className="mb-4 bg-violet-50 px-3.5 py-3">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-violet-700">{t('coverage.startHere')}</p>
+                              <p className="mt-1 text-sm font-semibold text-violet-950">{t('coverage.policyStartTitle')}</p>
+                              <p className="mt-0.5 text-xs leading-relaxed text-violet-900/70">{t('coverage.topicPolicyNeed', { count: bucket.needsPolicy })}</p>
+                            </div>
+                          )}
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('coverage.topicDocuments')}</p>
+                          <div className="mt-2 flex flex-1 flex-col space-y-2">
+                            <ul className="space-y-2">
+                              {commonDocuments.map(item => (
+                                <li key={item} className="flex gap-2.5 text-sm leading-relaxed text-slate-700">
+                                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            {(bucket.documents || []).slice(0, 1).map(documentId => {
+                              const entry = documents.find(item => item.document === documentId);
+                              if (!entry) return null;
+                              return (
+                                <div key={documentId} className="hidden">
+                                  <div className="flex-grow">
+                                    <p className="text-sm font-medium text-slate-900">{entry.name}</p>
+                                    <p className="text-xs text-slate-500">{documentHolds(t, documentId)} · {t('coverage.docUnlocks', { count: entry.unlocks })}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {bucket.topic === 'other' && (
+                              <button type="button" onClick={openCompany} className="hidden">
+                                {t('coverage.addCompanyDetails')}
+                              </button>
+                            )}
+                            {bucket.needsPolicy > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')}
+                                className="hidden"
+                              >
+                                <span>{t('coverage.topicPolicyNeed', { count: bucket.needsPolicy })}</span>
+                                <span className="underline underline-offset-2">{t('coverage.openPolicy')}</span>
+                              </button>
+                            )}
+                            {((bucket.documents || []).length > 0 || bucket.topic === 'other' || bucket.needsPolicy > 0) && (
+                              <div className="absolute inset-x-0 bottom-0 flex min-h-[72px] flex-wrap items-center justify-center gap-2 border-t border-slate-100 bg-slate-50 px-4 py-4">
+                                {(bucket.documents || []).length > 0 && <><button onClick={() => { track('coverage_add_documents_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/evidence'); }} className="inline-flex h-10 items-center gap-1.5 bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"><Upload className="h-4 w-4" />{t('coverage.docUpload')}</button><button onClick={() => { track('coverage_enter_figures_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/data'); }} className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-white">{t('coverage.docEnter')}</button></>}
+                                {bucket.topic === 'other' && <button type="button" onClick={openCompany} className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50">{t('coverage.addCompanyDetails')}</button>}
+                                {bucket.needsPolicy > 0 && <><button type="button" onClick={() => { setPolicyUploadBuilder(policyGaps.builders[0] || ''); setPolicyUploadOpen(true); }} className="inline-flex h-10 items-center gap-1.5 border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"><Upload className="h-4 w-4" />{t('coverage.uploadPolicy')}</button><button type="button" onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')} className="inline-flex h-10 items-center bg-violet-700 px-4 text-sm font-medium text-white hover:bg-violet-800">{t('coverage.createPolicy')}</button></>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -370,7 +547,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
             </div>
           )}
 
-          {documents.length > 0 && (
+          {topics.length === 0 && documents.length > 0 && (
             <div className="order-1 space-y-4">
               <SectionHeading
                 eyebrow={t('coverage.eyebrowMissing')}
@@ -413,7 +590,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
             </div>
           )}
 
-          <div className="order-3 lg:hidden">
+          <div className="order-3">
             <ReferencePanel
               t={t}
               fromRecords={fromRecords}
@@ -421,7 +598,6 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
               sample={sample}
               remaining={remaining}
               hasOwnData={hasOwnData}
-              onDownloadChecklist={handleDownloadChecklist}
             />
           </div>
 
@@ -435,13 +611,25 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 : t('coverage.paidDoneTitle')}
               body={unanswerable.length > 0 ? t('coverage.paidOpenBody') : t('coverage.paidDoneBody')}
             /></div>
-          ) : (
-            <div className="order-4 space-y-4">
-              <SectionHeading eyebrow={t('coverage.eyebrowCost')} title={t('coverage.costTitle')} />
-              <div className="grid gap-4 sm:grid-cols-2">
+          ) : sample.length > 0 ? (
+            <div className="order-4 mx-auto w-full max-w-3xl space-y-4">
+              <div className="text-center"><SectionHeading eyebrow={t('coverage.eyebrowCost')} title={t('coverage.costTitle')} body={t('coverage.costBody')} /></div>
+              <div className="border border-slate-200 bg-slate-50 p-5">
+                <p className="font-semibold text-slate-900">{t('coverage.buySummaryTitle')}</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  {t('coverage.buySummaryBody', {
+                    total,
+                    supported: fromRecords.length,
+                    drafted: written.length,
+                    open: unanswerable.length + partial.length,
+                  })}
+                </p>
+              </div>
+              <p className="text-center text-xs leading-relaxed text-slate-400">{t('coverage.commonDocumentsNote')}</p>
+              <div>
               <div className="flex flex-col gap-3 border-2 border-slate-900 bg-white p-6">
                 <h2 className="text-lg font-semibold text-slate-900">{t('coverage.passTitle')}</h2>
-                <ul className="flex-grow space-y-1.5">
+                <ul className="hidden">
                   {[t('coverage.passF1'), t('coverage.passF2'), t('coverage.passF3'), t('coverage.passF4')].map(line => (
                     <li key={line} className="flex gap-2.5 text-sm leading-relaxed text-slate-600">
                       <span className="text-slate-400">•</span>
@@ -449,16 +637,31 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                     </li>
                   ))}
                 </ul>
+                <ul className="space-y-2.5">
+                  {[
+                    t('coverage.quoteDeliverable', { count: total }),
+                    t('coverage.quoteFigures', { supported: fromRecords.length, review: Math.max(0, total - fromRecords.length) }),
+                    t('coverage.quotePrivacy'),
+                    t('coverage.quotePayment'),
+                    t('coverage.quoteSupport'),
+                  ].map(line => (
+                    <li key={line} className="flex gap-2.5 text-sm leading-relaxed text-slate-600">
+                      <span className="text-slate-400">•</span><span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
                 <button
                   onClick={() => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_report_pass', tier)}
                   className="inline-flex h-12 items-center justify-center gap-2 bg-slate-900 text-[15px] font-medium text-white transition-colors hover:bg-slate-800"
                 >
-                  {t('coverage.passCta', { price: PASS_PRICE })}
+                  {t('coverage.passCta', { count: total, price: PASS_PRICE })}
                   <ArrowRight className="h-4 w-4" />
                 </button>
+                <p className="text-center text-sm font-medium leading-relaxed text-emerald-800">{t('coverage.returnPromise')}</p>
               </div>
 
-              <div className="flex flex-col gap-3 border border-slate-200 bg-white p-6">
+              {false && (
+              <div className="hidden">
                 <h2 className="text-lg font-semibold text-slate-900">{t('coverage.passportTitle')}</h2>
                 <ul className="flex-grow space-y-1.5">
                   <li className="flex gap-2.5 text-sm leading-relaxed text-slate-600">
@@ -491,13 +694,18 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 >
                   {t('coverage.passportCta', { price: PASSPORT_PRICE })}
                 </button>
+                <p className="text-center text-xs leading-relaxed text-slate-500">{t('coverage.passportTerms')}</p>
                 </div>
+              )}
+              </div>
+              <div className="hidden">
+                {t('coverage.trustStrip')}
               </div>
             </div>
-          )}
+          ) : null}
 
           <div className="order-5 flex flex-wrap items-center gap-4">
-            {!canGenerateAnswers && (
+            {!canGenerateAnswers && sample.length > 0 && (
               <p className="text-xs leading-relaxed text-slate-400">{t('coverage.creditNote', { pass: PASS_PRICE })}</p>
             )}
             {onStartOver && (
@@ -509,6 +717,65 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         </div>
 
       </div>
+
+      <Dialog open={companyOpen} onOpenChange={setCompanyOpen}>
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('coverage.companyModalTitle')}</DialogTitle>
+            <DialogDescription>{t('coverage.companyModalBody')}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <div className="space-y-2"><Label>{t('cps.legalName')}</Label><Input value={companyDraft.legalName || ''} onChange={event => setCompanyDraft(value => ({ ...value, legalName: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>{t('cps.tradingName')}</Label><Input value={companyDraft.tradingName || ''} onChange={event => setCompanyDraft(value => ({ ...value, tradingName: event.target.value }))} /></div>
+            <div className="space-y-2"><Label>{t('onboard.employees')}</Label><Input type="number" min="0" value={companyDraft.totalEmployees || ''} onChange={event => setCompanyDraft(value => ({ ...value, totalEmployees: Number(event.target.value) || 0 }))} /></div>
+            <div className="space-y-2"><Label>{t('settings.contactName')}</Label><Input value={companyDraft.esgContactName || ''} onChange={event => setCompanyDraft(value => ({ ...value, esgContactName: event.target.value }))} /></div>
+            <div className="space-y-2 sm:col-span-2"><Label>{t('settings.contactEmail')}</Label><Input type="email" value={companyDraft.esgContactEmail || ''} onChange={event => setCompanyDraft(value => ({ ...value, esgContactEmail: event.target.value }))} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompanyOpen(false)}>{t('respond.cancel')}</Button>
+            <Button onClick={saveCompany} className="bg-slate-900 text-white">{t('coverage.saveAndRefresh')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={policyUploadOpen} onOpenChange={setPolicyUploadOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('coverage.uploadPolicyTitle')}</DialogTitle>
+            <DialogDescription>{t('coverage.uploadPolicyBody')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {policyGaps.builders.length > 1 && (
+              <div className="space-y-2">
+                <Label>{t('coverage.policyType')}</Label>
+                <select value={policyUploadBuilder} onChange={event => setPolicyUploadBuilder(event.target.value)} className="h-10 w-full border border-slate-300 bg-white px-3 text-sm">
+                  {policyGaps.builders.map(id => <option key={id} value={id}>{builderName(POLICY_BUILDERS[id], lang)}</option>)}
+                </select>
+              </div>
+            )}
+            <label className="block cursor-pointer border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center hover:border-slate-400">
+              <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={event => setPolicyUploadFile(event.target.files?.[0] || null)} />
+              <Upload className="mx-auto h-6 w-6 text-slate-400" />
+              <span className="mt-2 block text-sm font-medium text-slate-800">{policyUploadFile?.name || t('coverage.choosePolicyFile')}</span>
+              <span className="mt-1 block text-xs text-slate-500">PDF, Word or TXT</span>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPolicyUploadOpen(false)}>{t('respond.cancel')}</Button>
+            <Button onClick={saveUploadedPolicy} disabled={!policyUploadFile || !policyUploadBuilder} className="bg-slate-900 text-white">{t('coverage.savePolicy')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(policyBuilderId)} onOpenChange={(open) => { if (!open) { setPolicyBuilderId(null); onRefresh?.(); } }}>
+        <DialogContent className="max-h-[calc(100vh-1rem)] max-w-5xl overflow-y-auto p-0">
+          <DialogHeader className="border-b border-slate-200 px-6 py-4">
+            <DialogTitle>{policyBuilderId && POLICY_BUILDERS[policyBuilderId] ? builderName(POLICY_BUILDERS[policyBuilderId], lang) : t('coverage.policyModalTitle')}</DialogTitle>
+            <DialogDescription>{t('coverage.policyModalBody')}</DialogDescription>
+          </DialogHeader>
+          <div className="p-6"><PolicyBuilder initialBuilderId={policyBuilderId} embedded /></div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

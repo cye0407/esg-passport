@@ -90,6 +90,7 @@ const GAS_M3_TO_KWH = 10.55; // kWh per m³ natural gas
 // number so one invoice can never silently acquire twelve months of meaning.
 const COVERAGE_FIELDS = {
   electricityKwh: ['energy', 'electricityKwh'],
+  renewablePercent: ['energy', 'renewablePercent'],
   naturalGasM3: ['energy', 'naturalGasKwh'],
   dieselLiters: ['energy', 'vehicleFuelLiters'],
   waterM3: ['water', 'consumptionM3'],

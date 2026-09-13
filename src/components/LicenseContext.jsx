@@ -12,6 +12,7 @@ import { track } from '@/lib/track';
 import ActivationCard from '@/components/ActivationCard';
 import { useLanguage } from '@/components/LanguageContext';
 import { licenseErrorMessage } from '@/lib/i18n';
+import { readCoverageStash } from '@/lib/coverageStash';
 
 const LicenseContext = createContext({
   isPaid: false,
@@ -67,6 +68,9 @@ export function LicenseProvider({ children }) {
           tier: result.tier || getLicenseTier(),
         });
         setIsChecking(false);
+        if (result.valid && readCoverageStash()) {
+          window.location.hash = '#/respond?view=report';
+        }
         return;
       }
 

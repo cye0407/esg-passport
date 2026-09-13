@@ -10,6 +10,7 @@ import { getExtractionReceipts, getSettings } from '@/lib/store';
 import { readCoverageStash } from '@/lib/coverageStash';
 import { documentName, documentHolds } from '@/lib/documentLabels';
 import { COVERAGE_FIELD_MAP } from '@/lib/coverageFieldMap';
+import { buildCompanyData } from '@/lib/dataBridge';
 
 function topicName(t, topic) {
   const keys = { environmental: 'topic.environmental', social: 'topic.social', governance: 'topic.governance', other: 'topic.other' };
@@ -55,11 +56,20 @@ export default function Evidence() {
     return [...new Set(Object.values(sources).filter(Boolean))];
   }, [sources]);
   const receipts = useMemo(() => getExtractionReceipts(), []);
+  const companyData = useMemo(() => buildCompanyData(), []);
+  const annualReceiptFields = useMemo(() => new Set(
+    receipts.filter(receipt => receipt.annual).flatMap(receipt => receipt.fields.map(field => field.field)),
+  ), [receipts]);
   const satisfiedDocuments = useMemo(() => new Set(
     COVERAGE_FIELD_MAP
       .filter(row => row.storeFields.some(field => sources[field]))
+      .filter(row => row.companyDataKeys.some(key => {
+        const coverage = companyData?.dataCoverage?.[key];
+        if (coverage?.complete) return true;
+        return row.storeFields.some(field => annualReceiptFields.has(field.split('.').pop()));
+      }))
       .map(row => row.document),
-  ), [sources]);
+  ), [annualReceiptFields, companyData, sources]);
 
   // Applying extracted values needs the Data page's records state and its bare-year
   // confirmation, so the accepted fields are handed over rather than written here.
@@ -70,7 +80,7 @@ export default function Evidence() {
       items,
       // Data owns validation and persistence, but it is not the destination when the
       // evidence belongs to an in-progress questionnaire.
-      returnTo: stash ? '/evidence?added=1' : null,
+      returnTo: stash ? '/respond?view=report' : null,
     });
     track('evidence_documents_extracted', {
       documents: items.length,
@@ -94,6 +104,18 @@ export default function Evidence() {
         documentCount={added.length}
       />
 
+      {stash && (
+        <div className="sticky top-2 z-20 flex justify-end pointer-events-none">
+          <Link
+            to="/respond?view=report"
+            className="pointer-events-auto inline-flex h-11 items-center gap-2 border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-lg hover:bg-slate-50"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t('evidence.back')}
+          </Link>
+        </div>
+      )}
+
       <div className="max-w-3xl space-y-2">
         {/* Reachable from onboarding now, before any questionnaire exists — so the
             heading cannot assume one. Promising what "your questionnaire needs" to
@@ -105,6 +127,19 @@ export default function Evidence() {
           {stash ? t('evidence.body') : t('evidence.bodyStandalone')}
         </p>
       </div>
+
+      <BillDrop
+        inputId="evidence-file-input"
+        incoming={dropped}
+        onDataExtracted={(fields, period, fileName) => {
+          batch.current.push({ fields, period, fileName });
+        }}
+        onBatchComplete={() => {
+          const items = batch.current;
+          batch.current = [];
+          handOff(items);
+        }}
+      />
 
       {documentAdded && (
         <div className="border border-emerald-200 bg-emerald-50 p-5">
@@ -191,19 +226,6 @@ export default function Evidence() {
         <div><p className="text-sm font-semibold text-slate-900">{t('evidence.policiesTitle')}</p><p className="mt-0.5 text-sm text-slate-500">{t('evidence.policiesBody')}</p></div>
         <div className="flex flex-wrap gap-2"><Link to="/documents" className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('evidence.registerPolicy')}</Link><Link to="/policies" className="inline-flex h-10 items-center bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">{t('evidence.createPolicy')}</Link></div>
       </div>
-
-      <BillDrop
-        inputId="evidence-file-input"
-        incoming={dropped}
-        onDataExtracted={(fields, period, fileName) => {
-          batch.current.push({ fields, period, fileName });
-        }}
-        onBatchComplete={() => {
-          const items = batch.current;
-          batch.current = [];
-          handOff(items);
-        }}
-      />
 
       {receipts.length > 0 && (
         <section className="border border-slate-200 bg-white">

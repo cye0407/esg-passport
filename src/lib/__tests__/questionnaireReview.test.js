@@ -32,9 +32,16 @@ describe('questionnaire review boundary', () => {
   });
 
   it('warns on extreme under-recovery without alarming a short form', () => {
-    expect(thinParseSummary({ questions: [{}, {}], metadata: { totalRows: 40 } }).thin).toBe(true);
-    expect(thinParseSummary({ questions: [{}, {}, {}], metadata: { totalRows: 100 } }).thin).toBe(true);
-    expect(thinParseSummary({ questions: [{}, {}], metadata: { totalRows: 8 } }).thin).toBe(false);
-    expect(thinParseSummary({ questions: Array(12).fill({}), metadata: { totalRows: 50 } }).thin).toBe(false);
+    expect(thinParseSummary({ questions: [{}, {}], metadata: { totalRows: 40 } }, 'saq.pdf').thin).toBe(true);
+    expect(thinParseSummary({ questions: [{}, {}, {}], metadata: { totalRows: 100 } }, 'saq.xlsx').thin).toBe(true);
+    expect(thinParseSummary({ questions: [{}, {}], metadata: { totalRows: 8 } }, 'saq.xlsx').thin).toBe(false);
+    expect(thinParseSummary({ questions: Array(22).fill({}), metadata: { totalRows: 50 } }, 'saq.xlsx').thin).toBe(true);
+    expect(thinParseSummary({ questions: Array(25).fill({}), metadata: { totalRows: 50 } }, 'saq.xlsx').thin).toBe(false);
+  });
+
+  it('does not treat PDF or Word text lines as spreadsheet rows', () => {
+    const parsed = { questions: Array(22).fill({}), metadata: { totalRows: 500 } };
+    expect(thinParseSummary(parsed, 'saq.pdf').thin).toBe(false);
+    expect(thinParseSummary(parsed, 'saq.docx').thin).toBe(false);
   });
 });

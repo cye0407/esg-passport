@@ -96,7 +96,7 @@ function StatusPill({ status, t }) {
   );
 }
 
-export default function PolicyBuilder() {
+export default function PolicyBuilder({ initialBuilderId = null, embedded = false }) {
   // Gate on the capability, not on "is any tier paid": a EUR 99 Questionnaire
   // Pass must not unlock the EUR 499 guided builders. COVERAGE-REPORT-SPEC.md.
   const { entitlements, isChecking, tier } = useLicense();
@@ -124,11 +124,19 @@ export default function PolicyBuilder() {
   const [toast, setToast] = useState('');
   const [editingDoc, setEditingDoc] = useState(false); // manual text-edit mode in the builder
   const [searchParams, setSearchParams] = useSearchParams();
+  const initialBuilderOpened = useRef(false);
 
   // Ensure the tracked policies exist so adopt/status/fileLocation mirroring
   // always finds them — even on a direct ?build= deep-link where the library
   // (and its PoliciesSection seeding) never mounts.
   useEffect(() => { getPolicies(); }, []);
+
+  useEffect(() => {
+    if (isChecking || initialBuilderOpened.current || !initialBuilderId) return;
+    initialBuilderOpened.current = true;
+    if (POLICY_BUILDERS[initialBuilderId]) openBuilder(initialBuilderId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isChecking, initialBuilderId]);
 
   // Debounce per-keystroke answer persistence so we don't rewrite the whole
   // store on every character. Honesty-critical writes (adopt/save/status) flush
@@ -183,7 +191,7 @@ export default function PolicyBuilder() {
     if (!canBuildPolicies) {
       track('policy_builder_locked_click', { builder: id });
       setView('free');
-      window.scrollTo({ top: 0 });
+      if (!embedded) window.scrollTo({ top: 0 });
       return;
     }
     if (!state[id]?.answers) {
@@ -194,7 +202,7 @@ export default function PolicyBuilder() {
     setEditingDoc(false);
     setCurId(id);
     setView('builder');
-    window.scrollTo({ top: 0 });
+    if (!embedded) window.scrollTo({ top: 0 });
   }
 
   function toLibrary() {
@@ -202,7 +210,7 @@ export default function PolicyBuilder() {
     setEditingDoc(false);
     setCurId(null);
     setView('library');
-    window.scrollTo({ top: 0 });
+    if (!embedded) window.scrollTo({ top: 0 });
   }
 
   function setAnswer(id, key, value) {
@@ -443,6 +451,33 @@ export default function PolicyBuilder() {
     );
   }
 
+  function LockedExamplePreview() {
+    const headings = composeParagraphs(WORKED_EXAMPLE_ID, workedExampleAnswers(lang), ctx)
+      .slice(0, 4)
+      .map(paragraph => paragraph.h);
+    return (
+      <div className="select-none" aria-label={t('pb.example.title')}>
+        <h3 className="text-lg font-semibold text-slate-900" style={{ fontFamily: 'Georgia, serif' }}>
+          {builderName(POLICY_BUILDERS[WORKED_EXAMPLE_ID], lang)}
+        </h3>
+        <div className="mt-4 space-y-4">
+          {headings.map((heading, index) => (
+            <div key={heading}>
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-emerald-800">{heading}</p>
+              <div className="mt-1.5 space-y-1.5" aria-hidden="true">
+                <div className="h-2.5 bg-slate-200" style={{ width: `${92 - index * 5}%` }} />
+                <div className="h-2.5 bg-slate-100" style={{ width: `${70 - index * 3}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-5 border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+          {t('pb.example.previewLocked')}
+        </p>
+      </div>
+    );
+  }
+
   // ---------- views ----------
   function LibraryCard({ id }) {
     const m = builderMeta(id, lang);
@@ -545,7 +580,7 @@ export default function PolicyBuilder() {
           <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => { setView('free'); window.scrollTo({ top: 0 }); }}
+              onClick={() => { setView('free'); if (!embedded) window.scrollTo({ top: 0 }); }}
               className="text-left bg-white border border-slate-200 rounded-sm p-4 flex flex-col gap-2 hover:border-emerald-500 transition shadow-sm"
             >
               <div className="flex items-center gap-2">
@@ -620,7 +655,7 @@ export default function PolicyBuilder() {
             {t('pb.example.lead')}
           </p>
           <div className="bg-white border border-slate-200 rounded-sm p-5 max-w-2xl">
-            <LiveDoc id={WORKED_EXAMPLE_ID} answers={workedExampleAnswers(lang)} adopted showUnlock />
+            <LockedExamplePreview />
           </div>
           <a
             {...checkoutLinkProps(PASSPORT_CHECKOUT_URL, 'policy_builder_example', tier)}

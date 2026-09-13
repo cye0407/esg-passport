@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Upload, FileText, Check, X, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageContext';
+import { dropSurfaceClass } from '@/lib/dropSurface';
 
 function fieldLabel(t, field) {
   const key = `bill.field.${field}`;
@@ -202,11 +203,10 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`
-          border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all
-          ${dragging ? 'border-blue-400 bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-300'}
-          ${processing ? 'opacity-60 pointer-events-none' : ''}
-        `}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+        className={dropSurfaceClass({ active: dragging, disabled: processing })}
       >
         <input
           id={inputId}
@@ -224,7 +224,7 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
           </div>
         ) : (
           <>
-            <FileText className="w-6 h-6 mx-auto mb-2 text-slate-400" />
+            <FileText className="w-8 h-8 mx-auto mb-3 text-slate-400" />
             <p className="text-sm font-medium text-slate-700">
               {t('bill.dropZone')}
             </p>
@@ -237,7 +237,7 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
 
       {/* Review dialog */}
       <Dialog open={!!results} onOpenChange={(open) => { if (!open) handleCancel(); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-lg overflow-y-auto overscroll-contain sm:max-h-[calc(100vh-4rem)]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" />

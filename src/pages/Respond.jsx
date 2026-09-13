@@ -6,13 +6,12 @@ import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getD
 import { loadDemoData } from '@/lib/demoData';
 import { QUESTIONNAIRE_TEMPLATES, templateToParseResult, templateName, templateDescription } from '@/data/questionnaire-templates';
 import { matchBuilderId } from '@/data/policyBuilders';
-import { summarizeCoverage } from '@/lib/coverage';
+import { periodCoverageForDraft, summarizeCoverage } from '@/lib/coverage';
 import { figureWithUnit, answerStatesFigure } from '@/lib/figures';
 import { takeHandoff } from '@/lib/handoff';
 import { writeCoverageStash, takeCoverageStash, clearCoverageStash } from '@/lib/coverageStash';
 import JourneySpine from '@/components/JourneySpine';
 import CoverageReport from '@/components/CoverageReport';
-import DocumentDrop from '@/components/DocumentDrop';
 import ResultsViewSwitch from '@/components/ResultsViewSwitch';
 import { buildCompanyData, buildCompanyProfile } from '@/lib/dataBridge';
 import { detectQuestionnaireLanguage } from '@/lib/questionnaireLanguage';
@@ -44,6 +43,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { dropSurfaceClass } from '@/lib/dropSurface';
 import {
   Upload as UploadIcon, FileSpreadsheet, FileText, X as XIcon, ArrowRight,
   AlertCircle, CheckCircle2, Loader2, ListChecks, Clock, Trash2,
@@ -150,8 +150,8 @@ export default function Respond({ demoOnly = false }) {
   const [passBlock, setPassBlock] = useState(null);
   // The question list awaiting the user's confirmation, and which of them they kept.
   const [pendingConfirm, setPendingConfirm] = useState(null);
-  const [pendingEvidence, setPendingEvidence] = useState(null);
   const [confirmedIds, setConfirmedIds] = useState(() => new Set());
+  const [showConfirmedQuestions, setShowConfirmedQuestions] = useState(false);
 
   const requests = getRequests().filter(r => r.status !== 'closed' && r.status !== 'sent');
   const [selectedRequestId, setSelectedRequestId] = useState(requestId || '');
@@ -190,14 +190,14 @@ export default function Respond({ demoOnly = false }) {
   // added a document, so the counts should move. Session-scoped, because it is a
   // return-trip aid and not a saved result.
   useEffect(() => {
-    if (canGenerate || demoOnly || phase !== 'upload') return;
+    if (demoOnly || phase !== 'upload') return;
     const stored = takeCoverageStash();
     if (!stored) return;
     try {
       const { parseResult: stashed, name } = stored;
       if (stashed?.questions?.length) {
         track('coverage_resumed', { questions: stashed.questions.length });
-        processConfirmedQuestionnaire(stashed, name, false, { evidenceOffered: true });
+        processConfirmedQuestionnaire(stashed, name, false);
         showFeedback(t('respond.coverageResumed', { name }));
       }
     } catch {
@@ -237,7 +237,7 @@ export default function Respond({ demoOnly = false }) {
   // anything.
   // Which face of the results a paid reader is looking at: the drafts they bought, or
   // the report on what is still open before they send.
-  const [resultsView, setResultsView] = useState('answers');
+  const [resultsView, setResultsView] = useState(() => searchParams.get('view') === 'report' ? 'report' : 'answers');
 
   const coverage = useMemo(() => {
     if (demoOnly || phase !== 'results') return null;
@@ -266,6 +266,15 @@ export default function Respond({ demoOnly = false }) {
       policyGaps: coverage?.policyGaps || { questions: 0, builders: [] },
     });
   }, [canGenerate, demoOnly, phase, parseResult, questionnaireName, coverage]);
+
+  // Persistent storage carries a buyer through checkout, but it is only a hand-off,
+  // not a second saved-results system. Once a paid result has loaded successfully the
+  // normal paid history owns it, so consume the hand-off and avoid auto-opening the
+  // same questionnaire on every later visit.
+  useEffect(() => {
+    if (!canGenerate || demoOnly || phase !== 'results' || !parseResult?.questions?.length) return;
+    clearCoverageStash();
+  }, [canGenerate, demoOnly, phase, parseResult]);
 
   const [filterConfidence, setFilterConfidence] = useState('all');
   const [filterType, setFilterType] = useState('all');
@@ -395,9 +404,10 @@ export default function Respond({ demoOnly = false }) {
     // their one allowance on a question list that was read wrong.
     const sourceName = pr?.metadata?.fileName || name || '';
     if (!builtInSample && requiresQuestionConfirmation(sourceName)) {
-      const review = thinParseSummary(pr);
+      const review = thinParseSummary(pr, sourceName);
       setPendingConfirm({ parseResult: pr, name, review });
       setConfirmedIds(new Set((pr?.questions || []).map(q => q.id)));
+      setShowConfirmedQuestions(false);
       setPhase('confirm');
       track('questionnaire_confirm_shown', {
         questions: review.questions,
@@ -411,25 +421,11 @@ export default function Respond({ demoOnly = false }) {
     processConfirmedQuestionnaire(pr, name, builtInSample);
   }
 
-  function processConfirmedQuestionnaire(pr, name, builtInSample, { evidenceOffered = false } = {}) {
+  function processConfirmedQuestionnaire(pr, name, builtInSample) {
     // Every branch below except the pipeline itself renders on the upload screen -
     // a parse error or a pass dialog left behind a confirmation step would be
     // invisible. runPipeline moves us on to 'generating' from here.
     setPhase('upload');
-    if (!canGenerate && !demoOnly && !builtInSample && !evidenceOffered) {
-      writeCoverageStash({
-        parseResult: pr,
-        name,
-        questionCount: pr.questions.length,
-        missingDocuments: [],
-        topics: [],
-        policyGaps: { questions: 0, builders: [] },
-      });
-      setPendingEvidence({ parseResult: pr, name });
-      setPhase('evidence');
-      track('questionnaire_evidence_offered', { questions: pr.questions.length });
-      return;
-    }
     const decision = getQuestionnairePassDecision({
       tier,
       licenseKeyId,
@@ -468,13 +464,6 @@ export default function Respond({ demoOnly = false }) {
     });
   }
 
-  function continueWithoutEvidence() {
-    if (!pendingEvidence) return;
-    const { parseResult: pr, name } = pendingEvidence;
-    setPendingEvidence(null);
-    track('questionnaire_evidence_skipped', { questions: pr.questions.length });
-    processConfirmedQuestionnaire(pr, name, false, { evidenceOffered: true });
-  }
 
   const toggleConfirmedQuestion = (id) => {
     setConfirmedIds(prev => {
@@ -506,6 +495,7 @@ export default function Respond({ demoOnly = false }) {
   function cancelQuestionList() {
     setPendingConfirm(null);
     setConfirmedIds(new Set());
+    setShowConfirmedQuestions(false);
     setPhase('upload');
     removeFile();
   }
@@ -559,7 +549,7 @@ export default function Respond({ demoOnly = false }) {
         ? await engine.parseWithMapping(file, columnMapping)
         : await engine.parseFile(file);
 
-      const review = thinParseSummary(result);
+      const review = thinParseSummary(result, file.name);
       track('respond_parse_completed', {
         ext: questionnaireExtension(file.name),
         outcome: result.success && result.questions.length > 0 ? 'success' : 'empty',
@@ -661,12 +651,19 @@ export default function Respond({ demoOnly = false }) {
     hasDataGaps: s.hasDataGaps ?? (s.limitations || []).length > 0,
   });
 
+  const enforcePeriodCoverage = (draft, data) => (
+    periodCoverageForDraft(draft, data)?.complete === false
+      ? { ...draft, dataCoverage: 'partial' }
+      : draft
+  );
+
   const loadSavedResult = (saved) => {
+    const currentCompanyData = buildCompanyData();
     setQuestionnaireName(saved.name);
     setFramework(saved.framework || null);
     setParseResult(saved.parseResult || null);
-    setAnswerDrafts(saved.answers.map(normalizeDraft));
-    setCompanyData(buildCompanyData());
+    setAnswerDrafts(saved.answers.map(normalizeDraft).map(draft => enforcePeriodCoverage(draft, currentCompanyData)));
+    setCompanyData(currentCompanyData);
     setDemoLibraryUsed(demoOnly && getSettings()?.demoLibrarySeeded === true);
     setPhase('results');
   };
@@ -806,7 +803,7 @@ export default function Respond({ demoOnly = false }) {
       };
 
       const drafts = engine.generateDrafts(questions, matchResults, dataContexts, config, profile, classifications);
-      const normalizedDrafts = drafts.map(normalizeDraft);
+      const normalizedDrafts = drafts.map(normalizeDraft).map(draft => enforcePeriodCoverage(draft, cd));
 
       // Persist the entitlement synchronously before exposing successful
       // results. A storage failure therefore cannot leave generated answers
@@ -829,7 +826,7 @@ export default function Respond({ demoOnly = false }) {
 
       // Stash what an answer-language switch needs to regenerate without re-parsing/re-matching.
       regenContextRef.current = {
-        questions, matchResults, dataContexts, profile, classifications, name, fw, pr,
+        questions, matchResults, dataContexts, profile, classifications, companyData: cd, name, fw, pr,
         questionnaireFingerprint,
       };
       draftSourceLangRef.current = config.language;
@@ -884,7 +881,7 @@ export default function Respond({ demoOnly = false }) {
       const drafts = engine.generateDrafts(
         ctx.questions, ctx.matchResults, ctx.dataContexts, config, ctx.profile, ctx.classifications
       );
-      applyGeneratedDrafts(drafts.map(normalizeDraft), {
+      applyGeneratedDrafts(drafts.map(normalizeDraft).map(draft => enforcePeriodCoverage(draft, ctx.companyData)), {
         name: ctx.name,
         fw: ctx.fw,
         pr: ctx.pr,
@@ -917,18 +914,19 @@ export default function Respond({ demoOnly = false }) {
     });
 
     // "Supported" = non-drafted, non-insufficient, non-none answers backed by real data
-    const supported = answerDrafts.filter(d => d.supportLevel === 'supported').length;
+    const supported = answerDrafts.filter(d => d.supportLevel === 'supported' && d.dataCoverage !== 'partial').length;
+    const partial = answerDrafts.filter(d => d.dataCoverage === 'partial').length;
     const drafted = answerDrafts.filter(d => d.supportLevel === 'draft').length;
     const insufficient = byConfidence.none || 0;
     const withData = supported;
-    const needData = drafted + insufficient;
+    const needData = drafted + insufficient + partial;
     const answered = supported;
     const readinessPercent = total > 0 ? Math.round((supported / total) * 100) : 0;
     const weightedScore = total > 0 ? Math.round(
       ((supported * 1.0 + bySource.estimated * 0.3) / total) * 100
     ) : 0;
 
-    return { total, byConfidence, byType, bySource, withData, needData, answered, readinessPercent, weightedScore, supported, drafted, insufficient };
+    return { total, byConfidence, byType, bySource, withData, needData, answered, readinessPercent, weightedScore, supported, partial, drafted, insufficient };
   }, [answerDrafts]);
 
   const allDocuments = useMemo(() => getDocuments(), []);
@@ -1484,6 +1482,8 @@ export default function Respond({ demoOnly = false }) {
   // ============ RENDER: CONFIRM THE QUESTION LIST ============
   if (phase === 'confirm' && pendingConfirm) {
     const parsed = pendingConfirm.parseResult.questions;
+    const sourceRows = pendingConfirm.review?.rows || parsed.length;
+    const detectedColumn = pendingConfirm.parseResult?.metadata?.columnMapping?.questionText;
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
@@ -1504,24 +1504,57 @@ export default function Respond({ demoOnly = false }) {
           )}
         </div>
 
-        <div className="border border-slate-200 bg-white divide-y divide-slate-100">
-          {parsed.map((question, index) => (
-            <label
-              key={question.id}
-              className="flex items-start gap-3 p-3 cursor-pointer hover:bg-slate-50"
-            >
-              <input
-                type="checkbox"
-                checked={confirmedIds.has(question.id)}
-                onChange={() => toggleConfirmedQuestion(question.id)}
-                className="mt-1 shrink-0"
-              />
-              <span className="text-sm text-slate-700">
-                <span className="text-slate-400 mr-2">{index + 1}.</span>
-                {question.text}
-              </span>
-            </label>
-          ))}
+        <div className="border border-slate-200 bg-white">
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-3xl font-bold tabular-nums text-slate-900">{parsed.length}</p>
+                <p className="mt-1 text-sm font-medium text-slate-900">{t('confirm.summaryTitle')}</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                  {t('confirm.summaryBody', { rows: sourceRows })}
+                  {detectedColumn ? ` ${t('confirm.detectedColumn', { column: detectedColumn })}` : ''}
+                </p>
+              </div>
+              <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" />
+            </div>
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('confirm.sampleTitle')}</p>
+              <ol className="mt-2 space-y-1.5">
+                {parsed.slice(0, 3).map((question, index) => (
+                  <li key={question.id} className="flex gap-2 text-sm text-slate-600">
+                    <span className="shrink-0 text-slate-400">{index + 1}.</span>
+                    <span className="line-clamp-2">{question.text}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowConfirmedQuestions(value => !value)}
+            className="flex w-full items-center justify-between border-t border-slate-100 px-5 py-3.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            {showConfirmedQuestions ? t('confirm.hideQuestions') : t('confirm.reviewQuestions', { count: parsed.length })}
+            <ChevronDown className={`h-4 w-4 transition-transform ${showConfirmedQuestions ? 'rotate-180' : ''}`} />
+          </button>
+          {showConfirmedQuestions && (
+            <div className="max-h-[45vh] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100">
+              {parsed.map((question, index) => (
+                <label key={question.id} className="flex cursor-pointer items-start gap-3 p-3 hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={confirmedIds.has(question.id)}
+                    onChange={() => toggleConfirmedQuestion(question.id)}
+                    className="mt-1 shrink-0"
+                  />
+                  <span className="text-sm text-slate-700">
+                    <span className="mr-2 text-slate-400">{index + 1}.</span>
+                    {question.text}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -1530,7 +1563,7 @@ export default function Respond({ demoOnly = false }) {
             disabled={confirmedIds.size === 0}
             className="bg-slate-900 hover:bg-slate-800 text-white rounded-none"
           >
-            {t('confirm.cta')}
+            {t('confirm.cta', { count: confirmedIds.size })}
           </Button>
           <span className="text-sm text-slate-500">
             {t('confirm.selected', { count: confirmedIds.size, total: parsed.length })}
@@ -1543,32 +1576,6 @@ export default function Respond({ demoOnly = false }) {
           <button onClick={cancelQuestionList} className="text-sm text-slate-500 hover:text-slate-700 underline ml-auto">
             {t('confirm.back')}
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (phase === 'evidence' && pendingEvidence) {
-    return (
-      <div className="space-y-7">
-        <JourneySpine step={2} questionCount={pendingEvidence.parseResult.questions.length} />
-        <div className="mx-auto max-w-2xl space-y-6">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-slate-900">{t('respond.evidenceStepTitle')}</h1>
-            <p className="mx-auto mt-2 max-w-xl text-[15px] leading-relaxed text-slate-600">
-              {t('respond.evidenceStepBody')}
-            </p>
-          </div>
-          <DocumentDrop />
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={continueWithoutEvidence}
-              className="text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4 hover:text-slate-900"
-            >
-              {t('respond.evidenceStepSkip')}
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -1605,6 +1612,7 @@ export default function Respond({ demoOnly = false }) {
             questions={parseResult?.questions || []}
             tier={tier}
             onStartOver={resetToUpload}
+            onRefresh={() => runPipeline(parseResult, questionnaireName)}
           />
         </div>
       );
@@ -1624,6 +1632,7 @@ export default function Respond({ demoOnly = false }) {
             questions={parseResult?.questions || []}
             tier={tier}
             onStartOver={resetToUpload}
+            onRefresh={() => runPipeline(parseResult, questionnaireName, { questionnaireFingerprint: passClaim?.fingerprint || null })}
           />
         </div>
       );
@@ -1814,7 +1823,9 @@ export default function Respond({ demoOnly = false }) {
 
           {(canGenerate ? filtered : filtered.slice(0, FREE_PREVIEW_LIMIT)).map((draft, i) => {
             const conf = CONFIDENCE_CONFIG[draft.answerConfidence] || CONFIDENCE_CONFIG.none;
-            const support = SUPPORT_CONFIG[draft.supportLevel || 'draft'] || SUPPORT_CONFIG.draft;
+            const support = draft.dataCoverage === 'partial'
+              ? { color: 'text-amber-700', bg: 'bg-amber-50', dot: 'bg-amber-500', labelKey: 'respond.covPartial' }
+              : (SUPPORT_CONFIG[draft.supportLevel || 'draft'] || SUPPORT_CONFIG.draft);
             const isExpanded = showDetails.has(draft.questionId);
             const isEditing = editingAnswerId === draft.questionId;
             const isEnhancing = enhancingId === draft.questionId;
@@ -2340,7 +2351,7 @@ export default function Respond({ demoOnly = false }) {
       <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <div className="order-1">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-900">{canUpload ? t('respond.titleRespond') : t('respond.titleExample')}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{canUpload ? t(focusedEntry ? 'respond.titleAnalyze' : 'respond.titleRespond') : t('respond.titleExample')}</h1>
           {demoOnly && (
             <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
               {t('respond.example')}
@@ -2497,17 +2508,15 @@ export default function Respond({ demoOnly = false }) {
 
           {canUpload ? (
             <div
-              className={cn(
-                'order-4 sm:order-6',
-                'bg-white border-2 border-dashed rounded-none p-8 transition-all cursor-pointer',
-                dragActive ? 'border-indigo-600 bg-indigo-50' : 'border-slate-300 hover:border-slate-400',
-                file && 'border-solid border-slate-200'
-              )}
+              className={dropSurfaceClass({ active: dragActive, selected: !!file, className: 'order-4 sm:order-6' })}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
               onClick={() => !file && fileInputRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (!file && (e.key === 'Enter' || e.key === ' ')) fileInputRef.current?.click(); }}
             >
             <input ref={fileInputRef} type="file" accept={ACCEPTED_EXTENSIONS.join(',')} onChange={handleFileSelect} className="hidden" />
             {file ? (
@@ -2523,10 +2532,11 @@ export default function Respond({ demoOnly = false }) {
               </div>
             ) : (
               <div className="text-center">
-                <UploadIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <UploadIcon className="w-8 h-8 text-slate-400 mx-auto mb-3" />
                 <p className="font-medium text-slate-900">{t('respond.dropHere')}</p>
                 <p className="text-sm text-slate-500 mt-1">{t('respond.orBrowse')}</p>
                 <p className="text-xs text-slate-400 mt-3">{t('respond.fileTypes')}</p>
+                <p className="mt-2 text-xs font-medium text-emerald-700">{t('respond.uploadPrivacy')}</p>
               </div>
             )}
             </div>
@@ -2608,7 +2618,7 @@ export default function Respond({ demoOnly = false }) {
                 {parsing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('respond.parsing')}</>
                   : <><FileSpreadsheet className="w-4 h-4 mr-2" />{showMapping
                     ? t('respond.reparse')
-                    : canGenerate ? t('respond.prepareAnswers') : t('respond.checkQuestionnaire')}</>}
+                    : t('respond.analyzeQuestionnaire')}</>}
               </Button>
             )}
             {!showMapping && file && !parsing && (

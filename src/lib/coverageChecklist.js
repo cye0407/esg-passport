@@ -45,7 +45,7 @@ export function buildChecklistHtml({
   url = '',
   generatedAt = new Date(),
 }) {
-  const { total, fromRecords, written, unanswerable, missingDocuments } = coverage;
+  const { total, fromRecords, partial = [], written, unanswerable, missingDocuments } = coverage;
 
   const date = generatedAt.toISOString().split('T')[0];
 
@@ -60,6 +60,7 @@ export function buildChecklistHtml({
   const rows = [
     [t('checklist.total'), total],
     [t('checklist.fromRecords'), fromRecords.length],
+    [t('checklist.partial'), partial.length],
     [t('checklist.written'), written.length],
     [t('checklist.unanswerable'), unanswerable.length],
   ];

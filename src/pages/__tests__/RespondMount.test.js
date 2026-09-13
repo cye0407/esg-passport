@@ -135,6 +135,8 @@ describe('Respond renders', () => {
     expect(container.textContent).not.toContain('Previous');
     expect(container.textContent).not.toContain('Readiness');
     expect(container.textContent).not.toContain('No questionnaire handy');
+    expect(container.textContent).toContain('Analyze my questionnaire');
+    expect(container.textContent).not.toContain('Prepare Answers');
     expect(container.querySelector('input[type="file"]')).not.toBeNull();
   });
 });

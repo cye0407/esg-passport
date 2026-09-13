@@ -7,6 +7,7 @@ import {
   getCompanyProfile,
   getAnnualTotals,
   saveSettings,
+  getExtractionReceipts,
   saveExtractionReceipt,
 } from '@/lib/store';
 import { EMISSION_FACTORS } from '@/lib/constants';
@@ -17,6 +18,7 @@ import { track, trackOnce } from '@/lib/track';
 import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
 import { takeHandoff } from '@/lib/handoff';
 import { groupAnnualBills, mergeAnnualValues } from '@/lib/annualBills';
+import { readCoverageStash } from '@/lib/coverageStash';
 import { detectNumberFormat, parseNumber, parsePeriod, buildColumnMap } from '@/lib/csvImport';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
@@ -52,6 +54,7 @@ export default function Data() {
   const navigate = useNavigate();
   const { entitlements } = useLicense();
   const { lang, t } = useLanguage();
+  const questionnaireStash = useMemo(() => readCoverageStash(), []);
   // Honor ?period=YYYY-MM query param from deep links on Respond answer cards
   const initialYear = (() => {
     if (typeof window === 'undefined') return new Date().getFullYear();
@@ -345,6 +348,10 @@ export default function Data() {
     let targetPeriod;
     if (extractedPeriod && /^\d{4}-\d{2}$/.test(extractedPeriod)) {
       targetPeriod = extractedPeriod;
+      // Direct uploads on this page do not pass through the extraction handoff above.
+      // Keep the visible table aligned with the period we are about to write; otherwise
+      // a 2025 bill is saved correctly but appears to have landed in the 2026 workspace.
+      setSelectedYear(Number(extractedPeriod.slice(0, 4)));
     } else {
       targetPeriod = `${selectedYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
     }
@@ -420,6 +427,11 @@ export default function Data() {
   const dismissAnnualBills = useCallback(() => {
     setPendingAnnualBills(prev => prev.filter(bill => bill.year !== annualBatch.year));
   }, [annualBatch.year]);
+
+  const cancelAnnualAndReturn = useCallback(() => {
+    dismissAnnualBills();
+    if (questionnaireStash && annualBatch.remaining === 0) navigate('/evidence');
+  }, [annualBatch.remaining, dismissAnnualBills, navigate, questionnaireStash]);
 
   // Runs after the extraction's writes have landed in state, which is why this is an
   // effect and not a call at the end of handleBillExtracted: handleSave reads `records`,
@@ -738,6 +750,36 @@ export default function Data() {
     });
   };
 
+  const sourceForVisibleYear = (row) => {
+    const hasValueThisYear = getYearPeriods(selectedYear).some(period => {
+      const value = records[period]?.[row.section]?.[row.field];
+      return value !== undefined && value !== null && value !== '';
+    });
+    if (!hasValueThisYear) return null;
+
+    const receipts = getExtractionReceipts();
+    const receiptForYear = receipts.find(receipt => (
+      String(receipt.savedPeriod || '').startsWith(String(selectedYear))
+      && receipt.fields.some(field => {
+        const mapping = EXTRACT_FIELD_MAP[field.field];
+        return mapping?.section === row.section && mapping?.field === row.field;
+      })
+    ));
+    if (receiptForYear?.fileName) return receiptForYear.fileName;
+
+    const generic = dataSources[sourceKey(row)];
+    if (!generic) return null;
+    const belongsToAnotherExtractedPeriod = receipts.some(receipt => (
+      receipt.fileName === generic
+      && !String(receipt.savedPeriod || '').startsWith(String(selectedYear))
+      && receipt.fields.some(field => {
+        const mapping = EXTRACT_FIELD_MAP[field.field];
+        return mapping?.section === row.section && mapping?.field === row.field;
+      })
+    ));
+    return belongsToAnotherExtractedPeriod ? null : generic;
+  };
+
   // ---- Annual mode helpers ----
   const switchToAnnual = () => {
     const values = {};
@@ -987,6 +1029,13 @@ export default function Data() {
 
   return (
     <div className="space-y-6">
+      {questionnaireStash && (
+        <div className="sticky top-0 z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+          <Link to="/respond?view=report" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-800 hover:text-slate-950">
+            <ChevronLeft className="h-4 w-4" /> {t('evidence.back')}
+          </Link>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -1249,14 +1298,14 @@ export default function Data() {
                       <button onClick={saveEditSource} className="text-[11px] text-indigo-600 hover:text-indigo-800 px-1">{t('dataUi.saveShort')}</button>
                       <button onClick={cancelEditSource} className="text-[11px] text-slate-400 hover:text-slate-600 px-1">{t('dataUi.cancelShort')}</button>
                     </div>
-                  ) : dataSources[sourceKey(row)] ? (
+                  ) : sourceForVisibleYear(row) ? (
                     <button
                       type="button"
                       onClick={() => startEditSource(row)}
                       className="mt-0.5 block text-[11px] text-slate-400 hover:text-slate-700 text-left max-w-[260px] truncate"
-                      title={dataSources[sourceKey(row)]}
+                      title={sourceForVisibleYear(row)}
                     >
-                      📎 {dataSources[sourceKey(row)]}
+                      📎 {sourceForVisibleYear(row)}
                     </button>
                   ) : (
                     <button
@@ -1773,7 +1822,7 @@ export default function Data() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={dismissAnnualBills}>{t('csv.cancel')}</Button>
+            <Button variant="outline" onClick={cancelAnnualAndReturn}>{t('csv.cancel')}</Button>
             <Button onClick={applyAnnualBills}>
               {t('bill.annualConfirmApply', { year: annualBatch.year })}
             </Button>
