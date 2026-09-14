@@ -474,8 +474,8 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                     .sort((a, b) => b.entry.unlocks - a.entry.unlocks)[0];
                   const showDocumentRecommendation = recommendedDocument?.entry?.unlocks >= 2;
                   return (
-                    <div key={bucket.topic} className={`relative flex flex-col overflow-hidden border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md ${bucket.topic === 'other' ? 'md:col-span-2 xl:col-span-3' : ''}`}>
-                      <div className="flex flex-grow flex-col p-5 pb-24">
+                    <div key={bucket.topic} className={`flex flex-col overflow-hidden border border-slate-200 bg-white shadow-sm ${bucket.topic === 'other' ? 'md:col-span-2 xl:col-span-3' : ''}`}>
+                      <div className="flex flex-grow flex-col p-5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex min-w-0 gap-3">
                           <TopicIcon topic={bucket.topic} />
@@ -498,100 +498,70 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                         <span className="text-slate-600">{t('coverage.topicOpen', { count: bucket.open || 0 })}</span>
                       </p>
                       {(bucket.questions || []).length > 0 && (
-                        <details className="mt-3 group" open>
-                          <summary className="cursor-pointer select-none text-sm font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
-                            {t('coverage.topicShowQuestions', { count: bucket.questions.length })}
-                          </summary>
-                          <ul className="mt-2 divide-y divide-slate-100 border-t border-slate-100">
-                            {bucket.questions.map(q => (
-                              <li key={q.questionId} className="py-2.5 text-[13px] leading-snug">
-                                <div className="flex items-start gap-2">
-                                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                                    q.state === 'recovered' || q.state === 'fromRecords' ? 'bg-emerald-600'
-                                      : q.state === 'partial' || q.state === 'written' ? 'bg-amber-500'
-                                        : 'border border-slate-400 bg-white'
-                                  }`} />
-                                  <span className="min-w-0 flex-1 text-slate-800">{q.questionText}</span>
-                                </div>
-                                <p className="mt-0.5 pl-4 text-[11px] text-slate-500">
-                                  {t(`coverage.state.${q.state}`)}
-                                  {q.needs && (() => {
-                                    const doc = q.needs.documents?.[0];
-                                    const docName = doc ? documentName(t, doc.document) : null;
-                                    const policy = q.needs.policy && POLICY_BUILDERS[q.needs.policy] ? builderName(POLICY_BUILDERS[q.needs.policy], lang) : null;
-                                    const hint = docName ? t('coverage.needsDocument', { document: docName, figure: doc.label })
-                                      : policy ? t('coverage.needsPolicy', { policy })
-                                        : q.needs.prompt ? q.needs.prompt
-                                          : t('coverage.needsYou');
-                                    return <span className="text-slate-600"> · {hint}</span>;
-                                  })()}
-                                </p>
+                        <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100">
+                          {bucket.questions.map(q => (
+                            <li key={q.questionId} className="py-2.5 text-[13px] leading-snug">
+                              <div className="flex items-start gap-2">
+                                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                                  q.state === 'recovered' || q.state === 'fromRecords' ? 'bg-emerald-600'
+                                    : q.state === 'partial' || q.state === 'written' ? 'bg-amber-500'
+                                      : 'border border-slate-400 bg-white'
+                                }`} />
+                                <span className="min-w-0 flex-1 text-slate-800">{q.questionText}</span>
+                              </div>
+                              <p className="mt-0.5 pl-4 text-[11px] text-slate-500">
+                                {t(`coverage.state.${q.state}`)}
+                                {q.needs && (() => {
+                                  const doc = q.needs.documents?.[0];
+                                  const docName = doc ? documentName(t, doc.document) : null;
+                                  const policy = q.needs.policy && POLICY_BUILDERS[q.needs.policy] ? builderName(POLICY_BUILDERS[q.needs.policy], lang) : null;
+                                  const hint = docName ? t('coverage.needsDocument', { document: docName, figure: doc.label })
+                                    : policy ? t('coverage.needsPolicy', { policy })
+                                      : q.needs.prompt ? q.needs.prompt
+                                        : t('coverage.needsYou');
+                                  return <span className="text-slate-600"> · {hint}</span>;
+                                })()}
+                              </p>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="mt-4 flex flex-grow flex-col gap-3">
+                        {showDocumentRecommendation && (
+                          <div className="bg-emerald-50 px-3.5 py-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.startHere')}</p>
+                            <p className="mt-1 text-sm font-semibold text-emerald-950">{recommendedDocument.entry.name}</p>
+                            <p className="mt-0.5 text-xs leading-relaxed text-emerald-900/70">{documentHolds(t, recommendedDocument.documentId)} · {t('coverage.docUnlocks', { count: recommendedDocument.entry.unlocks })}</p>
+                          </div>
+                        )}
+                        {!showDocumentRecommendation && bucket.needsPolicy > 0 && (
+                          <div className="bg-violet-50 px-3.5 py-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-violet-700">{t('coverage.startHere')}</p>
+                            <p className="mt-1 text-sm font-semibold text-violet-950">{t('coverage.policyStartTitle')}</p>
+                            <p className="mt-0.5 text-xs leading-relaxed text-violet-900/70">{t('coverage.topicPolicyNeed', { count: bucket.needsPolicy })}</p>
+                          </div>
+                        )}
+                        {/* Generic for the topic, the same on every questionnaire — kept, but behind
+                            a line; the per-question hints above are the specific version. */}
+                        <details className="text-sm">
+                          <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-600">{t('coverage.topicDocuments')}</summary>
+                          <ul className="mt-2 space-y-1.5">
+                            {commonDocuments.map(item => (
+                              <li key={item} className="flex gap-2.5 text-[13px] leading-relaxed text-slate-600">
+                                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />
+                                <span>{item}</span>
                               </li>
                             ))}
                           </ul>
                         </details>
-                      )}
-                      <div className="mt-5 flex flex-grow flex-col border-t border-slate-100 pt-4">
-                          {showDocumentRecommendation && (
-                              <div className="mb-4 bg-emerald-50 px-3.5 py-3">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.startHere')}</p>
-                                <p className="mt-1 text-sm font-semibold text-emerald-950">{recommendedDocument.entry.name}</p>
-                                <p className="mt-0.5 text-xs leading-relaxed text-emerald-900/70">{documentHolds(t, recommendedDocument.documentId)} · {t('coverage.docUnlocks', { count: recommendedDocument.entry.unlocks })}</p>
-                              </div>
-                          )}
-                          {!showDocumentRecommendation && bucket.needsPolicy > 0 && (
-                            <div className="mb-4 bg-violet-50 px-3.5 py-3">
-                              <p className="text-[10px] font-bold uppercase tracking-wider text-violet-700">{t('coverage.startHere')}</p>
-                              <p className="mt-1 text-sm font-semibold text-violet-950">{t('coverage.policyStartTitle')}</p>
-                              <p className="mt-0.5 text-xs leading-relaxed text-violet-900/70">{t('coverage.topicPolicyNeed', { count: bucket.needsPolicy })}</p>
-                            </div>
-                          )}
-                          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t('coverage.topicDocuments')}</p>
-                          <div className="mt-2 flex flex-1 flex-col space-y-2">
-                            <ul className="space-y-2">
-                              {commonDocuments.map(item => (
-                                <li key={item} className="flex gap-2.5 text-sm leading-relaxed text-slate-700">
-                                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-                                  <span>{item}</span>
-                                </li>
-                              ))}
-                            </ul>
-                            {(bucket.documents || []).slice(0, 1).map(documentId => {
-                              const entry = documents.find(item => item.document === documentId);
-                              if (!entry) return null;
-                              return (
-                                <div key={documentId} className="hidden">
-                                  <div className="flex-grow">
-                                    <p className="text-sm font-medium text-slate-900">{entry.name}</p>
-                                    <p className="text-xs text-slate-500">{documentHolds(t, documentId)} · {t('coverage.docUnlocks', { count: entry.unlocks })}</p>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                            {bucket.topic === 'other' && (
-                              <button type="button" onClick={openCompany} className="hidden">
-                                {t('coverage.addCompanyDetails')}
-                              </button>
-                            )}
-                            {bucket.needsPolicy > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')}
-                                className="hidden"
-                              >
-                                <span>{t('coverage.topicPolicyNeed', { count: bucket.needsPolicy })}</span>
-                                <span className="underline underline-offset-2">{t('coverage.openPolicy')}</span>
-                              </button>
-                            )}
-                            {((bucket.documents || []).length > 0 || bucket.topic === 'other' || bucket.needsPolicy > 0) && (
-                              <div className="absolute inset-x-0 bottom-0 flex min-h-[72px] flex-wrap items-center justify-center gap-2 border-t border-slate-100 bg-slate-50 px-4 py-4">
-                                {(bucket.documents || []).length > 0 && <><button onClick={() => { track('coverage_add_documents_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/evidence'); }} className="inline-flex h-10 items-center gap-1.5 bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"><Upload className="h-4 w-4" />{t('coverage.docUpload')}</button><button onClick={() => { track('coverage_enter_figures_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/data'); }} className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-white">{t('coverage.docEnter')}</button></>}
-                                {bucket.topic === 'other' && <button type="button" onClick={openCompany} className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50">{t('coverage.addCompanyDetails')}</button>}
-                                {bucket.needsPolicy > 0 && <><button type="button" onClick={() => { setPolicyUploadBuilder(policyGaps.builders[0] || ''); setPolicyUploadOpen(true); }} className="inline-flex h-10 items-center gap-1.5 border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"><Upload className="h-4 w-4" />{t('coverage.uploadPolicy')}</button><button type="button" onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')} className="inline-flex h-10 items-center bg-violet-700 px-4 text-sm font-medium text-white hover:bg-violet-800">{t('coverage.createPolicy')}</button></>}
-                              </div>
-                            )}
+                        {((bucket.documents || []).length > 0 || bucket.topic === 'other' || bucket.needsPolicy > 0) && (
+                          <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                            {(bucket.documents || []).length > 0 && <><button onClick={() => { track('coverage_add_documents_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/evidence'); }} className="inline-flex h-10 items-center gap-1.5 bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"><Upload className="h-4 w-4" />{t('coverage.docUpload')}</button><button onClick={() => { track('coverage_enter_figures_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/data'); }} className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('coverage.docEnter')}</button></>}
+                            {bucket.topic === 'other' && <button type="button" onClick={openCompany} className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50">{t('coverage.addCompanyDetails')}</button>}
+                            {bucket.needsPolicy > 0 && <><button type="button" onClick={() => { setPolicyUploadBuilder(policyGaps.builders[0] || ''); setPolicyUploadOpen(true); }} className="inline-flex h-10 items-center gap-1.5 border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"><Upload className="h-4 w-4" />{t('coverage.uploadPolicy')}</button><button type="button" onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')} className="inline-flex h-10 items-center bg-violet-700 px-4 text-sm font-medium text-white hover:bg-violet-800">{t('coverage.createPolicy')}</button></>}
                           </div>
-                        </div>
+                        )}
+                      </div>
                       </div>
                     </div>
                   );
