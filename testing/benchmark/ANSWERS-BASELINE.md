@@ -83,6 +83,34 @@ suppliers' emissions", "audit standards", "corrective-action ownership") answere
 company's own H&S or HR-policy sentences; (c) GHG-inventory method questions (boundaries,
 base year, standards, verification) all answered with the Scope 1 figure.
 
+
+## After the question bank — `answers-bank-2026-09-14.tsv`
+
+Same four forms, same rubric, engine = main + #13 + #15 + #14 (bank routing on). 209
+questions (SAQ 5.0 61, Alderwyn 48, BlueCrest 50, Kernholm 50), hand-scored the same day.
+
+| | correct | partial | wrong | unanswered | no-match |
+|---|---:|---:|---:|---:|---:|
+| **before** (209) | 17 (8 %) | 53 (25 %) | **87 (42 %)** | 33 | 19 |
+| **after** (209) | 55 (26 %) | 35 (17 %) | **0** | 119 (57 %) | 0 |
+
+Wrong went from 87 to 0: every draft now either answers from the fields the question names,
+or says "Not on record for this question: …" in the record's own words. The 119 unanswered
+are the record's coverage limit on these forms — process descriptions, supply-chain due
+diligence, product footprints, Scope 3 categories — which is exactly what the coverage report
+is meant to show ("what would answer this"). Two deliberate choices lowered the correct
+count: a policy absent from the policies list, or a certificate absent from the list, is
+reported as *not on record* with the absence named, never as "No." — the supplier confirms it.
+
+Gate check: wrong ≤ 2 % ✓ (0 %). Correct ≥ 60 % ✗ (26 %) — the gate assumed the record
+could answer; on these forms it cannot, and the honest answer is the unanswered count.
+The 35 partials are mostly multi-part cells where one half is on record (Scope 2
+location-based but not market-based; accidents but not fatalities in the same cell).
+
+Matcher on the 493 mapped questions: top-1 98 % (batch, with conditional sub-questions
+inheriting their parent's record). This is the labelled set the variants were written from,
+not a generalisation number — the next real form measures that.
+
 ## Gate for the question bank (from the 2026-09-14 proposal)
 
 On held-out forms: wrong ≤ 2 %, correct ≥ 60 % with a full record. Re-run:

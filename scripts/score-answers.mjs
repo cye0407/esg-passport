@@ -66,7 +66,8 @@ function draftBatch(source, questions, lang) {
     const d = drafts[i];
     const answer = (d.answer || '').replace(/\s+/g, ' ').trim();
     const flags = [];
-    if (!m.primaryDomain) flags.push('NO_MATCH');
+    if (d.generic) flags.push('GENERIC');
+    else if (!m.primaryDomain && !d.canonicalId) flags.push('NO_MATCH');
     if (/In this area we track the following data|In diesem Bereich erfassen wir folgende Daten/.test(answer)) flags.push('DUMP');
     if (/not enough information here|nicht genügend Informationen vor/.test(answer)) flags.push('INSUFFICIENT');
     else if (/^(We do not have|Für diese Frage haben wir)[^.]*(on record|hinterlegt)[^.]*\.$/.test(answer)) flags.push('NOT_ON_RECORD');
@@ -74,7 +75,7 @@ function draftBatch(source, questions, lang) {
       source, n: i + 1, ref: q.referenceId || '', category: q.category || '', question: q.text, lang,
       domain: m.primaryDomain || '', topics: (m.primaryTopics || m.topics || []).join('|'),
       type: cls[i]?.questionType || '', matchConf: m.confidence, answerConf: d.answerConfidence || '',
-      drafted: d.isDrafted ? 'y' : '', flags: flags.join('|'), draft: answer, verdict: '', note: '',
+      drafted: d.isDrafted ? 'y' : '', canonical: (d.canonicalIds || (d.canonicalId ? [d.canonicalId] : [])).join('+'), legalBasis: d.legalBasis || '', flags: flags.join('|'), draft: answer, verdict: '', note: '',
     };
   });
 }
@@ -106,7 +107,7 @@ for (const file of textFiles) {
   rows.push(...draftBatch(path.basename(file), questions, lang));
 }
 
-const COLS = ['source', 'n', 'ref', 'category', 'question', 'lang', 'domain', 'topics', 'type', 'matchConf', 'answerConf', 'drafted', 'flags', 'draft', 'verdict', 'note'];
+const COLS = ['source', 'n', 'ref', 'category', 'question', 'lang', 'domain', 'topics', 'type', 'matchConf', 'answerConf', 'drafted', 'canonical', 'legalBasis', 'flags', 'draft', 'verdict', 'note'];
 const tsv = [COLS.join('\t'), ...rows.map(r => COLS.map(c => String(r[c] ?? '').replace(/[\t\r\n]+/g, ' ')).join('\t'))].join('\n') + '\n';
 if (out) {
   fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -118,7 +119,8 @@ if (out) {
 // Summary per source: how many questions, and what the automated flags caught.
 const bySource = new Map();
 for (const r of rows) {
-  const s = bySource.get(r.source) || { questions: 0, NO_MATCH: 0, DUMP: 0, INSUFFICIENT: 0, NOT_ON_RECORD: 0 };
+  const s = bySource.get(r.source) || { questions: 0, NO_MATCH: 0, DUMP: 0, INSUFFICIENT: 0, NOT_ON_RECORD: 0, GENERIC: 0, bank: 0 };
+  if (r.canonical) s.bank += 1;
   s.questions += 1;
   for (const f of r.flags.split('|').filter(Boolean)) s[f] += 1;
   bySource.set(r.source, s);
