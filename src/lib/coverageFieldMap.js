@@ -79,6 +79,20 @@ export const COVERAGE_FIELD_MAP = Object.freeze([
     document: 'wasteManifest',
   },
   {
+    label: 'Scope 1 emissions (tCO2e)',
+    labelDe: 'Scope-1-Emissionen (t CO₂e)',
+    companyDataKeys: ['scope1Tco2e'],
+    storeFields: ['energy.naturalGasKwh', 'energy.vehicleFuelLiters'],
+    document: 'fuelInvoice',
+  },
+  {
+    label: 'Scope 2 emissions (location & market-based)',
+    labelDe: 'Scope-2-Emissionen (standort- und marktbasiert)',
+    companyDataKeys: ['scope2Tco2e'],
+    storeFields: ['energy.electricityKwh'],
+    document: 'electricityBill',
+  },
+  {
     label: 'Total FTE',
     labelDe: 'Mitarbeitende (VZÄ)',
     // The bridge (and the engine's data model) call this employeeCount. It was

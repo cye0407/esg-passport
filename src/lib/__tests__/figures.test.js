@@ -58,6 +58,19 @@ describe('answerStatesFigure', () => {
     expect(answerStatesFigure('Consumption was 4.3 tonnes.', '4.256999999999')).toBe(true);
   });
 
+  // The engine writes figures with locale grouping. The check used to look for
+  // "2363000" in "2,363,000 kWh" and find nothing — so no answer over a thousand ever
+  // counted as stating its figure, and the covered-answers panel never appeared for
+  // real data.
+  it('reads the figure through English and German grouping', () => {
+    expect(answerStatesFigure('Our total electricity consumption was 2,363,000 kWh during 2025.', 2363000)).toBe(true);
+    expect(answerStatesFigure('Unsere Scope-1- und Scope-2-Emissionen betrugen 1.261,2 t CO2e.', 1261.2)).toBe(true);
+    expect(answerStatesFigure('Wir haben 2.363.000 kWh Strom verbraucht.', 2363000)).toBe(true);
+    expect(answerStatesFigure('Our Scope 1 and 2 emissions were 1,261.2 tCO2e.', 1261.2)).toBe(true);
+    // and still refuses a figure that is not there
+    expect(answerStatesFigure('Our total electricity consumption was 2,363,000 kWh.', 1261.2)).toBe(false);
+  });
+
   it('refuses a different number of the same shape', () => {
     const answer = 'Our Scope 2 emissions were 163.6 tCO2e.';
     expect(answerStatesFigure(answer, '68.58000000000001 tCO2e')).toBe(false);

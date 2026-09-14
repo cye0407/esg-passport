@@ -51,18 +51,43 @@ export function figureWithUnit(value, unit) {
  * Compared on digits alone, because the prose rounds ("68.6") and the value may not
  * ("68.58000000000001"), and the two are formatted independently.
  */
+/**
+ * The numbers a sentence states, as plain numbers. The engine writes figures with
+ * locale grouping — "2,363,000 kWh" in English, "1.261,2 t" in German — and a check
+ * that looked for "2363000" in that prose found nothing, so no answer over a thousand
+ * ever counted as stating its figure. Every grouped or decimal form is read here.
+ */
+function numbersStated(text) {
+  const out = new Set();
+  for (const m of String(text).matchAll(/-?\d[\d.,\s]*\d|-?\d/g)) {
+    const raw = m[0].replace(/\s/g, '');
+    out.add(raw);
+    // en: 2,363,000 / 1,261.2   de: 2.363.000 / 1.261,2   — both read to the same number
+    const lastComma = raw.lastIndexOf(',');
+    const lastDot = raw.lastIndexOf('.');
+    const en = raw.replace(/,/g, '');
+    const de = raw.replace(/\./g, '').replace(',', '.');
+    if (lastComma > lastDot) { out.add(de); out.add(en); } else { out.add(en); out.add(de); }
+  }
+  return out;
+}
+
 export function answerStatesFigure(answerText, value) {
   const figure = formatFigure(value);
   if (!figure || !answerText) return false;
   const numbers = figure.match(/-?\d+(?:\.\d+)?/g);
   if (!numbers || numbers.length === 0) return false;
-  const answer = String(answerText);
+  const stated = numbersStated(answerText);
+  const statedValues = [...stated].map(Number).filter(Number.isFinite);
   return numbers.every((number) => {
-    if (answer.includes(number)) return true;
-    // "68.6" in prose against a "68.58" value, or the other way round: allow the prose
-    // to have rounded one place further than we did.
+    if (stated.has(number)) return true;
     const n = Number(number);
     if (!Number.isFinite(n)) return false;
-    return [0, 1, 2].some(places => answer.includes(String(Number(n.toFixed(places)))));
+    // "68.6" in prose against a "68.58" value, or the other way round: allow the prose
+    // to have rounded one place further than we did.
+    return [0, 1, 2].some(places => {
+      const rounded = Number(n.toFixed(places));
+      return statedValues.some(v => v === rounded || Number(v.toFixed(places)) === rounded);
+    });
   });
 }
