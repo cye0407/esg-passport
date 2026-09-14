@@ -66,11 +66,11 @@ describe('BillDrop with a multi-file selection', () => {
     container.remove();
   });
 
-  it('reads every file the user chose, even though the input is cleared while reading', async () => {
+  it('reads every file the user chose (though the input is cleared while reading) and reviews them as one table', async () => {
     const extracted = [];
     let completed = 0;
     await act(async () => {
-      root.render(React.createElement(BillDrop, { inputId: 'bills', onDataExtracted: (fields, period) => extracted.push(period), onBatchComplete: () => { completed += 1; } }));
+      root.render(React.createElement(BillDrop, { inputId: 'bills', onDataExtracted: (fields, period) => extracted.push({ fields, period }), onBatchComplete: () => { completed += 1; } }));
     });
     const input = container.querySelector('input[type=file]');
     const files = [monthFile(1, 'Januar'), monthFile(2, 'Februar'), monthFile(3, 'März')];
@@ -85,16 +85,22 @@ describe('BillDrop with a multi-file selection', () => {
       await new Promise(r => setTimeout(r, 600));
     });
 
-    // January's review card is up and says two more are waiting
-    expect(document.body.textContent).toContain('bill.more:2');
+    // one table, three rows in date order, one Apply
+    const body = document.body;
+    expect(body.textContent).toContain('bill.batchTitle:3');
+    const rows = [...body.querySelectorAll('tbody tr')];
+    expect(rows.map(r => r.querySelector('td:nth-child(2)').textContent)).toEqual(['2025-01', '2025-02', '2025-03']);
 
-    // confirm all three
-    for (let i = 0; i < 3; i++) {
-      const confirm = [...document.body.querySelectorAll('button')].find(b => b.textContent.includes('bill.apply'));
-      expect(confirm, `apply button for file ${i + 1}`).toBeTruthy();
-      await act(async () => { confirm.click(); });
-    }
-    expect(extracted).toEqual(['2025-01', '2025-02', '2025-03']);
+    // leave February out, and leave one figure out of March
+    await act(async () => { rows[1].querySelector('input[type=checkbox]').click(); });
+    await act(async () => { [...body.querySelectorAll('tbody tr')][2].querySelector('td button').click(); });
+
+    const apply = [...body.querySelectorAll('button')].find(b => b.textContent.includes('bill.batchApply'));
+    expect(apply.textContent).toContain('bill.batchApply:2');
+    await act(async () => { apply.click(); });
+    expect(extracted.map(e => e.period)).toEqual(['2025-01', '2025-03']);
+    // March lost its first figure
+    expect(extracted[1].fields.length).toBe(extracted[0].fields.length - 1);
     expect(completed).toBe(1);
   });
 });

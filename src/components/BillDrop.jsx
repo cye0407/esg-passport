@@ -46,13 +46,36 @@ function extractionExplanation(t, field, result, reasons = []) {
  *     arrival, so the drop and the review are not two different uploaders. Processed
  *     once; the caller has already consumed its hand-off, so a re-render never re-reads.
  */
+// Rows keep the same shape as the single card's `results` (fileName, result, fields with
+// `accepted`), plus `included` for the whole document. Grouped by what the document is,
+// ordered by period, so twelve payroll summaries read Jan → Dec.
+function buildBatch(allResults) {
+  const read = allResults.filter(r => !r.error && r.fields?.length > 0);
+  const unread = allResults.filter(r => r.error || !r.fields?.length);
+  const byType = new Map();
+  for (const r of read) {
+    const type = r.result?.documentType || 'unknown';
+    if (!byType.has(type)) byType.set(type, []);
+    byType.get(type).push({ ...r, included: true });
+  }
+  const groups = [...byType.entries()].map(([documentType, rows]) => ({
+    documentType,
+    rows: rows.sort((a, b) => String(a.result?.period || '').localeCompare(String(b.result?.period || '')) || a.fileName.localeCompare(b.fileName)),
+    columns: [...new Set(rows.flatMap(r => r.fields.map(f => f.field)))],
+  }));
+  return { groups, unread };
+}
+
 export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = null, inputId }) {
   const { lang, t } = useLanguage();
   const [dragging, setDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [progressText, setProgressText] = useState('');
   const [results, setResults] = useState(null); // { fileName, result, fields[] }
-  const [queue, setQueue] = useState([]); // remaining files to review
+  const [queue, setQueue] = useState([]); // remaining files to review (single-file path)
+  // Two or more files are reviewed as ONE table — a year of monthly bills is one batch,
+  // not twelve dialogs. { groups: [{ documentType, rows: [...] }], unread: [...] }
+  const [batch, setBatch] = useState(null);
   const fileInputRef = useRef(null);
 
   const processFile = useCallback(async (file) => {
@@ -137,12 +160,58 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
     setProcessing(false);
     setProgressText('');
 
-    // Show first result, queue the rest
-    if (allResults.length > 0) {
+    if (allResults.length >= 2) {
+      setBatch(buildBatch(allResults));
+      setResults(null);
+      setQueue([]);
+    } else if (allResults.length === 1) {
       setResults(allResults[0]);
-      setQueue(allResults.slice(1));
+      setQueue([]);
     }
   }, [processFile, t]);
+
+  const toggleBatchRow = useCallback((groupIndex, rowIndex) => {
+    setBatch(prev => ({
+      ...prev,
+      groups: prev.groups.map((g, gi) => gi !== groupIndex ? g : {
+        ...g,
+        rows: g.rows.map((r, ri) => ri !== rowIndex ? r : { ...r, included: !r.included }),
+      }),
+    }));
+  }, []);
+
+  const toggleBatchCell = useCallback((groupIndex, rowIndex, field) => {
+    setBatch(prev => ({
+      ...prev,
+      groups: prev.groups.map((g, gi) => gi !== groupIndex ? g : {
+        ...g,
+        rows: g.rows.map((r, ri) => ri !== rowIndex ? r : {
+          ...r,
+          fields: r.fields.map(f => f.field === field ? { ...f, accepted: !f.accepted } : f),
+        }),
+      }),
+    }));
+  }, []);
+
+  const handleBatchConfirm = useCallback(() => {
+    if (!batch) return;
+    for (const group of batch.groups) {
+      for (const row of group.rows) {
+        if (!row.included) continue;
+        const accepted = row.fields.filter(f => f.accepted);
+        if (accepted.length > 0) onDataExtracted(accepted, row.result?.period, row.fileName);
+      }
+    }
+    setBatch(null);
+    onBatchComplete?.();
+  }, [batch, onDataExtracted, onBatchComplete]);
+
+  const handleBatchCancel = useCallback(() => {
+    setBatch(null);
+    onBatchComplete?.();
+  }, [onBatchComplete]);
+
+  const batchIncludedCount = batch ? batch.groups.reduce((n, g) => n + g.rows.filter(r => r.included && r.fields.some(f => f.accepted)).length, 0) : 0;
 
   // Files handed over from another screen. The ref guards against a second pass if the
   // parent re-renders with the same array — reading a bill twice would ask the user to
@@ -243,6 +312,98 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
       </div>
 
       {/* Review dialog */}
+      {/* A batch: one table per kind of document, one Apply. */}
+      <Dialog open={!!batch} onOpenChange={(open) => { if (!open) handleBatchCancel(); }}>
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-5xl overflow-y-auto overscroll-contain sm:max-h-[calc(100vh-4rem)]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              {t('bill.batchTitle', { count: (batch?.groups.reduce((n, g) => n + g.rows.length, 0) || 0) + (batch?.unread.length || 0) })}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm leading-relaxed text-slate-600">{t('bill.batchIntro')}</p>
+
+          {batch?.groups.map((group, gi) => (
+            <div key={group.documentType} className="space-y-2">
+              <p className="text-sm font-semibold text-slate-900">
+                {documentTypeLabel(t, group.documentType)}
+                <span className="ml-2 text-xs font-normal text-slate-500">{t('bill.batchRows', { count: group.rows.length })}</span>
+              </p>
+              <div className="overflow-x-auto border border-slate-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium"><span className="sr-only">{t('bill.batchInclude')}</span></th>
+                      <th className="px-3 py-2 text-left font-medium whitespace-nowrap">{t('bill.batchPeriod')}</th>
+                      <th className="px-3 py-2 text-left font-medium">{t('bill.batchDocument')}</th>
+                      {group.columns.map(col => (
+                        <th key={col} className="px-3 py-2 text-right font-medium whitespace-nowrap">{fieldLabel(t, col)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.rows.map((row, ri) => (
+                      <tr key={row.fileName} className={`border-t border-slate-100 ${row.included ? '' : 'opacity-40'}`}>
+                        <td className="px-3 py-2">
+                          <input type="checkbox" checked={row.included} onChange={() => toggleBatchRow(gi, ri)} aria-label={row.fileName} />
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-700 whitespace-nowrap">{row.result?.period || '—'}</td>
+                        <td className="px-3 py-2 text-xs text-slate-500 max-w-[14rem] truncate" title={row.fileName}>{row.fileName}</td>
+                        {group.columns.map(col => {
+                          const f = row.fields.find(x => x.field === col);
+                          if (!f) return <td key={col} className="px-3 py-2 text-right text-slate-300">—</td>;
+                          const value = typeof f.value === 'number' ? f.value.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB') : f.value;
+                          return (
+                            <td key={col} className="px-1 py-1 text-right">
+                              <button
+                                type="button"
+                                onClick={() => toggleBatchCell(gi, ri, col)}
+                                aria-pressed={f.accepted}
+                                title={`${fieldLabel(t, col)} · ${t(`bill.confidence.${f.confidence}`)} · ${t('bill.foundAs')} ${f.source?.rawText || ''}`}
+                                className={`w-full whitespace-nowrap rounded px-2 py-1 text-right tabular-nums transition-colors ${
+                                  !f.accepted ? 'text-slate-400 line-through'
+                                    : f.confidence === 'low' ? 'bg-red-50 text-red-800'
+                                      : f.confidence === 'medium' ? 'bg-amber-50 text-amber-900'
+                                        : 'text-slate-900'
+                                }`}
+                              >
+                                {value}{f.unit ? <span className="ml-1 text-xs text-slate-500">{f.unit}</span> : null}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+
+          {batch?.unread.length > 0 && (
+            <div className="space-y-1.5 rounded-lg bg-amber-50 p-3">
+              <p className="text-xs font-semibold text-amber-900">{t('bill.batchNotRead', { count: batch.unread.length })}</p>
+              {batch.unread.map(r => (
+                <p key={r.fileName} className="flex items-start gap-2 text-xs text-amber-800">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-600" />
+                  <span><span className="font-medium">{r.fileName}</span> — {r.error}</span>
+                </p>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={handleBatchCancel}>{t('respond.cancel')}</Button>
+            {batchIncludedCount > 0 && (
+              <Button onClick={handleBatchConfirm}>
+                <Check className="w-4 h-4 mr-1" />
+                {t('bill.batchApply', { count: batchIncludedCount })}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!results} onOpenChange={(open) => { if (!open) handleCancel(); }}>
         <DialogContent className="max-h-[calc(100vh-2rem)] max-w-lg overflow-y-auto overscroll-contain sm:max-h-[calc(100vh-4rem)]">
           <DialogHeader>
