@@ -69,7 +69,11 @@ export const COVERAGE_FIELD_MAP = Object.freeze([
   },
   {
     label: 'Total FTE',
-    companyDataKeys: ['totalEmployees'],
+    // The bridge (and the engine's data model) call this employeeCount. It was
+    // `totalEmployees` here — a key nothing ever set — so a headcount from any source,
+    // uploaded or typed, never satisfied this row and "upload your HR report" stayed on
+    // the page after twelve months of payroll had been read.
+    companyDataKeys: ['employeeCount'],
     storeFields: ['workforce.totalEmployees'],
     document: 'hrReport',
   },

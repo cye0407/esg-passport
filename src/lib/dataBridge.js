@@ -175,6 +175,20 @@ export function buildCompanyData(year) {
   const femaleEmp = totals.femaleEmployees || 0;
   const femalePercent = totalEmp > 0 ? Math.round((femaleEmp / totalEmp) * 100) : undefined;
 
+  // Turnover from what a payroll summary actually carries: departures over the year and
+  // the monthly headcounts. Only when nobody typed a rate — an entered rate is theirs.
+  // Annual departures / average headcount, the usual definition.
+  const monthlyHeadcounts = records
+    .filter(r => String(r.period || '').startsWith(`${reportingYear}-`))
+    .map(r => r.workforce?.totalEmployees)
+    .filter(v => typeof v === 'number' && v > 0);
+  const averageHeadcount = monthlyHeadcounts.length
+    ? monthlyHeadcounts.reduce((a, b) => a + b, 0) / monthlyHeadcounts.length
+    : totalEmp;
+  const derivedTurnoverRate = (totals.departures > 0 && averageHeadcount > 0)
+    ? Math.round((totals.departures / averageHeadcount) * 1000) / 10
+    : undefined;
+
   // Training hours per employee
   const trainingHoursPerEmployee = (totals.trainingHours && totalEmp > 0)
     ? Math.round((totals.trainingHours / totalEmp) * 10) / 10
@@ -297,7 +311,7 @@ export function buildCompanyData(year) {
     // Workforce — use != null to preserve zero values
     femalePercent,
     womenInLeadershipPercent: totals.womenInLeadershipPercent != null ? Math.round(totals.womenInLeadershipPercent) : undefined,
-    turnoverRate: totals.turnoverRate != null ? Math.round(totals.turnoverRate * 10) / 10 : undefined,
+    turnoverRate: totals.turnoverRate != null ? Math.round(totals.turnoverRate * 10) / 10 : derivedTurnoverRate,
     collectiveBargainingPercent: totals.collectiveBargainingPercent != null ? Math.round(totals.collectiveBargainingPercent) : undefined,
     livingWageCompliant: toTriStateBoolean(profile?.livingWageCompliant),
     grievanceMechanismExists,
