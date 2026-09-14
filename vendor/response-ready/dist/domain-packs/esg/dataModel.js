@@ -34,7 +34,12 @@ export function esgRetrieveData(matchResult, data) {
     const operational = [];
     const calculated = [];
     const dataGaps = [];
+    const dataGapsByDomain = {};
     for (const domain of allDomains) {
+        // Gaps are pushed inside the cases below; whatever this iteration adds belongs to
+        // this domain. A secondary domain's gap (no fuel for Scope 1) must not cap an
+        // electricity question that is fully answered.
+        const gapsBefore = dataGaps.length;
         switch (domain) {
             case 'effluents':
             case 'buyer_requirements':
@@ -362,6 +367,9 @@ export function esgRetrieveData(matchResult, data) {
                 addIfPresent(company, 'financial_context', 'revenueBand', 'Revenue Band', data.revenueBand);
                 break;
         }
+        if (dataGaps.length > gapsBefore) {
+            dataGapsByDomain[domain] = [...(dataGapsByDomain[domain] || []), ...dataGaps.slice(gapsBefore)];
+        }
     }
     // ---- Policy & document evidence injection ----
     // Maps policy categories to the operational domains they support
@@ -462,6 +470,7 @@ export function esgRetrieveData(matchResult, data) {
             reportingPeriod: data.reportingPeriod || undefined,
             sitesIncluded: [],
             dataGaps,
+            dataGapsByDomain,
         },
     };
 }

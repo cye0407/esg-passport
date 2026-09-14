@@ -178,7 +178,7 @@ function findMatchingTemplate(matchResult, templates, questionType) {
 // ============================================
 // Confidence Determination
 // ============================================
-function determineConfidence(context, matchResult) {
+function determineConfidence(context, matchResult, answeredFrom) {
     // Only count operational/calculated points from the primary domain as evidence.
     // Company profile points (name, industry, country) must NOT inflate confidence
     // for unrelated questions — that's how a DEI question gets "medium" confidence
@@ -189,7 +189,15 @@ function determineConfidence(context, matchResult) {
         return 'none';
     const hasHighConfidence = domainPoints.some(p => p.confidence === 'high');
     const hasMediumConfidence = domainPoints.some(p => p.confidence === 'medium');
-    const hasDataGaps = context.metadata.dataGaps.length > 0;
+    // Only a gap in the domain the answer was written from can cap it. The context also
+    // carries the secondary domains' gaps — an energy question matched alongside emissions
+    // came back "medium" over missing fuel for a Scope 1 estimate it never asked about,
+    // and twelve months of electricity bills read as not quite an answer. A pack that does
+    // not tag its gaps by domain keeps the older any-gap-anywhere behaviour.
+    const byDomain = context.metadata.dataGapsByDomain;
+    const hasDataGaps = byDomain && answeredFrom
+        ? answeredFrom.domains.some(d => (byDomain[d]?.length ?? 0) > 0)
+        : context.metadata.dataGaps.length > 0;
     if (matchResult.confidence === 'high' && hasHighConfidence && !hasDataGaps)
         return 'high';
     if (matchResult.confidence !== 'none' && (hasHighConfidence || hasMediumConfidence))
@@ -212,10 +220,15 @@ export function createAnswerGenerator(deps) {
      * Check which required fields are missing for the matched topics.
      * Returns gap descriptions for display.
      */
-    function checkRequiredGaps(matchResult, dataMap, lang) {
+    function checkRequiredGaps(matchResult, dataMap, lang, answeredTopics) {
         const gaps = [];
         const seen = new Set();
-        const topics = matchResult.topics || [];
+        // A template's required fields are those of the topics it actually answers. The
+        // match may carry more topics (ghg_emissions alongside energy_consumption) whose
+        // requirements belong to a different answer.
+        const topics = answeredTopics
+            ? (matchResult.topics || []).filter(t => answeredTopics.includes(t))
+            : (matchResult.topics || []);
         for (const topic of topics) {
             const req = topicRequirements[topic];
             if (!req)
@@ -263,6 +276,7 @@ export function createAnswerGenerator(deps) {
                     drafted,
                     dataValue: primaryPoint ? `${primaryPoint.value}${primaryPoint.unit ? ' ' + primaryPoint.unit : ''}` : undefined,
                     dataSource: primaryPoint?.source,
+                    answeredBy: template,
                 };
             }
         }
@@ -317,14 +331,25 @@ export function createAnswerGenerator(deps) {
         const framework = question.framework;
         const questionType = classification?.questionType;
         const lang = config.language ?? 'en';
-        const { answer, dataValue, dataSource, usedPractice, drafted, insufficientData } = generateSimpleAnswer(dataContext, matchResult, framework, profile, questionType, lang);
+        const { answer, dataValue, dataSource, usedPractice, drafted, insufficientData, answeredBy } = generateSimpleAnswer(dataContext, matchResult, framework, profile, questionType, lang);
+        // When a data template wrote the answer, it declares which domains and topics it
+        // answers from, and that is the scope the answer is judged on: its confidence, its
+        // estimates, its required fields. The context is wider — every domain the matcher
+        // saw — and judging an electricity answer on the emissions domain's state marked a
+        // complete answer incomplete. Answers from the matrix or the practice handler have
+        // no such declaration and are judged on the whole context, as before.
+        const answeredFrom = answeredBy
+            ? { domains: answeredBy.domains, topics: answeredBy.topics }
+            : undefined;
         // Force 'none' confidence when the answer is an honest insufficiency fallback
         const answerConfidence = insufficientData ? 'none'
             : drafted ? 'medium'
-                : determineConfidence(dataContext, matchResult);
+                : determineConfidence(dataContext, matchResult, answeredFrom);
         const limitations = [...dataContext.metadata.dataGaps];
         const assumptions = [];
-        const hasEstimates = dataContext.calculated.some(p => p.label.toLowerCase().includes('estimate') ||
+        const hasEstimates = dataContext.calculated
+            .filter(p => !answeredFrom || answeredFrom.domains.includes(p.domain))
+            .some(p => p.label.toLowerCase().includes('estimate') ||
             p.label.toLowerCase().includes('auto-calculated') ||
             p.confidence === 'low' ||
             p.confidence === 'medium');
@@ -363,7 +388,7 @@ export function createAnswerGenerator(deps) {
         }
         // Post-generation: check topic requirements for missing required fields
         const dataMap = buildDataMap(dataContext);
-        const requiredGaps = checkRequiredGaps(matchResult, dataMap, lang);
+        const requiredGaps = checkRequiredGaps(matchResult, dataMap, lang, answeredFrom?.topics);
         // Merge requirement gaps into limitations
         for (const gap of requiredGaps) {
             if (!limitations.includes(gap))

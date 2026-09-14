@@ -132,6 +132,12 @@ export interface DataContext {
         reportingPeriod?: string;
         sitesIncluded: string[];
         dataGaps: string[];
+        /**
+         * The same gaps, keyed by the domain whose retrieval raised them. Confidence reads the
+         * question's own domain here; a pack that does not fill this in keeps the older
+         * behaviour, where any gap anywhere in the context caps the answer.
+         */
+        dataGapsByDomain?: Record<string, string[]>;
     };
 }
 export interface ClassificationResult {
