@@ -220,7 +220,7 @@ function summarizeTopics(list, companyData) {
       // figure, a policy one of the guided builders writes, or the engine's own prompt.
       // Nothing listed means only the reader can answer it.
       needs: state === 'recovered' || state === 'fromRecords' ? null : {
-        documents: missingRowsFor(draft, companyData).map(row => ({ document: row.document, label: row.label })),
+        documents: missingRowsFor(draft, companyData).map(row => ({ document: row.document, label: row.label, labelDe: row.labelDe })),
         policy: policyBuilderFor(draft),
         prompt: draft?.promptForMissing || null,
       },

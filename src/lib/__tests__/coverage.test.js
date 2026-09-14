@@ -216,7 +216,7 @@ describe('topics carry their questions', () => {
       { ...draft('d', 'high'), questionText: 'Electricity?', matchResult: { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] } },
     ], { companyData: {} });
     const q = id => result.topics.flatMap(t => t.questions).find(x => x.questionId === id);
-    expect(q('a').needs.documents).toEqual([{ document: 'hrReport', label: 'Total FTE' }]);
+    expect(q('a').needs.documents).toEqual([{ document: 'hrReport', label: 'Total FTE', labelDe: 'Mitarbeitende (VZÄ)' }]);
     expect(q('b').needs.policy).toBeTruthy();
     expect(q('c').needs).toMatchObject({ documents: [], policy: null, prompt: 'State your biodiversity targets.' });
     expect(q('d').needs).toBeNull();

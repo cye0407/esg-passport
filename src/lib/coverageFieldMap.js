@@ -18,57 +18,69 @@
 //   storeFields      `section.field` paths, which is what settings.dataSources records
 //                    provenance against and what EXTRACT_FIELD_MAP writes
 //   document         which document would supply it (i18n key suffix, see i18n doc.*)
+// `label` is the engine's data-point name and the matching key — English, as the engine
+// emits it. `labelDe` is what a German reader sees; the report never shows `label` in
+// German (written, not half-translated).
 export const COVERAGE_FIELD_MAP = Object.freeze([
   {
     label: 'Electricity consumption (kWh)',
+    labelDe: 'Stromverbrauch (kWh)',
     companyDataKeys: ['electricityKwh'],
     storeFields: ['energy.electricityKwh'],
     document: 'electricityBill',
   },
   {
     label: 'Renewable %',
+    labelDe: 'Anteil erneuerbar (%)',
     companyDataKeys: ['renewablePercent'],
     storeFields: ['energy.renewablePercent'],
     document: 'electricityBill',
   },
   {
     label: 'Fuel consumption by type',
+    labelDe: 'Kraftstoffverbrauch nach Art',
     companyDataKeys: ['dieselLiters', 'naturalGasM3'],
     storeFields: ['energy.vehicleFuelLiters', 'energy.naturalGasKwh'],
     document: 'fuelInvoice',
   },
   {
     label: 'Heating fuel use',
+    labelDe: 'Heizenergieverbrauch',
     companyDataKeys: ['naturalGasM3'],
     storeFields: ['energy.naturalGasKwh'],
     document: 'fuelInvoice',
   },
   {
     label: 'Water withdrawal (m3)',
+    labelDe: 'Wasserentnahme (m³)',
     companyDataKeys: ['waterM3'],
     storeFields: ['water.consumptionM3'],
     document: 'waterBill',
   },
   {
     label: 'Total waste (kg)',
+    labelDe: 'Gesamtabfall (kg)',
     companyDataKeys: ['totalWasteKg'],
     storeFields: ['waste.totalKg'],
     document: 'wasteManifest',
   },
   {
     label: 'Diversion rate',
+    labelDe: 'Verwertungsquote',
     companyDataKeys: ['recyclingPercent'],
     storeFields: ['waste.recyclingRate', 'waste.recycledKg'],
     document: 'wasteManifest',
   },
   {
     label: 'Hazardous waste',
+    labelDe: 'Gefährlicher Abfall',
     companyDataKeys: ['hazardousWasteKg'],
     storeFields: ['waste.hazardousKg'],
     document: 'wasteManifest',
   },
   {
     label: 'Total FTE',
+    labelDe: 'Mitarbeitende (VZÄ)',
     // The bridge (and the engine's data model) call this employeeCount. It was
     // `totalEmployees` here — a key nothing ever set — so a headcount from any source,
     // uploaded or typed, never satisfied this row and "upload your HR report" stayed on
@@ -79,30 +91,35 @@ export const COVERAGE_FIELD_MAP = Object.freeze([
   },
   {
     label: 'Gender breakdown',
+    labelDe: 'Geschlechterverteilung',
     companyDataKeys: ['femalePercent'],
     storeFields: ['workforce.femaleEmployees', 'workforce.maleEmployees'],
     document: 'hrReport',
   },
   {
     label: 'Turnover rate',
+    labelDe: 'Fluktuationsrate',
     companyDataKeys: ['turnoverRate'],
     storeFields: ['workforce.turnoverRate', 'workforce.departures'],
     document: 'hrReport',
   },
   {
     label: 'Training hours per employee',
+    labelDe: 'Schulungsstunden je Mitarbeitenden',
     companyDataKeys: ['trainingHoursPerEmployee'],
     storeFields: ['training.trainingHours'],
     document: 'trainingRecord',
   },
   {
     label: 'TRIR',
+    labelDe: 'Unfallrate (TRIR)',
     companyDataKeys: ['trirRate'],
     storeFields: ['healthSafety.recordableIncidents', 'healthSafety.hoursWorked'],
     document: 'safetyLog',
   },
   {
     label: 'Lost time incidents',
+    labelDe: 'Arbeitsunfälle mit Ausfallzeit',
     companyDataKeys: ['lostTimeIncidents'],
     storeFields: ['healthSafety.lostTimeIncidents'],
     document: 'safetyLog',

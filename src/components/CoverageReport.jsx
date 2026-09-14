@@ -288,6 +288,7 @@ function ReferencePanel({ t, fromRecords, questions, sample, remaining, hasOwnDa
 export default function CoverageReport({ coverage, questionnaireName, questions = [], tier, onStartOver, onRefresh }) {
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
+  const [openPillars, setOpenPillars] = React.useState({});
   const [companyOpen, setCompanyOpen] = React.useState(false);
   const [companyDraft, setCompanyDraft] = React.useState(() => getCompanyProfile() || {});
   const [policyBuilderId, setPolicyBuilderId] = React.useState(null);
@@ -473,6 +474,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                     .filter(item => item.entry)
                     .sort((a, b) => b.entry.unlocks - a.entry.unlocks)[0];
                   const showDocumentRecommendation = recommendedDocument?.entry?.unlocks >= 2;
+                  const pillarOpen = openPillars[bucket.topic] ?? (bucket.questions || []).length <= 10;
                   return (
                     <div key={bucket.topic} className={`flex flex-col overflow-hidden border border-slate-200 bg-white shadow-sm ${bucket.topic === 'other' ? 'md:col-span-2 xl:col-span-3' : ''}`}>
                       <div className="flex flex-grow flex-col p-5">
@@ -492,11 +494,20 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                       </div>
                       {/* Where this topic stands, then the questions themselves. A count alone
                           looked identical before and after a document answered half of them. */}
-                      <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums">
+                      {/* The standing line is the toggle for the questions. A short pillar shows
+                          them; a long one (three panes of small text side by side on a laptop)
+                          starts closed — the counts and "Start here" do the job on their own. */}
+                      <button
+                        type="button"
+                        onClick={() => setOpenPillars(prev => ({ ...prev, [bucket.topic]: !pillarOpen }))}
+                        aria-expanded={pillarOpen}
+                        className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-left text-xs tabular-nums"
+                      >
                         <span className="font-semibold text-emerald-700">{t('coverage.topicAnswered', { count: (bucket.recovered || 0) + (bucket.fromRecords || 0) })}</span>
                         <span className="text-amber-700">{t('coverage.topicToCheck', { count: (bucket.partial || 0) + (bucket.written || 0) })}</span>
                         <span className="text-slate-600">{t('coverage.topicOpen', { count: bucket.open || 0 })}</span>
-                      </p>
+                        <span className="text-slate-500 underline decoration-slate-300 underline-offset-4">{pillarOpen ? t('coverage.topicHideQuestions') : t('coverage.topicShowQuestions', { count: bucket.questions.length })}</span>
+                      </button>
 
                       <div className="mt-4 flex flex-grow flex-col gap-3">
                         {/* Actions first: on a long form the bottom of the card is never seen. */}
@@ -522,7 +533,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                           </div>
                         )}
                         {/* Bounded: a 200-question form must not make a card 200 rows tall. */}
-                        {(bucket.questions || []).length > 0 && (
+                        {pillarOpen && (bucket.questions || []).length > 0 && (
                         <ul className="mt-4 max-h-[30rem] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100 pr-1">
                           {bucket.questions.map(q => (
                             <li key={q.questionId} className="py-2.5 text-[13px] leading-snug">
@@ -542,7 +553,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                                   const policy = q.needs.policy && POLICY_BUILDERS[q.needs.policy] ? builderName(POLICY_BUILDERS[q.needs.policy], lang) : null;
                                   // A written draft with nothing missing needs reading, not a document;
                                   // "only you can answer this" is for a question with no draft at all.
-                                  const hint = docName ? t('coverage.needsDocument', { document: docName, figure: doc.label })
+                                  const hint = docName ? t('coverage.needsDocument', { document: docName, figure: (lang === 'de' && doc.labelDe) || doc.label })
                                     : policy ? t('coverage.needsPolicy', { policy })
                                       : q.needs.prompt ? q.needs.prompt
                                         : (q.state === 'written' || q.state === 'partial') ? t('coverage.needsReading')
@@ -660,14 +671,6 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
               <div>
               <div className="flex flex-col gap-3 border-2 border-slate-900 bg-white p-6">
                 <h2 className="text-lg font-semibold text-slate-900">{t('coverage.passTitle')}</h2>
-                <ul className="hidden">
-                  {[t('coverage.passF1'), t('coverage.passF2'), t('coverage.passF3'), t('coverage.passF4')].map(line => (
-                    <li key={line} className="flex gap-2.5 text-sm leading-relaxed text-slate-600">
-                      <span className="text-slate-400">•</span>
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
                 <ul className="space-y-2.5">
                   {[
                     // The best line the product has, said only when it is true of THIS file.
@@ -694,46 +697,6 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 <p className="text-center text-sm font-medium leading-relaxed text-emerald-800">{t('coverage.returnPromise')}</p>
               </div>
 
-              {false && (
-              <div className="hidden">
-                <h2 className="text-lg font-semibold text-slate-900">{t('coverage.passportTitle')}</h2>
-                <ul className="flex-grow space-y-1.5">
-                  <li className="flex gap-2.5 text-sm leading-relaxed text-slate-600">
-                    <span className="text-slate-400">•</span><span>{t('coverage.passportF1')}</span>
-                  </li>
-                  {/* The EUR 499 case argues itself only when the policy count is real, so
-                      the line is omitted entirely when no guided builder covers what was
-                      asked. */}
-                  {policyGaps.builders.length > 0 && (
-                    <li className="flex gap-2.5 text-sm font-medium leading-relaxed text-slate-900">
-                      <span className="text-slate-400">•</span>
-                      <span>{t(
-                        policyGaps.builders.length === 1
-                          ? 'coverage.passportPolicyOne'
-                          : 'coverage.passportPolicies',
-                        { count: policyGaps.builders.length },
-                      )}</span>
-                    </li>
-                  )}
-                  <li className="flex gap-2.5 text-sm leading-relaxed text-slate-600">
-                    <span className="text-slate-400">•</span><span>{t('coverage.passportF2')}</span>
-                  </li>
-                  <li className="flex gap-2.5 text-sm leading-relaxed text-slate-600">
-                    <span className="text-slate-400">•</span><span>{t('coverage.passportF3')}</span>
-                  </li>
-                </ul>
-                <button
-                  onClick={() => openCheckout(PASSPORT_CHECKOUT_URL, 'coverage_report_passport', tier)}
-                  className="inline-flex h-12 items-center justify-center border border-slate-900 text-[15px] font-medium text-slate-900 transition-colors hover:bg-slate-50"
-                >
-                  {t('coverage.passportCta', { price: PASSPORT_PRICE })}
-                </button>
-                <p className="text-center text-xs leading-relaxed text-slate-500">{t('coverage.passportTerms')}</p>
-                </div>
-              )}
-              </div>
-              <div className="hidden">
-                {t('coverage.trustStrip')}
               </div>
             </div>
           ) : null}
