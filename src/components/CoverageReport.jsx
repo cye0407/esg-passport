@@ -497,8 +497,33 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                         <span className="text-amber-700">{t('coverage.topicToCheck', { count: (bucket.partial || 0) + (bucket.written || 0) })}</span>
                         <span className="text-slate-600">{t('coverage.topicOpen', { count: bucket.open || 0 })}</span>
                       </p>
-                      {(bucket.questions || []).length > 0 && (
-                        <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100">
+
+                      <div className="mt-4 flex flex-grow flex-col gap-3">
+                        {/* Actions first: on a long form the bottom of the card is never seen. */}
+                        {showDocumentRecommendation && (
+                          <div className="bg-emerald-50 px-3.5 py-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.startHere')}</p>
+                            <p className="mt-1 text-sm font-semibold text-emerald-950">{recommendedDocument.entry.name}</p>
+                            <p className="mt-0.5 text-xs leading-relaxed text-emerald-900/70">{documentHolds(t, recommendedDocument.documentId)} · {t('coverage.docUnlocks', { count: recommendedDocument.entry.unlocks })}</p>
+                          </div>
+                        )}
+                        {!showDocumentRecommendation && bucket.needsPolicy > 0 && (
+                          <div className="bg-violet-50 px-3.5 py-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-violet-700">{t('coverage.startHere')}</p>
+                            <p className="mt-1 text-sm font-semibold text-violet-950">{t('coverage.policyStartTitle')}</p>
+                            <p className="mt-0.5 text-xs leading-relaxed text-violet-900/70">{t('coverage.topicPolicyNeed', { count: bucket.needsPolicy })}</p>
+                          </div>
+                        )}
+                        {((bucket.documents || []).length > 0 || bucket.topic === 'other' || bucket.needsPolicy > 0) && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {(bucket.documents || []).length > 0 && <><button onClick={() => { track('coverage_add_documents_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/evidence'); }} className="inline-flex h-10 items-center gap-1.5 bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"><Upload className="h-4 w-4" />{t('coverage.docUpload')}</button><button onClick={() => { track('coverage_enter_figures_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/data'); }} className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('coverage.docEnter')}</button></>}
+                            {bucket.topic === 'other' && <button type="button" onClick={openCompany} className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50">{t('coverage.addCompanyDetails')}</button>}
+                            {bucket.needsPolicy > 0 && <><button type="button" onClick={() => { setPolicyUploadBuilder(policyGaps.builders[0] || ''); setPolicyUploadOpen(true); }} className="inline-flex h-10 items-center gap-1.5 border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"><Upload className="h-4 w-4" />{t('coverage.uploadPolicy')}</button><button type="button" onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')} className="inline-flex h-10 items-center bg-violet-700 px-4 text-sm font-medium text-white hover:bg-violet-800">{t('coverage.createPolicy')}</button></>}
+                          </div>
+                        )}
+                        {/* Bounded: a 200-question form must not make a card 200 rows tall. */}
+                        {(bucket.questions || []).length > 0 && (
+                        <ul className="mt-4 max-h-[30rem] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100 pr-1">
                           {bucket.questions.map(q => (
                             <li key={q.questionId} className="py-2.5 text-[13px] leading-snug">
                               <div className="flex items-start gap-2">
@@ -515,10 +540,13 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                                   const doc = q.needs.documents?.[0];
                                   const docName = doc ? documentName(t, doc.document) : null;
                                   const policy = q.needs.policy && POLICY_BUILDERS[q.needs.policy] ? builderName(POLICY_BUILDERS[q.needs.policy], lang) : null;
+                                  // A written draft with nothing missing needs reading, not a document;
+                                  // "only you can answer this" is for a question with no draft at all.
                                   const hint = docName ? t('coverage.needsDocument', { document: docName, figure: doc.label })
                                     : policy ? t('coverage.needsPolicy', { policy })
                                       : q.needs.prompt ? q.needs.prompt
-                                        : t('coverage.needsYou');
+                                        : (q.state === 'written' || q.state === 'partial') ? t('coverage.needsReading')
+                                          : t('coverage.needsYou');
                                   return <span className="text-slate-600"> · {hint}</span>;
                                 })()}
                               </p>
@@ -526,21 +554,6 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                           ))}
                         </ul>
                       )}
-                      <div className="mt-4 flex flex-grow flex-col gap-3">
-                        {showDocumentRecommendation && (
-                          <div className="bg-emerald-50 px-3.5 py-3">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.startHere')}</p>
-                            <p className="mt-1 text-sm font-semibold text-emerald-950">{recommendedDocument.entry.name}</p>
-                            <p className="mt-0.5 text-xs leading-relaxed text-emerald-900/70">{documentHolds(t, recommendedDocument.documentId)} · {t('coverage.docUnlocks', { count: recommendedDocument.entry.unlocks })}</p>
-                          </div>
-                        )}
-                        {!showDocumentRecommendation && bucket.needsPolicy > 0 && (
-                          <div className="bg-violet-50 px-3.5 py-3">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-violet-700">{t('coverage.startHere')}</p>
-                            <p className="mt-1 text-sm font-semibold text-violet-950">{t('coverage.policyStartTitle')}</p>
-                            <p className="mt-0.5 text-xs leading-relaxed text-violet-900/70">{t('coverage.topicPolicyNeed', { count: bucket.needsPolicy })}</p>
-                          </div>
-                        )}
                         {/* Generic for the topic, the same on every questionnaire — kept, but behind
                             a line; the per-question hints above are the specific version. */}
                         <details className="text-sm">
@@ -554,13 +567,6 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                             ))}
                           </ul>
                         </details>
-                        {((bucket.documents || []).length > 0 || bucket.topic === 'other' || bucket.needsPolicy > 0) && (
-                          <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-                            {(bucket.documents || []).length > 0 && <><button onClick={() => { track('coverage_add_documents_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/evidence'); }} className="inline-flex h-10 items-center gap-1.5 bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"><Upload className="h-4 w-4" />{t('coverage.docUpload')}</button><button onClick={() => { track('coverage_enter_figures_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/data'); }} className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('coverage.docEnter')}</button></>}
-                            {bucket.topic === 'other' && <button type="button" onClick={openCompany} className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50">{t('coverage.addCompanyDetails')}</button>}
-                            {bucket.needsPolicy > 0 && <><button type="button" onClick={() => { setPolicyUploadBuilder(policyGaps.builders[0] || ''); setPolicyUploadOpen(true); }} className="inline-flex h-10 items-center gap-1.5 border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"><Upload className="h-4 w-4" />{t('coverage.uploadPolicy')}</button><button type="button" onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')} className="inline-flex h-10 items-center bg-violet-700 px-4 text-sm font-medium text-white hover:bg-violet-800">{t('coverage.createPolicy')}</button></>}
-                          </div>
-                        )}
                       </div>
                       </div>
                     </div>
