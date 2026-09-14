@@ -82,7 +82,11 @@ describe('CoverageReport', () => {
   // that confirmation and a wrong denominator makes every number here false.
   it('keeps every question it read, but not in the way', async () => {
     const questions = Array.from({ length: 8 }, (_, i) => ({ id: `r${i}`, text: `Read question ${i}` }));
-    await render([draft('emissions', 'medium')], {}, { questions });
+    // The disclosure sits in the fully-covered panel, which exists only once there is a
+    // real answer to show; until then the pillars list every question instead.
+    const supported = draft('energy_electricity', 'high', { answer: 'During 2025, electricity consumption across our reporting boundary was 425000 kWh.', dataValue: 425000, dataUnit: 'kWh' });
+    supported.matchResult = { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] };
+    await render([supported], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } }, { questions });
 
     expect(container.textContent).not.toContain('Read question 0');
 
@@ -102,7 +106,8 @@ describe('CoverageReport', () => {
     await render(drafts);
     expect(container.textContent).not.toContain('Your first 5 answers');
     expect(container.textContent).not.toContain('A drafted answer (');
-    expect(container.textContent).toContain('No strong answer preview yet');
+    // and no panel at all until there is something real to show
+    expect(container.textContent).not.toContain('fully covered');
   });
 
   it('rejects a nominally supported but poor answer and makes evidence the only next step', async () => {
@@ -112,8 +117,7 @@ describe('CoverageReport', () => {
       dataUnit: 'kWh',
     });
     await render([poor]);
-    expect(container.textContent).not.toContain('Your strongest 1 answers');
-    expect(container.textContent).toContain('Upload data for a real answer');
+    expect(container.textContent).not.toContain('fully covered');
     expect(container.textContent).not.toContain('€99');
     expect(container.textContent).not.toContain('Show a clearly labelled example');
   });
@@ -126,7 +130,7 @@ describe('CoverageReport', () => {
     });
     supported.matchResult = { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] };
     await render([supported], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } });
-    expect(container.textContent).toContain('Your strongest answer');
+    expect(container.textContent).toContain('Your fully covered answer');
     expect(container.textContent).toContain('During 2025, electricity consumption across our reporting boundary was 425000 kWh.');
     expect(container.textContent).toContain('€99');
     expect(container.textContent).not.toContain('€499');
@@ -140,8 +144,7 @@ describe('CoverageReport', () => {
       dataUnit: 'kWh',
     });
     await render([answer]);
-    expect(container.textContent).toContain('No strong answer preview yet');
-    expect(container.textContent).not.toContain('Your strongest answer');
+    expect(container.textContent).not.toContain('fully covered');
   });
 
   // Grouped the way the customer asking the questions groups them. Confidence is our
@@ -196,7 +199,7 @@ describe('CoverageReport', () => {
     const drafted = Array.from({ length: 6 }, () => draft('workforce', 'medium'));
     await render([...drafted, supported], {}, { tier: 'questionnaire-pass' });
     const text = container.textContent;
-    expect(text).toContain('Your strongest 5 answers');
+    expect(text).toContain('Your 5 fully covered answers');
     expect(text).toContain('425000 kWh');
     expect(text).toContain('2 more questions in this questionnaire');
   });
@@ -234,7 +237,7 @@ describe('CoverageReport', () => {
     });
     await render([...weak, strong], {}, { tier: 'questionnaire-pass' });
     expect(container.textContent).toContain('Strong electricity answer');
-    expect(container.textContent).toContain('Your strongest 5 answers');
+    expect(container.textContent).toContain('Your 5 fully covered answers');
   });
 
   // The engine attaches a figure to a draft whether or not the answer it chose rests on
