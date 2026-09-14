@@ -205,6 +205,8 @@ const EVENT_SCHEMA = {
   download_original_attempted: { written: count(), blank: count(), kept: count(), no_cell: count() },
   // The original was re-selected after a redirect or reload and matched the questionnaire.
   original_file_reselected: { questions: count() },
+  // A save refused by a validation error — with whether an extraction batch was waiting on it.
+  data_save_blocked: { errors: count(), from_extraction: bool() },
   // Last year's (or another customer's) completed questionnaire read in. Counts only.
   previous_questionnaire_added: { questions: count(), priors: count(), recovered: count(), flagged: count() },
   // Results generated while another questionnaire's results were already saved on this device.

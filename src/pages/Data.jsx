@@ -72,6 +72,9 @@ export default function Data() {
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // Set when documents were read but the save was refused by a validation error on some
+  // month. Silence here lost a batch: the user left the page and the values went with it.
+  const [saveBlocked, setSaveBlocked] = useState(false);
   const [errors, setErrors] = useState({});
 
   // Entry mode: monthly grid vs annual totals
@@ -541,7 +544,12 @@ export default function Data() {
   };
 
   const handleSave = async () => {
-    if (hasErrors) return;
+    if (hasErrors) {
+      setSaveBlocked(true);
+      track('data_save_blocked', { errors: Object.keys(errors).length, from_extraction: !!extractionReturnTo.current });
+      return;
+    }
+    setSaveBlocked(false);
 
     setSaving(true);
 
@@ -1036,6 +1044,12 @@ export default function Data() {
 
   return (
     <div className="space-y-6">
+      {saveBlocked && (
+        <div className="border-2 border-red-700 bg-red-50 px-5 py-4 text-sm text-red-900" role="alert">
+          <p className="font-semibold">{t('data.saveBlockedTitle')}</p>
+          <p className="mt-1 leading-relaxed">{t('data.saveBlockedBody', { count: Object.keys(errors).length })}</p>
+        </div>
+      )}
       {questionnaireStash && (
         <div className="sticky top-0 z-30 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
           <Link to="/respond?view=report" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-800 hover:text-slate-950">

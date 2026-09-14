@@ -8,6 +8,7 @@ import { getEntitlements } from '@/lib/entitlements';
 import { figureWithUnit, answerStatesFigure } from '@/lib/figures';
 import { selectBestCoverageAnswers } from '@/lib/coverage';
 import { getCompanyProfile, getPolicies, getSettings, saveCompanyProfile, saveDocument, updatePolicyFileLocation, updatePolicyStatus } from '@/lib/store';
+import { buildCompanyData } from '@/lib/dataBridge';
 import { POLICY_BUILDERS, builderName } from '@/data/policyBuilders';
 import PolicyBuilder from '@/components/PolicyBuilder';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -326,6 +327,10 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
     const single = Object.values(settings.dataSources || {}).filter(v => typeof v === 'string' && !v.includes(' … '));
     return [...new Set([...files, ...single])];
   }, [coverage]);
+  // The year the figures on this page are for. Records are read for one reporting year —
+  // the most recent with any record — and a reader who uploaded 2025 bills into a report
+  // built for 2026 would otherwise see them counted as "in" and answer nothing.
+  const reportingYear = React.useMemo(() => buildCompanyData()?.reportingPeriod || null, [coverage]);
 
   const openCompany = () => {
     setCompanyDraft(getCompanyProfile() || {});
@@ -429,7 +434,10 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         <section className={`border-2 bg-white p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6 ${bestNextDocument ? 'border-slate-900' : 'border-emerald-700'}`}>
           <div>
             {uploadedFiles.length > 0 && (
-              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.uploadedSoFar', { count: uploadedFiles.length })}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                {t('coverage.uploadedSoFar', { count: uploadedFiles.length })}
+                {reportingYear && <span className="ml-2 font-medium normal-case tracking-normal text-slate-500">· {t('coverage.figuresFor', { year: reportingYear })}</span>}
+              </p>
             )}
             {bestNextDocument ? (
               <>
