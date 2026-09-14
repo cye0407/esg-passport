@@ -53,6 +53,36 @@ best case). 48 scored:
 Three verdicts changed from the pre-#13 scoring (Scope 1 "for context" and two data dumps),
 noted in the `note` column. 237 rows remain unscored.
 
+
+## Three real buyer forms (anonymised) — `answers-baseline-2026-09-14-abc.tsv`
+
+`fixtures/09-alderwyn-…` (Supplier Sustainability Assessment, 48 q), `10-bluecrest-…` (Climate &
+Environmental Data Request, 50 q), `11-kernholm-…` (Responsible Sourcing & Supply Chain Due
+Diligence, 50 q). One shared layout: Overview / Company Details / Questionnaire / Evidence
+Register / Declaration; the Questionnaire sheet has a stats row above the table and columns
+`Question ID | Theme | Criterion | Question | Response selection | Response / value | Unit | …`.
+Imperative corporate phrasing ("Report…", "Describe…", "State…").
+
+**Parser:** before response-ready #15, 0 of 48 real questions per form — the stats row was taken
+as the header and "Question ID" as the question column, so drafts were written for the Unit
+cells. After #15: 48/50/50 read, with ids and themes (plus the 12 Company Details fields).
+
+**Answers (148, engine = main + #13 + #15):**
+
+| form | correct | partial | wrong | unanswered | no-match |
+|---|---:|---:|---:|---:|---:|
+| Alderwyn (48) | 6 | 17 | **18** | 5 | 2 |
+| BlueCrest (50) | 1 | 14 | **18** | 14 | 3 |
+| Kernholm (50) | 3 | 14 | **24** | 4 | 5 |
+| **all (148)** | **10** | **45** | **60** | **23** | **10** |
+
+41 % wrong, 7 % correct. New failure classes these forms expose: (a) the fixture's own facts
+contradicted — "Data gaps: electricity not tracked" and "Scope 1 not calculated" appear in
+drafts while both are on record (BCM-007, BCM-027); (b) supply-chain questions ("your
+suppliers' emissions", "audit standards", "corrective-action ownership") answered with the
+company's own H&S or HR-policy sentences; (c) GHG-inventory method questions (boundaries,
+base year, standards, verification) all answered with the Scope 1 figure.
+
 ## Gate for the question bank (from the 2026-09-14 proposal)
 
 On held-out forms: wrong ≤ 2 %, correct ≥ 60 % with a full record. Re-run:
