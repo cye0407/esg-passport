@@ -18,7 +18,9 @@ let seq = 0;
 const draft = (domain, answerConfidence, extra = {}) => ({
   questionId: `q${(seq += 1)}`,
   questionText: `Question about ${domain}`,
-  answer: 'A drafted answer.',
+  // Distinct per draft: the report never shows the same sentence twice among the
+  // strongest answers, so identical filler would collapse a fixture to one.
+  answer: `A drafted answer (${seq}).`,
   answerConfidence,
   matchResult: { primaryDomain: domain, suggestedDataPoints: [] },
   ...extra,
@@ -99,7 +101,7 @@ describe('CoverageReport', () => {
     const drafts = Array.from({ length: 9 }, () => draft('workforce', 'medium'));
     await render(drafts);
     expect(container.textContent).not.toContain('Your first 5 answers');
-    expect(container.textContent).not.toContain('A drafted answer.');
+    expect(container.textContent).not.toContain('A drafted answer (');
     expect(container.textContent).toContain('No strong answer preview yet');
   });
 
