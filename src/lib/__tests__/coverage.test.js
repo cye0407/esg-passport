@@ -189,3 +189,22 @@ describe('summarizeCoverage', () => {
     expect(summarizeCoverage([{ questionId: 'x' }]).unanswerable).toHaveLength(1);
   });
 });
+
+describe('topics carry their questions', () => {
+  it('lists each question with where it stands, and counts them the way the groups do', () => {
+    const result = summarizeCoverage([
+      { ...draft('a', 'high'), questionText: 'Electricity used', matchResult: { primaryDomain: 'energy_electricity', suggestedDataPoints: [] } },
+      { ...draft('b', 'medium'), questionText: 'Environmental policy?', matchResult: { primaryDomain: 'energy_electricity', suggestedDataPoints: [] } },
+      { ...draft('c', 'none'), questionText: 'Biodiversity strategy', matchResult: { primaryDomain: 'energy_electricity', suggestedDataPoints: [] } },
+      { ...draft('d', 'medium'), questionText: 'Headcount', source: 'previous', matchResult: { primaryDomain: 'workforce', suggestedDataPoints: [] } },
+    ]);
+    const env = result.topics.find(t => t.topic === 'environmental');
+    expect(env.questions.map(q => [q.questionText, q.state])).toEqual([
+      ['Electricity used', 'fromRecords'], ['Environmental policy?', 'written'], ['Biodiversity strategy', 'open'],
+    ]);
+    expect(env).toMatchObject({ total: 3, fromRecords: 1, written: 1, open: 1, recovered: 0 });
+    const social = result.topics.find(t => t.topic === 'social');
+    expect(social.questions[0].state).toBe('recovered');
+    expect(social.recovered).toBe(1);
+  });
+});

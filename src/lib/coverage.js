@@ -185,19 +185,28 @@ function summarizeTopics(list, companyData) {
   const byTopic = new Map(TOPIC_ORDER.map(topic => [topic, {
     topic,
     total: 0,
+    recovered: 0,
     fromRecords: 0,
+    partial: 0,
+    written: 0,
+    open: 0,
     needsDocument: 0,
     needsPolicy: 0,
     documents: [],
     policies: [],
+    // The questions themselves, with where each stands — a count alone hid which
+    // questions a document had just answered, so a card looked the same after an upload.
+    questions: [],
   }]));
 
   for (const draft of list) {
     const bucket = byTopic.get(topicForDomain(draft?.matchResult?.primaryDomain));
     bucket.total += 1;
+    const state = questionState(draft, companyData);
+    bucket[state] += 1;
+    bucket.questions.push({ questionId: draft?.questionId, questionText: draft?.questionText, state });
 
-    if (draft?.answerConfidence === 'high' && periodCoverageForDraft(draft, companyData)?.complete !== false) {
-      bucket.fromRecords += 1;
+    if (state === 'recovered' || state === 'fromRecords') {
       // An answered question is not still asking for the document that answered it.
       continue;
     }
@@ -219,6 +228,17 @@ function summarizeTopics(list, companyData) {
 
   // A topic this questionnaire never asks about is not a card with a zero on it.
   return TOPIC_ORDER.map(topic => byTopic.get(topic)).filter(bucket => bucket.total > 0);
+}
+
+/** Where a question stands, in the same terms the report's groups use. */
+function questionState(draft, companyData) {
+  if (draft?.source === 'previous') return 'recovered';
+  const confidence = draft?.answerConfidence;
+  if (confidence === 'high') {
+    return periodCoverageForDraft(draft, companyData)?.complete === false ? 'partial' : 'fromRecords';
+  }
+  if (confidence === 'medium') return 'written';
+  return 'open';
 }
 
 export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} } = {}) {

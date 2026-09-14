@@ -489,6 +489,33 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                             : t('coverage.topicQuestions', { count: bucket.total })}
                         </p>
                       </div>
+                      {/* Where this topic stands, then the questions themselves. A count alone
+                          looked identical before and after a document answered half of them. */}
+                      <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums">
+                        <span className="font-semibold text-emerald-700">{t('coverage.topicAnswered', { count: (bucket.recovered || 0) + (bucket.fromRecords || 0) })}</span>
+                        <span className="text-amber-700">{t('coverage.topicToCheck', { count: (bucket.partial || 0) + (bucket.written || 0) })}</span>
+                        <span className="text-slate-600">{t('coverage.topicOpen', { count: bucket.open || 0 })}</span>
+                      </p>
+                      {(bucket.questions || []).length > 0 && (
+                        <details className="mt-3 group">
+                          <summary className="cursor-pointer select-none text-sm font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
+                            {t('coverage.topicShowQuestions', { count: bucket.questions.length })}
+                          </summary>
+                          <ul className="mt-2 space-y-1.5 border-l-2 border-slate-100 pl-3">
+                            {bucket.questions.map(q => (
+                              <li key={q.questionId} className="flex items-start gap-2 text-[13px] leading-snug">
+                                <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
+                                  q.state === 'recovered' || q.state === 'fromRecords' ? 'bg-emerald-600'
+                                    : q.state === 'partial' || q.state === 'written' ? 'bg-amber-500'
+                                      : 'border border-slate-400 bg-white'
+                                }`} />
+                                <span className="text-slate-700">{q.questionText}</span>
+                                <span className="ml-auto shrink-0 whitespace-nowrap text-[11px] text-slate-500">{t(`coverage.state.${q.state}`)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
                       <div className="mt-5 flex flex-grow flex-col border-t border-slate-100 pt-4">
                           {showDocumentRecommendation && (
                               <div className="mb-4 bg-emerald-50 px-3.5 py-3">
