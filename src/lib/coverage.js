@@ -128,18 +128,26 @@ export function selectBestCoverageAnswers(answers, limit = 5) {
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index);
 
+  // Two questions can receive the identical sentence (a KPI template answers both);
+  // showing it twice as "your strongest two" reads as a bug, so the text is the identity.
   const selected = [];
   const topics = new Set();
+  const texts = new Set();
+  const take = (candidate) => {
+    const text = String(candidate.answer.answer || '').trim();
+    if (text && texts.has(text)) return false;
+    selected.push(candidate.answer);
+    topics.add(candidate.answer.topic);
+    if (text) texts.add(text);
+    return true;
+  };
   for (const candidate of candidates) {
     if (selected.length >= limit) break;
-    if (!topics.has(candidate.answer.topic)) {
-      selected.push(candidate.answer);
-      topics.add(candidate.answer.topic);
-    }
+    if (!topics.has(candidate.answer.topic)) take(candidate);
   }
   for (const candidate of candidates) {
     if (selected.length >= limit) break;
-    if (!selected.includes(candidate.answer)) selected.push(candidate.answer);
+    if (!selected.includes(candidate.answer)) take(candidate);
   }
   return selected;
 }

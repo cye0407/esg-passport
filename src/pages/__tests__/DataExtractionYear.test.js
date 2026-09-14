@@ -29,7 +29,7 @@ vi.mock('@/components/BillDrop', () => ({
 }));
 
 import Data from '../Data';
-import { getDataRecords, saveDataRecord, saveExtractionReceipt, saveSettings } from '@/lib/store';
+import { getDataRecords, getSettings, saveDataRecord, saveExtractionReceipt, saveSettings } from '@/lib/store';
 
 describe('Data extraction year', () => {
   let container;
@@ -60,6 +60,19 @@ describe('Data extraction year', () => {
     expect(container.textContent).toContain('2025');
     expect(getDataRecords().find(record => record.period === '2025-03')?.energy?.electricityKwh).toBe(18000);
     expect(getDataRecords().find(record => record.period === '2026-03')?.energy?.electricityKwh).toBeUndefined();
+  });
+
+  it('names every file a figure came out of, not the first', async () => {
+    // a second file already set this field last time
+    saveSettings({ dataSources: { 'energy.electricityKwh': 'january-2025.pdf' }, dataSourceFiles: { 'energy.electricityKwh': ['january-2025.pdf'] } });
+    await act(async () => {
+      root.render(React.createElement(MemoryRouter, null, React.createElement(Data)));
+    });
+    const apply = [...container.querySelectorAll('button')].find(button => button.textContent === 'Apply extracted 2025 bill');
+    await act(async () => apply.click());
+    await act(async () => {});
+    expect(getSettings().dataSources['energy.electricityKwh']).toBe('january-2025.pdf … march-2025.pdf (2)');
+    expect(getSettings().dataSourceFiles['energy.electricityKwh']).toEqual(['january-2025.pdf', 'march-2025.pdf']);
   });
 
   it('does not show a past extraction source on an empty current-year table', async () => {

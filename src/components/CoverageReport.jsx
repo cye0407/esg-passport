@@ -455,7 +455,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         <div className="flex flex-col gap-10">
           {/* Missing items are ordered first: outcome to action. Topic context follows. */}
           {topics.length > 0 && (
-            <div className="order-2 space-y-4">
+            <div className="order-3 space-y-4">
               <SectionHeading
                 eyebrow={t('coverage.eyebrowAsks')}
                 title={t('coverage.topicsTitle')}
@@ -586,7 +586,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           )}
 
           {topics.length === 0 && documents.length > 0 && (
-            <div className="order-1 space-y-4">
+            <div className="order-2 space-y-4">
               <SectionHeading
                 eyebrow={t('coverage.eyebrowMissing')}
                 title={t('coverage.addDocsTitle')}
@@ -628,7 +628,9 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
             </div>
           )}
 
-          <div className="order-3">
+          {/* First, because it is the proof: an answer with the reader's own number in it.
+              It sat third, under the document list and every topic card, and was missed. */}
+          <div className="order-1">
             <ReferencePanel
               t={t}
               fromRecords={fromRecords}

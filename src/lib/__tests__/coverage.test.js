@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { esgDomainPack } from 'response-ready/domain-packs/esg';
 import { COVERAGE_FIELD_MAP, rowForLabel } from '../coverageFieldMap';
 import { EXTRACT_FIELD_MAP } from '../extractFieldMap';
-import { summarizeCoverage } from '../coverage';
+import { selectBestCoverageAnswers, summarizeCoverage } from '../coverage';
 
 const draft = (id, answerConfidence, suggestedDataPoints = [], extra = {}) => ({
   questionId: id,
@@ -206,5 +206,17 @@ describe('topics carry their questions', () => {
     const social = result.topics.find(t => t.topic === 'social');
     expect(social.questions[0].state).toBe('recovered');
     expect(social.recovered).toBe(1);
+  });
+});
+
+describe('selectBestCoverageAnswers', () => {
+  it('never shows the same sentence twice as two of the strongest answers', () => {
+    const same = 'During the reporting period, we delivered an average of 15.9 training hours per employee.';
+    const picked = selectBestCoverageAnswers([
+      { questionId: 'a', answer: same, confidence: 'high', value: 294, document: 'x', topic: 'social' },
+      { questionId: 'b', answer: same, confidence: 'high', value: 294, document: 'x', topic: 'social' },
+      { questionId: 'c', answer: 'Our electricity consumption was 2,363,000 kWh.', confidence: 'high', value: 2363000, document: 'y', topic: 'environmental' },
+    ], 3);
+    expect(picked.map(a => a.questionId)).toEqual(['a', 'c']);
   });
 });

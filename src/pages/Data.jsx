@@ -287,22 +287,29 @@ export default function Data() {
   // from one someone typed - and the coverage report cannot honestly say "we found this in
   // the records you uploaded" about a number whose origin was never kept. A label the user
   // typed themselves always wins; we never overwrite their own note.
+  // Every file a figure came out of, not the first. Twelve payroll summaries set the
+  // headcount twelve times; "from personal-01-januar.txt" under December's number and a
+  // year's hours was wrong. The label names the first and last file and the count.
   const recordExtractionSources = useCallback((fields, fileName) => {
     if (!fileName) return;
-    const current = getSettings()?.dataSources || {};
-    const next = { ...current };
+    const settings = getSettings() || {};
+    const files = { ...(settings.dataSourceFiles || {}) };
+    const next = { ...(settings.dataSources || {}) };
     let changed = false;
     for (const f of fields) {
       const mapping = EXTRACT_FIELD_MAP[f.field];
       if (!mapping) continue;
       const key = `${mapping.section}.${mapping.field}`;
-      if (next[key]) continue;
-      next[key] = fileName;
+      const list = files[key] || (next[key] ? [next[key]] : []);
+      if (list.includes(fileName)) continue;
+      list.push(fileName);
+      files[key] = list;
+      next[key] = list.length === 1 ? list[0] : `${list[0]} … ${list[list.length - 1]} (${list.length})`;
       changed = true;
     }
     if (!changed) return;
+    saveSettings({ dataSources: next, dataSourceFiles: files });
     setDataSources(next);
-    saveSettings({ dataSources: next });
   }, []);
 
   // A document extracted on the dashboard hands its ACCEPTED fields over here, because
