@@ -183,6 +183,43 @@ describe('summarizeCoverage', () => {
     expect(summarizeCoverage([held]).policyGaps.questions).toBe(0);
   });
 
+  // Twelve electricity bills answer the energy question; the bills carry no renewable share,
+  // so the workspace has twelve months of one figure and zero of the other. That zero is a
+  // missing document, not a partial year — the report was saying "partial · 0 of 12
+  // months" and asking for the electricity bill it had just been given twelve of.
+  it('does not call a fully covered figure partial because a sibling figure is absent', () => {
+    const companyData = {
+      electricityKwh: 39180,
+      dataCoverage: {
+        electricityKwh: { periods: Array.from({ length: 12 }, (_, i) => `2025-${String(i + 1).padStart(2, '0')}`), monthsCovered: 12, expectedMonths: 12, complete: true },
+        renewablePercent: { periods: [], monthsCovered: 0, expectedMonths: 12, complete: false },
+      },
+    };
+    const result = summarizeCoverage(
+      [draft('energy', 'high', ['Electricity consumption (kWh)', 'Renewable %'])],
+      { companyData },
+    );
+    expect(result.fromRecords).toHaveLength(1);
+    expect(result.partial).toHaveLength(0);
+    expect(result.missingDocuments).toEqual([]);
+  });
+
+  it('still calls one month of a figure the workspace holds partial', () => {
+    const companyData = {
+      electricityKwh: 3210,
+      dataCoverage: {
+        electricityKwh: { periods: ['2025-03'], monthsCovered: 1, expectedMonths: 12, complete: false },
+        renewablePercent: { periods: [], monthsCovered: 0, expectedMonths: 12, complete: false },
+      },
+    };
+    const result = summarizeCoverage(
+      [draft('energy', 'high', ['Electricity consumption (kWh)', 'Renewable %'])],
+      { companyData },
+    );
+    expect(result.partial).toHaveLength(1);
+    expect(result.fromRecords).toHaveLength(0);
+  });
+
   it('survives an empty or malformed questionnaire without inventing coverage', () => {
     expect(summarizeCoverage([]).total).toBe(0);
     expect(summarizeCoverage(null).total).toBe(0);

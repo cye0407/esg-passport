@@ -21,9 +21,17 @@ function isPresent(value) {
   return value !== undefined && value !== null && value !== '';
 }
 
+// A partial period is a figure the workspace HOLDS for fewer months than the year — one
+// March bill standing in for twelve. A metric it holds nothing of at all is not a partial
+// period, it is a missing document, and missingRowsFor already says so. Reading the
+// zero-month entries here called a question answered by twelve electricity bills
+// "partial · 0 of 12 months" because the bills carry no renewable share.
 function rowCoverage(row, companyData) {
   const coverage = companyData?.dataCoverage || {};
-  const entries = row.companyDataKeys.map(key => coverage[key]).filter(Boolean);
+  const entries = row.companyDataKeys
+    .filter(key => isPresent(companyData?.[key]))
+    .map(key => coverage[key])
+    .filter(entry => entry && (entry.periods?.length || entry.monthsCovered));
   if (!entries.length) return null;
   const best = entries.sort((a, b) => (b.monthsCovered || 0) - (a.monthsCovered || 0))[0];
   return {
