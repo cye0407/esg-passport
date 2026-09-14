@@ -60,6 +60,7 @@ import {
 // predicted buyer outcome - we do not know how a customer will read a response, and
 // saying otherwise would sell a promise we cannot keep.
 const SAMPLE_ANSWERS = 5;
+const PILLAR_ORDER = ['environmental', 'social', 'governance', 'other'];
 
 // Topic labels are literal t() calls for the same reason document labels are: the
 // i18nCoverage guard reads the source, and a key reached through a variable can go
@@ -371,7 +372,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="mx-auto max-w-7xl space-y-8">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
@@ -462,8 +463,8 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 body={t('coverage.topicsBody', { count: total })}
               />
 
-              <div className="grid gap-4 md:grid-cols-2">
-                {[...topics].sort((a, b) => b.total - a.total).map((bucket) => {
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {[...topics].sort((a, b) => PILLAR_ORDER.indexOf(a.topic) - PILLAR_ORDER.indexOf(b.topic)).map((bucket) => {
                   const name = topicName(t, bucket.topic);
                   if (!name) return null;
                   const commonDocuments = commonTopicDocuments(t, bucket.topic);
@@ -473,7 +474,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                     .sort((a, b) => b.entry.unlocks - a.entry.unlocks)[0];
                   const showDocumentRecommendation = recommendedDocument?.entry?.unlocks >= 2;
                   return (
-                    <div key={bucket.topic} className="relative flex flex-col overflow-hidden border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+                    <div key={bucket.topic} className={`relative flex flex-col overflow-hidden border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md ${bucket.topic === 'other' ? 'md:col-span-2 xl:col-span-3' : ''}`}>
                       <div className="flex flex-grow flex-col p-5 pb-24">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex min-w-0 gap-3">
@@ -497,20 +498,34 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                         <span className="text-slate-600">{t('coverage.topicOpen', { count: bucket.open || 0 })}</span>
                       </p>
                       {(bucket.questions || []).length > 0 && (
-                        <details className="mt-3 group">
+                        <details className="mt-3 group" open>
                           <summary className="cursor-pointer select-none text-sm font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
                             {t('coverage.topicShowQuestions', { count: bucket.questions.length })}
                           </summary>
-                          <ul className="mt-2 space-y-1.5 border-l-2 border-slate-100 pl-3">
+                          <ul className="mt-2 divide-y divide-slate-100 border-t border-slate-100">
                             {bucket.questions.map(q => (
-                              <li key={q.questionId} className="flex items-start gap-2 text-[13px] leading-snug">
-                                <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
-                                  q.state === 'recovered' || q.state === 'fromRecords' ? 'bg-emerald-600'
-                                    : q.state === 'partial' || q.state === 'written' ? 'bg-amber-500'
-                                      : 'border border-slate-400 bg-white'
-                                }`} />
-                                <span className="text-slate-700">{q.questionText}</span>
-                                <span className="ml-auto shrink-0 whitespace-nowrap text-[11px] text-slate-500">{t(`coverage.state.${q.state}`)}</span>
+                              <li key={q.questionId} className="py-2.5 text-[13px] leading-snug">
+                                <div className="flex items-start gap-2">
+                                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                                    q.state === 'recovered' || q.state === 'fromRecords' ? 'bg-emerald-600'
+                                      : q.state === 'partial' || q.state === 'written' ? 'bg-amber-500'
+                                        : 'border border-slate-400 bg-white'
+                                  }`} />
+                                  <span className="min-w-0 flex-1 text-slate-800">{q.questionText}</span>
+                                </div>
+                                <p className="mt-0.5 pl-4 text-[11px] text-slate-500">
+                                  {t(`coverage.state.${q.state}`)}
+                                  {q.needs && (() => {
+                                    const doc = q.needs.documents?.[0];
+                                    const docName = doc ? documentName(t, doc.document) : null;
+                                    const policy = q.needs.policy && POLICY_BUILDERS[q.needs.policy] ? builderName(POLICY_BUILDERS[q.needs.policy], lang) : null;
+                                    const hint = docName ? t('coverage.needsDocument', { document: docName, figure: doc.label })
+                                      : policy ? t('coverage.needsPolicy', { policy })
+                                        : q.needs.prompt ? q.needs.prompt
+                                          : t('coverage.needsYou');
+                                    return <span className="text-slate-600"> · {hint}</span>;
+                                  })()}
+                                </p>
                               </li>
                             ))}
                           </ul>

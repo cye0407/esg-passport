@@ -212,7 +212,19 @@ function summarizeTopics(list, companyData) {
     bucket.total += 1;
     const state = questionState(draft, companyData);
     bucket[state] += 1;
-    bucket.questions.push({ questionId: draft?.questionId, questionText: draft?.questionText, state });
+    bucket.questions.push({
+      questionId: draft?.questionId,
+      questionText: draft?.questionText,
+      state,
+      // What would answer it, in order of how sure we are: a document we know holds the
+      // figure, a policy one of the guided builders writes, or the engine's own prompt.
+      // Nothing listed means only the reader can answer it.
+      needs: state === 'recovered' || state === 'fromRecords' ? null : {
+        documents: missingRowsFor(draft, companyData).map(row => ({ document: row.document, label: row.label })),
+        policy: policyBuilderFor(draft),
+        prompt: draft?.promptForMissing || null,
+      },
+    });
 
     if (state === 'recovered' || state === 'fromRecords') {
       // An answered question is not still asking for the document that answered it.

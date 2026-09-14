@@ -207,6 +207,20 @@ describe('topics carry their questions', () => {
     expect(social.questions[0].state).toBe('recovered');
     expect(social.recovered).toBe(1);
   });
+
+  it('says what would answer an open question: the document that holds the figure, else the policy, else the reader', () => {
+    const result = summarizeCoverage([
+      { ...draft('a', 'none'), questionText: 'Total FTE?', matchResult: { primaryDomain: 'workforce', suggestedDataPoints: ['Total FTE'] } },
+      { ...draft('b', 'medium'), questionText: 'Code of conduct?', questionType: 'POLICY', confidenceSource: 'drafted', matchResult: { primaryDomain: 'governance', suggestedDataPoints: [] } },
+      { ...draft('c', 'none'), questionText: 'Biodiversity targets?', promptForMissing: 'State your biodiversity targets.', matchResult: { primaryDomain: 'biodiversity', suggestedDataPoints: [] } },
+      { ...draft('d', 'high'), questionText: 'Electricity?', matchResult: { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] } },
+    ], { companyData: {} });
+    const q = id => result.topics.flatMap(t => t.questions).find(x => x.questionId === id);
+    expect(q('a').needs.documents).toEqual([{ document: 'hrReport', label: 'Total FTE' }]);
+    expect(q('b').needs.policy).toBeTruthy();
+    expect(q('c').needs).toMatchObject({ documents: [], policy: null, prompt: 'State your biodiversity targets.' });
+    expect(q('d').needs).toBeNull();
+  });
 });
 
 describe('selectBestCoverageAnswers', () => {
