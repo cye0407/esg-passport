@@ -118,7 +118,6 @@ describe('CoverageReport', () => {
     });
     await render([poor]);
     expect(container.textContent).not.toContain('fully covered');
-    expect(container.textContent).not.toContain('€99');
     expect(container.textContent).not.toContain('Show a clearly labelled example');
   });
 
@@ -288,10 +287,14 @@ describe('CoverageReport', () => {
     expect(container.textContent).toContain('exactly as they will look when you finish');
   });
 
-  it('holds back the offer until a real answer exists and does not pitch Passport here', async () => {
+  // The offer is on the page whether or not a covered answer exists yet — hiding the
+  // price from a visitor with no documents hid the purchase path from most visitors.
+  // What changes is the figures line: it never claims records the reader has not got.
+  it('shows the offer without a covered answer, says so honestly, and does not pitch Passport here', async () => {
     const plain = await render([draft('workforce', 'medium')]);
     expect(plain.policyGaps.builders).toHaveLength(0);
-    expect(container.textContent).not.toContain('€99');
+    expect(container.textContent).toContain('€99');
+    expect(container.textContent).toContain('None of the answers yet use figures from your records');
     expect(container.textContent).not.toContain('€499');
   });
 

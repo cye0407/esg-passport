@@ -7,7 +7,7 @@ import { documentName, documentHolds } from '@/lib/documentLabels';
 import { getEntitlements } from '@/lib/entitlements';
 import { figureWithUnit, answerStatesFigure } from '@/lib/figures';
 import { selectBestCoverageAnswers } from '@/lib/coverage';
-import { getCompanyProfile, getPolicies, saveCompanyProfile, saveDocument, updatePolicyFileLocation, updatePolicyStatus } from '@/lib/store';
+import { getCompanyProfile, getPolicies, getSettings, saveCompanyProfile, saveDocument, updatePolicyFileLocation, updatePolicyStatus } from '@/lib/store';
 import { POLICY_BUILDERS, builderName } from '@/data/policyBuilders';
 import PolicyBuilder from '@/components/PolicyBuilder';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -319,6 +319,13 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
     .map(entry => ({ ...entry, name: documentName(t, entry.document) }))
     .filter(entry => entry.name);
   const bestNextDocument = [...documents].sort((a, b) => b.unlocks - a.unlocks)[0];
+  // Documents the reader has already put in — every file, from the extraction sources.
+  const uploadedFiles = React.useMemo(() => {
+    const settings = getSettings() || {};
+    const files = Object.values(settings.dataSourceFiles || {}).flat();
+    const single = Object.values(settings.dataSources || {}).filter(v => typeof v === 'string' && !v.includes(' … '));
+    return [...new Set([...files, ...single])];
+  }, [coverage]);
 
   const openCompany = () => {
     setCompanyDraft(getCompanyProfile() || {});
@@ -415,21 +422,36 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         </p>
       )}
 
-      {bestNextDocument && (
-        <section className="border-2 border-slate-900 bg-white p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">
+      {/* The band names the next document while there is one it can name; once something
+          is in, it says so first. When nothing is left to name it says that, rather than
+          disappearing — a reader who just added twelve files should hear it landed. */}
+      {(bestNextDocument || uploadedFiles.length > 0) && (
+        <section className={`border-2 bg-white p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6 ${bestNextDocument ? 'border-slate-900' : 'border-emerald-700'}`}>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.nextActionEyebrow')}</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-900">{bestNextDocument.name}</h2>
-            <p className="mt-1 text-sm leading-relaxed text-slate-600">
-              {documentHolds(t, bestNextDocument.document)} · {t('coverage.docUnlocks', { count: bestNextDocument.unlocks })}
-            </p>
+            {uploadedFiles.length > 0 && (
+              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.uploadedSoFar', { count: uploadedFiles.length })}</p>
+            )}
+            {bestNextDocument ? (
+              <>
+                <p className={`text-[11px] font-bold uppercase tracking-wider text-emerald-700 ${uploadedFiles.length > 0 ? 'mt-2' : ''}`}>{t('coverage.nextActionEyebrow')}</p>
+                <h2 className="mt-1 text-xl font-semibold text-slate-900">{bestNextDocument.name}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  {documentHolds(t, bestNextDocument.document)} · {t('coverage.docUnlocks', { count: bestNextDocument.unlocks })}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="mt-1 text-xl font-semibold text-slate-900">{t('coverage.nothingMoreTitle')}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">{t('coverage.nothingMoreBody')}</p>
+              </>
+            )}
           </div>
           <button
             type="button"
             onClick={() => { track('coverage_primary_next_click', { document: bestNextDocument.document, unlocks: bestNextDocument.unlocks }); navigate('/evidence'); }}
             className="mt-4 inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800 sm:mt-0 sm:w-auto"
           >
-            <Upload className="h-4 w-4" /> {t('coverage.nextActionCta')}
+            <Upload className="h-4 w-4" /> {bestNextDocument ? t('coverage.nextActionCta') : t('coverage.addMoreCta')}
           </button>
         </section>
       )}
@@ -519,7 +541,10 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
 
                       {/* 4 · actions, on the same row across cards */}
                       <div className="flex flex-wrap items-center gap-2">
-                        {(bucket.documents || []).length > 0 && <><button onClick={() => { track('coverage_add_documents_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/evidence'); }} className="inline-flex h-10 items-center gap-1.5 bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"><Upload className="h-4 w-4" />{t('coverage.docUpload')}</button><button onClick={() => { track('coverage_enter_figures_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/data'); }} className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('coverage.docEnter')}</button></>}
+                        {/* A document can always be added from a pillar — a card with only policy
+                            buttons read as "nothing you upload can help here", which was untrue. */}
+                        <button onClick={() => { track('coverage_add_documents_click', { document: recommendedDocument?.documentId || bucket.documents?.[0] || bucket.topic }); navigate('/evidence'); }} className="inline-flex h-10 items-center gap-1.5 bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"><Upload className="h-4 w-4" />{t('coverage.docUpload')}</button>
+                        {(bucket.documents || []).length > 0 && <button onClick={() => { track('coverage_enter_figures_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/data'); }} className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('coverage.docEnter')}</button>}
                         {bucket.topic === 'other' && <button type="button" onClick={openCompany} className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50">{t('coverage.addCompanyDetails')}</button>}
                         {bucket.needsPolicy > 0 && <><button type="button" onClick={() => { setPolicyUploadBuilder(policyGaps.builders[0] || ''); setPolicyUploadOpen(true); }} className="inline-flex h-10 items-center gap-1.5 border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"><Upload className="h-4 w-4" />{t('coverage.uploadPolicy')}</button><button type="button" onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')} className="inline-flex h-10 items-center bg-violet-700 px-4 text-sm font-medium text-white hover:bg-violet-800">{t('coverage.createPolicy')}</button></>}
                       </div>
@@ -649,7 +674,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 : t('coverage.paidDoneTitle')}
               body={unanswerable.length > 0 ? t('coverage.paidOpenBody') : t('coverage.paidDoneBody')}
             /></div>
-          ) : sample.length > 0 ? (
+          ) : (
             <div className="order-4 mx-auto w-full max-w-3xl space-y-4">
               <div className="text-center"><SectionHeading eyebrow={t('coverage.eyebrowCost')} title={t('coverage.costTitle')} body={t('coverage.costBody')} /></div>
               <div className="border border-slate-200 bg-slate-50 p-5">
@@ -673,7 +698,9 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                     (questions || []).some(q => q.location?.answerCell)
                       ? t('coverage.quoteDeliverableFile', { count: total })
                       : t('coverage.quoteDeliverable', { count: total }),
-                    t('coverage.quoteFigures', { supported: fromRecords.length, review: Math.max(0, total - fromRecords.length) }),
+                    fromRecords.length > 0
+                      ? t('coverage.quoteFigures', { supported: fromRecords.length, review: Math.max(0, total - fromRecords.length) })
+                      : t('coverage.quoteFiguresNone', { count: total }),
                     t('coverage.quotePrivacy'),
                     t('coverage.quotePayment'),
                     t('coverage.quoteSupport'),
@@ -695,7 +722,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
 
               </div>
             </div>
-          ) : null}
+          )}
 
           <div className="order-5 flex flex-wrap items-center gap-4">
             {!canGenerateAnswers && sample.length > 0 && (
