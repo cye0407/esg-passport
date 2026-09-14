@@ -110,7 +110,14 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
     };
   }, [t]);
 
-  const processFiles = useCallback(async (fileList) => {
+  const processFiles = useCallback(async (incomingFiles) => {
+    // Copy first. An <input>'s FileList is LIVE — it is the input's own list, not a
+    // snapshot — and handleFileSelect clears the input right after calling this. This
+    // loop awaits between files, so by the second turn the live list was empty and a
+    // twelve-file selection was read as one: the user confirmed January and was handed
+    // off to the summary with eleven months never looked at. Drag-and-drop never showed
+    // it, because dataTransfer.files is not tied to an input.
+    const fileList = Array.from(incomingFiles || []);
     setProcessing(true);
     const allResults = [];
     for (let i = 0; i < fileList.length; i++) {
