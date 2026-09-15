@@ -75,7 +75,7 @@ function draftBatch(source, questions, lang) {
       source, n: i + 1, ref: q.referenceId || '', category: q.category || '', question: q.text, lang,
       domain: m.primaryDomain || '', topics: (m.primaryTopics || m.topics || []).join('|'),
       type: cls[i]?.questionType || '', matchConf: m.confidence, answerConf: d.answerConfidence || '',
-      drafted: d.isDrafted ? 'y' : '', canonical: (d.canonicalIds || (d.canonicalId ? [d.canonicalId] : [])).join('+'), legalBasis: d.legalBasis || '', flags: flags.join('|'), draft: answer, verdict: '', note: '',
+      drafted: d.isDrafted ? 'y' : '', canonical: (d.canonicalIds || (d.canonicalId ? [d.canonicalId] : [])).join('+'), legalBasis: d.legalBasis || '', state: d.answerState || '', canned: d.cannedAnswer || '', stateNote: d.stateNote || '', flags: flags.join('|'), draft: answer, verdict: '', note: '',
     };
   });
 }
@@ -107,7 +107,7 @@ for (const file of textFiles) {
   rows.push(...draftBatch(path.basename(file), questions, lang));
 }
 
-const COLS = ['source', 'n', 'ref', 'category', 'question', 'lang', 'domain', 'topics', 'type', 'matchConf', 'answerConf', 'drafted', 'canonical', 'legalBasis', 'flags', 'draft', 'verdict', 'note'];
+const COLS = ['source', 'n', 'ref', 'category', 'question', 'lang', 'domain', 'topics', 'type', 'matchConf', 'answerConf', 'drafted', 'canonical', 'legalBasis', 'state', 'flags', 'draft', 'canned', 'stateNote', 'verdict', 'note'];
 const tsv = [COLS.join('\t'), ...rows.map(r => COLS.map(c => String(r[c] ?? '').replace(/[\t\r\n]+/g, ' ')).join('\t'))].join('\n') + '\n';
 if (out) {
   fs.mkdirSync(path.dirname(out), { recursive: true });
