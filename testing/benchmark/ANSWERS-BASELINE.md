@@ -1,0 +1,123 @@
+# Answer-quality baseline — 2026-09-14
+
+What the engine drafts, question by question, before the question bank exists. Produced by
+`scripts/score-answers.mjs` against the full fixture record (`testing/fixtures/esg-for-suppliers.json`:
+289 FTE, Scope 1/2, electricity + gas + diesel, 13 policies incl. Health & Safety / Environmental /
+Energy Management / Supplier Code of Conduct, `humanRightsPolicyStatus: implemented`). Engine =
+response-ready `9536f1b` (PR #13, unasked-figure fixes included).
+
+Verdicts were filled by hand in the `verdict` column — the harness cannot see a wrong template:
+
+| verdict | meaning |
+|---|---|
+| correct | the draft answers what the cell asks, with the record's facts |
+| partial | right question; a sub-part, exclusion or record fact is missed |
+| wrong | answers a different question, carries figures the cell did not ask for, or contradicts the record |
+| unanswered | honest "not on record" — the right reply when the record holds nothing |
+| no-match | no domain found at all |
+
+## Drive Sustainability SAQ 5.0 — `answers-baseline-2026-09-14-saq5.tsv`
+
+The public automotive supplier form (BMW, Bosch, VW, Volvo… via NQC), never seen by the rules.
+Source: <https://www.drivesustainability.org/wp-content/uploads/2023/04/SAQ-5.0_readytouse_EN_Final.xlsx>
+(`fixtures/08-drive-sustainability-saq-5.0.xlsx`). 61 questions: 2 headcount + 22 numbered + 37
+conditional sub-questions (`fixtures/08-drive-sustainability-saq-5.0.questions.txt`).
+
+**Parser:** `engine.parseFile` on the workbook finds **7 of 61** — the form is column-A numbered
+questions with tick-box options in column C and guidance in column K, no answer column. The
+answer baseline below therefore ran on the extracted question list (`--text`), bypassing the parser.
+Both numbers are the baseline; they are two different layers.
+
+**Answers (61):**
+
+| correct | partial | wrong | unanswered | no-match |
+|---:|---:|---:|---:|---:|
+| 7 | 8 | **27** | 10 | 9 |
+
+44 % wrong on a form whose questions the record can mostly answer. The pattern: SAQ 5.0 asks
+*"Do you have a formal health and safety policy?"* — the record has one — and the draft gives
+TRIR. It asks *"Do you organise training on the Code of Conduct?"* and gets training hours per
+employee. It asks about an energy management system and gets kWh. Policy-existence yes/no
+questions, the bulk of every SAQ, are answered by listing every policy or by the nearest KPI.
+The `note` column names the record fact each wrong draft ignored.
+
+## Built-in templates, every 6th question — `answers-baseline-2026-09-14-templates.tsv`
+
+The app's own 11 templates (285 questions; rules were built against these, so this is the
+best case). 48 scored:
+
+| correct | partial | wrong | unanswered | no-match |
+|---:|---:|---:|---:|---:|
+| 26 | 0 | **17** | 2 | 3 |
+
+Three verdicts changed from the pre-#13 scoring (Scope 1 "for context" and two data dumps),
+noted in the `note` column. 237 rows remain unscored.
+
+
+## Three real buyer forms (anonymised) — `answers-baseline-2026-09-14-abc.tsv`
+
+`fixtures/09-alderwyn-…` (Supplier Sustainability Assessment, 48 q), `10-bluecrest-…` (Climate &
+Environmental Data Request, 50 q), `11-kernholm-…` (Responsible Sourcing & Supply Chain Due
+Diligence, 50 q). One shared layout: Overview / Company Details / Questionnaire / Evidence
+Register / Declaration; the Questionnaire sheet has a stats row above the table and columns
+`Question ID | Theme | Criterion | Question | Response selection | Response / value | Unit | …`.
+Imperative corporate phrasing ("Report…", "Describe…", "State…").
+
+**Parser:** before response-ready #15, 0 of 48 real questions per form — the stats row was taken
+as the header and "Question ID" as the question column, so drafts were written for the Unit
+cells. After #15: 48/50/50 read, with ids and themes (plus the 12 Company Details fields).
+
+**Answers (148, engine = main + #13 + #15):**
+
+| form | correct | partial | wrong | unanswered | no-match |
+|---|---:|---:|---:|---:|---:|
+| Alderwyn (48) | 6 | 17 | **18** | 5 | 2 |
+| BlueCrest (50) | 1 | 14 | **18** | 14 | 3 |
+| Kernholm (50) | 3 | 14 | **24** | 4 | 5 |
+| **all (148)** | **10** | **45** | **60** | **23** | **10** |
+
+41 % wrong, 7 % correct. New failure classes these forms expose: (a) the fixture's own facts
+contradicted — "Data gaps: electricity not tracked" and "Scope 1 not calculated" appear in
+drafts while both are on record (BCM-007, BCM-027); (b) supply-chain questions ("your
+suppliers' emissions", "audit standards", "corrective-action ownership") answered with the
+company's own H&S or HR-policy sentences; (c) GHG-inventory method questions (boundaries,
+base year, standards, verification) all answered with the Scope 1 figure.
+
+
+## After the question bank — `answers-bank-2026-09-14.tsv`
+
+Same four forms, same rubric, engine = main + #13 + #15 + #14 (bank routing on). 209
+questions (SAQ 5.0 61, Alderwyn 48, BlueCrest 50, Kernholm 50), hand-scored the same day.
+
+| | correct | partial | wrong | unanswered | no-match |
+|---|---:|---:|---:|---:|---:|
+| **before** (209) | 17 (8 %) | 53 (25 %) | **87 (42 %)** | 33 | 19 |
+| **after** (209) | 55 (26 %) | 35 (17 %) | **0** | 119 (57 %) | 0 |
+
+Wrong went from 87 to 0: every draft now either answers from the fields the question names,
+or says "Not on record for this question: …" in the record's own words. The 119 unanswered
+are the record's coverage limit on these forms — process descriptions, supply-chain due
+diligence, product footprints, Scope 3 categories — which is exactly what the coverage report
+is meant to show ("what would answer this"). Two deliberate choices lowered the correct
+count: a policy absent from the policies list, or a certificate absent from the list, is
+reported as *not on record* with the absence named, never as "No." — the supplier confirms it.
+
+Gate check: wrong ≤ 2 % ✓ (0 %). Correct ≥ 60 % ✗ (26 %) — the gate assumed the record
+could answer; on these forms it cannot, and the honest answer is the unanswered count.
+The 35 partials are mostly multi-part cells where one half is on record (Scope 2
+location-based but not market-based; accidents but not fatalities in the same cell).
+
+Matcher on the 493 mapped questions: top-1 98 % (batch, with conditional sub-questions
+inheriting their parent's record). This is the labelled set the variants were written from,
+not a generalisation number — the next real form measures that.
+
+## Gate for the question bank (from the 2026-09-14 proposal)
+
+On held-out forms: wrong ≤ 2 %, correct ≥ 60 % with a full record. Re-run:
+
+```
+node scripts/score-answers.mjs --text testing/benchmark/fixtures/08-drive-sustainability-saq-5.0.questions.txt --out testing/benchmark/out/saq5-answers.tsv
+node scripts/score-answers.mjs --templates --out testing/benchmark/out/templates.tsv
+```
+
+then copy the earlier verdicts across by `ref`/`n` and re-judge only rows whose draft changed.
