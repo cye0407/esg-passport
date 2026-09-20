@@ -1,5 +1,5 @@
 import type { ParsedQuestion, MatchResult, DataContext, AnswerDraft, GenerationConfig, RetrievedDataPoint, AnswerTemplate, ScrubRule, ClassificationResult, Lang } from '../types';
-import type { MaturityResolver, MatrixGenerator, InformalPracticeHandler, IndustryContextProvider } from '../types/domain-pack';
+import type { MaturityResolver, MatrixGenerator, InformalPracticeHandler, IndustryContextProvider, QuestionBankHook } from '../types/domain-pack';
 export declare function val(dataMap: Map<string, RetrievedDataPoint>, field: string): string | number | boolean | null;
 export declare function has(dataMap: Map<string, RetrievedDataPoint>, ...fields: string[]): boolean;
 export declare function num(dataMap: Map<string, RetrievedDataPoint>, field: string): number;
@@ -34,6 +34,8 @@ export interface AnswerGeneratorDeps<TProfile = Record<string, unknown>> {
     matrixGenerator?: MatrixGenerator<TProfile>;
     informalPracticeHandler?: InformalPracticeHandler<TProfile>;
     industryContextProvider?: IndustryContextProvider;
+    /** The pack's question bank, when it has one: runs before the topic pipeline. */
+    questionBank?: QuestionBankHook<unknown>;
 }
 export interface AnswerGeneratorInstance<TProfile = Record<string, unknown>> {
     generateAnswerDraft: (question: ParsedQuestion, matchResult: MatchResult, dataContext: DataContext, config: GenerationConfig, profile?: TProfile, classification?: ClassificationResult) => AnswerDraft;

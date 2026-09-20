@@ -4,6 +4,7 @@
 // Orchestrates the 3-phase answer generation pipeline.
 // All domain-specific templates, maturity logic, and industry
 // context are injected from the DomainPack.
+import { detectQuestionnaireLanguage } from './questionnaireLanguage';
 // ============================================
 // Data Map Helpers (exported for pack use)
 // ============================================
@@ -215,7 +216,7 @@ function getFrameworkNote(framework, frameworkNotes) {
     return frameworkNotes[framework] || '';
 }
 export function createAnswerGenerator(deps) {
-    const { templates, frameworkNotes, fieldToMetricKey = {}, scrubRules = [], topicRequirements = {}, maturityResolver, matrixGenerator, informalPracticeHandler, industryContextProvider, } = deps;
+    const { templates, frameworkNotes, fieldToMetricKey = {}, scrubRules = [], topicRequirements = {}, maturityResolver, matrixGenerator, informalPracticeHandler, industryContextProvider, questionBank, } = deps;
     /**
      * Check which required fields are missing for the matched topics.
      * Returns gap descriptions for display.
@@ -444,14 +445,123 @@ export function createAnswerGenerator(deps) {
             hasDataGaps: limitations.length > 0,
         };
     }
+    /**
+     * A draft written by the pack's question bank: the primary record's answer, then any further
+     * record a multi-part cell also asked. Confidence is 'high' when the primary record answered
+     * from the data and 'none' when it is an honest not-on-record — never 'medium' from a
+     * neighbouring topic's figures, which is what the bank exists to stop.
+     */
+    function generateBankDraft(question, matchResult, dataContext, matches, lang, fillNoEvidence, questionType) {
+        if (!questionBank || !matches.length || dataContext.raw === undefined)
+            return null;
+        const rendered = matches
+            .map(m => ({ m, r: questionBank.render(m.id, dataContext.raw, lang) }))
+            .filter((x) => !!x.r);
+        if (!rendered.length)
+            return null;
+        const primary = rendered[0];
+        const answered = primary.r.answered;
+        // The cell: the primary answer plus any further record a multi-part cell also asked and
+        // the record could answer. An unanswered primary leaves the cell empty — the state says why,
+        // and the canned sentence goes in only when the user asked for it.
+        const extras = rendered.slice(1).filter(x => x.r.answered).map(x => x.r.answer);
+        const cell = answered
+            ? [primary.r.answer, ...extras].join(' ')
+            : [fillNoEvidence ? primary.r.canned || '' : '', ...extras].filter(Boolean).join(' ');
+        const answerState = !answered ? 'no-evidence'
+            : primary.r.yesNo === 'na' ? 'not-applicable'
+                : primary.r.yesNo === 'partly' ? 'partial'
+                    : 'answered';
+        return {
+            questionId: question.id,
+            questionText: question.text,
+            category: question.category,
+            questionType,
+            matchResult,
+            dataContext,
+            answer: cell,
+            dataPeriod: dataContext.metadata.reportingPeriod,
+            answerConfidence: answered ? 'high' : 'none',
+            confidenceSource: answered ? 'provided' : 'unknown',
+            evidence: '',
+            metricKeysUsed: [...new Set(rendered.flatMap(x => (x.r.fieldsUsed || []).map(f => fieldToMetricKey[f]).filter((k) => !!k)))],
+            needsReview: !answered || answerState === 'partial',
+            isEstimate: false,
+            isDrafted: !answered,
+            hasDataGaps: !answered,
+            canonicalId: primary.m.id,
+            canonicalIds: rendered.map(x => x.m.id),
+            legalBasis: questionBank.legalBasis(primary.m.id),
+            answerState,
+            cannedAnswer: answered ? undefined : primary.r.canned,
+            stateNote: answered ? undefined : primary.r.answer,
+            wouldAnswer: answered ? undefined : primary.r.wouldAnswer,
+        };
+    }
+    // Does the legacy answer actually quote a figure the bank does not model (a point flagged
+    // outsideBank by the pack)? Checked on the text, not on flags: templates mark themselves
+    // `drafted` for their own reasons (business travel does when Scope 3 is missing) while still
+    // reporting the record's km, and metricKeysUsed is empty for sector fields.
+    function quotesOutsideBankFigure(draft, dataContext) {
+        if (draft.answerConfidence === 'none' || !draft.answer)
+            return false;
+        return dataContext.operational.some(p => p.outsideBank && answerQuotes(draft.answer, p.value));
+    }
+    function answerQuotes(answer, value) {
+        if (value === null || value === undefined || value === '')
+            return false;
+        if (typeof value === 'boolean')
+            return false;
+        if (typeof value === 'string')
+            return isNaN(Number(value)) ? answer.toLowerCase().includes(value.toLowerCase()) : answerQuotes(answer, Number(value));
+        // 18000 may be written 18,000 / 18.000 / 18 000; 4.2 as 4,2.
+        const [int, dec] = Math.abs(value).toString().split('.');
+        const groups = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',').split(',');
+        const pattern = groups.join('[,.\\s]?') + (dec ? `[.,]${dec}` : '');
+        return new RegExp(`(^|[^\\d.,])${pattern}(?!\\d)`).test(answer);
+    }
     function generateAnswerDrafts(questions, matchResults, dataContexts, config, profile, classifications) {
+        // The bank routes the batch as a whole: conditional sub-questions take their parent's
+        // record, so matching cannot be per question. The questionnaire's language is detected over
+        // the whole batch, as the matcher does; the answer language is the config's.
+        const answerLang = config.language ?? 'en';
+        const questionLang = detectQuestionnaireLanguage(questions) ?? answerLang;
+        const bankMatches = questionBank ? questionBank.matchBatch(questions, questionLang) : [];
         // One question must not cost the questionnaire. A template or pack hook that throws used to
         // abort the whole batch, losing every draft already produced — and a supplier with an eighty
         // question form got nothing back. A failure is isolated to its own question and reported in
         // the draft, so it stays visible rather than being silently swallowed.
         return questions.map((q, i) => {
             try {
-                return generateAnswerDraft(q, matchResults[i], dataContexts[i], config, profile, classifications?.[i]);
+                const fromBank = generateBankDraft(q, matchResults[i], dataContexts[i], bankMatches[i] || [], answerLang, !!config.fillNoEvidence, classifications?.[i]?.questionType);
+                if (fromBank && fromBank.answerState !== 'no-evidence')
+                    return fromBank;
+                const legacy = generateAnswerDraft(q, matchResults[i], dataContexts[i], config, profile, classifications?.[i]);
+                if (fromBank) {
+                    // The bank claimed the question but its record could not answer it — often a record
+                    // with no data fields at all (land use, circularity, pay gap). If the legacy pipeline
+                    // answered from figures the bank does not model at all (sector metrics: fertilizer,
+                    // tailings, fleet km), the bank has no opinion on them and that answer must not be lost
+                    // behind "nothing on file". Figures the bank DOES model stay the bank's call: legacy
+                    // answering "fugitive emissions" with the Scope 1 total is the wrong-figure class the
+                    // bank exists to stop, and it is not resurrected here. Canonical id and legal basis
+                    // stay so the questionnaire still knows what was asked.
+                    if (quotesOutsideBankFigure(legacy, dataContexts[i])) {
+                        return {
+                            ...legacy,
+                            canonicalId: fromBank.canonicalId,
+                            canonicalIds: fromBank.canonicalIds,
+                            legalBasis: fromBank.legalBasis,
+                            answerState: legacy.isDrafted ? 'partial' : 'answered',
+                        };
+                    }
+                    return fromBank;
+                }
+                // The legacy pipeline keeps its sentence in the cell (its consumers read it there); the
+                // state says what it is: nobody's question when the bank is on, else the old insufficiency.
+                const answerState = questionBank ? 'left-to-you'
+                    : legacy.answerConfidence === 'none' ? 'no-evidence' : legacy.isDrafted ? 'partial' : 'answered';
+                return questionBank ? { ...legacy, generic: true, answerState } : { ...legacy, answerState };
             }
             catch (error) {
                 const lang = config.language === 'de' ? 'de' : 'en';

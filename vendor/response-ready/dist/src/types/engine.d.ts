@@ -123,11 +123,20 @@ export interface RetrievedDataPoint {
     period?: string;
     source?: string;
     confidence?: ConfidenceLevel;
+    /**
+     * The figure lives outside the pack's question-bank field model (sector metrics such as
+     * fertilizer, tailings, fleet km). The bank has no opinion on it, so a legacy answer built
+     * from it is allowed to stand where a bank record could not answer.
+     */
+    outsideBank?: boolean;
 }
 export interface DataContext {
     company: RetrievedDataPoint[];
     operational: RetrievedDataPoint[];
     calculated: RetrievedDataPoint[];
+    /** The data object retrieval was called with, for a pack's question bank to answer from
+     *  directly. Set by packs that carry a bank; absent otherwise. */
+    raw?: unknown;
     metadata: {
         reportingPeriod?: string;
         sitesIncluded: string[];
@@ -197,7 +206,33 @@ export interface AnswerDraft {
     matchScore?: number;
     /** Why a recovered answer must be checked before it is reused. 'clear' = nothing flagged. */
     staleness?: Staleness;
+    /** The pack's canonical question this cell was answered as, when its question bank routed
+     *  it. A multi-part cell lists every record it answered in `canonicalIds`. */
+    canonicalId?: string;
+    canonicalIds?: string[];
+    /** Where the buyer's right to ask this comes from, per the bank record: inside the CSRD
+     *  value-chain cap (`vsme`), another statute (`other-law`), or the buyer's own asking. */
+    legalBasis?: 'vsme' | 'other-law' | 'none';
+    /** True when no bank record claimed the question and the legacy topic pipeline wrote the
+     *  draft. Consumers should present such drafts as unanswered, not as answers. */
+    generic?: boolean;
+    /** What the cell holds, as a state rather than a sentence:
+     *  - `answered`       written from the record;
+     *  - `partial`        written from the record, but a part the question asked is missing;
+     *  - `not-applicable` the record says this does not apply;
+     *  - `no-evidence`    the question is understood, nothing on record answers it — `answer` is
+     *                     empty unless the user asked for the canned sentence;
+     *  - `left-to-you`    nobody's question (a comment box) or nothing the engine can claim. */
+    answerState?: AnswerState;
+    /** The sentence the engine would put in the cell for a `no-evidence` state if the user wants
+     *  one — buyer-facing, no internal wording. The user decides; the default leaves the cell empty. */
+    cannedAnswer?: string;
+    /** Internal note for the person: what is missing, in the record's own words. Never for the buyer. */
+    stateNote?: string;
+    /** The document or figure that would turn this into an answer. */
+    wouldAnswer?: string;
 }
+export type AnswerState = 'answered' | 'partial' | 'not-applicable' | 'no-evidence' | 'left-to-you';
 export type AnswerSource = 'previous' | 'record' | 'document' | 'suggested' | 'none';
 export type Staleness = 'clear' | 'check-figures' | 'check-period';
 /** Result returned by an answer template generator. */
@@ -217,6 +252,9 @@ export interface AnswerTemplate {
     generate: (dataMap: Map<string, RetrievedDataPoint>, framework?: string, lang?: Lang) => TemplateResult;
 }
 export interface GenerationConfig {
+    /** Put the canned sentence into `no-evidence` cells instead of leaving them empty. Off by
+     *  default: an empty cell is the honest default, the canned sentence is the user's choice. */
+    fillNoEvidence?: boolean;
     useLLM: boolean;
     includeMethodology: boolean;
     includeAssumptions: boolean;

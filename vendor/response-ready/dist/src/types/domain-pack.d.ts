@@ -1,4 +1,27 @@
 import type { KeywordRule, TermAlias, SignalRule, AnswerTemplate, ScrubRule, ExportSheetConfig, MatchResult, DataContext, RetrievedDataPoint, ParsedQuestion, GenerationConfig, Lang } from './engine';
+export interface QuestionBankMatch {
+    id: string;
+    score: number;
+    /** A conditional sub-question that took its parent's record. */
+    inherited?: boolean;
+}
+export interface QuestionBankHook<TData = Record<string, unknown>> {
+    /** Records per question, primary first; empty when the bank does not claim the question. */
+    matchBatch: (questions: ParsedQuestion[], lang: Lang) => QuestionBankMatch[][];
+    /** The answer for one record from the raw data; `answered` false = honest not-on-record. */
+    render: (id: string, data: TData, lang: Lang) => {
+        answer: string;
+        answered: boolean;
+        fieldsUsed?: string[];
+        /** yes | no | partly | na, when the question is a yes/no. */
+        yesNo?: 'yes' | 'no' | 'partly' | 'na';
+        /** Buyer-facing sentence for an unanswered cell, if the user wants one written. */
+        canned?: string;
+        /** What would answer it (a document or figure), for the person. */
+        wouldAnswer?: string;
+    } | null;
+    legalBasis: (id: string) => 'vsme' | 'other-law' | 'none' | undefined;
+}
 export interface DomainPack<TData = Record<string, unknown>, TProfile = Record<string, unknown>> {
     /** Pack identity */
     name: string;
@@ -54,6 +77,10 @@ export interface DomainPack<TData = Record<string, unknown>, TProfile = Record<s
     scrubRules?: ScrubRule[];
     /** Named calculators (e.g. emission factors for ESG) */
     calculators?: Record<string, Calculator<TData>>;
+    /** Canonical-question routing: which record a cell asks, an answer written from that record's
+     *  fields alone, and the legal basis of the ask. When present it runs before the topic
+     *  pipeline; cells it does not claim fall through and are marked `generic`. */
+    questionBank?: QuestionBankHook<TData>;
     /**
      * The core domain-specific function. Given a match result and the user's data,
      * retrieve all relevant data points for answer generation.

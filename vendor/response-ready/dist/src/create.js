@@ -48,6 +48,7 @@ export function createResponseEngine(pack, options = {}) {
         matrixGenerator: pack.matrixGenerator,
         informalPracticeHandler: pack.informalPracticeHandler,
         industryContextProvider: pack.industryContextProvider,
+        questionBank: pack.questionBank,
     });
     // Wire up rewriter
     const rewriter = createRewriter(pack.scrubRules || []);

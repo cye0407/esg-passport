@@ -234,7 +234,6 @@ export const ESG_ANSWER_TEMPLATES = [
         generate: (dm, fw, lang) => {
             const de = lang === 'de';
             const s1 = num(dm, 'scope1Estimate');
-            const s2 = num(dm, 'scope2Location');
             if (!s1 && !dm.has('scope1Estimate'))
                 return null;
             const period = str(dm, 'reportingPeriod');
@@ -251,10 +250,8 @@ export const ESG_ANSWER_TEMPLATES = [
                 parts.push(de
                     ? 'Hinweis: Dieser Wert ist eine Schätzung auf Basis von Aktivitätsdaten (Kraftstoffverbrauch) und Standard-Emissionsfaktoren.'
                     : 'Note: This figure is an estimate derived from activity data (fuel consumption) and standard emission factors.');
-            if (s2)
-                parts.push(de
-                    ? `Zur Einordnung: Unsere Scope-1- und Scope-2-Emissionen (standortbasiert) betragen zusammen ${fmt(s1 + s2, lang)} tCO2e.`
-                    : `For context, our combined Scope 1 and Scope 2 (location-based) emissions total ${fmt(s1 + s2)} tCO2e.`);
+            // No Scope 2 "for context": a Scope 1 cell gets the Scope 1 figure only. Questionnaires
+            // that say "Scope 1 only, do not include Scope 2" got the combined total here.
             return parts.join(' ');
         },
     },

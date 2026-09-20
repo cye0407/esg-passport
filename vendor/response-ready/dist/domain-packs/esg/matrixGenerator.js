@@ -114,19 +114,12 @@ export const esgMatrixGenerator = {
                         : `These measures are implemented within the framework of our ${certs} management system.`);
             }
             else {
-                // No user-provided measures — surface the real data we track in this area
-                // (honest, user-provided), but never canned industry-typical measures.
-                const dataPoints = [...context.operational, ...context.calculated]
-                    .filter(p => p.value !== null && p.value !== undefined && p.value !== '');
-                if (dataPoints.length === 0)
-                    return null;
-                const dataStatements = dataPoints.slice(0, 4).map(p => `${p.label}: ${p.value}${p.unit ? ' ' + p.unit : ''}`);
-                parts.push(de
-                    ? `In diesem Bereich erfassen wir folgende Daten: ${dataStatements.join('; ')}.`
-                    : `In this area we track the following data: ${dataStatements.join('; ')}.`);
-                parts.push(de
-                    ? 'Konkrete operative Maßnahmen für diese Frage wurden nicht gesondert dokumentiert.'
-                    : 'Specific operational measures for this question have not been separately documented.');
+                // No user-provided measures: say so through the honest-insufficiency path. This branch
+                // used to list up to four data points from the matched domain ("In this area we track the
+                // following data: Total FTE: 289; …") under a MEASURE question — figures the buyer never
+                // asked for, in a cell the supplier signs. Same class of answer Phase 4 of the generator was
+                // removed for.
+                return null;
             }
         }
         // -------- KPI × Maturity --------

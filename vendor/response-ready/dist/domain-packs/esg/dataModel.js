@@ -22,7 +22,9 @@ function completeForAnnualUse(data, metric) {
 function addIndustryMetric(target, data, domain, section, field, label, unit, outputField) {
     const value = data.industryMetrics?.[section]?.[field];
     if (value !== undefined && value !== null) {
-        target.push({ domain, field: outputField || field, label, value, unit, confidence: 'high' });
+        // Sector metrics are not modelled by the question bank (no record `needs` them); flag them
+        // so the generator lets a sector answer stand where the bank could only say "not on record".
+        target.push({ domain, field: outputField || field, label, value, unit, confidence: 'high', outsideBank: true });
     }
 }
 // ============================================

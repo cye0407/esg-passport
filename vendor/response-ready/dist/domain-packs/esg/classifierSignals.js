@@ -73,6 +73,10 @@ export const ESG_CLASSIFIER_SIGNALS = [
         type: 'KPI',
         patterns: [
             /\bindicator(?:s)?\b/i, /\bkpi(?:s)?\b/i, /\bmetric(?:s)?\b/i,
+            // Named incident-rate acronyms are indicators by definition. "What is your TRIR?" carried no
+            // other KPI signal, defaulted to POLICY, missed the KPI-only H&S template and fell through to
+            // the matrix data dump (now retired) — without the dump it would read "not on record".
+            /\b(?:trir|ltir|ltifr|trifr)\b/i,
             /\btotal\b/i, /\bnumber\s+of\b/i, /\bpercentage\b/i, /\brate\b/i,
             /\bfrequency\b/i, /\bintensity\b/i,
             /\bper\s+(?:employee|fte|capita|unit|tonne|revenue)\b/i,

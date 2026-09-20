@@ -75,30 +75,63 @@ const FRAMEWORK_PATTERNS = {
  */
 function findHeaderRow(rows, limit = 30) {
     const scanned = Math.min(rows.length, limit);
+    // The first row that names a question column is not always the header: corporate
+    // assessment workbooks put a stats row above the table — "Questions | 48 | Responses | 0 |
+    // Complete | 0" — which names one and is nothing but labels and counters. Among the rows
+    // that name a question column, take the one that looks most like a header: the most short
+    // text cells, counters and sentences counting against it. Ties keep the earlier row.
+    let best = -1;
+    let bestScore = -Infinity;
     for (let i = 0; i < scanned; i++) {
-        const cells = (rows[i] || []).map(c => String(c ?? '').toLowerCase().trim());
+        const cells = (rows[i] || []).map(c => String(c ?? '').trim());
         const filled = cells.filter(Boolean);
         if (filled.length < 2)
             continue;
-        const namesQuestionColumn = filled.some(cell => COLUMN_PATTERNS.questionText.some(p => cell === p || cell.includes(p)));
-        if (namesQuestionColumn)
-            return i;
+        const lower = filled.map(c => c.toLowerCase());
+        const namesQuestionColumn = lower.some(cell => COLUMN_PATTERNS.questionText.some(p => cell === p || cell.includes(p)));
+        if (!namesQuestionColumn)
+            continue;
+        const labels = filled.filter(c => !/^[\d.,\s%-]+$/.test(c) && c.length <= 40).length;
+        const counters = filled.filter(c => /^[\d.,\s%-]+$/.test(c)).length;
+        const sentences = filled.filter(c => c.length > 40).length;
+        const score = labels - counters - sentences;
+        if (score > bestScore) {
+            bestScore = score;
+            best = i;
+        }
     }
-    return 0;
+    return best >= 0 ? best : 0;
 }
 function detectColumnMapping(headers, sampleRows) {
     const mapping = { questionText: '' };
     const normalizedHeaders = headers.map(h => h?.toLowerCase().trim() || '');
-    for (const [field, patterns] of Object.entries(COLUMN_PATTERNS)) {
-        for (let i = 0; i < normalizedHeaders.length; i++) {
-            const header = normalizedHeaders[i];
-            if (patterns.some(p => header.includes(p) || header === p)) {
-                mapping[field] = headers[i];
-                if (field === 'questionText')
-                    mapping.questionTextFromHeader = true;
-                break;
-            }
+    // A header that IS the pattern beats one that merely contains it, and a column already
+    // claimed by another field is not offered again. Corporate assessment workbooks head their
+    // columns "Question ID | Theme | Criterion | Question | … | Unit": first-substring-match in
+    // column order took "Question ID" as the question column, so the id column was the question,
+    // the real "Question" column went unread, and the drafts were written for the Unit cells
+    // ("Policy status", "tCO2e and method") — three of three real buyer forms parsed that way.
+    // Pattern order is priority: "Question" beats "Criterion" even when Criterion is the earlier
+    // column, because 'question' is listed first.
+    const taken = new Set();
+    const firstFree = (test, patterns) => {
+        for (const p of patterns) {
+            const i = normalizedHeaders.findIndex((h, idx) => !taken.has(idx) && test(h, p));
+            if (i >= 0)
+                return i;
         }
+        return -1;
+    };
+    for (const [field, patterns] of Object.entries(COLUMN_PATTERNS)) {
+        let found = firstFree((h, p) => h === p, patterns);
+        if (found < 0)
+            found = firstFree((h, p) => h.includes(p), patterns);
+        if (found < 0)
+            continue;
+        taken.add(found);
+        mapping[field] = headers[found];
+        if (field === 'questionText')
+            mapping.questionTextFromHeader = true;
     }
     // The fallback below and the last-resort first column are GUESSES; only a header match
     // above earns the benefit of the doubt for its cells. Recorded rather than inferred,

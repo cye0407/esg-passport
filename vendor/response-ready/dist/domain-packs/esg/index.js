@@ -16,6 +16,7 @@ import { esgMatrixGenerator } from './matrixGenerator';
 import { esgInformalPracticeHandler } from './informalPractices';
 import { esgRetrieveData } from './dataModel';
 import { ESG_TOPIC_REQUIREMENTS } from './topicRequirements';
+import { esgQuestionBankHook } from './questionBank/hook';
 // ============================================
 // Assembled Pack
 // ============================================
@@ -43,10 +44,16 @@ export const esgDomainPack = {
     informalPracticeHandler: esgInformalPracticeHandler,
     // Defensive Rewriting
     scrubRules: ESG_SCRUB_RULES,
+    // Question Bank — canonical routing runs before the topic pipeline; retrieval carries the raw
+    // record so the bank can answer from the fields a question names, and nothing else.
+    questionBank: esgQuestionBankHook,
     // Data Retrieval
-    retrieveData: esgRetrieveData,
+    retrieveData: (matchResult, data) => ({ ...esgRetrieveData(matchResult, data), raw: data }),
     // Excel Export
     exportSheets: ESG_EXPORT_SHEETS,
 };
+export { ESG_QUESTION_BANK, ESG_BANK_MAPPINGS, getCanonicalQuestion, summarizeLegalBasis } from './questionBank';
+export { matchCanonical, matchCanonicalAll, matchCanonicalBatch } from './questionBank/matcher';
+export { renderBankAnswer } from './questionBank/render';
 export { SUPPORTED_COUNTRIES } from './emissionFactors';
 //# sourceMappingURL=index.js.map

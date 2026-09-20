@@ -14,7 +14,10 @@ export const ESG_EXCLUSION_PATTERNS = [
     new RegExp(String.raw `\b(?:do(?:es)?\s+not\s+include|don'?t\s+include|not\s+including|excluding|without|except(?:\s+for)?|ohne|ausgenommen|exklusive|nicht\s+enthalten(?:d)?)\s+(?:the\s+|der\s+|die\s+|den\s+)?${SCOPE_TOKEN}\b`, 'gi'),
     // Scope before cue — natural German verb-final word order, which the fronted-cue pattern above
     // never matched: "Scope 2 ist nicht enthalten", "Scope 3 wird ausgeschlossen". Up to two words
-    // (an auxiliary + filler) may sit between the scope and the cue.
-    new RegExp(String.raw `\b${SCOPE_TOKEN}\s+(?:\w+\s+){0,2}?(?:nicht\s+enthalten|ausgenommen|ausgeschlossen|nicht\s+ber(?:ü|ue)cksichtigt|exklusive)\b`, 'gi'),
+    // (an auxiliary + filler) may sit between the scope and the cue. The imperative forms
+    // ("Bitte Scope 2 nicht einschließen / einbeziehen / einrechnen") are the ones a form writer
+    // actually uses; without them the golden corpus's own Scope-1-only German question kept
+    // landing on the combined Scope 1+2 template.
+    new RegExp(String.raw `\b${SCOPE_TOKEN}\s+(?:\w+\s+){0,2}?(?:nicht\s+enthalten|ausgenommen|ausgeschlossen|nicht\s+ber(?:ü|ue)cksichtigt|exklusive|nicht\s+(?:mit\s+)?ein(?:schlie(?:ß|ss)en|beziehen|rechnen))\b`, 'gi'),
 ];
 //# sourceMappingURL=exclusionRules.js.map

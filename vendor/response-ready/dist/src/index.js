@@ -12,6 +12,7 @@ export { parseCSV, parseCSVLine, } from './engine/configLoader';
 export { RESPONSE_PACK_FORMAT, RESPONSE_PACK_VERSION, RESPONSE_PACK_EXTENSION, ENCRYPTED_PACK_EXTENSION, RESPONSE_PACK_README, ResponsePackError, createResponsePack, serializeResponsePack, parseResponsePack, mergeResponsePacks, encryptResponsePack, decryptResponsePack, openResponsePack, isEncryptedPack, passphraseStrength, responsePackFileName, normalizeAnswerKey, hashText, } from './engine/responsePack';
 // Writing answers back into the buyer's original workbook
 export { writeAnswersIntoWorkbook, completedFileName } from './engine/workbookWriter';
+export { answerStateLabel, insertPlaceholderLabel } from './engine/answerStates';
 // Recovering answers from a questionnaire the company already completed
 export { priorAnswersFromQuestions, matchPriorAnswers, applyPriorAnswers, assessStaleness } from './engine/priorAnswers';
 // Pack registry (for multi-pack consumers)

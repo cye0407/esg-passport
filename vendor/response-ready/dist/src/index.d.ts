@@ -8,6 +8,8 @@ export { parseCSV, parseCSVLine, } from './engine/configLoader';
 export { RESPONSE_PACK_FORMAT, RESPONSE_PACK_VERSION, RESPONSE_PACK_EXTENSION, ENCRYPTED_PACK_EXTENSION, RESPONSE_PACK_README, ResponsePackError, createResponsePack, serializeResponsePack, parseResponsePack, mergeResponsePacks, encryptResponsePack, decryptResponsePack, openResponsePack, isEncryptedPack, passphraseStrength, responsePackFileName, normalizeAnswerKey, hashText, } from './engine/responsePack';
 export type { ResponsePack, PackAnswer, PackFact, PackPolicy, PackCertificate, PackPassClaim, PackDocument, PackRejection, PackSource, PackErrorCode } from './engine/responsePack';
 export { writeAnswersIntoWorkbook, completedFileName } from './engine/workbookWriter';
+export { answerStateLabel, insertPlaceholderLabel } from './engine/answerStates';
+export type { AnswerStateLabel } from './engine/answerStates';
 export type { AnswerWrite, WriteReport, WriteRefusal, RefusalReason, WriteOptions, XmlDom } from './engine/workbookWriter';
 export { priorAnswersFromQuestions, matchPriorAnswers, applyPriorAnswers, assessStaleness } from './engine/priorAnswers';
 export type { PriorAnswer, PriorMatch, PriorMatchOptions, PriorSourceMeta, MatchTier } from './engine/priorAnswers';
