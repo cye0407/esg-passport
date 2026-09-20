@@ -114,6 +114,11 @@ function summarize(draft, dataSources, companyData) {
     period: draft.dataPeriod,
     document: documentFor(draft, dataSources),
     confidence: draft.answerConfidence,
+    // From the question bank, when it routed the question: why the cell is what it is.
+    answerState: draft.answerState,
+    stateNote: draft.stateNote,
+    wouldAnswer: draft.wouldAnswer,
+    legalBasis: draft.legalBasis,
     topic: topicForDomain(draft?.matchResult?.primaryDomain),
     dataCoverage: periodCoverageForDraft(draft, companyData),
     // Set when the answer came from a questionnaire the company already completed.
@@ -230,7 +235,9 @@ function summarizeTopics(list, companyData) {
       needs: state === 'recovered' || state === 'fromRecords' ? null : {
         documents: missingRowsFor(draft, companyData).map(row => ({ document: row.document, label: row.label, labelDe: row.labelDe })),
         policy: policyBuilderFor(draft),
-        prompt: draft?.promptForMissing || null,
+        // The bank names the document or figure that would answer it ("fuel and gas bills")
+        // when no mapped document row does.
+        prompt: draft?.promptForMissing || draft?.wouldAnswer || null,
       },
     });
 

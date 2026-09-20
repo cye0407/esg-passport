@@ -1072,6 +1072,19 @@ export default function Respond({ demoOnly = false }) {
     setEditingText(draft.draftAnswer || draft.answer);
   };
 
+  // The bank left this cell empty on purpose (nothing on file). The user may ask for the
+  // engine's buyer-facing placeholder sentence instead — their decision, never the default.
+  const insertPlaceholder = (questionId) => {
+    setAnswerDrafts(prev => prev.map(d => (
+      d.questionId === questionId && d.cannedAnswer
+        // verifiedAnswer too, so the row shows the sentence once (getDisplayedDraft hides a
+        // draft that equals the verified text) — it is the whole cell, not a suggestion under it.
+        ? { ...d, answer: d.cannedAnswer, verifiedAnswer: d.cannedAnswer, draftAnswer: d.cannedAnswer, supportLevel: 'draft', contentMode: 'draft_only', _placeholder: true }
+        : d
+    )));
+    showFeedback(t('respond.placeholderInserted'));
+  };
+
   const saveEdit = (questionId) => {
     setAnswerDrafts(prev => prev.map(d =>
       d.questionId === questionId ? { ...d, answer: editingText, draftAnswer: editingText, supportLevel: 'draft', contentMode: d.verifiedAnswer ? 'mixed' : 'draft_only', _edited: true } : d
@@ -2032,9 +2045,16 @@ export default function Respond({ demoOnly = false }) {
 
           {(canGenerate ? filtered : filtered.slice(0, FREE_PREVIEW_LIMIT)).map((draft, i) => {
             const conf = CONFIDENCE_CONFIG[draft.answerConfidence] || CONFIDENCE_CONFIG.none;
-            const support = draft.dataCoverage === 'partial'
-              ? { color: 'text-amber-700', bg: 'bg-amber-50', dot: 'bg-amber-500', labelKey: 'respond.covPartial' }
-              : (SUPPORT_CONFIG[draft.supportLevel || 'draft'] || SUPPORT_CONFIG.draft);
+            // The question bank left the cell empty: nothing of the user's answers it. Show the
+            // state, the note and what would answer it instead of a blank line.
+            const isEmptyByDesign = (draft.answerState === 'no-evidence' || draft.answerState === 'left-to-you')
+              && !(draft.answer || '').trim() && !draft._edited && !draft._markedNA && !draft._placeholder;
+            // An empty-by-design cell is not a "draft": the pill says what the tag says.
+            const support = isEmptyByDesign
+              ? { color: 'text-rose-700', bg: 'bg-rose-50', dot: 'bg-rose-500', labelKey: draft.answerState === 'no-evidence' ? 'respond.state.noEvidence' : 'respond.state.leftToYou' }
+              : draft.dataCoverage === 'partial'
+                ? { color: 'text-amber-700', bg: 'bg-amber-50', dot: 'bg-amber-500', labelKey: 'respond.covPartial' }
+                : (SUPPORT_CONFIG[draft.supportLevel || 'draft'] || SUPPORT_CONFIG.draft);
             const isExpanded = showDetails.has(draft.questionId);
             const isEditing = editingAnswerId === draft.questionId;
             const isEnhancing = enhancingId === draft.questionId;
@@ -2043,6 +2063,11 @@ export default function Respond({ demoOnly = false }) {
             const coverageLabel = getCoverageLabel(draft);
             // Policy gap → deep-link into the matching guided builder on /policies.
             const isPolicyGap = draft.questionType === 'POLICY' && draft.supportLevel === 'draft' && !draft._markedNA;
+            const legalKey = draft.legalBasis === 'vsme' ? 'respond.legal.vsme'
+              : draft.legalBasis === 'other-law' ? 'respond.legal.otherLaw'
+                : draft.legalBasis === 'none' ? 'respond.legal.none' : null;
+            // The legal basis matters where the user is deciding whether to chase an answer.
+            const showLegal = legalKey && !draft._markedNA && (isEmptyByDesign || draft.supportLevel === 'draft' || draft.dataCoverage === 'partial');
             const matchedBuilder = isPolicyGap ? matchBuilderId(`${draft.questionText} ${draft.category || ''}`) : null;
             const policyBuildTo = isPolicyGap ? (matchedBuilder ? `/policies?build=${matchedBuilder}` : '/policies') : null;
 
@@ -2106,6 +2131,38 @@ export default function Respond({ demoOnly = false }) {
                             <Button size="sm" variant="ghost" onClick={cancelEdit} className="text-xs h-7">{t('respond.cancel')}</Button>
                           </div>
                         </div>
+                      ) : isEmptyByDesign ? (
+                        <div>
+                          <span className={cn(
+                            'inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold',
+                            draft.answerState === 'no-evidence' ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-700',
+                          )}>
+                            <span className={cn('w-1.5 h-1.5 rounded-full', draft.answerState === 'no-evidence' ? 'bg-rose-500' : 'bg-slate-500')} />
+                            {t(draft.answerState === 'no-evidence' ? 'respond.state.noEvidence' : 'respond.state.leftToYou')}
+                          </span>
+                          <p className="mt-2 text-sm text-slate-700 leading-relaxed">
+                            {draft.stateNote || t(draft.answerState === 'no-evidence' ? 'respond.state.noEvidenceHint' : 'respond.state.leftToYouHint')}
+                          </p>
+                          {draft.wouldAnswer && (
+                            <p className="mt-1 text-xs text-slate-500">{t('respond.stateWouldAnswer', { what: draft.wouldAnswer })}</p>
+                          )}
+                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                            <button type="button" onClick={() => startEditing(draft)} className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-2 hover:decoration-slate-900">
+                              {t('respond.writeItYourself')}
+                            </button>
+                            {draft.cannedAnswer && (
+                              <button type="button" onClick={() => insertPlaceholder(draft.questionId)} className="text-slate-600 underline decoration-slate-300 underline-offset-2 hover:text-slate-900">
+                                {t('respond.insertPlaceholder')}
+                              </button>
+                            )}
+                            {isPolicyGap && (
+                              <Link to={policyBuildTo} className="font-semibold text-emerald-700 hover:text-emerald-800">
+                                {t('respond.buildThisPolicy')} →
+                              </Link>
+                            )}
+                          </div>
+                          {showLegal && <p className="mt-2 text-[11px] text-slate-400">{t(legalKey)}</p>}
+                        </div>
                       ) : (
                         <div>
                           <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
@@ -2124,6 +2181,7 @@ export default function Respond({ demoOnly = false }) {
                               {t('respond.buildThisPolicy')} →
                             </Link>
                           )}
+                          {showLegal && <span className="block mt-1.5 text-[11px] text-slate-400">{t(legalKey)}</span>}
                           {draftText && !draft._markedNA && (
                             <span className="block mt-2 rounded bg-violet-50/70 border border-violet-100 px-3 py-2">
                               <span className="block text-[10px] font-semibold uppercase tracking-wide text-violet-700">{t('respond.suggestedDraft')}</span>
@@ -2292,7 +2350,7 @@ export default function Respond({ demoOnly = false }) {
                         {t(conf.labelKey)}
                       </span>
                     )}
-                    <span className="text-[10px] text-slate-400 text-center">{coverageLabel}</span>
+                    {!isEmptyByDesign && <span className="text-[10px] text-slate-400 text-center">{coverageLabel}</span>}
                   </div>
 
                   {/* Actions */}

@@ -35,6 +35,14 @@ function seedProfile(overrides = {}) {
   });
 }
 
+// With the question bank on, a cell the record cannot answer is left empty by design and
+// carries the state and an internal note instead. That is accounted for; a blank with no
+// state is not.
+function cellAccountedFor(draft) {
+  if (draft.answer.trim().length > 0) return true;
+  return draft.answerState === 'no-evidence' && (draft.stateNote || '').length > 0;
+}
+
 function generate(questions, configOverrides = {}) {
   const company = buildCompanyData('2025');
   const profile = buildCompanyProfile();
@@ -108,7 +116,8 @@ describe('Respond page engine integration', () => {
     expect(drafts[0].answer).toMatch(/420[,.]?000/);
     expect(drafts[1].answer).toMatch(/\b48\b/);
     expect(drafts[2].answer.toLowerCase()).toContain('supplier code of conduct');
-    expect(drafts[3].answer.toLowerCase()).toMatch(/\bzero\b|\b0\b/);
+    // The bank says it in words: "no work-related fatalities (2025)."
+    expect(drafts[3].answer.toLowerCase()).toMatch(/\bzero\b|\b0\b|\bno work-related fatalities\b/);
   });
 
   it('runs a built-in buyer template through the same engine path used by Respond', () => {
@@ -119,7 +128,8 @@ describe('Respond page engine integration', () => {
     expect(result.success).toBe(true);
     expect(drafts).toHaveLength(result.questions.length);
     expect(drafts[0].questionId).toBe(result.questions[0].id);
-    expect(drafts.every((draft) => draft.answer.trim().length > 0)).toBe(true);
+    // Every cell either carries text or is empty on purpose with the state that says why.
+    expect(drafts.every(cellAccountedFor)).toBe(true);
   });
 
   // A German visitor (e.g. from the DE marketing site) gets the German rendering of the
@@ -146,11 +156,12 @@ describe('Respond page engine integration', () => {
     // Questions render in German.
     expect(result.questions[1].text).toContain('Energieverbrauch');
     expect(drafts).toHaveLength(result.questions.length);
-    expect(drafts.every((draft) => draft.answer.trim().length > 0)).toBe(true);
+    expect(drafts.every(cellAccountedFor)).toBe(true);
 
     // Data-backed questions matched (figures present) — proves the German wording reaches the matcher.
     const joined = drafts.map((draft) => draft.answer).join('\n');
-    expect(joined).toMatch(/420[,.]?000/);
+    // The bank renders the energy total in MWh ("420 MWh"); the electricity line keeps kWh.
+    expect(joined).toMatch(/420[,.]?000|420 MWh/);
     expect(joined).toMatch(/\b48\b/);
 
     // Answers are German prose, not English fallback.
