@@ -44,7 +44,16 @@ describe('coverage over the real engine', () => {
     const { drafts } = run('ecovadis', EMPTY);
     const c = summarizeCoverage(drafts, { companyData: EMPTY });
     expect(c.fromRecords).toHaveLength(0);
-    expect(c.written.length).toBeGreaterThan(0);
+    // With the question bank on, nothing is "written" from the template library any more:
+    // every question the bank understands but cannot answer is reported as still open, with
+    // the note and the document that would answer it — not a paragraph that reads answered.
+    expect(c.written.length + c.unanswerable.length).toBe(c.total);
+    const open = c.unanswerable.filter(a => a.answerState === 'no-evidence');
+    expect(open.length).toBeGreaterThan(0);
+    for (const a of open) {
+      expect(a.answer).toBe('');
+      expect((a.stateNote || '').length).toBeGreaterThan(0);
+    }
   });
 
   it('moves questions into the first group as the user adds their own figures', () => {
