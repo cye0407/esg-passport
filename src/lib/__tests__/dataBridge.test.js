@@ -121,6 +121,28 @@ describe('buildCompanyData', () => {
     expect(data.numberOfSites).toBeUndefined();
   });
 
+  it('counts a derived rate as covered only for months holding every input it needs', () => {
+    seedProfile();
+    // A full year of waste totals, but the recycled figure for March alone. The diversion
+    // rate is computed from both, so eleven of those months cannot support it.
+    for (let m = 1; m <= 12; m++) {
+      seedMonthlyData('2025', m, { waste: m === 3 ? { totalKg: 1500, recycledKg: 1000 } : { totalKg: 1500 } });
+    }
+    const data = buildCompanyData('2025');
+    expect(data.dataCoverage.totalWasteKg).toMatchObject({ monthsCovered: 12, complete: true });
+    expect(data.dataCoverage.recyclingPercent).toEqual({
+      periods: ['2025-03'], monthsCovered: 1, expectedMonths: 12, complete: false,
+    });
+  });
+
+  it('keeps a derived rate complete when every month holds both inputs', () => {
+    seedProfile();
+    seedFullYear('2025');
+    expect(buildCompanyData('2025').dataCoverage.recyclingPercent).toMatchObject({
+      monthsCovered: 12, complete: true,
+    });
+  });
+
   it('does not infer one operating site when the profile has no facility count', () => {
     seedProfile({ numberOfFacilities: '' });
     expect(buildCompanyData('2025').numberOfSites).toBeUndefined();

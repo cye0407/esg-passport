@@ -88,24 +88,37 @@ const GAS_M3_TO_KWH = 10.55; // kWh per m³ natural gas
 
 // Annual totals are sums of monthly records. Keep the denominator alongside the
 // number so one invoice can never silently acquire twelve months of meaning.
+//
+// Each metric lists EVERY record field its figure is computed from, because a month
+// only covers the metric when it holds all of them. A derived rate was the case that
+// bit: recyclingPercent needs total AND recycled waste (see the calculation below), but
+// it was measured against the total alone — so twelve months of waste totals plus one
+// month of recycled figures reported a complete full-year diversion rate.
 const COVERAGE_FIELDS = {
-  electricityKwh: ['energy', 'electricityKwh'],
-  renewablePercent: ['energy', 'renewablePercent'],
-  naturalGasM3: ['energy', 'naturalGasKwh'],
-  dieselLiters: ['energy', 'vehicleFuelLiters'],
-  waterM3: ['water', 'consumptionM3'],
-  totalWasteKg: ['waste', 'totalKg'],
-  recyclingPercent: ['waste', 'totalKg'],
-  hazardousWasteKg: ['waste', 'hazardousKg'],
-  scope1Tco2e: ['emissions', 'scope1Tco2e'],
-  scope2Tco2e: ['emissions', 'scope2Tco2e'],
+  electricityKwh: [['energy', 'electricityKwh']],
+  renewablePercent: [['energy', 'renewablePercent']],
+  naturalGasM3: [['energy', 'naturalGasKwh']],
+  dieselLiters: [['energy', 'vehicleFuelLiters']],
+  waterM3: [['water', 'consumptionM3']],
+  totalWasteKg: [['waste', 'totalKg']],
+  recyclingPercent: [['waste', 'totalKg'], ['waste', 'recycledKg']],
+  hazardousWasteKg: [['waste', 'hazardousKg']],
+  // Scope 1 and 2 are calculated from the energy figures above rather than entered, so
+  // they have no record field of their own; their coverage is the coverage of those
+  // inputs. They are deliberately absent here — the old ['emissions', …] paths pointed
+  // at a section no record has, so they could only ever report zero months.
 };
+
+function recordHas(record, section, field) {
+  const value = record?.[section]?.[field];
+  return value !== undefined && value !== null && value !== '';
+}
 
 function buildDataCoverage(records, reportingYear) {
   const yearRecords = records.filter(record => String(record.period || '').startsWith(`${reportingYear}-`));
-  return Object.fromEntries(Object.entries(COVERAGE_FIELDS).map(([metric, [section, field]]) => {
+  return Object.fromEntries(Object.entries(COVERAGE_FIELDS).map(([metric, paths]) => {
     const periods = [...new Set(yearRecords
-      .filter(record => record?.[section]?.[field] !== undefined && record?.[section]?.[field] !== null && record?.[section]?.[field] !== '')
+      .filter(record => paths.every(([section, field]) => recordHas(record, section, field)))
       .map(record => record.period))].sort();
     return [metric, { periods, monthsCovered: periods.length, expectedMonths: 12, complete: periods.length === 12 }];
   }));
