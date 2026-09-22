@@ -18,6 +18,7 @@ import { track, trackOnce } from '@/lib/track';
 import { EXTRACT_FIELD_MAP } from '@/lib/extractFieldMap';
 import { takeHandoff } from '@/lib/handoff';
 import { groupAnnualBills, mergeAnnualValues } from '@/lib/annualBills';
+import { allocateExtraction, extractionAssignments } from '@/lib/extractionWrite';
 import { readCoverageStash } from '@/lib/coverageStash';
 import { detectNumberFormat, parseNumber, parsePeriod, buildColumnMap } from '@/lib/csvImport';
 import Papa from 'papaparse';
@@ -331,7 +332,7 @@ export default function Data() {
       .find(Boolean);
     if (importedYear) setSelectedYear(Number(importedYear));
     for (const item of handoff.items) {
-      handleBillExtracted(item.fields, item.period, item.fileName);
+      handleBillExtracted(item.fields, item.period, item.fileName, { coveredMonths: item.coveredMonths });
     }
     // Nothing further is coming: the review already happened on the dashboard, so the
     // annual confirmation can open as soon as these are staged.
@@ -339,7 +340,7 @@ export default function Data() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleBillExtracted = useCallback((fields, extractedPeriod, fileName) => {
+  const handleBillExtracted = useCallback((fields, extractedPeriod, fileName, periodMeta) => {
     // Determine where extracted values belong.
     // YYYY-MM documents map to a monthly record.
     // A YYYY-only period is an ambiguous guess: the extractor's bare-year fallback
@@ -355,6 +356,35 @@ export default function Data() {
       return;
     }
 
+    // A document that reports on several months is written across all of them. The
+    // extractor already knows the span (a fleet CSV names every month it contains, a
+    // quarterly invoice its start and end); the app used to drop that and write the whole
+    // total into one month — the figure was real but the period was a fiction, and the
+    // coverage report then counted one month where the evidence covered three.
+    const allocated = allocateExtraction(fields, periodMeta?.coveredMonths);
+    if (allocated.length > 1) {
+      setSelectedYear(Number(allocated[0].period.slice(0, 4)));
+      for (const month of allocated) {
+        for (const assignment of month.assignments) {
+          updateField(month.period, assignment.section, assignment.field, assignment.value);
+        }
+      }
+      recordExtractionSources(fields, fileName);
+      pendingExtractionReceipts.current.push({
+        fields,
+        fileName,
+        sourcePeriod: extractedPeriod || '',
+        savedPeriod: `${allocated[0].period} … ${allocated[allocated.length - 1].period}`,
+        annual: false,
+      });
+      setAutoSaveRequested(true);
+      track('bill_extracted', {
+        fields: fields.length,
+        months_covered: allocated.length,
+      });
+      return;
+    }
+
     let targetPeriod;
     if (extractedPeriod && /^\d{4}-\d{2}$/.test(extractedPeriod)) {
       targetPeriod = extractedPeriod;
@@ -366,12 +396,10 @@ export default function Data() {
       targetPeriod = `${selectedYear}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
     }
 
-    for (const f of fields) {
-      const mapping = EXTRACT_FIELD_MAP[f.field];
-      if (!mapping) continue;
-      const val = typeof f.value === 'number' ? f.value : parseFloat(f.value);
-      if (isNaN(val)) continue;
-      updateField(targetPeriod, mapping.section, mapping.field, val);
+    // One write per workspace metric: diesel and petrol both mean vehicle fuel, and
+    // writing them in sequence threw the first tank away.
+    for (const assignment of extractionAssignments(fields)) {
+      updateField(targetPeriod, assignment.section, assignment.field, assignment.value);
     }
     recordExtractionSources(fields, fileName);
     pendingExtractionReceipts.current.push({

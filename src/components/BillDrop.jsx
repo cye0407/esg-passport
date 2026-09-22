@@ -35,9 +35,12 @@ function extractionExplanation(t, field, result, reasons = []) {
  * BillDrop — drop utility bills to auto-fill ESG data.
  *
  * Props:
- *   onDataExtracted(fields, period, fileName) — called with accepted fields to merge into
- *     data records. fileName is the document the values came out of, so the workspace can
- *     record where each figure came from rather than losing it at the moment of import.
+ *   onDataExtracted(fields, period, fileName, periodMeta) — called with accepted fields to
+ *     merge into data records. fileName is the document the values came out of, so the
+ *     workspace can record where each figure came from rather than losing it at the moment
+ *     of import. periodMeta carries the extractor's own view of the span the document
+ *     reports on ({coveredMonths, periodStart, periodEnd}); a quarterly or annual document
+ *     covers several months and must not be written as though it described one.
  *   onBatchComplete() — called once the whole dropped batch has been reviewed, accepted or
  *     cancelled. Several files are reviewed one dialog at a time, so a parent that reacts
  *     to the FIRST onDataExtracted — by navigating away, or by opening a dialog of its own
@@ -199,7 +202,13 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
       for (const row of group.rows) {
         if (!row.included) continue;
         const accepted = row.fields.filter(f => f.accepted);
-        if (accepted.length > 0) onDataExtracted(accepted, row.result?.period, row.fileName);
+        if (accepted.length > 0) {
+          onDataExtracted(accepted, row.result?.period, row.fileName, {
+            coveredMonths: row.result?.coveredMonths,
+            periodStart: row.result?.periodStart,
+            periodEnd: row.result?.periodEnd,
+          });
+        }
       }
     }
     setBatch(null);
@@ -260,7 +269,11 @@ export default function BillDrop({ onDataExtracted, onBatchComplete, incoming = 
     if (!results) return;
     const accepted = results.fields.filter(f => f.accepted);
     if (accepted.length > 0) {
-      onDataExtracted(accepted, results.result?.period, results.fileName);
+      onDataExtracted(accepted, results.result?.period, results.fileName, {
+        coveredMonths: results.result?.coveredMonths,
+        periodStart: results.result?.periodStart,
+        periodEnd: results.result?.periodEnd,
+      });
     }
     showNext();
   }, [results, onDataExtracted, showNext]);

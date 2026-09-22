@@ -1,4 +1,5 @@
 import { EXTRACT_FIELD_MAP } from './extractFieldMap';
+import { extractionAssignments } from './extractionWrite';
 
 // A document that carries a year but no month is staged for confirmation rather than
 // applied, because switching to annual entry overwrites that year. Several such
@@ -46,12 +47,12 @@ export function groupAnnualBills(pending) {
 export function mergeAnnualValues(bills) {
   const values = {};
   for (const bill of bills || []) {
-    for (const field of bill.fields || []) {
-      const mapping = EXTRACT_FIELD_MAP[field.field];
-      if (!mapping) continue;
-      const value = typeof field.value === 'number' ? field.value : parseFloat(field.value);
-      if (Number.isNaN(value)) continue;
-      values[`${mapping.section}.${mapping.field}`] = String(value);
+    // Within one document, fields that share a workspace metric are resolved before they
+    // are written — diesel plus petrol is the year's vehicle fuel, not whichever of the
+    // two the loop happened to see last. Across documents the later one still wins, which
+    // is what `conflicts` above warns about.
+    for (const assignment of extractionAssignments(bill.fields)) {
+      values[assignment.key] = String(assignment.value);
     }
   }
   return values;
