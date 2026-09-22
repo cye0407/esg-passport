@@ -1,0 +1,11 @@
+kind	prior	new	questions	priors	recovered	correct	acceptable	incorrect	traps_hit	useful_pct	incorrect_pct_of_recovered	need_you_before	need_you_after	missing_source	high_but_stale	pass	wrong
+same	01-retailer-supplier-form-completed-2025	01-retailer-supplier-form	21	21	21	21	0	0	0	100	0	6	0	0	0	PASS	
+same	03-platform-offline-sheet-completed-2025	03-platform-offline-sheet	29	29	29	29	0	0	0	100	0	1	0	0	0	PASS	
+same	04-automotive-saq-completed-2025	04-automotive-saq	23	23	23	23	0	0	0	100	0	9	0	0	0	PASS	
+same	05-multisheet-qa-form-completed-2025	05-multisheet-qa-form	21	20	20	20	0	0	0	95	0	2	0	0	0	PASS	
+same	07-retailer-wide-layout-completed-2025	07-retailer-wide-layout	21	20	20	20	0	0	0	95	0	3	0	0	0	PASS	
+cross	03-platform-offline-sheet-completed-2025	01-retailer-supplier-form	21	29	3	3	0	0	0	14	0	6	6	0	0	FAIL	
+cross	03-platform-offline-sheet-completed-2025	07-retailer-wide-layout	21	29	3	3	0	0	0	14	0	3	3	0	0	FAIL	
+cross	07-retailer-wide-layout-completed-2025	01-retailer-supplier-form	21	20	2	2	0	0	0	10	0	6	5	0	0	FAIL	
+cross	04-automotive-saq-completed-2025	03-platform-offline-sheet	29	23	1	1	0	0	0	3	0	1	1	0	0	FAIL	
+cross	05-multisheet-qa-form-completed-2025	06-german-bank-form	18	20	0	0	0	0	0	0	0	3	3	0	0	FAIL	

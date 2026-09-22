@@ -1,0 +1,13 @@
+fixture	sheets	rows	expected	detected_auto	auto_ok	detected_manual	missed	false_positives	truncated	proven_rich	suggested_rich	needs_you_rich	proven_empty	suggested_empty	needs_you_empty	answer_cells	existing_answers_seen	copying_required	minutes	missed_list	wrong_cells
+01-retailer-supplier-form	2	47	21	21	yes	22	0	0	0	4	11	6	0	9	12	21/21 right, 0 wrong, 0 none	0	yes (export is a new workbook)			
+01-retailer-supplier-form-completed-2025	2	47	21	21	yes	22	0	0	0	4	11	6	0	9	12	21/21 right, 0 wrong, 0 none	21	yes (export is a new workbook)			
+02-clean-table-stress-96	4	96	96	96	yes	n/a	0	0	n/a	24	50	22	0	57	39	n/a (no answer column in file)	0	yes (export is a new workbook)			
+03-platform-offline-sheet	3	33	29	29	yes	n/a	0	0	0	12	16	1	0	16	13	29/29 right, 0 wrong, 0 none	0	yes (export is a new workbook)			
+03-platform-offline-sheet-completed-2025	3	33	29	29	yes	n/a	0	0	0	12	16	1	0	16	13	29/29 right, 0 wrong, 0 none	29	yes (export is a new workbook)			
+04-automotive-saq	1	31	23	23	yes	n/a	0	0	0	6	8	9	0	10	13	23/23 right, 0 wrong, 0 none	0	yes (export is a new workbook)			
+04-automotive-saq-completed-2025	1	31	23	23	yes	n/a	0	0	0	6	8	9	0	10	13	23/23 right, 0 wrong, 0 none	23	yes (export is a new workbook)			
+05-multisheet-qa-form	4	21	21	21	yes	n/a	0	0	0	6	13	2	0	11	10	21/21 right, 0 wrong, 0 none	2	yes (export is a new workbook)			
+05-multisheet-qa-form-completed-2025	4	21	21	21	yes	n/a	0	0	0	6	13	2	0	11	10	21/21 right, 0 wrong, 0 none	20	yes (export is a new workbook)			
+06-german-bank-form	1	24	18	18	yes	n/a	0	0	0	5	10	3	0	6	12	18/18 right, 0 wrong, 0 none	0	yes (export is a new workbook)			
+07-retailer-wide-layout	1	21	21	21	yes	n/a	0	0	0	2	16	3	0	15	6	21/21 right, 0 wrong, 0 none	0	yes (export is a new workbook)			
+07-retailer-wide-layout-completed-2025	1	21	21	21	yes	n/a	0	0	0	2	16	3	0	15	6	21/21 right, 0 wrong, 0 none	20	yes (export is a new workbook)			

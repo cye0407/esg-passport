@@ -1,0 +1,1483 @@
+{
+  "$comment": "One entry per benchmark workbook. `expected` is hand-counted ground truth: every real question the buyer wants answered, with the sheet row it sits on and the cell where the answer belongs. `mapping` is the manual column mapping a user could choose in the app when auto-detection fails; omit it when auto-detection is expected to work. Sub-rows of a tick-list or option list are NOT separate questions.",
+  "fixtures": [
+    {
+      "id": "01-retailer-supplier-form",
+      "file": "fixtures/01-retailer-supplier-form.xlsx",
+      "source": "Hostile retailer form (Downloads/06_retailer_supplier_form.xlsx, 2026-09-13). Two sheets, the first a decoy ('old version - do not use'). Title banner merged A1:F1/A2:F2, instructions merged A4:F6, numbering restarts per section, shaded answer cells that alternate between column C and D, a question wrapped across rows 28-29, tick-all and tick-one option rows, maturity 1-5 rows, three data validations on the WRONG cells (C18, C20, C51), guidance in columns E/F, signature and footer rows.",
+      "stresses": [
+        "decoy sheet",
+        "banner header",
+        "no question header",
+        "section-restart numbering",
+        "answer column by shading not header",
+        "answer column alternates C/D",
+        "wrapped question",
+        "option sub-rows",
+        "statement-shaped questions",
+        "misplaced data validation"
+      ],
+      "sheet": "SUPPLIER FORM v3 FINAL ",
+      "mapping": {
+        "questionText": "__EMPTY",
+        "referenceId": "NORDHAVN RETAIL GROUP"
+      },
+      "answerCellsSignalledBy": "fill FFF2CC",
+      "expected": [
+        {
+          "row": 13,
+          "answerCell": "D13",
+          "text": "Registered legal entity name"
+        },
+        {
+          "row": 14,
+          "answerCell": "D14",
+          "text": "Country of incorporation"
+        },
+        {
+          "row": 15,
+          "answerCell": "C15",
+          "text": "Number of employees (FTE, most recent financial year)"
+        },
+        {
+          "row": 16,
+          "answerCell": "C16",
+          "text": "Does your company have a written environmental policy?"
+        },
+        {
+          "row": 18,
+          "answerCell": "D18",
+          "text": "Date the environmental policy was last reviewed"
+        },
+        {
+          "row": 19,
+          "answerCell": "C19",
+          "text": "Is the policy signed off at board or owner level?"
+        },
+        {
+          "row": 21,
+          "answerCell": "C21",
+          "text": "Which of the following does your company hold? Tick all that apply."
+        },
+        {
+          "row": 28,
+          "answerCell": "D29",
+          "text": "Describe how environmental responsibilities are allocated within your organisation, including whether any individual holds formal accountability for sustainability performance and how this is reported internally."
+        },
+        {
+          "row": 33,
+          "answerCell": "C33",
+          "text": "Working hours are recorded for all production staff"
+        },
+        {
+          "row": 34,
+          "answerCell": "C34",
+          "text": "A documented grievance mechanism is available to workers"
+        },
+        {
+          "row": 35,
+          "answerCell": "C35",
+          "text": "Recruitment fees are never charged to workers"
+        },
+        {
+          "row": 36,
+          "answerCell": "C36",
+          "text": "Freedom of association is respected at all sites"
+        },
+        {
+          "row": 39,
+          "answerCell": "C39",
+          "text": "What percentage of your workforce is engaged on temporary or agency contracts?"
+        },
+        {
+          "row": 40,
+          "answerCell": "D40",
+          "text": "Describe any labour-related non-conformities raised in the last 24 months and the remediation undertaken."
+        },
+        {
+          "row": 44,
+          "answerCell": "C44",
+          "text": "Do you measure Scope 1 and Scope 2 greenhouse gas emissions?"
+        },
+        {
+          "row": 45,
+          "answerCell": "D45",
+          "text": "Reporting year of most recent emissions figure"
+        },
+        {
+          "row": 46,
+          "answerCell": "C46",
+          "text": "Total Scope 1 + 2 emissions (tCO2e)"
+        },
+        {
+          "row": 47,
+          "answerCell": "C47",
+          "text": "Have you begun any Scope 3 screening?"
+        },
+        {
+          "row": 48,
+          "answerCell": "C48",
+          "text": "Proportion of your own suppliers covered by a code of conduct"
+        },
+        {
+          "row": 50,
+          "answerCell": "C50",
+          "text": "Primary approach to supplier due diligence"
+        },
+        {
+          "row": 56,
+          "answerCell": "D56",
+          "text": "Any further comments you wish to provide"
+        }
+      ]
+    },
+    {
+      "id": "01-retailer-supplier-form-completed-2025",
+      "file": "fixtures/01-retailer-supplier-form-completed-2025.xlsx",
+      "completedTwinOf": "01-retailer-supplier-form",
+      "source": "Completed twin of the retailer form (loaded and filled with ExcelJS, so minor style normalisation is possible; it is an input fixture, not a round-trip fixture). Return date changed to 2025. Phase 3 input.",
+      "stresses": [
+        "answers present in shaded cells that alternate C/D"
+      ],
+      "sheet": "SUPPLIER FORM v3 FINAL ",
+      "mapping": {
+        "questionText": "__EMPTY",
+        "referenceId": "NORDHAVN RETAIL GROUP"
+      },
+      "expected": [
+        {
+          "row": 13,
+          "answerCell": "D13",
+          "text": "Registered legal entity name"
+        },
+        {
+          "row": 14,
+          "answerCell": "D14",
+          "text": "Country of incorporation"
+        },
+        {
+          "row": 15,
+          "answerCell": "C15",
+          "text": "Number of employees (FTE, most recent financial year)"
+        },
+        {
+          "row": 16,
+          "answerCell": "C16",
+          "text": "Does your company have a written environmental policy?"
+        },
+        {
+          "row": 18,
+          "answerCell": "D18",
+          "text": "Date the environmental policy was last reviewed"
+        },
+        {
+          "row": 19,
+          "answerCell": "C19",
+          "text": "Is the policy signed off at board or owner level?"
+        },
+        {
+          "row": 21,
+          "answerCell": "C21",
+          "text": "Which of the following does your company hold? Tick all that apply."
+        },
+        {
+          "row": 28,
+          "answerCell": "D29",
+          "text": "Describe how environmental responsibilities are allocated within your organisation, including whether any individual holds formal accountability for sustainability performance and how this is reported internally."
+        },
+        {
+          "row": 33,
+          "answerCell": "C33",
+          "text": "Working hours are recorded for all production staff"
+        },
+        {
+          "row": 34,
+          "answerCell": "C34",
+          "text": "A documented grievance mechanism is available to workers"
+        },
+        {
+          "row": 35,
+          "answerCell": "C35",
+          "text": "Recruitment fees are never charged to workers"
+        },
+        {
+          "row": 36,
+          "answerCell": "C36",
+          "text": "Freedom of association is respected at all sites"
+        },
+        {
+          "row": 39,
+          "answerCell": "C39",
+          "text": "What percentage of your workforce is engaged on temporary or agency contracts?"
+        },
+        {
+          "row": 40,
+          "answerCell": "D40",
+          "text": "Describe any labour-related non-conformities raised in the last 24 months and the remediation undertaken."
+        },
+        {
+          "row": 44,
+          "answerCell": "C44",
+          "text": "Do you measure Scope 1 and Scope 2 greenhouse gas emissions?"
+        },
+        {
+          "row": 45,
+          "answerCell": "D45",
+          "text": "Reporting year of most recent emissions figure"
+        },
+        {
+          "row": 46,
+          "answerCell": "C46",
+          "text": "Total Scope 1 + 2 emissions (tCO2e)"
+        },
+        {
+          "row": 47,
+          "answerCell": "C47",
+          "text": "Have you begun any Scope 3 screening?"
+        },
+        {
+          "row": 48,
+          "answerCell": "C48",
+          "text": "Proportion of your own suppliers covered by a code of conduct"
+        },
+        {
+          "row": 50,
+          "answerCell": "C50",
+          "text": "Primary approach to supplier due diligence"
+        },
+        {
+          "row": 56,
+          "answerCell": "D56",
+          "text": "Any further comments you wish to provide"
+        }
+      ]
+    },
+    {
+      "id": "02-clean-table-stress-96",
+      "file": "fixtures/02-clean-table-stress-96.xlsx",
+      "source": "testing/tough-esg-questionnaires-2026-07-13.xlsx. Four sheets, each a clean 'ID | Question | Stress target' table (EN buyer, DE buyer, mixed-language, honest-gap). Built in July to stress MATCHING, not layout; it is the easiest possible shape for the parser and sets the ceiling.",
+      "stresses": [
+        "multiple sheets",
+        "German questions",
+        "mixed-language questions",
+        "questions nothing can answer honestly"
+      ],
+      "expectedCount": 96,
+      "answerCellsSignalledBy": "none - no answer column exists in this file"
+    },
+    {
+      "id": "03-platform-offline-sheet",
+      "file": "fixtures/03-platform-offline-sheet.xlsx",
+      "source": "Generated. Rating-platform style offline working copy: \"Read me first\" sheet, themed questionnaire with ID / question / options / YOUR ANSWER / comments / documents, merged theme bands, Yes/No/Partially dropdowns, hidden \"Scoring\" sheet with COUNTIF formulas over the answer cells, frozen header.",
+      "stresses": [
+        "instructions sheet first",
+        "merged theme bands inside the table",
+        "dropdown answers",
+        "hidden sheet with formulas over answer cells",
+        "numeric and percentage questions",
+        "frozen panes"
+      ],
+      "generated": true,
+      "sheet": "Questionnaire",
+      "answerCellsSignalledBy": "fill FFF2CC + header where present",
+      "expected": [
+        {
+          "row": 3,
+          "answerCell": "E3",
+          "text": "Does your company have a formal environmental policy covering its own operations?"
+        },
+        {
+          "row": 4,
+          "answerCell": "E4",
+          "text": "Is the environmental policy communicated to all employees?"
+        },
+        {
+          "row": 5,
+          "answerCell": "E5",
+          "text": "Do you measure your total energy consumption?"
+        },
+        {
+          "row": 6,
+          "answerCell": "E6",
+          "text": "What was your total energy consumption in the last reporting year (MWh)?"
+        },
+        {
+          "row": 7,
+          "answerCell": "E7",
+          "text": "What share of your electricity came from renewable sources?"
+        },
+        {
+          "row": 8,
+          "answerCell": "E8",
+          "text": "Do you measure Scope 1 and Scope 2 GHG emissions?"
+        },
+        {
+          "row": 9,
+          "answerCell": "E9",
+          "text": "Have you set a quantified GHG reduction target?"
+        },
+        {
+          "row": 10,
+          "answerCell": "E10",
+          "text": "Do you track the total weight of waste generated?"
+        },
+        {
+          "row": 11,
+          "answerCell": "E11",
+          "text": "What proportion of waste was diverted from landfill?"
+        },
+        {
+          "row": 12,
+          "answerCell": "E12",
+          "text": "Have you received any environmental fines or sanctions in the last three years?"
+        },
+        {
+          "row": 14,
+          "answerCell": "E14",
+          "text": "Do you have a written health and safety policy?"
+        },
+        {
+          "row": 15,
+          "answerCell": "E15",
+          "text": "How many lost-time injuries occurred in the last reporting year?"
+        },
+        {
+          "row": 16,
+          "answerCell": "E16",
+          "text": "Total hours worked in the last reporting year"
+        },
+        {
+          "row": 17,
+          "answerCell": "E17",
+          "text": "Are working hours recorded for all employees, including temporary staff?"
+        },
+        {
+          "row": 18,
+          "answerCell": "E18",
+          "text": "Is there a documented mechanism for employees to raise grievances confidentially?"
+        },
+        {
+          "row": 19,
+          "answerCell": "E19",
+          "text": "Do you provide training on health and safety to all new employees?"
+        },
+        {
+          "row": 20,
+          "answerCell": "E20",
+          "text": "Average training hours per employee in the last reporting year"
+        },
+        {
+          "row": 21,
+          "answerCell": "E21",
+          "text": "Do you have a policy prohibiting child labour and forced labour?"
+        },
+        {
+          "row": 22,
+          "answerCell": "E22",
+          "text": "Is freedom of association respected at all sites?"
+        },
+        {
+          "row": 24,
+          "answerCell": "E24",
+          "text": "Do you have an anti-corruption and anti-bribery policy?"
+        },
+        {
+          "row": 25,
+          "answerCell": "E25",
+          "text": "Have employees in exposed roles received anti-corruption training in the last two years?"
+        },
+        {
+          "row": 26,
+          "answerCell": "E26",
+          "text": "Is there a whistleblowing channel available to employees and third parties?"
+        },
+        {
+          "row": 27,
+          "answerCell": "E27",
+          "text": "Do you have a policy on the protection of personal data?"
+        },
+        {
+          "row": 28,
+          "answerCell": "E28",
+          "text": "Have you experienced a reportable data breach in the last three years?"
+        },
+        {
+          "row": 30,
+          "answerCell": "E30",
+          "text": "Do you have a supplier code of conduct?"
+        },
+        {
+          "row": 31,
+          "answerCell": "E31",
+          "text": "What proportion of your direct suppliers (by spend) have signed it?"
+        },
+        {
+          "row": 32,
+          "answerCell": "E32",
+          "text": "Do you assess the sustainability performance of your suppliers?"
+        },
+        {
+          "row": 33,
+          "answerCell": "E33",
+          "text": "Have you conducted on-site audits of any suppliers in the last two years?"
+        },
+        {
+          "row": 34,
+          "answerCell": "E34",
+          "text": "Do you require your suppliers to cascade sustainability requirements to their own suppliers?"
+        }
+      ]
+    },
+    {
+      "id": "03-platform-offline-sheet-completed-2025",
+      "file": "fixtures/03-platform-offline-sheet-completed-2025.xlsx",
+      "completedTwinOf": "03-platform-offline-sheet",
+      "source": "Completed twin of 03-platform-offline-sheet: same layout with the answer cells filled by plausible approved answers for reporting year 2025. Phase 3 input.",
+      "stresses": [
+        "answers present in the answer column"
+      ],
+      "generated": true,
+      "sheet": "Questionnaire",
+      "expected": [
+        {
+          "row": 3,
+          "answerCell": "E3",
+          "text": "Does your company have a formal environmental policy covering its own operations?"
+        },
+        {
+          "row": 4,
+          "answerCell": "E4",
+          "text": "Is the environmental policy communicated to all employees?"
+        },
+        {
+          "row": 5,
+          "answerCell": "E5",
+          "text": "Do you measure your total energy consumption?"
+        },
+        {
+          "row": 6,
+          "answerCell": "E6",
+          "text": "What was your total energy consumption in the last reporting year (MWh)?"
+        },
+        {
+          "row": 7,
+          "answerCell": "E7",
+          "text": "What share of your electricity came from renewable sources?"
+        },
+        {
+          "row": 8,
+          "answerCell": "E8",
+          "text": "Do you measure Scope 1 and Scope 2 GHG emissions?"
+        },
+        {
+          "row": 9,
+          "answerCell": "E9",
+          "text": "Have you set a quantified GHG reduction target?"
+        },
+        {
+          "row": 10,
+          "answerCell": "E10",
+          "text": "Do you track the total weight of waste generated?"
+        },
+        {
+          "row": 11,
+          "answerCell": "E11",
+          "text": "What proportion of waste was diverted from landfill?"
+        },
+        {
+          "row": 12,
+          "answerCell": "E12",
+          "text": "Have you received any environmental fines or sanctions in the last three years?"
+        },
+        {
+          "row": 14,
+          "answerCell": "E14",
+          "text": "Do you have a written health and safety policy?"
+        },
+        {
+          "row": 15,
+          "answerCell": "E15",
+          "text": "How many lost-time injuries occurred in the last reporting year?"
+        },
+        {
+          "row": 16,
+          "answerCell": "E16",
+          "text": "Total hours worked in the last reporting year"
+        },
+        {
+          "row": 17,
+          "answerCell": "E17",
+          "text": "Are working hours recorded for all employees, including temporary staff?"
+        },
+        {
+          "row": 18,
+          "answerCell": "E18",
+          "text": "Is there a documented mechanism for employees to raise grievances confidentially?"
+        },
+        {
+          "row": 19,
+          "answerCell": "E19",
+          "text": "Do you provide training on health and safety to all new employees?"
+        },
+        {
+          "row": 20,
+          "answerCell": "E20",
+          "text": "Average training hours per employee in the last reporting year"
+        },
+        {
+          "row": 21,
+          "answerCell": "E21",
+          "text": "Do you have a policy prohibiting child labour and forced labour?"
+        },
+        {
+          "row": 22,
+          "answerCell": "E22",
+          "text": "Is freedom of association respected at all sites?"
+        },
+        {
+          "row": 24,
+          "answerCell": "E24",
+          "text": "Do you have an anti-corruption and anti-bribery policy?"
+        },
+        {
+          "row": 25,
+          "answerCell": "E25",
+          "text": "Have employees in exposed roles received anti-corruption training in the last two years?"
+        },
+        {
+          "row": 26,
+          "answerCell": "E26",
+          "text": "Is there a whistleblowing channel available to employees and third parties?"
+        },
+        {
+          "row": 27,
+          "answerCell": "E27",
+          "text": "Do you have a policy on the protection of personal data?"
+        },
+        {
+          "row": 28,
+          "answerCell": "E28",
+          "text": "Have you experienced a reportable data breach in the last three years?"
+        },
+        {
+          "row": 30,
+          "answerCell": "E30",
+          "text": "Do you have a supplier code of conduct?"
+        },
+        {
+          "row": 31,
+          "answerCell": "E31",
+          "text": "What proportion of your direct suppliers (by spend) have signed it?"
+        },
+        {
+          "row": 32,
+          "answerCell": "E32",
+          "text": "Do you assess the sustainability performance of your suppliers?"
+        },
+        {
+          "row": 33,
+          "answerCell": "E33",
+          "text": "Have you conducted on-site audits of any suppliers in the last two years?"
+        },
+        {
+          "row": 34,
+          "answerCell": "E34",
+          "text": "Do you require your suppliers to cascade sustainability requirements to their own suppliers?"
+        }
+      ]
+    },
+    {
+      "id": "04-automotive-saq",
+      "file": "fixtures/04-automotive-saq.xlsx",
+      "source": "Generated. Automotive-style SAQ: hierarchical numbering (1.1, 1.1.1) prefixed inside the question cell, Yes/No/Partially dropdown in B, comment C, evidence D, italic guidance rows that are not questions, merged section rows, a \"not applicable\" checkbox row.",
+      "stresses": [
+        "numbering inside the question text",
+        "sub-questions",
+        "guidance rows between questions",
+        "checkbox row",
+        "numeric question among Yes/No"
+      ],
+      "generated": true,
+      "sheet": "SAQ",
+      "answerCellsSignalledBy": "fill FFF2CC + header where present",
+      "expected": [
+        {
+          "row": 6,
+          "answerCell": "B6",
+          "text": "1.1  Does your company have a sustainability strategy approved by senior management?"
+        },
+        {
+          "row": 7,
+          "answerCell": "B7",
+          "text": "1.1.1  Does the strategy include measurable targets with deadlines?"
+        },
+        {
+          "row": 9,
+          "answerCell": "B9",
+          "text": "1.2  Is a named person responsible for sustainability at management level?"
+        },
+        {
+          "row": 10,
+          "answerCell": "B10",
+          "text": "1.3  Does your company publish a sustainability or CSR report?"
+        },
+        {
+          "row": 12,
+          "answerCell": "B12",
+          "text": "2.1  Does your company have a code of conduct covering corruption, conflicts of interest and fair competition?"
+        },
+        {
+          "row": 13,
+          "answerCell": "B13",
+          "text": "2.1.1  Is the code of conduct communicated to all employees and acknowledged in writing?"
+        },
+        {
+          "row": 14,
+          "answerCell": "B14",
+          "text": "2.2  Is there a confidential channel for reporting suspected violations?"
+        },
+        {
+          "row": 16,
+          "answerCell": "B16",
+          "text": "2.3  Has your company been convicted of, or investigated for, corruption in the last five years?"
+        },
+        {
+          "row": 18,
+          "answerCell": "B18",
+          "text": "3.1  Does your company have a written policy on human rights?"
+        },
+        {
+          "row": 19,
+          "answerCell": "B19",
+          "text": "3.2  Are all employees provided with a written contract in a language they understand?"
+        },
+        {
+          "row": 20,
+          "answerCell": "B20",
+          "text": "3.3  Are recruitment fees ever charged to workers, directly or through agencies?"
+        },
+        {
+          "row": 21,
+          "answerCell": "B21",
+          "text": "3.4  Does your company have a health and safety management system?"
+        },
+        {
+          "row": 22,
+          "answerCell": "B22",
+          "text": "3.4.1  Is the system certified by an accredited third party?"
+        },
+        {
+          "row": 23,
+          "answerCell": "B23",
+          "text": "3.5  Number of work-related fatalities in the last reporting year"
+        },
+        {
+          "row": 25,
+          "answerCell": "B25",
+          "text": "4.1  Does your company hold an ISO 14001 or equivalent environmental management certification?"
+        },
+        {
+          "row": 26,
+          "answerCell": "B26",
+          "text": "4.2  Does your company record energy consumption per site?"
+        },
+        {
+          "row": 27,
+          "answerCell": "B27",
+          "text": "4.3  Does your company calculate its carbon footprint (Scope 1 and 2)?"
+        },
+        {
+          "row": 28,
+          "answerCell": "B28",
+          "text": "4.3.1  Has the calculation been verified by a third party?"
+        },
+        {
+          "row": 29,
+          "answerCell": "B29",
+          "text": "4.4  Does your company have a water management plan?"
+        },
+        {
+          "row": 30,
+          "answerCell": "B30",
+          "text": "4.5  Does your company use substances listed on the REACH candidate list in its products?"
+        },
+        {
+          "row": 32,
+          "answerCell": "B32",
+          "text": "5.1  Do you require your suppliers to comply with a supplier code of conduct?"
+        },
+        {
+          "row": 33,
+          "answerCell": "B33",
+          "text": "5.2  Do you conduct risk assessments of your suppliers regarding sustainability?"
+        },
+        {
+          "row": 34,
+          "answerCell": "B34",
+          "text": "5.3  Are conflict minerals (3TG) contained in the products you supply?"
+        }
+      ]
+    },
+    {
+      "id": "04-automotive-saq-completed-2025",
+      "file": "fixtures/04-automotive-saq-completed-2025.xlsx",
+      "completedTwinOf": "04-automotive-saq",
+      "source": "Completed twin of 04-automotive-saq: same layout with the answer cells filled by plausible approved answers for reporting year 2025. Phase 3 input.",
+      "stresses": [
+        "answers present in the answer column"
+      ],
+      "generated": true,
+      "sheet": "SAQ",
+      "expected": [
+        {
+          "row": 6,
+          "answerCell": "B6",
+          "text": "1.1  Does your company have a sustainability strategy approved by senior management?"
+        },
+        {
+          "row": 7,
+          "answerCell": "B7",
+          "text": "1.1.1  Does the strategy include measurable targets with deadlines?"
+        },
+        {
+          "row": 9,
+          "answerCell": "B9",
+          "text": "1.2  Is a named person responsible for sustainability at management level?"
+        },
+        {
+          "row": 10,
+          "answerCell": "B10",
+          "text": "1.3  Does your company publish a sustainability or CSR report?"
+        },
+        {
+          "row": 12,
+          "answerCell": "B12",
+          "text": "2.1  Does your company have a code of conduct covering corruption, conflicts of interest and fair competition?"
+        },
+        {
+          "row": 13,
+          "answerCell": "B13",
+          "text": "2.1.1  Is the code of conduct communicated to all employees and acknowledged in writing?"
+        },
+        {
+          "row": 14,
+          "answerCell": "B14",
+          "text": "2.2  Is there a confidential channel for reporting suspected violations?"
+        },
+        {
+          "row": 16,
+          "answerCell": "B16",
+          "text": "2.3  Has your company been convicted of, or investigated for, corruption in the last five years?"
+        },
+        {
+          "row": 18,
+          "answerCell": "B18",
+          "text": "3.1  Does your company have a written policy on human rights?"
+        },
+        {
+          "row": 19,
+          "answerCell": "B19",
+          "text": "3.2  Are all employees provided with a written contract in a language they understand?"
+        },
+        {
+          "row": 20,
+          "answerCell": "B20",
+          "text": "3.3  Are recruitment fees ever charged to workers, directly or through agencies?"
+        },
+        {
+          "row": 21,
+          "answerCell": "B21",
+          "text": "3.4  Does your company have a health and safety management system?"
+        },
+        {
+          "row": 22,
+          "answerCell": "B22",
+          "text": "3.4.1  Is the system certified by an accredited third party?"
+        },
+        {
+          "row": 23,
+          "answerCell": "B23",
+          "text": "3.5  Number of work-related fatalities in the last reporting year"
+        },
+        {
+          "row": 25,
+          "answerCell": "B25",
+          "text": "4.1  Does your company hold an ISO 14001 or equivalent environmental management certification?"
+        },
+        {
+          "row": 26,
+          "answerCell": "B26",
+          "text": "4.2  Does your company record energy consumption per site?"
+        },
+        {
+          "row": 27,
+          "answerCell": "B27",
+          "text": "4.3  Does your company calculate its carbon footprint (Scope 1 and 2)?"
+        },
+        {
+          "row": 28,
+          "answerCell": "B28",
+          "text": "4.3.1  Has the calculation been verified by a third party?"
+        },
+        {
+          "row": 29,
+          "answerCell": "B29",
+          "text": "4.4  Does your company have a water management plan?"
+        },
+        {
+          "row": 30,
+          "answerCell": "B30",
+          "text": "4.5  Does your company use substances listed on the REACH candidate list in its products?"
+        },
+        {
+          "row": 32,
+          "answerCell": "B32",
+          "text": "5.1  Do you require your suppliers to comply with a supplier code of conduct?"
+        },
+        {
+          "row": 33,
+          "answerCell": "B33",
+          "text": "5.2  Do you conduct risk assessments of your suppliers regarding sustainability?"
+        },
+        {
+          "row": 34,
+          "answerCell": "B34",
+          "text": "5.3  Are conflict minerals (3TG) contained in the products you supply?"
+        }
+      ]
+    },
+    {
+      "id": "05-multisheet-qa-form",
+      "file": "fixtures/05-multisheet-qa-form.xlsx",
+      "source": "Generated. Four sheets (General / Environment / Social / Governance), two columns each; two sheets have a \"Question | Answer\" header, two start with a question on row 1; two answer cells are PRE-FILLED by the buyer and must not be overwritten; field-shaped and compound questions.",
+      "stresses": [
+        "questions on multiple sheets",
+        "sheets without header row",
+        "pre-filled answer cells",
+        "field-shaped questions",
+        "compound questions"
+      ],
+      "generated": true,
+      "sheet": "General",
+      "answerCellsSignalledBy": "fill FFF2CC + header where present",
+      "expected": [
+        {
+          "sheet": "General",
+          "row": 2,
+          "answerCell": "B2",
+          "text": "Legal name of your company"
+        },
+        {
+          "sheet": "General",
+          "row": 3,
+          "answerCell": "B3",
+          "text": "Registered address"
+        },
+        {
+          "sheet": "General",
+          "row": 4,
+          "answerCell": "B4",
+          "text": "Number of employees (headcount)"
+        },
+        {
+          "sheet": "General",
+          "row": 5,
+          "answerCell": "B5",
+          "text": "Annual turnover band"
+        },
+        {
+          "sheet": "General",
+          "row": 6,
+          "answerCell": "B6",
+          "text": "Main products or services supplied to us"
+        },
+        {
+          "sheet": "General",
+          "row": 7,
+          "answerCell": "B7",
+          "text": "Sites from which you supply us"
+        },
+        {
+          "sheet": "Environment",
+          "row": 1,
+          "answerCell": "B1",
+          "text": "Do you have an environmental management system? If certified, state the standard and expiry date."
+        },
+        {
+          "sheet": "Environment",
+          "row": 2,
+          "answerCell": "B2",
+          "text": "Total electricity consumption last year (kWh)"
+        },
+        {
+          "sheet": "Environment",
+          "row": 3,
+          "answerCell": "B3",
+          "text": "Total natural gas consumption last year (m³)"
+        },
+        {
+          "sheet": "Environment",
+          "row": 4,
+          "answerCell": "B4",
+          "text": "Do you report Scope 1 and Scope 2 emissions? State the figures if available."
+        },
+        {
+          "sheet": "Environment",
+          "row": 5,
+          "answerCell": "B5",
+          "text": "Do you have a plan to reduce emissions? Summarise it."
+        },
+        {
+          "sheet": "Environment",
+          "row": 6,
+          "answerCell": "B6",
+          "text": "Hazardous waste generated last year (kg)"
+        },
+        {
+          "sheet": "Social",
+          "row": 2,
+          "answerCell": "B2",
+          "text": "Do you have a written health and safety policy?"
+        },
+        {
+          "sheet": "Social",
+          "row": 3,
+          "answerCell": "B3",
+          "text": "Lost-time injury rate (per 200,000 hours) last year"
+        },
+        {
+          "sheet": "Social",
+          "row": 4,
+          "answerCell": "B4",
+          "text": "Do you employ agency or temporary workers? State the proportion."
+        },
+        {
+          "sheet": "Social",
+          "row": 5,
+          "answerCell": "B5",
+          "text": "Do you operate a grievance mechanism accessible to all workers?",
+          "prefilled": "N/A — not required for service suppliers"
+        },
+        {
+          "sheet": "Social",
+          "row": 6,
+          "answerCell": "B6",
+          "text": "Percentage of women in management positions"
+        },
+        {
+          "sheet": "Governance",
+          "row": 1,
+          "answerCell": "B1",
+          "text": "Do you have an anti-bribery policy? Who is responsible for it?"
+        },
+        {
+          "sheet": "Governance",
+          "row": 2,
+          "answerCell": "B2",
+          "text": "Have you signed our supplier code of conduct?"
+        },
+        {
+          "sheet": "Governance",
+          "row": 3,
+          "answerCell": "B3",
+          "text": "Do you carry out due diligence on your own suppliers regarding human rights?",
+          "prefilled": "see attached buyer code of conduct"
+        },
+        {
+          "sheet": "Governance",
+          "row": 4,
+          "answerCell": "B4",
+          "text": "Do you hold cyber-security insurance or certification?"
+        }
+      ]
+    },
+    {
+      "id": "05-multisheet-qa-form-completed-2025",
+      "file": "fixtures/05-multisheet-qa-form-completed-2025.xlsx",
+      "completedTwinOf": "05-multisheet-qa-form",
+      "source": "Completed twin of 05-multisheet-qa-form: same layout with the answer cells filled by plausible approved answers for reporting year 2025. Phase 3 input.",
+      "stresses": [
+        "answers present in the answer column"
+      ],
+      "generated": true,
+      "sheet": "General",
+      "expected": [
+        {
+          "sheet": "General",
+          "row": 2,
+          "answerCell": "B2",
+          "text": "Legal name of your company"
+        },
+        {
+          "sheet": "General",
+          "row": 3,
+          "answerCell": "B3",
+          "text": "Registered address"
+        },
+        {
+          "sheet": "General",
+          "row": 4,
+          "answerCell": "B4",
+          "text": "Number of employees (headcount)"
+        },
+        {
+          "sheet": "General",
+          "row": 5,
+          "answerCell": "B5",
+          "text": "Annual turnover band"
+        },
+        {
+          "sheet": "General",
+          "row": 6,
+          "answerCell": "B6",
+          "text": "Main products or services supplied to us"
+        },
+        {
+          "sheet": "General",
+          "row": 7,
+          "answerCell": "B7",
+          "text": "Sites from which you supply us"
+        },
+        {
+          "sheet": "Environment",
+          "row": 1,
+          "answerCell": "B1",
+          "text": "Do you have an environmental management system? If certified, state the standard and expiry date."
+        },
+        {
+          "sheet": "Environment",
+          "row": 2,
+          "answerCell": "B2",
+          "text": "Total electricity consumption last year (kWh)"
+        },
+        {
+          "sheet": "Environment",
+          "row": 3,
+          "answerCell": "B3",
+          "text": "Total natural gas consumption last year (m³)"
+        },
+        {
+          "sheet": "Environment",
+          "row": 4,
+          "answerCell": "B4",
+          "text": "Do you report Scope 1 and Scope 2 emissions? State the figures if available."
+        },
+        {
+          "sheet": "Environment",
+          "row": 5,
+          "answerCell": "B5",
+          "text": "Do you have a plan to reduce emissions? Summarise it."
+        },
+        {
+          "sheet": "Environment",
+          "row": 6,
+          "answerCell": "B6",
+          "text": "Hazardous waste generated last year (kg)"
+        },
+        {
+          "sheet": "Social",
+          "row": 2,
+          "answerCell": "B2",
+          "text": "Do you have a written health and safety policy?"
+        },
+        {
+          "sheet": "Social",
+          "row": 3,
+          "answerCell": "B3",
+          "text": "Lost-time injury rate (per 200,000 hours) last year"
+        },
+        {
+          "sheet": "Social",
+          "row": 4,
+          "answerCell": "B4",
+          "text": "Do you employ agency or temporary workers? State the proportion."
+        },
+        {
+          "sheet": "Social",
+          "row": 5,
+          "answerCell": "B5",
+          "text": "Do you operate a grievance mechanism accessible to all workers?",
+          "prefilled": "N/A — not required for service suppliers"
+        },
+        {
+          "sheet": "Social",
+          "row": 6,
+          "answerCell": "B6",
+          "text": "Percentage of women in management positions"
+        },
+        {
+          "sheet": "Governance",
+          "row": 1,
+          "answerCell": "B1",
+          "text": "Do you have an anti-bribery policy? Who is responsible for it?"
+        },
+        {
+          "sheet": "Governance",
+          "row": 2,
+          "answerCell": "B2",
+          "text": "Have you signed our supplier code of conduct?"
+        },
+        {
+          "sheet": "Governance",
+          "row": 3,
+          "answerCell": "B3",
+          "text": "Do you carry out due diligence on your own suppliers regarding human rights?",
+          "prefilled": "see attached buyer code of conduct"
+        },
+        {
+          "sheet": "Governance",
+          "row": 4,
+          "answerCell": "B4",
+          "text": "Do you hold cyber-security insurance or certification?"
+        }
+      ]
+    },
+    {
+      "id": "06-german-bank-form",
+      "file": "fixtures/06-german-bank-form.xlsx",
+      "source": "Generated. German bank SME form: Nr. / Frage / Antwort / Einheit / Punkte, Ja/Nein/Teilweise dropdowns, a visible score column with a formula per row and a SUM total, units in their own column, signature line.",
+      "stresses": [
+        "German",
+        "formulas in a visible column next to answers",
+        "units column",
+        "numeric fields",
+        "total row and signature below the table"
+      ],
+      "generated": true,
+      "sheet": "Fragebogen",
+      "answerCellsSignalledBy": "fill FFF2CC + header where present",
+      "expected": [
+        {
+          "row": 6,
+          "answerCell": "C6",
+          "text": "Wie viele Mitarbeitende beschäftigt Ihr Unternehmen (Vollzeitäquivalente)?"
+        },
+        {
+          "row": 7,
+          "answerCell": "C7",
+          "text": "In welcher Branche ist Ihr Unternehmen hauptsächlich tätig?"
+        },
+        {
+          "row": 8,
+          "answerCell": "C8",
+          "text": "Verfügt Ihr Unternehmen über eine schriftliche Nachhaltigkeitsstrategie?"
+        },
+        {
+          "row": 10,
+          "answerCell": "C10",
+          "text": "Erfassen Sie Ihren Energieverbrauch systematisch?"
+        },
+        {
+          "row": 11,
+          "answerCell": "C11",
+          "text": "Wie hoch war Ihr Stromverbrauch im letzten Geschäftsjahr?"
+        },
+        {
+          "row": 12,
+          "answerCell": "C12",
+          "text": "Wie hoch war der Anteil erneuerbarer Energien am Stromverbrauch?"
+        },
+        {
+          "row": 13,
+          "answerCell": "C13",
+          "text": "Ermitteln Sie Ihre Treibhausgasemissionen (Scope 1 und 2)?"
+        },
+        {
+          "row": 14,
+          "answerCell": "C14",
+          "text": "Wie hoch waren Ihre Scope-1- und Scope-2-Emissionen im letzten Geschäftsjahr?"
+        },
+        {
+          "row": 15,
+          "answerCell": "C15",
+          "text": "Haben Sie ein quantifiziertes Ziel zur Reduktion Ihrer Emissionen festgelegt?"
+        },
+        {
+          "row": 16,
+          "answerCell": "C16",
+          "text": "Verfügt Ihr Unternehmen über ein zertifiziertes Umweltmanagementsystem (z. B. ISO 14001, EMAS)?"
+        },
+        {
+          "row": 18,
+          "answerCell": "C18",
+          "text": "Wie hoch war die Fluktuationsrate im letzten Geschäftsjahr?"
+        },
+        {
+          "row": 19,
+          "answerCell": "C19",
+          "text": "Gab es im letzten Geschäftsjahr meldepflichtige Arbeitsunfälle? Wenn ja, wie viele?"
+        },
+        {
+          "row": 20,
+          "answerCell": "C20",
+          "text": "Bestehen Regelungen zur Vereinbarkeit von Beruf und Familie?"
+        },
+        {
+          "row": 21,
+          "answerCell": "C21",
+          "text": "Wie hoch ist der Frauenanteil in Führungspositionen?"
+        },
+        {
+          "row": 23,
+          "answerCell": "C23",
+          "text": "Verfügt Ihr Unternehmen über einen Verhaltenskodex (Code of Conduct)?"
+        },
+        {
+          "row": 24,
+          "answerCell": "C24",
+          "text": "Bestehen Richtlinien zur Vermeidung von Korruption und Bestechung?"
+        },
+        {
+          "row": 25,
+          "answerCell": "C25",
+          "text": "Gibt es ein Hinweisgebersystem für Mitarbeitende und Dritte?"
+        },
+        {
+          "row": 26,
+          "answerCell": "C26",
+          "text": "Verlangen Sie von Ihren Lieferanten die Einhaltung von Sozial- und Umweltstandards?"
+        }
+      ]
+    },
+    {
+      "id": "07-retailer-wide-layout",
+      "file": "fixtures/07-retailer-wide-layout.xlsx",
+      "source": "Generated. Retailer information request: eight merged instruction rows above a header on row 10, category column with merged cells spanning several rows, question in C, guidance D, mandatory marker E, supplier response F, HIDDEN column G with IF formulas over F, frozen panes.",
+      "stresses": [
+        "header far down the sheet",
+        "vertically merged category cells",
+        "answer column is not adjacent to the question column",
+        "hidden column with formulas over the answer cells",
+        "mandatory markers"
+      ],
+      "generated": true,
+      "sheet": "Supplier questionnaire",
+      "answerCellsSignalledBy": "fill FFF2CC + header where present",
+      "expected": [
+        {
+          "row": 11,
+          "answerCell": "F11",
+          "text": "Vendor number"
+        },
+        {
+          "row": 12,
+          "answerCell": "F12",
+          "text": "Ultimate parent company (if any)"
+        },
+        {
+          "row": 13,
+          "answerCell": "F13",
+          "text": "Number of production sites supplying us"
+        },
+        {
+          "row": 14,
+          "answerCell": "F14",
+          "text": "Countries of production"
+        },
+        {
+          "row": 15,
+          "answerCell": "F15",
+          "text": "Do you have a code of conduct covering labour and human rights?"
+        },
+        {
+          "row": 16,
+          "answerCell": "F16",
+          "text": "Date of last review of the code of conduct"
+        },
+        {
+          "row": 17,
+          "answerCell": "F17",
+          "text": "Do you have an environmental policy?"
+        },
+        {
+          "row": 18,
+          "answerCell": "F18",
+          "text": "Do you have an anti-bribery policy?"
+        },
+        {
+          "row": 19,
+          "answerCell": "F19",
+          "text": "Total energy consumption (MWh)"
+        },
+        {
+          "row": 20,
+          "answerCell": "F20",
+          "text": "Scope 1 emissions (tCO2e)"
+        },
+        {
+          "row": 21,
+          "answerCell": "F21",
+          "text": "Scope 2 emissions (tCO2e)"
+        },
+        {
+          "row": 22,
+          "answerCell": "F22",
+          "text": "Percentage of packaging supplied to us that is recyclable"
+        },
+        {
+          "row": 23,
+          "answerCell": "F23",
+          "text": "Do you have any environmental certifications? List them with expiry dates."
+        },
+        {
+          "row": 24,
+          "answerCell": "F24",
+          "text": "Total number of workers at sites supplying us"
+        },
+        {
+          "row": 25,
+          "answerCell": "F25",
+          "text": "Percentage of agency or temporary workers"
+        },
+        {
+          "row": 26,
+          "answerCell": "F26",
+          "text": "Have any sites supplying us been audited against a social standard in the last 24 months? Give the standard and date."
+        },
+        {
+          "row": 27,
+          "answerCell": "F27",
+          "text": "Number of open non-conformances from that audit"
+        },
+        {
+          "row": 28,
+          "answerCell": "F28",
+          "text": "Are workers free to leave employment with reasonable notice and without penalty?"
+        },
+        {
+          "row": 29,
+          "answerCell": "F29",
+          "text": "Do you know the country of origin of your main raw materials?"
+        },
+        {
+          "row": 30,
+          "answerCell": "F30",
+          "text": "Do you require your own suppliers to sign a code of conduct?"
+        },
+        {
+          "row": 31,
+          "answerCell": "F31",
+          "text": "Any further information you wish to provide"
+        }
+      ]
+    },
+    {
+      "id": "07-retailer-wide-layout-completed-2025",
+      "file": "fixtures/07-retailer-wide-layout-completed-2025.xlsx",
+      "completedTwinOf": "07-retailer-wide-layout",
+      "source": "Completed twin of 07-retailer-wide-layout: same layout with the answer cells filled by plausible approved answers for reporting year 2025. Phase 3 input.",
+      "stresses": [
+        "answers present in the answer column"
+      ],
+      "generated": true,
+      "sheet": "Supplier questionnaire",
+      "expected": [
+        {
+          "row": 11,
+          "answerCell": "F11",
+          "text": "Vendor number"
+        },
+        {
+          "row": 12,
+          "answerCell": "F12",
+          "text": "Ultimate parent company (if any)"
+        },
+        {
+          "row": 13,
+          "answerCell": "F13",
+          "text": "Number of production sites supplying us"
+        },
+        {
+          "row": 14,
+          "answerCell": "F14",
+          "text": "Countries of production"
+        },
+        {
+          "row": 15,
+          "answerCell": "F15",
+          "text": "Do you have a code of conduct covering labour and human rights?"
+        },
+        {
+          "row": 16,
+          "answerCell": "F16",
+          "text": "Date of last review of the code of conduct"
+        },
+        {
+          "row": 17,
+          "answerCell": "F17",
+          "text": "Do you have an environmental policy?"
+        },
+        {
+          "row": 18,
+          "answerCell": "F18",
+          "text": "Do you have an anti-bribery policy?"
+        },
+        {
+          "row": 19,
+          "answerCell": "F19",
+          "text": "Total energy consumption (MWh)"
+        },
+        {
+          "row": 20,
+          "answerCell": "F20",
+          "text": "Scope 1 emissions (tCO2e)"
+        },
+        {
+          "row": 21,
+          "answerCell": "F21",
+          "text": "Scope 2 emissions (tCO2e)"
+        },
+        {
+          "row": 22,
+          "answerCell": "F22",
+          "text": "Percentage of packaging supplied to us that is recyclable"
+        },
+        {
+          "row": 23,
+          "answerCell": "F23",
+          "text": "Do you have any environmental certifications? List them with expiry dates."
+        },
+        {
+          "row": 24,
+          "answerCell": "F24",
+          "text": "Total number of workers at sites supplying us"
+        },
+        {
+          "row": 25,
+          "answerCell": "F25",
+          "text": "Percentage of agency or temporary workers"
+        },
+        {
+          "row": 26,
+          "answerCell": "F26",
+          "text": "Have any sites supplying us been audited against a social standard in the last 24 months? Give the standard and date."
+        },
+        {
+          "row": 27,
+          "answerCell": "F27",
+          "text": "Number of open non-conformances from that audit"
+        },
+        {
+          "row": 28,
+          "answerCell": "F28",
+          "text": "Are workers free to leave employment with reasonable notice and without penalty?"
+        },
+        {
+          "row": 29,
+          "answerCell": "F29",
+          "text": "Do you know the country of origin of your main raw materials?"
+        },
+        {
+          "row": 30,
+          "answerCell": "F30",
+          "text": "Do you require your own suppliers to sign a code of conduct?"
+        },
+        {
+          "row": 31,
+          "answerCell": "F31",
+          "text": "Any further information you wish to provide"
+        }
+      ]
+    }
+  ]
+}

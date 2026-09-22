@@ -1,0 +1,7 @@
+fixture	writes	landed_exceljs	landed_sheetjs	formulas	validations	merges	hidden_sheets	hidden_cols	frozen	parts_changed	unexpected_parts	recalc_on_open	prefilled_kept	formula_refusals	pass	output
+01-retailer-supplier-form	21	21/21	21/21	0→0	3→3	7→7	0→0	0→0	8→8	1	-	no	n/a	0	PASS	testing\benchmark\out\01-retailer-supplier-form-completed.xlsx
+03-platform-offline-sheet	29	29/29	29/29	2→2	22→22	4→4	1→1	0→0	1→1	2	-	yes	n/a	0	PASS	testing\benchmark\out\03-platform-offline-sheet-completed.xlsx
+04-automotive-saq	23	23/23	23/23	0→0	22→22	7→7	0→0	0→0	0→0	1	-	no	n/a	0	PASS	testing\benchmark\out\04-automotive-saq-completed.xlsx
+05-multisheet-qa-form	21	19/19	19/19	0→0	0→0	0→0	0→0	0→0	0→0	4	-	no	yes (2)	0	PASS	testing\benchmark\out\05-multisheet-qa-form-completed.xlsx
+06-german-bank-form	18	18/18	18/18	11→11	10→10	6→6	0→0	0→0	0→0	2	-	yes	n/a	0	PASS	testing\benchmark\out\06-german-bank-form-completed.xlsx
+07-retailer-wide-layout	21	21/21	21/21	21→21	0→0	12→12	0→0	1→1	10→10	2	-	yes	n/a	0	PASS	testing\benchmark\out\07-retailer-wide-layout-completed.xlsx
