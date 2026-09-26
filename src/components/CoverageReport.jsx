@@ -594,11 +594,12 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                                   const doc = q.needs.documents?.[0];
                                   const docName = doc ? documentName(t, doc.document) : null;
                                   const policy = q.needs.policy && POLICY_BUILDERS[q.needs.policy] ? builderName(POLICY_BUILDERS[q.needs.policy], lang) : null;
+                                  const localizedPrompt = q.needs.prompts?.[lang] || q.needs.prompt;
                                   // A written draft with nothing missing needs reading, not a document;
                                   // "only you can answer this" is for a question with no draft at all.
                                   const hint = docName ? t('coverage.needsDocument', { document: docName, figure: (lang === 'de' && doc.labelDe) || doc.label })
                                     : policy ? t('coverage.needsPolicy', { policy })
-                                      : q.needs.prompt ? q.needs.prompt
+                                      : localizedPrompt ? localizedPrompt
                                         : (q.state === 'written' || q.state === 'partial') ? t('coverage.needsReading')
                                           : t('coverage.needsYou');
                                   return <span className="text-slate-600"> · {hint}</span>;

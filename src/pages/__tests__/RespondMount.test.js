@@ -34,7 +34,7 @@ vi.mock('../../../web-helpers/pdfReader', () => ({
   isUnreadablePdfText: () => false,
 }));
 
-import Respond from '../Respond';
+import Respond, { DEMO_ACTION_BAR_CLASSES } from '../Respond';
 import Home from '../Home';
 import Data from '../Data';
 import { saveSettings } from '@/lib/store';
@@ -113,6 +113,11 @@ describe('Respond renders', () => {
   it('mounts the read-only sample route', async () => {
     await mount('free', { demoOnly: true });
     expect(container.textContent.length).toBeGreaterThan(0);
+    // It participates in normal document flow on narrow screens instead of covering
+    // the answer list; the fixed conversion bar starts at the sm breakpoint.
+    const classes = DEMO_ACTION_BAR_CLASSES.split(' ');
+    expect(classes).not.toContain('fixed');
+    expect(classes).toContain('sm:fixed');
   });
 
   it('offers free an upload area rather than a paywall', async () => {

@@ -20,6 +20,10 @@ Three tiers, and the line between them is **finishing**, not looking:
 - response-ready (local dependency) — domain-agnostic questionnaire engine + ESG domain pack
 
 ## Current State
+- **Interface and answer languages stay separate without leaking copy** — question-bank
+  guidance retains English and German variants and the readiness and response views pick
+  the current UI language. The mobile demo action bar no longer covers the response list,
+  and the global navigation has explicit accessible labels.
 - **Free reads your own questionnaire** (Sept 2026). Until then `free` carried
   `canUploadQuestionnaire: false` / `canExtractDocuments: false`, so every visitor
   evaluated the product against `demoData.js`'s fictional company — which is why a year

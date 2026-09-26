@@ -92,6 +92,17 @@ describe('summarizeCoverage topics', () => {
     expect(environmental.documents).toEqual([]);
   });
 
+  it('preserves localized guidance when answer and interface languages differ', () => {
+    const c = summarizeCoverage([
+      draft('financial_context', 'none', {
+        wouldAnswer: 'Jahresabschluss',
+        wouldAnswerByLanguage: { en: 'annual accounts', de: 'Jahresabschluss' },
+      }),
+    ]);
+    const question = c.topics.find(t => t.topic === 'other').questions[0];
+    expect(question.needs.prompts).toEqual({ en: 'annual accounts', de: 'Jahresabschluss' });
+  });
+
   it('counts a missing policy against the topic that asked for it', () => {
     const c = summarizeCoverage([
       draft('buyer_requirements', 'medium', {

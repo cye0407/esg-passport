@@ -73,4 +73,18 @@ describe('Layout navigation entitlements', () => {
     expect(container.querySelector('[aria-label="Requests locked"]')).toBeNull();
     expect(container.querySelector('[aria-label="Report locked"]')).not.toBeNull();
   });
+
+  it('labels the logo and mobile navigation controls for assistive technology', async () => {
+    await renderLayout();
+
+    expect(container.querySelector('a[aria-label="ESG Passport home"]')).not.toBeNull();
+    const menu = container.querySelector('button[aria-label="Open navigation"]');
+    expect(menu).not.toBeNull();
+    expect(menu.getAttribute('aria-expanded')).toBe('false');
+    expect(menu.getAttribute('aria-controls')).toBe('mobile-navigation');
+
+    await act(async () => menu.click());
+    expect(container.querySelector('#mobile-navigation')).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Close navigation"]')?.getAttribute('aria-expanded')).toBe('true');
+  });
 });

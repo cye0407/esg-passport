@@ -118,6 +118,7 @@ function summarize(draft, dataSources, companyData) {
     answerState: draft.answerState,
     stateNote: draft.stateNote,
     wouldAnswer: draft.wouldAnswer,
+    wouldAnswerByLanguage: draft.wouldAnswerByLanguage,
     legalBasis: draft.legalBasis,
     topic: topicForDomain(draft?.matchResult?.primaryDomain),
     dataCoverage: periodCoverageForDraft(draft, companyData),
@@ -238,6 +239,7 @@ function summarizeTopics(list, companyData) {
         // The bank names the document or figure that would answer it ("fuel and gas bills")
         // when no mapped document row does.
         prompt: draft?.promptForMissing || draft?.wouldAnswer || null,
+        prompts: draft?.wouldAnswerByLanguage || null,
       },
     });
 

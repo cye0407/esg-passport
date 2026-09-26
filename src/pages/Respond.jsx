@@ -72,6 +72,7 @@ const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
 const FREE_PREVIEW_LIMIT = 5;
 const DATA_SECTIONS = ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training'];
 const PASSPORT_DATA_KEY = 'esg_passport_data';
+export const DEMO_ACTION_BAR_CLASSES = 'mt-6 border-t border-slate-200 bg-white px-4 py-3 sm:fixed sm:inset-x-0 sm:bottom-0 sm:z-40 sm:bg-white/95 sm:shadow-[0_-12px_30px_rgba(15,23,42,0.12)] sm:backdrop-blur';
 
 function hasUsableWorkspaceData() {
   const records = getDataRecords();
@@ -2143,8 +2144,8 @@ export default function Respond({ demoOnly = false }) {
                           <p className="mt-2 text-sm text-slate-700 leading-relaxed">
                             {draft.stateNote || t(draft.answerState === 'no-evidence' ? 'respond.state.noEvidenceHint' : 'respond.state.leftToYouHint')}
                           </p>
-                          {draft.wouldAnswer && (
-                            <p className="mt-1 text-xs text-slate-500">{t('respond.stateWouldAnswer', { what: draft.wouldAnswer })}</p>
+                          {(draft.wouldAnswerByLanguage?.[lang] || draft.wouldAnswer) && (
+                            <p className="mt-1 text-xs text-slate-500">{t('respond.stateWouldAnswer', { what: draft.wouldAnswerByLanguage?.[lang] || draft.wouldAnswer })}</p>
                           )}
                           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                             <button type="button" onClick={() => startEditing(draft)} className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-2 hover:decoration-slate-900">
@@ -2446,7 +2447,7 @@ export default function Respond({ demoOnly = false }) {
           </div>
         )}
         {isDemo && (
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.12)] backdrop-blur">
+          <div data-testid="demo-action-bar" className={DEMO_ACTION_BAR_CLASSES}>
             <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-900">{t('respond.exampleView')}</p>
