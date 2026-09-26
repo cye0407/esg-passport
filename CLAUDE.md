@@ -62,6 +62,11 @@ Three tiers, and the line between them is **finishing**, not looking:
 - Low-confidence data warnings (amber/red visual indicators)
 - Bulk CSV data import with smart column detection + template download
 - Monthly/Annual entry mode toggle on Data page
+- **Annual-entry correctness and narrow-screen grid hardening (Sept 2026)** — annual
+  edits are explicit full-year totals spread across 12 months, only fields touched in
+  annual mode are rewritten, the displayed electricity factor is converted from the
+  stored tCO2e/kWh value to kgCO2e/kWh, and the monthly grid has a stable scrollable
+  width with its metric column pinned.
 - Industry-adaptive data entry (hides irrelevant metrics based on company industry)
 - Year-over-year comparison table with trend indicators
 - **EN + DE only, both written not translated.** UI: 884 keys at full parity; the
