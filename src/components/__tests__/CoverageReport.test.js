@@ -190,6 +190,50 @@ describe('CoverageReport', () => {
     expect(labels.some(l => l.includes('Enter the figures'))).toBe(true);
   });
 
+  it('leads with one recommended move and keeps alternate paths folded', async () => {
+    await render([needing('workforce', ['Total FTE'])], { companyData: {} });
+
+    const verdict = container.querySelector('[data-testid="coverage-verdict"]');
+    const primary = verdict.querySelector('[data-testid="coverage-primary-action"]');
+    const alternatives = verdict.querySelector('details');
+
+    expect(primary.textContent).toContain('Upload this document');
+    expect(alternatives.open).toBe(false);
+    expect(alternatives.querySelector('summary').textContent).toContain('Other options');
+    expect(alternatives.textContent).toContain('Enter the figures');
+  });
+
+  it('takes a paid supplier straight to answer review when no document is missing', async () => {
+    const onShowAnswers = vi.fn();
+    await render(
+      [draft('workforce', 'medium')],
+      {},
+      { tier: 'questionnaire-pass', onShowAnswers }
+    );
+
+    const primary = container.querySelector('[data-testid="coverage-primary-action"]');
+    expect(primary.textContent).toContain('Review the answers');
+    await act(async () => primary.click());
+    expect(onShowAnswers).toHaveBeenCalledOnce();
+  });
+
+  it('reserves policy creation for Passport while still accepting an existing policy', async () => {
+    const policy = draft('governance', 'medium', {
+      questionType: 'POLICY',
+      confidenceSource: 'drafted',
+      questionText: 'Do you have a code of conduct?',
+    });
+
+    await render([policy], {}, { tier: 'questionnaire-pass' });
+    expect(container.querySelector('[data-testid="coverage-primary-action"]').textContent).toContain('Upload policy');
+    expect([...container.querySelectorAll('button')].some(button => button.textContent.includes('Create policy'))).toBe(false);
+    expect([...container.querySelectorAll('button')].some(button => button.textContent.includes('Upload policy'))).toBe(true);
+
+    await render([policy], {}, { tier: 'pro' });
+    expect(container.querySelector('[data-testid="coverage-primary-action"]').textContent).toContain('Create policy');
+    expect([...container.querySelectorAll('button')].some(button => button.textContent.includes('Create policy'))).toBe(true);
+  });
+
   it('samples the answers, leading with the ones built on the reader own figures', async () => {
     const supported = draft('emissions', 'high', {
       answer: 'Electricity consumption was 425000 kWh.',

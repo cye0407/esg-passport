@@ -1792,6 +1792,7 @@ export default function Respond({ demoOnly = false }) {
             tier={tier}
             onStartOver={resetToUpload}
             onRefresh={() => runPipeline(parseResult, questionnaireName, { questionnaireFingerprint: passClaim?.fingerprint || null })}
+            onShowAnswers={() => setResultsView('answers')}
           />
         </div>
       );

@@ -22,40 +22,26 @@ import {
   workspaceUrl,
 } from '@/lib/coverageChecklist';
 import {
+  PASSPORT_CHECKOUT_URL,
   QUESTIONNAIRE_PASS_CHECKOUT_URL,
   PASS_PRICE,
+  PASSPORT_PRICE,
   openCheckout,
 } from '@/lib/checkout';
 
 // The free first action: what this questionnaire needs, measured against what the user
 // actually has. See COVERAGE-REPORT-SPEC.md.
 //
-// Two panes, because the page answers two different kinds of question.
-//
-// LEFT is the work, in the order someone acts on it:
-//   where does this questionnaire stand
-//   what do I go and find next, per document, upload or type
-//   what is it asking ABOUT - grouped the way the customer asking it groups things,
-//     because "how confident is the engine" is our category, not theirs
-//   what does finishing cost, and what do I take with me
-//
-// RIGHT is reference, and it sticks: the counts, then the question list and the
-// sample answers behind tabs. Those were full-width sections stacked above the
-// action, which put the least decision-relevant thing - a raw list of 34 questions -
-// in the most valuable space on the page, and scrolled the counts away exactly when
-// someone started needing them. Below lg there is no room for two panes, so the
-// panel collapses behind one button and the page reads as a single column.
+// One verdict, then one move. The counts settle what the questionnaire needs and the
+// primary button says what to do next. Reference material and alternate paths stay
+// available without competing for the first decision. Topic cards then explain the
+// work in the buyer's categories, not in our engine's confidence categories.
 //
 // Every tier sees this. It was built as the free tier's consolation for not getting
 // answers, which was the wrong idea: it is the questionnaire's status view, and a
 // paid buyer chasing a colleague for the waste manifest before a deadline needs it
-// more than a free visitor does. Only the footer differs.
-//   what do I take with me
-//
-// The page closes on the takeaway, not on the price. Someone who has just learned
-// they are missing twelve figures is not deciding whether to buy - they are about to
-// go and look for bills, and the deadline is a week out. The offer stays where it is;
-// the last thing they read is what to go and find.
+// more than a free visitor does. Entitlements only change which actions can finish
+// the work; they do not hide the diagnosis.
 //
 // It reports counts and provenance, never a readiness score, a pass likelihood or a
 // predicted buyer outcome - we do not know how a customer will read a response, and
@@ -273,7 +259,7 @@ function ReferencePanel({ t, fromRecords, questions, sample, remaining, hasOwnDa
   );
 }
 
-export default function CoverageReport({ coverage, questionnaireName, questions = [], tier, onStartOver, onRefresh }) {
+export default function CoverageReport({ coverage, questionnaireName, questions = [], tier, onStartOver, onRefresh, onShowAnswers }) {
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const [openPillars, setOpenPillars] = React.useState({});
@@ -286,7 +272,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   const {
     total, recovered = [], recoveredFlagged = 0, fromRecords, partial = [], written, unanswerable, missingDocuments, policyGaps, hasOwnData, topics,
   } = coverage;
-  const { canGenerateAnswers } = getEntitlements(tier);
+  const { canGenerateAnswers, canBuildPolicies } = getEntitlements(tier);
 
   // The number that says this change worked. Over the previous year the funnel recorded
   // two paywall hits, because nobody could get far enough to see one.
@@ -371,13 +357,79 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
     }
   };
 
+  // The research-assistant flow established a useful rule for result screens:
+  // settle the state first, then offer one move that follows from it. The counts
+  // are the verdict; this is the single recommended action. Everything else is
+  // still available, but behind "Other options" instead of competing with it.
+  const answeredCount = recovered.length + fromRecords.length;
+  const reviewCount = partial.length + written.length;
+  const openCount = unanswerable.length;
+  const bestNextPolicy = policyGaps.builders[0] || null;
+  const nextMove = bestNextDocument
+    ? {
+        eyebrow: t('coverage.nextActionEyebrow'),
+        title: bestNextDocument.name,
+        body: `${documentHolds(t, bestNextDocument.document)} · ${t('coverage.docUnlocks', { count: bestNextDocument.unlocks })}`,
+        label: t('coverage.nextActionCta'),
+        icon: Upload,
+        run: () => {
+          track('coverage_primary_next_click', { document: bestNextDocument.document, unlocks: bestNextDocument.unlocks });
+          navigate('/evidence');
+        },
+      }
+    : bestNextPolicy
+      ? canBuildPolicies
+        ? {
+            eyebrow: t('coverage.nextActionEyebrow'),
+            title: builderName(POLICY_BUILDERS[bestNextPolicy], lang),
+            body: t('coverage.nextPolicyCreateBody'),
+            label: t('coverage.createPolicy'),
+            icon: ArrowRight,
+            run: () => {
+              track('coverage_primary_policy_create_click', { builder: bestNextPolicy });
+              setPolicyBuilderId(bestNextPolicy);
+            },
+          }
+        : {
+            eyebrow: t('coverage.nextActionEyebrow'),
+            title: builderName(POLICY_BUILDERS[bestNextPolicy], lang),
+            body: t('coverage.nextPolicyUploadBody'),
+            label: t('coverage.uploadPolicy'),
+            icon: Upload,
+            run: () => {
+              track('coverage_primary_policy_upload_click', { builder: bestNextPolicy });
+              setPolicyUploadBuilder(bestNextPolicy);
+              setPolicyUploadOpen(true);
+            },
+          }
+    : canGenerateAnswers && onShowAnswers
+      ? {
+          eyebrow: t('coverage.nextActionEyebrow'),
+          title: openCount > 0 ? t('coverage.nextReviewTitle', { count: openCount }) : t('coverage.nextReviewDoneTitle'),
+          body: openCount > 0 ? t('coverage.nextReviewBody') : t('coverage.nextReviewDoneBody'),
+          label: t('coverage.nextReviewCta'),
+          icon: ArrowRight,
+          run: () => {
+            track('coverage_primary_review_click', { open: openCount, review: reviewCount });
+            onShowAnswers();
+          },
+        }
+      : {
+          eyebrow: t('coverage.nextActionEyebrow'),
+          title: t('coverage.nextFinishTitle'),
+          body: t('coverage.nextFinishBody', { count: total, supported: answeredCount, open: reviewCount + openCount }),
+          label: t('coverage.nextFinishCta', { price: PASS_PRICE }),
+          icon: ArrowRight,
+          run: () => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_primary_finish', tier),
+        };
+  const NextMoveIcon = nextMove.icon;
+
   return (
     <div className="mx-auto max-w-7xl space-y-8">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <div>
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-          {/* The count lives in the sticky panel, not here. This heading scrolls away;
-              the panel does not, and a status number you cannot see is not a status. */}
+          {/* The count lives in the verdict panel, not here, so the first screen states
+              it once and gives it the same visual weight on every breakpoint. */}
           {t('coverage.title')}
         </h1>
         <p className="mt-1.5 text-sm text-slate-400">
@@ -387,37 +439,86 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-slate-600">
           {t('coverage.lead')}
         </p>
-        </div>
-        <div className="w-full border border-slate-200 bg-white p-4 sm:w-72 sm:shrink-0">
-          <p className="text-sm font-semibold text-slate-900">{t('coverage.takeawayTitle')}</p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">{t('coverage.takeawayBody')}</p>
-          <button onClick={handleDownloadChecklist} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800">
-            <Download className="h-4 w-4" />{t('coverage.takeawayDownload')}
-          </button>
-        </div>
       </div>
 
-      <dl className={`grid grid-cols-2 border border-slate-200 bg-white ${recovered.length > 0 ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
-        {[
-          [t('checklist.total'), total, 'text-slate-900'],
-          // First, when there is one: what the company already answered last time.
-          ...(recovered.length > 0 ? [[t('coverage.topicRecovered'), recovered.length, 'text-emerald-700']] : []),
-          [t('coverage.topicFromRecords'), fromRecords.length, 'text-emerald-700'],
-          [t('coverage.topicPartial'), partial.length, 'text-amber-700'],
-          [t('checklist.written'), written.length, 'text-slate-900'],
-          [t('checklist.unanswerable'), unanswerable.length, 'text-slate-900'],
-        ].map(([label, value, tone], index) => (
-          <div
-            key={label}
-            className={`flex flex-col-reverse gap-1 p-4 sm:border-l sm:p-5 sm:first:border-l-0 ${index % 2 ? 'border-l' : ''} ${index > 1 ? 'border-t sm:border-t-0' : ''}`}
-          >
-            {/* Term before definition, as a description list requires; flex-col-reverse
-                puts the number back on top visually. */}
-            <dt className="text-xs leading-snug text-slate-500">{label}</dt>
-            <dd className={`text-3xl font-bold tabular-nums ${tone}`}>{value}</dd>
+      <section data-testid="coverage-verdict" className="border-2 border-slate-900 bg-white">
+        <div className="flex items-baseline justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
+          <span className="text-xs font-medium text-slate-500">{t('checklist.total')}</span>
+          <span className="text-lg font-bold tabular-nums text-slate-900">{total}</span>
+        </div>
+        <dl className="grid grid-cols-3 border-b border-slate-200">
+          {[
+            [t('coverage.verdictAnswered'), answeredCount, 'text-emerald-700'],
+            [partial.length > 0 ? t('coverage.verdictReviewPartial', { count: partial.length }) : t('coverage.verdictReview'), reviewCount, 'text-amber-700'],
+            [t('coverage.verdictOpen'), openCount, 'text-slate-900'],
+          ].map(([label, value, tone], index) => (
+            <div key={label} className={`flex flex-col-reverse gap-1 p-4 sm:p-5 ${index > 0 ? 'border-l border-slate-200' : ''}`}>
+              <dt className="text-xs leading-snug text-slate-500">{label}</dt>
+              <dd className={`text-3xl font-bold tabular-nums ${tone}`}>{value}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <div className="p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">{nextMove.eyebrow}</p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-900">{nextMove.title}</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-600">{nextMove.body}</p>
           </div>
-        ))}
-      </dl>
+          <button
+            type="button"
+            onClick={nextMove.run}
+            data-testid="coverage-primary-action"
+            className="mt-4 inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800 sm:mt-0 sm:w-auto"
+          >
+            <NextMoveIcon className="h-4 w-4" /> {nextMove.label}
+          </button>
+        </div>
+
+        <details className="border-t border-slate-100 px-5 py-3.5 text-sm sm:px-6">
+          <summary className="cursor-pointer select-none font-medium text-slate-600 hover:text-slate-900">{t('coverage.otherOptions')}</summary>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-3">
+            {bestNextDocument && (
+              <button type="button" onClick={() => navigate('/data')} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
+                {t('coverage.docEnter')}
+              </button>
+            )}
+            {bestNextDocument && canGenerateAnswers && onShowAnswers && (
+              <button type="button" onClick={onShowAnswers} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
+                {t('coverage.nextReviewCta')}
+              </button>
+            )}
+            {bestNextDocument && !canGenerateAnswers && (
+              <button type="button" onClick={() => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_other_finish', tier)} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
+                {t('coverage.nextFinishCta', { price: PASS_PRICE })}
+              </button>
+            )}
+            {bestNextPolicy && canBuildPolicies && (
+              <button type="button" onClick={() => { setPolicyUploadBuilder(bestNextPolicy); setPolicyUploadOpen(true); }} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
+                {t('coverage.uploadPolicy')}
+              </button>
+            )}
+            {bestNextPolicy && !canBuildPolicies && (
+              <button type="button" onClick={() => openCheckout(PASSPORT_CHECKOUT_URL, 'coverage_other_passport', tier)} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
+                {t('coverage.nextPassportCta', { price: PASSPORT_PRICE })}
+              </button>
+            )}
+            {bestNextPolicy && canGenerateAnswers && onShowAnswers && (
+              <button type="button" onClick={onShowAnswers} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
+                {t('coverage.nextReviewCta')}
+              </button>
+            )}
+            <button type="button" onClick={handleDownloadChecklist} className="inline-flex items-center gap-1.5 text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
+              <Download className="h-4 w-4" />{t('coverage.takeawayDownload')}
+            </button>
+            {onStartOver && (
+              <button type="button" onClick={onStartOver} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
+                {t('coverage.startOver')}
+              </button>
+            )}
+          </div>
+        </details>
+      </section>
 
       {recovered.length > 0 && (
         <p className="text-sm leading-relaxed text-slate-600">
@@ -427,41 +528,12 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         </p>
       )}
 
-      {/* The band names the next document while there is one it can name; once something
-          is in, it says so first. When nothing is left to name it says that, rather than
-          disappearing — a reader who just added twelve files should hear it landed. */}
-      {(bestNextDocument || uploadedFiles.length > 0) && (
-        <section className={`border-2 bg-white p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6 ${bestNextDocument ? 'border-slate-900' : 'border-emerald-700'}`}>
-          <div>
-            {uploadedFiles.length > 0 && (
-              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                {t('coverage.uploadedSoFar', { count: uploadedFiles.length })}
-                {reportingYear && <span className="ml-2 font-medium normal-case tracking-normal text-slate-500">· {t('coverage.figuresFor', { year: reportingYear })}</span>}
-              </p>
-            )}
-            {bestNextDocument ? (
-              <>
-                <p className={`text-[11px] font-bold uppercase tracking-wider text-emerald-700 ${uploadedFiles.length > 0 ? 'mt-2' : ''}`}>{t('coverage.nextActionEyebrow')}</p>
-                <h2 className="mt-1 text-xl font-semibold text-slate-900">{bestNextDocument.name}</h2>
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                  {documentHolds(t, bestNextDocument.document)} · {t('coverage.docUnlocks', { count: bestNextDocument.unlocks })}
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 className="mt-1 text-xl font-semibold text-slate-900">{t('coverage.nothingMoreTitle')}</h2>
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">{t('coverage.nothingMoreBody')}</p>
-              </>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => { track('coverage_primary_next_click', { document: bestNextDocument.document, unlocks: bestNextDocument.unlocks }); navigate('/evidence'); }}
-            className="mt-4 inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800 sm:mt-0 sm:w-auto"
-          >
-            <Upload className="h-4 w-4" /> {bestNextDocument ? t('coverage.nextActionCta') : t('coverage.addMoreCta')}
-          </button>
-        </section>
+      {/* Keep provenance visible without introducing a second recommendation panel. */}
+      {uploadedFiles.length > 0 && (
+        <p className="text-sm text-emerald-800">
+          {t('coverage.uploadedSoFar', { count: uploadedFiles.length })}
+          {reportingYear && <span className="ml-2 text-slate-500">· {t('coverage.figuresFor', { year: reportingYear })}</span>}
+        </p>
       )}
 
       {/* Desktop keeps supporting detail in a compact second column. Mobile gets the
@@ -494,7 +566,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                     .filter(item => item.entry)
                     .sort((a, b) => b.entry.unlocks - a.entry.unlocks)[0];
                   const showDocumentRecommendation = recommendedDocument?.entry?.unlocks >= 2;
-                  const pillarOpen = openPillars[bucket.topic] ?? (bucket.questions || []).length <= 10;
+                  const pillarOpen = openPillars[bucket.topic] ?? false;
                   return (
                     <div
                       key={bucket.topic}
@@ -572,7 +644,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                         <button onClick={() => { track('coverage_add_documents_click', { document: recommendedDocument?.documentId || bucket.documents?.[0] || bucket.topic }); navigate('/evidence'); }} className="inline-flex h-10 items-center gap-1.5 bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"><Upload className="h-4 w-4" />{t('coverage.docUpload')}</button>
                         {(bucket.documents || []).length > 0 && <button onClick={() => { track('coverage_enter_figures_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/data'); }} className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('coverage.docEnter')}</button>}
                         {bucket.topic === 'other' && <button type="button" onClick={openCompany} className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50">{t('coverage.addCompanyDetails')}</button>}
-                        {bucket.needsPolicy > 0 && <><button type="button" onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')} className="inline-flex h-10 items-center bg-violet-700 px-4 text-sm font-medium text-white hover:bg-violet-800">{t('coverage.createPolicy')}</button><button type="button" onClick={() => { setPolicyUploadBuilder(policyGaps.builders[0] || ''); setPolicyUploadOpen(true); }} className="inline-flex h-10 items-center gap-1.5 border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"><Upload className="h-4 w-4" />{t('coverage.uploadPolicy')}</button></>}
+                        {bucket.needsPolicy > 0 && <>{canBuildPolicies && <button type="button" onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')} className="inline-flex h-10 items-center bg-violet-700 px-4 text-sm font-medium text-white hover:bg-violet-800">{t('coverage.createPolicy')}</button>}<button type="button" onClick={() => { setPolicyUploadBuilder(policyGaps.builders[0] || ''); setPolicyUploadOpen(true); }} className="inline-flex h-10 items-center gap-1.5 border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"><Upload className="h-4 w-4" />{t('coverage.uploadPolicy')}</button></>}
                       </div>
 
                       {/* 5 · the questions, bounded: two hundred of them make a card no taller than a screen */}
@@ -754,11 +826,6 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           <div className="order-5 flex flex-wrap items-center gap-4">
             {!canGenerateAnswers && sample.length > 0 && (
               <p className="text-xs leading-relaxed text-slate-400">{t('coverage.creditNote', { pass: PASS_PRICE })}</p>
-            )}
-            {onStartOver && (
-              <button onClick={onStartOver} className="ml-auto shrink-0 text-sm text-slate-500 underline underline-offset-2 hover:text-slate-700">
-                {t('coverage.startOver')}
-              </button>
             )}
           </div>
         </div>
