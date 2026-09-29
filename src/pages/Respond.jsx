@@ -286,20 +286,23 @@ export default function Respond({ demoOnly = false }) {
   // Every tier that reached results, not just free. The report was built as the free
   // tier's consolation for not getting answers, which was the wrong idea: it is the
   // questionnaire's status view, and a paid buyer chasing a colleague for the waste
-  // manifest before a deadline needs it more than a free visitor does. /demo is still
-  // excluded - a coverage report about a fictional company's documents tells nobody
-  // anything.
+  // manifest before a deadline needs it more than a free visitor does. /demo uses the
+  // same report so the public sample and design review exercise the real first screen.
   // Which face of the results a paid reader is looking at: the drafts they bought, or
   // the report on what is still open before they send.
-  const [resultsView, setResultsView] = useState(() => searchParams.get('view') === 'report' ? 'report' : 'answers');
+  // The public sample should demonstrate the same completion-plan experience a
+  // free visitor gets after analysing their own questionnaire. Answers remain one
+  // click away, but opening /demo on the legacy answer grid made design reviews —
+  // and the product promise itself — look unrelated to the real free journey.
+  const [resultsView, setResultsView] = useState(() => searchParams.get('view') === 'report' || demoOnly ? 'report' : 'answers');
 
   const coverage = useMemo(() => {
-    if (demoOnly || phase !== 'results') return null;
+    if (phase !== 'results') return null;
     return summarizeCoverage(answerDrafts, {
       companyData,
       dataSources: getSettings()?.dataSources || {},
     });
-  }, [demoOnly, phase, answerDrafts, companyData]);
+  }, [phase, answerDrafts, companyData]);
 
   // Keep the questionnaire the moment a free report exists, not only when its "add
   // documents" button is used. People leave a screen the way they like - the nav, the
@@ -1754,8 +1757,8 @@ export default function Respond({ demoOnly = false }) {
     }
 
     // Free, on their own questionnaire: the coverage report, not a truncated preview
-    // of answers they cannot use. /demo keeps the sample preview - a coverage report
-    // about a fictional company's documents would tell the reader nothing.
+    // of answers they cannot use. /demo reaches the same report through resultsView,
+    // with the answer grid still available from the view switch.
     if (!canGenerate && !demoOnly) {
       return (
         <div className="space-y-6">

@@ -38,6 +38,10 @@ Three tiers, and the line between them is **finishing**, not looking:
   absent. The first screen is now a single verdict with one deterministic next move;
   alternate paths are folded, topic questions start closed, and policy actions respect
   `canBuildPolicies` (Pass can upload an existing policy; Passport can create one).
+  The visible result is requirements-first rather than a traffic-light dashboard: it
+  shows the complete set of records/calculations, company answers and requested policies,
+  then offers one €99 extract/calculate/review workflow. Missing policies also surface the
+  full Passport's integrated policy builder without implying it is part of the €99 pass.
   Spec: `COVERAGE-REPORT-SPEC.md`.
 - **PDF and Word uploads confirm the question list first** — the parser finds 22 of ~50
   questions in a real SAQ, and a wrong denominator makes every number on the report

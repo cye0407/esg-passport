@@ -66,14 +66,30 @@ describe('CoverageReport', () => {
 
   it('opens with the questionnaire it read, and counts it once', async () => {
     await render([draft('emissions', 'medium'), draft('workforce', 'medium')]);
-    expect(container.textContent).toContain('Questionnaire summary');
+    expect(container.textContent).toContain('This is what the customer request still needs');
     expect(container.textContent).toContain('buyer-saq.xlsx');
 
-    // The total is stated once, in the stat band above both columns. The heading used
-    // to carry it too, and the panel carried it a third time.
-    expect(container.textContent).toContain('Questions asked');
+    expect(container.textContent).toContain('Customer questionnaire · 2 questions');
     expect(container.textContent).not.toContain('Your questionnaire: 2 questions');
     expect(container.textContent).not.toContain('Where you stand');
+  });
+
+  it('makes the same-format promise explicit only when the original workbook can be returned', async () => {
+    const questions = [{
+      id: 'q1',
+      text: 'Question about workforce',
+      location: { sheet: 'Supplier response', row: 8, answerCell: 'D8' },
+    }];
+    await render([draft('workforce', 'medium')], {}, { questions });
+
+    const guarantee = container.querySelector('[data-testid="coverage-format-guarantee"]');
+    expect(guarantee.textContent).toContain('What you get back');
+    expect(guarantee.textContent).toContain('original workbook');
+    expect(guarantee.textContent).toContain('same file type, sheets, question order and template');
+
+    await render([draft('workforce', 'medium')], {}, { questionnaireName: 'buyer-request.pdf', questions: [{ id: 'q2', text: 'Question about workforce' }] });
+    expect(container.querySelector('[data-testid="coverage-format-guarantee"]').textContent).toContain('What you get back');
+    expect(container.textContent).not.toContain('original workbook');
   });
 
   // The buyer's own question list is not first-impression material - the reader wrote
@@ -190,17 +206,35 @@ describe('CoverageReport', () => {
     expect(labels.some(l => l.includes('Enter the figures'))).toBe(true);
   });
 
-  it('leads with one recommended move and keeps alternate paths folded', async () => {
+  it('shows the full requirement before one automation option instead of sending the supplier through bills', async () => {
     await render([needing('workforce', ['Total FTE'])], { companyData: {} });
 
     const verdict = container.querySelector('[data-testid="coverage-verdict"]');
     const primary = verdict.querySelector('[data-testid="coverage-primary-action"]');
     const alternatives = verdict.querySelector('details');
 
-    expect(primary.textContent).toContain('Upload this document');
+    expect(verdict.textContent).toContain('What this customer request needs');
+    expect(verdict.textContent).toContain('Your HR or payroll summary');
+    expect(primary.textContent).toContain('Auto-extract and prepare for review — €99');
+    expect(verdict.textContent).not.toContain('Upload this document');
+    expect(verdict.textContent).not.toContain('Enter the figures');
     expect(alternatives.open).toBe(false);
-    expect(alternatives.querySelector('summary').textContent).toContain('Other options');
-    expect(alternatives.textContent).toContain('Enter the figures');
+    expect(alternatives.querySelector('summary').textContent).toContain('Questionnaire details and other actions');
+  });
+
+  it('shows every required record rather than only a ranked top three', async () => {
+    await render([
+      needing('energy_electricity', ['Electricity consumption (kWh)']),
+      needing('water', ['Water withdrawal (m3)']),
+      needing('waste', ['Total waste (kg)']),
+      needing('workforce', ['Total FTE']),
+    ]);
+
+    const verdict = container.querySelector('[data-testid="coverage-verdict"]');
+    expect(verdict.textContent).toContain('Your electricity bill');
+    expect(verdict.textContent).toContain('Your water bill');
+    expect(verdict.textContent).toContain('Your waste manifest');
+    expect(verdict.textContent).toContain('Your HR or payroll summary');
   });
 
   it('takes a paid supplier straight to answer review when no document is missing', async () => {
@@ -217,6 +251,12 @@ describe('CoverageReport', () => {
     expect(onShowAnswers).toHaveBeenCalledOnce();
   });
 
+  it('does not ask for colleague files or repeat the purchase action when no record is missing', async () => {
+    await render([draft('workforce', 'medium')]);
+    expect(container.textContent).not.toContain('Someone else has these records?');
+    expect([...container.querySelectorAll('button')].filter(button => button.textContent.includes('Auto-extract and prepare for review — €99'))).toHaveLength(1);
+  });
+
   it('reserves policy creation for Passport while still accepting an existing policy', async () => {
     const policy = draft('governance', 'medium', {
       questionType: 'POLICY',
@@ -224,14 +264,16 @@ describe('CoverageReport', () => {
       questionText: 'Do you have a code of conduct?',
     });
 
-    await render([policy], {}, { tier: 'questionnaire-pass' });
-    expect(container.querySelector('[data-testid="coverage-primary-action"]').textContent).toContain('Upload policy');
+    await render([policy], {}, { tier: 'questionnaire-pass', onShowAnswers: vi.fn() });
+    expect(container.querySelector('[data-testid="coverage-primary-action"]').textContent).toContain('Review the answers');
     expect([...container.querySelectorAll('button')].some(button => button.textContent.includes('Create policy'))).toBe(false);
     expect([...container.querySelectorAll('button')].some(button => button.textContent.includes('Upload policy'))).toBe(true);
+    expect(container.textContent).toContain('full Passport adds the integrated policy builder');
 
-    await render([policy], {}, { tier: 'pro' });
-    expect(container.querySelector('[data-testid="coverage-primary-action"]').textContent).toContain('Create policy');
+    await render([policy], {}, { tier: 'pro', onShowAnswers: vi.fn() });
+    expect(container.querySelector('[data-testid="coverage-primary-action"]').textContent).toContain('Review the answers');
     expect([...container.querySelectorAll('button')].some(button => button.textContent.includes('Create policy'))).toBe(true);
+    expect(container.textContent).toContain('Your Passport includes the integrated policy builder');
   });
 
   it('samples the answers, leading with the ones built on the reader own figures', async () => {

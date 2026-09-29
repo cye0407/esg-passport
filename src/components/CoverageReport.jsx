@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Building2, ChevronDown, Download, Leaf, Lock, ShieldCheck, Upload, Users } from 'lucide-react';
+import { ArrowRight, Building2, ChevronDown, Download, FileCheck2, Leaf, Lock, ShieldCheck, Upload, Users } from 'lucide-react';
 import { track } from '@/lib/track';
 import { useLanguage } from '@/components/LanguageContext';
 import { documentName, documentHolds } from '@/lib/documentLabels';
@@ -269,6 +269,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   const [policyUploadOpen, setPolicyUploadOpen] = React.useState(false);
   const [policyUploadFile, setPolicyUploadFile] = React.useState(null);
   const [policyUploadBuilder, setPolicyUploadBuilder] = React.useState('');
+  const [showQuestionList, setShowQuestionList] = React.useState(false);
   const {
     total, recovered = [], recoveredFlagged = 0, fromRecords, partial = [], written, unanswerable, missingDocuments, policyGaps, hasOwnData, topics,
   } = coverage;
@@ -305,7 +306,6 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   const documents = missingDocuments
     .map(entry => ({ ...entry, name: documentName(t, entry.document) }))
     .filter(entry => entry.name);
-  const bestNextDocument = [...documents].sort((a, b) => b.unlocks - a.unlocks)[0];
   // Documents the reader has already put in — every file, from the extraction sources.
   const uploadedFiles = React.useMemo(() => {
     const settings = getSettings() || {};
@@ -364,164 +364,142 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   const answeredCount = recovered.length + fromRecords.length;
   const reviewCount = partial.length + written.length;
   const openCount = unanswerable.length;
+  // Only promise the customer's exact file back when the parser found writable
+  // answer cells in a workbook format that the original-file writer supports.
+  // Other formats still keep the customer's order, but calling that the "same
+  // format" would over-promise what the exporter can currently do.
+  const returnsCustomerWorkbook = /\.(xlsx|xlsm)$/i.test(questionnaireName || '')
+    && (questions || []).some(question => question.location?.answerCell);
+  const requiredDocuments = [...documents].sort((a, b) => b.unlocks - a.unlocks);
+  const companyTopic = topics.find(topic => topic.topic === 'other');
+  const companyAnsweredCount = companyTopic ? (companyTopic.recovered || 0) + (companyTopic.fromRecords || 0) : 0;
+  const companyOpenCount = companyTopic ? Math.max(0, companyTopic.total - companyAnsweredCount) : 0;
+  const manualQuestions = topics.flatMap(topic => topic.topic === 'other' ? [] : (topic.questions || []).filter(question => (
+    question.state !== 'recovered'
+    && question.state !== 'fromRecords'
+    && !(question.needs?.documents || []).length
+    && !question.needs?.policy
+  )));
   const bestNextPolicy = policyGaps.builders[0] || null;
-  const nextMove = bestNextDocument
+  const completionAction = canGenerateAnswers && onShowAnswers
     ? {
-        eyebrow: t('coverage.nextActionEyebrow'),
-        title: bestNextDocument.name,
-        body: `${documentHolds(t, bestNextDocument.document)} · ${t('coverage.docUnlocks', { count: bestNextDocument.unlocks })}`,
-        label: t('coverage.nextActionCta'),
-        icon: Upload,
+        label: t('coverage.nextReviewCta'),
         run: () => {
-          track('coverage_primary_next_click', { document: bestNextDocument.document, unlocks: bestNextDocument.unlocks });
-          navigate('/evidence');
+          track('coverage_footer_review_click', { open: openCount, review: reviewCount });
+          onShowAnswers();
         },
       }
-    : bestNextPolicy
-      ? canBuildPolicies
-        ? {
-            eyebrow: t('coverage.nextActionEyebrow'),
-            title: builderName(POLICY_BUILDERS[bestNextPolicy], lang),
-            body: t('coverage.nextPolicyCreateBody'),
-            label: t('coverage.createPolicy'),
-            icon: ArrowRight,
-            run: () => {
-              track('coverage_primary_policy_create_click', { builder: bestNextPolicy });
-              setPolicyBuilderId(bestNextPolicy);
-            },
-          }
-        : {
-            eyebrow: t('coverage.nextActionEyebrow'),
-            title: builderName(POLICY_BUILDERS[bestNextPolicy], lang),
-            body: t('coverage.nextPolicyUploadBody'),
-            label: t('coverage.uploadPolicy'),
-            icon: Upload,
-            run: () => {
-              track('coverage_primary_policy_upload_click', { builder: bestNextPolicy });
-              setPolicyUploadBuilder(bestNextPolicy);
-              setPolicyUploadOpen(true);
-            },
-          }
-    : canGenerateAnswers && onShowAnswers
-      ? {
-          eyebrow: t('coverage.nextActionEyebrow'),
-          title: openCount > 0 ? t('coverage.nextReviewTitle', { count: openCount }) : t('coverage.nextReviewDoneTitle'),
-          body: openCount > 0 ? t('coverage.nextReviewBody') : t('coverage.nextReviewDoneBody'),
-          label: t('coverage.nextReviewCta'),
-          icon: ArrowRight,
-          run: () => {
-            track('coverage_primary_review_click', { open: openCount, review: reviewCount });
-            onShowAnswers();
-          },
-        }
-      : {
-          eyebrow: t('coverage.nextActionEyebrow'),
-          title: t('coverage.nextFinishTitle'),
-          body: t('coverage.nextFinishBody', { count: total, supported: answeredCount, open: reviewCount + openCount }),
-          label: t('coverage.nextFinishCta', { price: PASS_PRICE }),
-          icon: ArrowRight,
-          run: () => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_primary_finish', tier),
-        };
-  const NextMoveIcon = nextMove.icon;
+    : {
+        label: t('coverage.automationUpsellCta', { price: PASS_PRICE }),
+        run: () => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_automation_finish', tier),
+      };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-          {/* The count lives in the verdict panel, not here, so the first screen states
-              it once and gives it the same visual weight on every breakpoint. */}
-          {t('coverage.title')}
-        </h1>
-        <p className="mt-1.5 text-sm text-slate-400">
-          {questionnaireName && <span>{questionnaireName} · </span>}
-          {t('coverage.readOnDevice')}
-        </p>
-        <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-slate-600">
-          {t('coverage.lead')}
-        </p>
-      </div>
-
-      <section data-testid="coverage-verdict" className="border-2 border-slate-900 bg-white">
-        <div className="flex items-baseline justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
-          <span className="text-xs font-medium text-slate-500">{t('checklist.total')}</span>
-          <span className="text-lg font-bold tabular-nums text-slate-900">{total}</span>
-        </div>
-        <dl className="grid grid-cols-3 border-b border-slate-200">
-          {[
-            [t('coverage.verdictAnswered'), answeredCount, 'text-emerald-700'],
-            [partial.length > 0 ? t('coverage.verdictReviewPartial', { count: partial.length }) : t('coverage.verdictReview'), reviewCount, 'text-amber-700'],
-            [t('coverage.verdictOpen'), openCount, 'text-slate-900'],
-          ].map(([label, value, tone], index) => (
-            <div key={label} className={`flex flex-col-reverse gap-1 p-4 sm:p-5 ${index > 0 ? 'border-l border-slate-200' : ''}`}>
-              <dt className="text-xs leading-snug text-slate-500">{label}</dt>
-              <dd className={`text-3xl font-bold tabular-nums ${tone}`}>{value}</dd>
+    <div className="mx-auto max-w-5xl">
+      <section data-testid="coverage-verdict" className="overflow-hidden rounded-[20px] border border-[#e6ece8] bg-white shadow-[0_20px_55px_-34px_rgba(16,40,30,0.38)]">
+        <header className="flex flex-col gap-5 border-b border-[#e6ece8] bg-[#f7faf8] px-5 py-5 sm:px-7 sm:py-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-[#0b5f43]">{t(total === 1 ? 'coverage.requestEyebrowOne' : 'coverage.requestEyebrow', { count: total })}</p>
+            <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-[#0f1a15] sm:text-[28px]">{t('coverage.title')}</h1>
+            <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{t('coverage.lead', { count: total, supported: answeredCount, review: reviewCount, open: openCount })}</p>
+          </div>
+          {questionnaireName && (
+            <div className="inline-flex max-w-full shrink-0 items-center gap-2 rounded-full border border-[#cfe3d8] bg-white px-3 py-1.5 text-xs font-semibold text-[#3f5049]">
+              <FileCheck2 className="h-4 w-4 shrink-0 text-[#0f7a55]" />
+              <span className="truncate">{questionnaireName}</span>
             </div>
-          ))}
-        </dl>
+          )}
+        </header>
 
-        <div className="p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">{nextMove.eyebrow}</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-900">{nextMove.title}</h2>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-600">{nextMove.body}</p>
+        <div className="space-y-7 p-5 sm:p-7">
+          <section aria-label={t('coverage.statusTitle')}>
+            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#6b7a72]">{t('coverage.statusTitle')}</p>
+            <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div className="border-l-2 border-[#0f7a55] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{answeredCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.progressSupported')}</dt></div>
+              <div className="border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{reviewCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{partial.length > 0 ? t('coverage.progressReviewPartial', { count: partial.length }) : t('coverage.progressReview')}</dt></div>
+              <div className="border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{openCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.progressOpen')}</dt></div>
+            </dl>
+          </section>
+
+          <section className="border-t border-[#e6ece8] pt-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#6b7a72]">{t('coverage.requirementsTitle')}</p>
+            <p className="mt-1 max-w-3xl text-[13px] leading-5 text-[#56645d]">{t('coverage.requirementsBody')}</p>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {requiredDocuments.length > 0 && <div className="rounded-[14px] border border-[#e6ece8] bg-[#f7faf8] p-4 lg:row-span-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div><h2 className="text-[15px] font-bold text-[#0f1a15]">{t('coverage.recordsAndCalculations')}</h2><p className="mt-1 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.recordsAndCalculationsBody')}</p></div>
+                  <span className="rounded-full bg-[#e7f4ef] px-2.5 py-1 text-[11px] font-semibold text-[#0b5f43]">{requiredDocuments.length}</span>
+                </div>
+                <ul className="mt-3 divide-y divide-[#dce9e3] border-t border-[#dce9e3]">
+                  {requiredDocuments.map(entry => <li key={entry.document} className="flex items-start justify-between gap-3 py-3"><div><p className="text-[13px] font-semibold text-[#203129]">{entry.name}</p><p className="mt-0.5 text-[11.5px] leading-4 text-[#6b7a72]">{documentHolds(t, entry.document)}</p></div><span className="shrink-0 text-[11px] font-semibold text-[#0b5f43]">{t(entry.unlocks === 1 ? 'coverage.usedByOne' : 'coverage.usedBy', { count: entry.unlocks })}</span></li>)}
+                </ul>
+                <button type="button" onClick={handleDownloadChecklist} className="mt-3 inline-flex items-center gap-2 text-[12.5px] font-semibold text-[#0b5f43] hover:underline"><Download className="h-4 w-4" />{t('coverage.takeawayDownload')}</button>
+              </div>}
+
+              {companyTopic && <div className="rounded-[14px] border border-[#e6ece8] bg-white p-4">
+                <div className="flex items-start justify-between gap-3"><div><h2 className="text-[15px] font-bold text-[#0f1a15]">{t('coverage.companyInformationTitle')}</h2><p className="mt-1 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.companyInformationBody', { answered: companyAnsweredCount, open: companyOpenCount })}</p></div><span className="rounded-full bg-[#f1f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#56645d]">{companyTopic.total}</span></div>
+                {companyOpenCount > 0 && <button type="button" onClick={openCompany} className="mt-3 text-[12.5px] font-semibold text-[#0b5f43] hover:underline">{t('coverage.addCompanyDetails')}</button>}
+              </div>}
+
+              {manualQuestions.length > 0 && <div className="rounded-[14px] border border-[#e6ece8] bg-white p-4">
+                <div className="flex items-start justify-between gap-3"><div><h2 className="text-[15px] font-bold text-[#0f1a15]">{t('coverage.companyAnswersTitle')}</h2><p className="mt-1 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.companyAnswersBody')}</p></div><span className="rounded-full bg-[#f1f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#56645d]">{manualQuestions.length}</span></div>
+                <details className="mt-3 text-[12px]"><summary className="cursor-pointer font-semibold text-[#0b5f43]">{t(manualQuestions.length === 1 ? 'coverage.seeCompanyQuestionOne' : 'coverage.seeCompanyQuestions', { count: manualQuestions.length })}</summary><ul className="mt-2 space-y-2 border-l-2 border-[#dce9e3] pl-3 text-[#56645d]">{manualQuestions.map(question => <li key={question.questionId}>{question.questionText}</li>)}</ul></details>
+              </div>}
+
+              {policyGaps.builders.length > 0 && <div className="rounded-[14px] border border-[#e6ece8] bg-white p-4">
+                <div className="flex items-start justify-between gap-3"><div><h2 className="text-[15px] font-bold text-[#0f1a15]">{t('coverage.policiesRequiredTitle')}</h2><p className="mt-1 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.policiesRequiredBody')}</p></div><span className="rounded-full bg-[#f1f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#56645d]">{policyGaps.builders.length}</span></div>
+                <ul className="mt-3 space-y-1.5">{policyGaps.builders.map(id => <li key={id} className="text-[12.5px] font-medium text-[#203129]">{builderName(POLICY_BUILDERS[id], lang)}</li>)}</ul>
+                {canBuildPolicies && <button type="button" onClick={() => setPolicyBuilderId(bestNextPolicy || 'blank')} className="mt-3 text-[12.5px] font-semibold text-[#0b5f43] hover:underline">{t('coverage.createPolicy')}</button>}
+              </div>}
+
+              {requiredDocuments.length === 0 && !companyTopic && manualQuestions.length === 0 && policyGaps.builders.length === 0 && <div className="rounded-[14px] border border-[#e6ece8] bg-[#f7faf8] p-4 lg:col-span-2"><p className="text-sm font-semibold text-[#0f1a15]">{t('coverage.noRecordsTitle')}</p><p className="mt-1 text-xs leading-relaxed text-[#6b7a72]">{t('coverage.noRecordsBody')}</p></div>}
+            </div>
+          </section>
+
+          <section data-testid="coverage-next-option" className="rounded-[16px] border border-[#bfe3d3] bg-[#f7fffb] p-5 shadow-[0_12px_30px_-24px_rgba(15,122,85,0.6)] sm:p-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#0b5f43]">{canGenerateAnswers ? t('coverage.reviewUpsellEyebrow') : t('coverage.automationUpsellEyebrow', { price: PASS_PRICE })}</p>
+            <h2 className="mt-1.5 text-[20px] font-bold leading-7 text-[#0f1a15]">{t(canGenerateAnswers ? 'coverage.reviewUpsellTitle' : 'coverage.automationUpsellTitle')}</h2>
+            <p className="mt-2 max-w-3xl text-[13px] leading-5 text-[#3f5049]">{t(canGenerateAnswers ? 'coverage.reviewUpsellBody' : 'coverage.automationUpsellBody', { count: total })}</p>
+            {!canGenerateAnswers && <ul className="mt-4 grid gap-2 text-[12.5px] text-[#203129] sm:grid-cols-3"><li>{t('coverage.automationF1')}</li><li>{t('coverage.automationF2')}</li><li>{t('coverage.automationF3')}</li></ul>}
+            <button type="button" onClick={completionAction.run} data-testid="coverage-primary-action" className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[#0f7a55] px-5 text-sm font-semibold text-white transition hover:bg-[#0b5f43] sm:w-auto">{completionAction.label}<ArrowRight className="h-4 w-4" /></button>
+            {policyGaps.builders.length > 0 && !canBuildPolicies && <div className="mt-5 border-t border-[#bfe3d3] pt-4"><p className="text-[12.5px] leading-5 text-[#3f5049]"><strong className="text-[#0f1a15]">{t(policyGaps.builders.length === 1 ? 'coverage.policyBuilderUpsellTitleOne' : 'coverage.policyBuilderUpsellTitle', { count: policyGaps.builders.length })}</strong> {t('coverage.policyBuilderUpsellBody')}</p><button type="button" onClick={() => openCheckout(PASSPORT_CHECKOUT_URL, 'coverage_policy_builder_upsell', tier)} className="mt-2 text-[12.5px] font-semibold text-[#0b5f43] hover:underline">{t('coverage.nextPassportCta', { price: PASSPORT_PRICE })}</button></div>}
+            {policyGaps.builders.length > 0 && canBuildPolicies && <p className="mt-4 border-t border-[#bfe3d3] pt-4 text-[12.5px] font-semibold text-[#0b5f43]">{t('coverage.policyBuilderIncluded')}</p>}
+          </section>
+
+          <div data-testid="coverage-format-guarantee" className="flex items-start gap-3 rounded-[12px] border border-[#e6ece8] bg-[#f7faf8] p-4 text-[#203129]">
+            <FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-[#0f7a55]" />
+            <div>
+              <p className="text-sm font-semibold">{t(returnsCustomerWorkbook ? 'coverage.formatGuaranteeTitle' : 'coverage.orderGuaranteeTitle')}</p>
+              <p className="mt-1 text-sm leading-relaxed text-[#56645d]">{t(returnsCustomerWorkbook ? 'coverage.formatGuaranteeWorkbook' : 'coverage.orderGuaranteeExport')}</p>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={nextMove.run}
-            data-testid="coverage-primary-action"
-            className="mt-4 inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800 sm:mt-0 sm:w-auto"
-          >
-            <NextMoveIcon className="h-4 w-4" /> {nextMove.label}
-          </button>
         </div>
 
-        <details className="border-t border-slate-100 px-5 py-3.5 text-sm sm:px-6">
-          <summary className="cursor-pointer select-none font-medium text-slate-600 hover:text-slate-900">{t('coverage.otherOptions')}</summary>
+        <details className="border-t border-[#e6ece8] px-5 py-3.5 text-sm sm:px-7">
+          <summary className="cursor-pointer select-none font-medium text-[#6b7a72] hover:text-[#0b5f43]">{t('coverage.otherOptions')}</summary>
           <div className="mt-3 flex flex-wrap gap-x-5 gap-y-3">
-            {bestNextDocument && (
-              <button type="button" onClick={() => navigate('/data')} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
-                {t('coverage.docEnter')}
-              </button>
-            )}
-            {bestNextDocument && canGenerateAnswers && onShowAnswers && (
-              <button type="button" onClick={onShowAnswers} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
-                {t('coverage.nextReviewCta')}
-              </button>
-            )}
-            {bestNextDocument && !canGenerateAnswers && (
-              <button type="button" onClick={() => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_other_finish', tier)} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
-                {t('coverage.nextFinishCta', { price: PASS_PRICE })}
-              </button>
-            )}
-            {bestNextPolicy && canBuildPolicies && (
-              <button type="button" onClick={() => { setPolicyUploadBuilder(bestNextPolicy); setPolicyUploadOpen(true); }} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
-                {t('coverage.uploadPolicy')}
-              </button>
-            )}
-            {bestNextPolicy && !canBuildPolicies && (
-              <button type="button" onClick={() => openCheckout(PASSPORT_CHECKOUT_URL, 'coverage_other_passport', tier)} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
-                {t('coverage.nextPassportCta', { price: PASSPORT_PRICE })}
-              </button>
-            )}
-            {bestNextPolicy && canGenerateAnswers && onShowAnswers && (
-              <button type="button" onClick={onShowAnswers} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
-                {t('coverage.nextReviewCta')}
-              </button>
-            )}
-            <button type="button" onClick={handleDownloadChecklist} className="inline-flex items-center gap-1.5 text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
-              <Download className="h-4 w-4" />{t('coverage.takeawayDownload')}
-            </button>
-            {onStartOver && (
-              <button type="button" onClick={onStartOver} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">
-                {t('coverage.startOver')}
-              </button>
-            )}
+            {questions.length > 0 && <button type="button" onClick={() => setShowQuestionList(value => !value)} className="text-sm text-gray-700 underline decoration-gray-300 underline-offset-4 hover:decoration-gray-700">{showQuestionList ? t('coverage.panelHide') : t('coverage.seeQuestions', { count: questions.length })}</button>}
+            {bestNextPolicy && <button type="button" onClick={() => { setPolicyUploadBuilder(bestNextPolicy); setPolicyUploadOpen(true); }} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">{t('coverage.uploadPolicy')}</button>}
+            {onStartOver && <button type="button" onClick={onStartOver} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">{t('coverage.startOver')}</button>}
           </div>
+          {showQuestionList && questions.length > 0 && (
+            <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50">
+              <div className="border-b border-gray-200 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">{t('coverage.seeQuestions', { count: questions.length })}</div>
+              <ol className="divide-y divide-gray-200">
+                {questions.map((question, index) => (
+                  <li key={question.id || index} className="flex gap-3 px-4 py-3 text-sm leading-relaxed text-gray-700">
+                    <span className="w-5 shrink-0 text-gray-400">{index + 1}.</span>
+                    <span>{question.text}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
         </details>
       </section>
 
       {recovered.length > 0 && (
-        <p className="text-sm leading-relaxed text-slate-600">
+        <p className="hidden text-sm leading-relaxed text-slate-600" aria-hidden="true">
           {recoveredFlagged > 0
             ? t('coverage.recoveredLineFlagged', { count: recovered.length, flagged: recoveredFlagged })
             : t('coverage.recoveredLine', { count: recovered.length })}
@@ -530,7 +508,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
 
       {/* Keep provenance visible without introducing a second recommendation panel. */}
       {uploadedFiles.length > 0 && (
-        <p className="text-sm text-emerald-800">
+        <p className="hidden text-sm text-emerald-800" aria-hidden="true">
           {t('coverage.uploadedSoFar', { count: uploadedFiles.length })}
           {reportingYear && <span className="ml-2 text-slate-500">· {t('coverage.figuresFor', { year: reportingYear })}</span>}
         </p>
@@ -542,7 +520,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           has to sit in a different COLUMN on desktop and mid-flow on mobile, which no
           amount of ordering can do from one node. Only the visible copy is in the
           accessibility tree, so the duplicate buttons are not announced twice. */}
-      <div>
+      <div className="hidden" aria-hidden="true">
         <div className="flex flex-col gap-10">
           {/* Missing items are ordered first: outcome to action. Topic context follows. */}
           {topics.length > 0 && (
@@ -790,7 +768,10 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
               <p className="text-center text-xs leading-relaxed text-slate-400">{t('coverage.commonDocumentsNote')}</p>
               <div>
               <div className="flex flex-col gap-3 border-2 border-slate-900 bg-white p-6">
-                <h2 className="text-lg font-semibold text-slate-900">{t('coverage.passTitle')}</h2>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.passPriceEyebrow', { price: PASS_PRICE })}</p>
+                  <h2 className="mt-1 text-lg font-semibold text-slate-900">{t('coverage.passTitle')}</h2>
+                </div>
                 <ul className="space-y-2.5">
                   {[
                     // The best line the product has, said only when it is true of THIS file.
