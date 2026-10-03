@@ -43,6 +43,21 @@ Three tiers, and the line between them is **finishing**, not looking:
   then offers one €99 extract/calculate/review workflow. Missing policies also surface the
   full Passport's integrated policy builder without implying it is part of the €99 pass.
   Spec: `COVERAGE-REPORT-SPEC.md`.
+- **The free report shows the drafts, not just the gaps** (Oct 2026). Free used to be
+  sampled from `fromRecords` alone, through `isPreviewWorthy`'s seven conditions; that
+  group measures 0-8 answers of 17-81, so the person deciding whether to buy saw little
+  or nothing while a paid workspace saw the whole pool. Free and paid now draw the same
+  sample; `isPresentableDraft` keeps out only fragments and "we do not have this", and
+  `SupportBadge` carries the claim per line. The heading leads with what is drafted and
+  the outstanding requirements follow on one line. The sample panel no longer calls a
+  mixed pool "fully covered".
+- **The report groups by the questionnaire's own sections when it has usable ones** —
+  `src/lib/coverageSections.js`. The parser already captures them (`question.category`:
+  a category/topic/theme/section/pillar column, a PDF heading, else the sheet name) and
+  the engine carries them onto every draft. They are trusted on the SHAPE of the
+  partition, not a blacklist: 80% of questions labelled, 2-12 sections, median section
+  >= 2 questions. Anything else falls back to the four canonical topics. `coverage.topics`
+  stays canonical either way; `coverage.sections` is the new, nullable view.
 - **PDF and Word uploads confirm the question list first** — the parser finds 22 of ~50
   questions in a real SAQ, and a wrong denominator makes every number on the report
   false. Excel and CSV now confirm too; unusually thin parses carry an explicit warning.

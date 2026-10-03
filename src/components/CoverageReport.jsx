@@ -149,17 +149,38 @@ const BUILDER_POLICY_IDS = {
   equal_opp: 'anti_discrimination', environmental: 'environmental_policy',
 };
 
+const NEGATIVE_ANSWER = /\b(no data|not available|do not have|don't have|not tracked|unable to|cannot provide|not currently)\b/i;
+
+/**
+ * Whether a draft can stand in front of someone who has not paid yet.
+ *
+ * Free used to be shown only `fromRecords`, put through isPreviewWorthy below. Measured
+ * end to end that group is 0-8 answers out of 17-81 (COVERAGE-REPORT-SPEC.md), and the
+ * seven conditions below narrow it further — so the person deciding whether to buy saw
+ * little or nothing, while the person who had already bought saw the whole pool. The
+ * demo ran backwards.
+ *
+ * Free now sees the same pool paid does. The honesty is carried by SupportBadge, which
+ * says of every line whether it rests on the reader's own document or on the answer
+ * library, rather than by hiding the drafts from the people deciding whether to buy
+ * them. What stays out is only what reads as the tool failing rather than as a draft to
+ * edit: a fragment, or a sentence whose content is "we do not have this".
+ */
+export function isPresentableDraft(answer) {
+  const text = String(answer?.answer || '').trim();
+  return text.length >= 45 && !NEGATIVE_ANSWER.test(text);
+}
+
+/** A presentable draft that also carries the reader's own figure and names its source. */
 export function isPreviewWorthy(answer) {
   const text = String(answer?.answer || '').trim();
-  const negative = /\b(no data|not available|do not have|don't have|not tracked|unable to|cannot provide|not currently)\b/i;
-  return answer?.confidence === 'high'
+  return isPresentableDraft(answer)
+    && answer?.confidence === 'high'
     && answer?.value !== undefined
     && answer?.value !== null
     && answer?.value !== ''
-    && text.length >= 45
     && answerStatesFigure(text, answer.value)
-    && Boolean(answer.document)
-    && !negative.test(text);
+    && Boolean(answer.document);
 }
 
 
@@ -271,8 +292,13 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   const [policyUploadBuilder, setPolicyUploadBuilder] = React.useState('');
   const [showQuestionList, setShowQuestionList] = React.useState(false);
   const {
-    total, recovered = [], recoveredFlagged = 0, fromRecords, partial = [], written, unanswerable, missingDocuments, policyGaps, hasOwnData, topics,
+    total, recovered = [], recoveredFlagged = 0, fromRecords, partial = [], written, unanswerable, missingDocuments, policyGaps, hasOwnData, topics, sections = null,
   } = coverage;
+  // The cards are the questionnaire's own sections when it has usable ones, the four
+  // canonical topics otherwise. `topics` stays canonical either way — the company
+  // information card and the manual-answer list below are about company-profile
+  // questions however the report happens to be grouped.
+  const groups = sections ?? topics;
   const { canGenerateAnswers, canBuildPolicies } = getEntitlements(tier);
 
   // The number that says this change worked. Over the previous year the funnel recorded
@@ -289,18 +315,16 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
     });
   }, [total, recovered.length, fromRecords.length, partial.length, written.length, unanswerable.length, policyGaps.builders.length]);
 
-  // Answered-from-records first: those carry the reader's own numbers and are the only
-  // part of this page no one else could have produced.
-  // A free visitor has not bought generated answers, and the current engine can turn
-  // absence into confident-sounding prose (or a partial-period bill into an annual
-  // statement). Do not use that output as a sales preview. Paid workspaces retain the
-  // answer panel because it is part of the product they already have access to.
-  // Free visitors need proof of the paid outcome, but only when it is grounded in
-  // their own records. Generic drafts and partial-period figures stay out; if only two
-  // answers are genuinely supported, showing two is more trustworthy than padding five.
-  const sample = canGenerateAnswers
-    ? selectBestCoverageAnswers([...fromRecords, ...written], SAMPLE_ANSWERS)
-    : selectBestCoverageAnswers(fromRecords.filter(isPreviewWorthy), SAMPLE_ANSWERS);
+  // Free and paid draw from the same pool. selectBestCoverageAnswers already scores a
+  // draft by confidence, then by whether it carries a figure, then by whether it names
+  // a document — so the answers built on the reader's own records still lead, and the
+  // badge on each line says which is which. Free additionally drops drafts that read as
+  // a failure rather than as a starting point. See isPresentableDraft.
+  const samplePool = [...fromRecords, ...written];
+  const sample = selectBestCoverageAnswers(
+    canGenerateAnswers ? samplePool : samplePool.filter(isPresentableDraft),
+    SAMPLE_ANSWERS,
+  );
   const remaining = Math.max(0, total - sample.length);
 
   const documents = missingDocuments
@@ -364,6 +388,9 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   const answeredCount = recovered.length + fromRecords.length;
   const reviewCount = partial.length + written.length;
   const openCount = unanswerable.length;
+  // Everything the engine put words against, whether from the reader's records or the
+  // answer library. This is what the heading leads with.
+  const draftedCount = answeredCount + reviewCount;
   // Only promise the customer's exact file back when the parser found writable
   // answer cells in a workbook format that the original-file writer supports.
   // Other formats still keep the customer's order, but calling that the "same
@@ -402,8 +429,20 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         <header className="flex flex-col gap-5 border-b border-[#e6ece8] bg-[#f7faf8] px-5 py-5 sm:px-7 sm:py-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
             <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-[#0b5f43]">{t('coverage.requestEyebrow')}</p>
-            <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-[#0f1a15] sm:text-[28px]">{t('coverage.title')}</h1>
-            <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{t('coverage.lead', { count: total, supported: answeredCount, review: reviewCount, open: openCount })}</p>
+            {/* Lead with what is already drafted. The requirements-first heading stays
+                for the case it was written for — a questionnaire nothing could be
+                drafted against — where "here they are" would be an empty promise. */}
+            {draftedCount > 0 ? (
+              <>
+                <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-[#0f1a15] sm:text-[28px]">{t('coverage.titleDrafted', { drafted: draftedCount, total })}</h1>
+                <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{answeredCount > 0 ? t('coverage.leadDrafted', { supported: answeredCount }) : t('coverage.leadDraftedNoRecords')}</p>
+              </>
+            ) : (
+              <>
+                <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-[#0f1a15] sm:text-[28px]">{t('coverage.title')}</h1>
+                <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{t('coverage.lead', { count: total, supported: answeredCount, review: reviewCount, open: openCount })}</p>
+              </>
+            )}
           </div>
           {questionnaireName && (
             <div className="inline-flex max-w-full shrink-0 items-center gap-2 rounded-full border border-[#cfe3d8] bg-white px-3 py-1.5 text-xs font-semibold text-[#3f5049]">
@@ -416,12 +455,22 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         <div className="space-y-7 p-5 sm:p-7">
           <section aria-label={t('coverage.statusTitle')}>
             <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#6b7a72]">{t('coverage.statusTitle')}</p>
-            {outstandingRequirementCount > 0 ? <dl className="mt-3 flex flex-wrap gap-4">
-              {requiredDocuments.length > 0 && <div className="min-w-[10rem] flex-1 border-l-2 border-[#0f7a55] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{requiredDocuments.length}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needRecords')}</dt></div>}
-              {companyAnswerCount > 0 && <div className="min-w-[10rem] flex-1 border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{companyAnswerCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needCompanyAnswers')}</dt></div>}
-              {policyGaps.builders.length > 0 && <div className="min-w-[10rem] flex-1 border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{policyGaps.builders.length}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needPolicies')}</dt></div>}
-            </dl> : <p className="mt-3 text-sm font-semibold text-[#203129]">{t('coverage.nothingToProvide')}</p>}
-            {answeredCount > 0 && <p className="mt-3 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.alreadyUsable', { count: answeredCount })}</p>}
+            {/* The three numbers are where the reader stands, not what they still owe.
+                Requirements follow on one line and in full in the section below — they
+                are the work, but they are not the verdict, and three bold counts of
+                what is missing read as a homework assignment. */}
+            <dl className="mt-3 flex flex-wrap gap-4">
+              <div className="min-w-[10rem] flex-1 border-l-2 border-[#0f7a55] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{answeredCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.progressSupported')}</dt></div>
+              <div className="min-w-[10rem] flex-1 border-l-2 border-[#8aa79a] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{reviewCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{partial.length > 0 ? t('coverage.progressReviewPartial', { count: partial.length }) : t('coverage.progressReview')}</dt></div>
+              <div className="min-w-[10rem] flex-1 border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{openCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.progressOpen')}</dt></div>
+            </dl>
+            {outstandingRequirementCount > 0
+              ? <p className="mt-3 text-[12px] leading-5 text-[#56645d]"><span className="font-semibold text-[#0f1a15]">{t('coverage.outstandingLead')}</span>{' '}{[
+                  requiredDocuments.length > 0 ? `${requiredDocuments.length} ${t('coverage.needRecords')}` : null,
+                  companyAnswerCount > 0 ? `${companyAnswerCount} ${t('coverage.needCompanyAnswers')}` : null,
+                  policyGaps.builders.length > 0 ? `${policyGaps.builders.length} ${t('coverage.needPolicies')}` : null,
+                ].filter(Boolean).join(' · ')}</p>
+              : <p className="mt-3 text-sm font-semibold text-[#203129]">{t('coverage.nothingToProvide')}</p>}
             {partial.length > 0 && <p className="mt-1 text-[12px] font-medium leading-5 text-[#56645d]">{t(partial.length === 1 ? 'coverage.partialAttentionOne' : 'coverage.partialAttention', { count: partial.length })}</p>}
           </section>
 
@@ -538,9 +587,13 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
               {/* Symmetric: three pillars sit three across, four make a 2×2, two make two.
                   Subgrid rows keep every card's header, standing line, "Start here", buttons
                   and questions on the same row as its neighbours'. */}
-              <div className={`grid gap-4 ${topics.length >= 2 ? 'md:grid-cols-2' : ''} ${topics.length === 3 ? 'xl:grid-cols-3' : ''}`}>
-                {[...topics].sort((a, b) => PILLAR_ORDER.indexOf(a.topic) - PILLAR_ORDER.indexOf(b.topic)).map((bucket) => {
-                  const name = topicName(t, bucket.topic);
+              <div className={`grid gap-4 ${groups.length >= 2 ? 'md:grid-cols-2' : ''} ${groups.length === 3 ? 'xl:grid-cols-3' : ''}`}>
+                {/* Canonical topics read in pillar order. The questionnaire's own
+                    sections keep the order it asks them in, which is the order the
+                    reader will work through the file. */}
+                {(sections ? groups : [...groups].sort((a, b) => PILLAR_ORDER.indexOf(a.topic) - PILLAR_ORDER.indexOf(b.topic))).map((bucket) => {
+                  const key = bucket.section || bucket.topic;
+                  const name = bucket.section || topicName(t, bucket.topic);
                   if (!name) return null;
                   const commonDocuments = commonTopicDocuments(t, bucket.topic);
                   const recommendedDocument = (bucket.documents || [])
@@ -548,10 +601,10 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                     .filter(item => item.entry)
                     .sort((a, b) => b.entry.unlocks - a.entry.unlocks)[0];
                   const showDocumentRecommendation = recommendedDocument?.entry?.unlocks >= 2;
-                  const pillarOpen = openPillars[bucket.topic] ?? false;
+                  const pillarOpen = openPillars[key] ?? false;
                   return (
                     <div
-                      key={bucket.topic}
+                      key={key}
                       className="flex flex-col gap-4 border border-slate-200 bg-white p-5 shadow-sm md:grid md:row-span-6 md:grid-rows-subgrid"
                     >
                       {/* 1 · header */}
@@ -560,7 +613,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                           <TopicIcon topic={bucket.topic} />
                           <div>
                             <h3 className="text-base font-semibold text-slate-900">{name}</h3>
-                            <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{topicSubtitle(t, bucket.topic)}</p>
+                            {!bucket.section && <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{topicSubtitle(t, bucket.topic)}</p>}
                           </div>
                         </div>
                         <p className="shrink-0 bg-slate-100 px-2.5 py-1 text-xs font-semibold tabular-nums text-slate-700">
@@ -574,7 +627,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                           them, a long one starts closed — the counts and "Start here" carry the card. */}
                       <button
                         type="button"
-                        onClick={() => setOpenPillars(prev => ({ ...prev, [bucket.topic]: !pillarOpen }))}
+                        onClick={() => setOpenPillars(prev => ({ ...prev, [key]: !pillarOpen }))}
                         aria-expanded={pillarOpen}
                         className="flex flex-wrap items-center gap-x-3 gap-y-1 self-start text-left text-xs tabular-nums"
                       >

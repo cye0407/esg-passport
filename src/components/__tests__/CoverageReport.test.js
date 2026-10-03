@@ -66,15 +66,16 @@ describe('CoverageReport', () => {
 
   it('opens with the questionnaire it read, and counts it once', async () => {
     await render([draft('emissions', 'medium'), draft('workforce', 'medium')]);
-    expect(container.textContent).toContain('Gather these items. Passport will prepare the answers.');
+    // Leads with what is drafted; the outstanding work follows on one line.
+    expect(container.textContent).toContain('2 of your 2 answers are drafted.');
     expect(container.textContent).toContain('buyer-saq.xlsx');
-    expect(container.textContent).toContain('2company answers to confirm');
-    expect(container.textContent).not.toContain('0records to provide');
-    expect(container.textContent).not.toContain('0policies to attach or create');
+    expect(container.textContent).toContain('To finish: 2 company answers to confirm');
+    expect(container.textContent).not.toContain('records to provide');
+    expect(container.textContent).not.toContain('policies to attach or create');
 
     expect(container.textContent).toContain('Customer request');
+    expect(container.textContent).toContain('Where you stand');
     expect(container.textContent).not.toContain('Your questionnaire: 2 questions');
-    expect(container.textContent).not.toContain('Where you stand');
   });
 
   it('makes the same-format promise explicit only when the original workbook can be returned', async () => {
@@ -120,13 +121,28 @@ describe('CoverageReport', () => {
     }
   });
 
-  it('does not sell free visitors a preview made from unverified generated answers', async () => {
-    const drafts = Array.from({ length: 9 }, () => draft('workforce', 'medium'));
+  // Free sees the same drafts paid does — hiding them hid the product from the only
+  // people still deciding whether to buy it. The claim each line makes is carried by
+  // its badge, so a library draft must reach the reader marked as a draft, never as
+  // something their own records support.
+  it('shows free visitors the drafts, labelled as drafts rather than as evidence', async () => {
+    // Distinct sentences: selectBestCoverageAnswers treats the text as the identity, so
+    // nine copies of one answer would correctly collapse to a single preview line.
+    const drafts = Array.from({ length: 9 }, (_, i) => draft('workforce', 'medium', {
+      answer: `All employees receive health and safety instruction on joining and refresher briefing number ${i} each year.`,
+    }));
     await render(drafts);
-    expect(container.textContent).not.toContain('Your first 5 answers');
-    expect(container.textContent).not.toContain('A drafted answer (');
-    // and no panel at all until there is something real to show
-    expect(container.textContent).not.toContain('fully covered');
+    expect(container.textContent).toContain('Your 5 drafted answers');
+    expect(container.textContent).toContain('All employees receive health and safety instruction');
+    expect(container.textContent).toContain('Draft');
+    expect(container.textContent).not.toContain('Supported');
+  });
+
+  it('keeps a fragment out of the preview a free visitor sees', async () => {
+    const fragment = draft('workforce', 'medium', { answer: 'Yes.' });
+    await render([fragment]);
+    expect(container.textContent).not.toContain('drafted answers');
+    expect(container.textContent).not.toContain('Your drafted answer');
   });
 
   it('rejects a nominally supported but poor answer and makes evidence the only next step', async () => {
@@ -136,7 +152,10 @@ describe('CoverageReport', () => {
       dataUnit: 'kWh',
     });
     await render([poor]);
-    expect(container.textContent).not.toContain('fully covered');
+    // The sentence says the company has nothing on record; shown as a preview it reads
+    // as the tool failing, so it stays out however confident the engine was.
+    expect(container.textContent).not.toContain('Electricity data is not available.');
+    expect(container.textContent).not.toContain('Your drafted answer');
     expect(container.textContent).not.toContain('Show a clearly labelled example');
   });
 
@@ -148,21 +167,26 @@ describe('CoverageReport', () => {
     });
     supported.matchResult = { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] };
     await render([supported], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } });
-    expect(container.textContent).toContain('Your fully covered answer');
+    expect(container.textContent).toContain('Your drafted answer');
     expect(container.textContent).toContain('During 2025, electricity consumption across our reporting boundary was 425000 kWh.');
     expect(container.textContent).toContain('€99');
     expect(container.textContent).not.toContain('€499');
     expect(container.textContent).toContain('After payment you return here, confirm which questionnaire your pass covers, and see your answers filled in.');
   });
 
-  it('does not promote a strong-looking answer without a named source document', async () => {
+  // Free now sees the same sample pool paid does, so a strong answer is no longer
+  // hidden for want of a recorded source. What must not happen is the report naming
+  // a source it was never told about: silence is correct when nothing is known.
+  it('shows a strong answer without inventing a source document for it', async () => {
     const answer = draft('energy_electricity', 'high', {
       answer: 'During 2025, electricity consumption across our reporting boundary was 425000 kWh.',
       dataValue: 425000,
       dataUnit: 'kWh',
     });
     await render([answer]);
-    expect(container.textContent).not.toContain('fully covered');
+    expect(container.textContent).toContain('During 2025, electricity consumption across our reporting boundary was 425000 kWh.');
+    expect(container.textContent).not.toContain('from electricity-2025.pdf');
+    expect(container.textContent).not.toContain('from undefined');
   });
 
   // Grouped the way the customer asking the questions groups them. Confidence is our
@@ -287,7 +311,7 @@ describe('CoverageReport', () => {
     const drafted = Array.from({ length: 6 }, () => draft('workforce', 'medium'));
     await render([...drafted, supported], {}, { tier: 'questionnaire-pass' });
     const text = container.textContent;
-    expect(text).toContain('Your 5 fully covered answers');
+    expect(text).toContain('Your 5 drafted answers');
     expect(text).toContain('425000 kWh');
     expect(text).toContain('2 more questions in this questionnaire');
   });
@@ -325,7 +349,7 @@ describe('CoverageReport', () => {
     });
     await render([...weak, strong], {}, { tier: 'questionnaire-pass' });
     expect(container.textContent).toContain('Strong electricity answer');
-    expect(container.textContent).toContain('Your 5 fully covered answers');
+    expect(container.textContent).toContain('Your 5 drafted answers');
   });
 
   // The engine attaches a figure to a draft whether or not the answer it chose rests on

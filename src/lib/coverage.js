@@ -15,6 +15,7 @@
 import { rowForLabel, COVERAGE_FIELD_MAP } from './coverageFieldMap';
 import { matchBuilderId } from '@/data/policyBuilders';
 import { TOPIC_ORDER, topicForDomain } from './coverageTopics';
+import { sectionPlan } from './coverageSections';
 
 /** A value the workspace actually holds. Zero is a figure; undefined is a gap. */
 function isPresent(value) {
@@ -203,9 +204,12 @@ export function hasOwnData(companyData) {
  * Every count is a count of QUESTIONS, so the topic totals sum to the questionnaire. A
  * question wanting three documents is one question, not three.
  */
-function summarizeTopics(list, companyData) {
-  const byTopic = new Map(TOPIC_ORDER.map(topic => [topic, {
+function newBucket(topic, section = null) {
+  return {
     topic,
+    // The questionnaire's own name for this group, when the report is grouped that way.
+    // null means this bucket is one of the four canonical topics.
+    section,
     total: 0,
     recovered: 0,
     fromRecords: 0,
@@ -219,52 +223,103 @@ function summarizeTopics(list, companyData) {
     // The questions themselves, with where each stands — a count alone hid which
     // questions a document had just answered, so a card looked the same after an upload.
     questions: [],
-  }]));
+  };
+}
 
-  for (const draft of list) {
-    const bucket = byTopic.get(topicForDomain(draft?.matchResult?.primaryDomain));
-    bucket.total += 1;
-    const state = questionState(draft, companyData);
-    bucket[state] += 1;
-    bucket.questions.push({
-      questionId: draft?.questionId,
-      questionText: draft?.questionText,
-      state,
-      // What would answer it, in order of how sure we are: a document we know holds the
-      // figure, a policy one of the guided builders writes, or the engine's own prompt.
-      // Nothing listed means only the reader can answer it.
-      needs: state === 'recovered' || state === 'fromRecords' ? null : {
-        documents: missingRowsFor(draft, companyData).map(row => ({ document: row.document, label: row.label, labelDe: row.labelDe })),
-        policy: policyBuilderFor(draft),
-        // The bank names the document or figure that would answer it ("fuel and gas bills")
-        // when no mapped document row does.
-        prompt: draft?.promptForMissing || draft?.wouldAnswer || null,
-        prompts: draft?.wouldAnswerByLanguage || null,
-      },
-    });
+function addDraft(bucket, draft, companyData) {
+  bucket.total += 1;
+  const state = questionState(draft, companyData);
+  bucket[state] += 1;
+  bucket.questions.push({
+    questionId: draft?.questionId,
+    questionText: draft?.questionText,
+    state,
+    // What would answer it, in order of how sure we are: a document we know holds the
+    // figure, a policy one of the guided builders writes, or the engine's own prompt.
+    // Nothing listed means only the reader can answer it.
+    needs: state === 'recovered' || state === 'fromRecords' ? null : {
+      documents: missingRowsFor(draft, companyData).map(row => ({ document: row.document, label: row.label, labelDe: row.labelDe })),
+      policy: policyBuilderFor(draft),
+      // The bank names the document or figure that would answer it ("fuel and gas bills")
+      // when no mapped document row does.
+      prompt: draft?.promptForMissing || draft?.wouldAnswer || null,
+      prompts: draft?.wouldAnswerByLanguage || null,
+    },
+  });
 
-    if (state === 'recovered' || state === 'fromRecords') {
-      // An answered question is not still asking for the document that answered it.
-      continue;
-    }
+  if (state === 'recovered' || state === 'fromRecords') {
+    // An answered question is not still asking for the document that answered it.
+    return;
+  }
 
-    const documents = new Set(missingRowsFor(draft, companyData).map(row => row.document));
-    if (documents.size > 0) {
-      bucket.needsDocument += 1;
-      for (const document of documents) {
-        if (!bucket.documents.includes(document)) bucket.documents.push(document);
-      }
-    }
-
-    const builder = policyBuilderFor(draft);
-    if (builder) {
-      bucket.needsPolicy += 1;
-      if (!bucket.policies.includes(builder)) bucket.policies.push(builder);
+  const documents = new Set(missingRowsFor(draft, companyData).map(row => row.document));
+  if (documents.size > 0) {
+    bucket.needsDocument += 1;
+    for (const document of documents) {
+      if (!bucket.documents.includes(document)) bucket.documents.push(document);
     }
   }
 
+  const builder = policyBuilderFor(draft);
+  if (builder) {
+    bucket.needsPolicy += 1;
+    if (!bucket.policies.includes(builder)) bucket.policies.push(builder);
+  }
+}
+
+function summarizeTopics(list, companyData) {
+  const byTopic = new Map(TOPIC_ORDER.map(topic => [topic, newBucket(topic)]));
+  for (const draft of list) {
+    addDraft(byTopic.get(topicForDomain(draft?.matchResult?.primaryDomain)), draft, companyData);
+  }
   // A topic this questionnaire never asks about is not a card with a zero on it.
   return TOPIC_ORDER.map(topic => byTopic.get(topic)).filter(bucket => bucket.total > 0);
+}
+
+/**
+ * The same questionnaire grouped by its OWN sections, or null when its labels are not a
+ * usable partition (see coverageSections.js). This is additive: `topics` stays the
+ * canonical four either way, because the company-information card and the manual-answer
+ * list are about company-profile questions however the report is grouped.
+ */
+function summarizeSections(list, companyData) {
+  const plan = sectionPlan(list);
+  if (!plan) return null;
+
+  const bySection = new Map(plan.labels.map(label => [label, newBucket(null, label)]));
+  // A question whose own label did not survive the usable-label check still has to be
+  // counted — the totals must sum to the questionnaire — so it falls back to its
+  // canonical topic, in a bucket added after the named sections.
+  const spillover = new Map();
+  const topicTally = new Map();
+
+  for (const draft of list) {
+    const label = plan.labelFor(draft);
+    const topic = topicForDomain(draft?.matchResult?.primaryDomain);
+    if (label) {
+      const tally = topicTally.get(label) || new Map();
+      tally.set(topic, (tally.get(topic) || 0) + 1);
+      topicTally.set(label, tally);
+      addDraft(bySection.get(label), draft, companyData);
+    } else {
+      if (!spillover.has(topic)) spillover.set(topic, newBucket(topic));
+      addDraft(spillover.get(topic), draft, companyData);
+    }
+  }
+
+  // A section card still needs an icon and the documents that usually answer its kind of
+  // question, and both key off the canonical topic — so each section takes the topic
+  // most of its questions belong to, ties going to reading order.
+  for (const [label, tally] of topicTally) {
+    const [topic] = [...tally.entries()]
+      .sort((a, b) => b[1] - a[1] || TOPIC_ORDER.indexOf(a[0]) - TOPIC_ORDER.indexOf(b[0]))[0];
+    bySection.get(label).topic = topic;
+  }
+
+  return [
+    ...plan.labels.map(label => bySection.get(label)),
+    ...TOPIC_ORDER.map(topic => spillover.get(topic)).filter(Boolean),
+  ].filter(bucket => bucket.total > 0);
 }
 
 /** Where a question stands, in the same terms the report's groups use. */
@@ -342,6 +397,9 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
     missingDocuments,
     // The questionnaire grouped by subject rather than by engine confidence.
     topics: summarizeTopics(list, companyData),
+    // The same questionnaire grouped by its own section names, when it has usable ones.
+    // null means the report should fall back to `topics`.
+    sections: summarizeSections(list, companyData),
     // Lets the report describe the middle group honestly. See hasOwnData.
     hasOwnData: hasOwnData(companyData),
     // questions: how many the buyer is being asked. builders: how many documents
