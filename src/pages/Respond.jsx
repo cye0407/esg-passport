@@ -193,7 +193,11 @@ export default function Respond({ demoOnly = false }) {
   // The question list awaiting the user's confirmation, and which of them they kept.
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const [confirmedIds, setConfirmedIds] = useState(() => new Set());
-  const [showConfirmedQuestions, setShowConfirmedQuestions] = useState(false);
+  // Open. This screen's whole job is "does this look like your questionnaire?", and
+  // three clamped examples standing in for the list made the reader click to answer the
+  // question being asked of them. The list is already bounded to 45vh and scrolls, so
+  // showing it costs no height. The toggle stays, to collapse it.
+  const [showConfirmedQuestions, setShowConfirmedQuestions] = useState(true);
 
   const requests = getRequests().filter(r => r.status !== 'closed' && r.status !== 'sent');
   const [selectedRequestId, setSelectedRequestId] = useState(requestId || '');
@@ -1675,17 +1679,6 @@ export default function Respond({ demoOnly = false }) {
                 </p>
               </div>
               <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" />
-            </div>
-            <div className="mt-4 border-t border-slate-100 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('confirm.sampleTitle')}</p>
-              <ol className="mt-2 space-y-1.5">
-                {parsed.slice(0, 3).map((question, index) => (
-                  <li key={question.id} className="flex gap-2 text-sm text-slate-600">
-                    <span className="shrink-0 text-slate-400">{index + 1}.</span>
-                    <span className="line-clamp-2">{question.text}</span>
-                  </li>
-                ))}
-              </ol>
             </div>
           </div>
           <button
