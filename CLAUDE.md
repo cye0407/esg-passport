@@ -38,9 +38,9 @@ Three tiers, and the line between them is **finishing**, not looking:
   absent. The first screen is now a single verdict with one deterministic next move;
   alternate paths are folded, topic questions start closed, and policy actions respect
   `canBuildPolicies` (Pass can upload an existing policy; Passport can create one).
-  The visible result is requirements-first rather than a traffic-light dashboard: it
-  shows the complete set of records/calculations, company answers and requested policies,
-  then offers one €99 extract/calculate/review workflow. Missing policies also surface the
+  The verdict leads with what is already drafted; the complete set of
+  records/calculations, company answers and requested policies follows below it, and
+  then one €99 extract/calculate/review workflow. Missing policies also surface the
   full Passport's integrated policy builder without implying it is part of the €99 pass.
   Spec: `COVERAGE-REPORT-SPEC.md`.
 - **The free report shows the drafts, not just the gaps** (Oct 2026). Free used to be
