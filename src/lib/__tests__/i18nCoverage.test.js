@@ -68,4 +68,10 @@ describe('i18n coverage', () => {
     expect(t('checklist.fromRecords', 'en')).toBe('Answers Passport can prepare now');
     expect(t('coverage.verdictAnswered', 'en')).not.toContain('records');
   });
+
+  it('turns partial-period jargon into the check the supplier needs to make', () => {
+    expect(t('checklist.partial', 'en')).toBe('Answers needing a reporting-period check');
+    expect(t('respond.covPartial', 'en')).toBe('Records cover only part of the requested period');
+    expect(t('checklist.partial', 'en')).not.toContain('evidence');
+  });
 });

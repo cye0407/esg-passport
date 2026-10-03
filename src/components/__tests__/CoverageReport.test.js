@@ -308,7 +308,7 @@ describe('CoverageReport', () => {
     expect(coverage.partial).toHaveLength(1);
     expect(coverage.unanswerable).toHaveLength(0);
     expect(coverage.missingDocuments).toEqual([{ document: 'electricityBill', unlocks: 1 }]);
-    expect(container.textContent).toContain('1 answer uses a partial reporting period and needs your review.');
+    expect(container.textContent).toContain('1 answer uses records that cover only part of the requested period. Check the dates before sending.');
     expect(container.textContent).not.toContain('Your strongest 1 answers');
   });
 
