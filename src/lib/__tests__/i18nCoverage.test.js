@@ -79,4 +79,10 @@ describe('i18n coverage', () => {
     expect(t('checklist.written', 'en')).toBe('Draft answers to review');
     expect(t('coverage.state.written', 'en')).toBe('Draft answer to review');
   });
+
+  it('names the information gap instead of saying it is waiting on something', () => {
+    expect(t('checklist.unanswerable', 'en')).toBe('Answers missing required information');
+    expect(t('coverage.verdictOpen', 'en')).toBe('Answers missing required information');
+    expect(t('checklist.unanswerable', 'en')).not.toContain('something');
+  });
 });
