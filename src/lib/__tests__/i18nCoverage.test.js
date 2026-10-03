@@ -63,10 +63,12 @@ describe('i18n coverage', () => {
     expect(UI_LANGUAGES.map((l) => l.code)).toEqual(['en', 'de']);
   });
 
+  // coverage.verdict* used to mirror these checklist headings, but it stopped being
+  // rendered and was removed with the rest of the dead copy. The on-screen equivalents
+  // are now coverage.progress*, which are stat labels ('ready from your records') rather
+  // than headings, so they are deliberately not asserted to match word for word.
   it('describes answer outcomes instead of internal record provenance', () => {
-    expect(t('coverage.verdictAnswered', 'en')).toBe('Answers Passport can prepare now');
     expect(t('checklist.fromRecords', 'en')).toBe('Answers Passport can prepare now');
-    expect(t('coverage.verdictAnswered', 'en')).not.toContain('records');
   });
 
   it('turns partial-period jargon into the check the supplier needs to make', () => {
@@ -82,7 +84,6 @@ describe('i18n coverage', () => {
 
   it('names the information gap instead of saying it is waiting on something', () => {
     expect(t('checklist.unanswerable', 'en')).toBe('Answers missing required information');
-    expect(t('coverage.verdictOpen', 'en')).toBe('Answers missing required information');
     expect(t('checklist.unanswerable', 'en')).not.toContain('something');
   });
 });

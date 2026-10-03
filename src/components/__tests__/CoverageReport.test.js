@@ -171,7 +171,7 @@ describe('CoverageReport', () => {
     expect(container.textContent).toContain('During 2025, electricity consumption across our reporting boundary was 425000 kWh.');
     expect(container.textContent).toContain('€99');
     expect(container.textContent).not.toContain('€499');
-    expect(container.textContent).toContain('After payment you return here, confirm which questionnaire your pass covers, and see your answers filled in.');
+    expect(container.textContent).toContain('Auto-extract and prepare for review — €99');
   });
 
   // Free now sees the same sample pool paid does, so a strong answer is no longer
@@ -407,7 +407,12 @@ describe('CoverageReport', () => {
     const plain = await render([draft('workforce', 'medium')]);
     expect(plain.policyGaps.builders).toHaveLength(0);
     expect(container.textContent).toContain('€99');
-    expect(container.textContent).toContain('None of the answers yet use figures from your records');
+    // The honest figures line used to live in a second purchase block. That block was a
+    // duplicate of the visible offer and is gone; the claim it made is now carried by the
+    // standing count and the lead, both of which say plainly that nothing rests on the
+    // reader's own records yet.
+    expect(container.textContent).toContain('0ready from your records');
+    expect(container.textContent).toContain('These are written from our answer library');
     expect(container.textContent).not.toContain('€499');
   });
 
@@ -429,4 +434,36 @@ describe('CoverageReport', () => {
       unanswerable: 1,
     });
   });
+
+  // jsdom has no layout, so container.textContent reads display:none nodes just as
+  // happily as visible ones. Between Sep 29 and Oct 3 the answer preview and every
+  // topic card sat inside a `<div className="hidden" aria-hidden="true">` left by the
+  // requirements-first refactor, and 26 tests passed green against UI no reader could
+  // see. Assert reachability explicitly: no ancestor may hide the subtree.
+  const assertReachable = (needle) => {
+    const node = [...container.querySelectorAll('*')]
+      .reverse()
+      .find(element => element.textContent.includes(needle));
+    expect(node, `nothing rendered containing ${needle}`).toBeTruthy();
+    for (let el = node; el && el !== container; el = el.parentElement) {
+      expect(el.getAttribute('aria-hidden'), `${needle} is inside aria-hidden ${el.tagName}`).not.toBe('true');
+      expect([...el.classList], `${needle} is inside a .hidden ${el.tagName}`).not.toContain('hidden');
+      expect(el.hasAttribute('hidden'), `${needle} is inside [hidden] ${el.tagName}`).toBe(false);
+    }
+  };
+
+  it('renders the answer preview and the topic cards where a reader can actually see them', async () => {
+    const supported = draft('energy_electricity', 'high', {
+      answer: 'During 2025, electricity consumption across our reporting boundary was 425000 kWh.',
+      dataValue: 425000,
+      dataUnit: 'kWh',
+    });
+    supported.matchResult = { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] };
+    await render([supported, draft('workforce', 'medium')], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } });
+
+    assertReachable('Where you stand');
+    assertReachable('Your drafted answer');
+    assertReachable('Questions by topic');
+  });
+
 });
