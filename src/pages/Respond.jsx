@@ -1643,28 +1643,32 @@ export default function Respond({ demoOnly = false }) {
     const sourceRows = pendingConfirm.review?.rows || parsed.length;
     const detectedColumn = pendingConfirm.parseResult?.metadata?.columnMapping?.questionText;
     const placement = describeAnswerPlacement(parsed);
+    // Two columns from lg up: what we found on the left, the questions themselves in a
+    // panel beside it. The list used to sit under the summary and start collapsed, so a
+    // screen headed "does this look like your questionnaire?" made the reader click
+    // before they could answer it. Below lg the panel stacks under the summary.
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{t('confirm.title')}</h1>
-          <p className="text-slate-600 mt-2 leading-relaxed">
-            {t('confirm.body', { count: parsed.length, fileName: pendingConfirm.name })}
-          </p>
-          {pendingConfirm.review?.thin && (
-            <div className="mt-4 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
-              <p className="font-semibold">{t('confirm.thinTitle')}</p>
-              <p className="mt-1 leading-relaxed">
-                {t('confirm.thinBody', {
-                  count: pendingConfirm.review.questions,
-                  rows: pendingConfirm.review.rows,
-                })}
-              </p>
-            </div>
-          )}
-        </div>
+      <div className="mx-auto max-w-6xl lg:flex lg:items-start lg:gap-6">
+        <div className="min-w-0 flex-1 space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">{t('confirm.title')}</h1>
+            <p className="text-slate-600 mt-2 leading-relaxed">
+              {t('confirm.body', { count: parsed.length, fileName: pendingConfirm.name })}
+            </p>
+            {pendingConfirm.review?.thin && (
+              <div className="mt-4 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
+                <p className="font-semibold">{t('confirm.thinTitle')}</p>
+                <p className="mt-1 leading-relaxed">
+                  {t('confirm.thinBody', {
+                    count: pendingConfirm.review.questions,
+                    rows: pendingConfirm.review.rows,
+                  })}
+                </p>
+              </div>
+            )}
+          </div>
 
-        <div className="border border-slate-200 bg-white">
-          <div className="p-5">
+          <div className="border border-slate-200 bg-white p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-3xl font-bold tabular-nums text-slate-900">{parsed.length}</p>
@@ -1684,16 +1688,41 @@ export default function Respond({ demoOnly = false }) {
               <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" />
             </div>
           </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              onClick={confirmQuestionList}
+              disabled={confirmedIds.size === 0}
+              className="bg-slate-900 hover:bg-slate-800 text-white rounded-none"
+            >
+              {t('confirm.cta', { count: confirmedIds.size })}
+            </Button>
+            <span className="text-sm text-slate-500">
+              {t('confirm.selected', { count: confirmedIds.size, total: parsed.length })}
+            </span>
+            {pendingConfirm.review?.thin && pendingConfirm.parseResult?.metadata?.availableColumns?.length > 0 && (
+              <button onClick={remapQuestionColumn} className="text-sm font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
+                {t('confirm.chooseColumn')}
+              </button>
+            )}
+            <button onClick={cancelQuestionList} className="text-sm text-slate-500 hover:text-slate-700 underline ml-auto">
+              {t('confirm.back')}
+            </button>
+          </div>
+        </div>
+
+        <aside className="mt-6 shrink-0 border border-slate-200 bg-white lg:sticky lg:top-6 lg:mt-0 lg:w-[26rem]">
           <button
             type="button"
             onClick={() => setShowConfirmedQuestions(value => !value)}
-            className="flex w-full items-center justify-between border-t border-slate-100 px-5 py-3.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+            aria-expanded={showConfirmedQuestions}
+            className="flex w-full items-center justify-between px-5 py-3.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             {showConfirmedQuestions ? t('confirm.hideQuestions') : t('confirm.reviewQuestions', { count: parsed.length })}
             <ChevronDown className={`h-4 w-4 transition-transform ${showConfirmedQuestions ? 'rotate-180' : ''}`} />
           </button>
           {showConfirmedQuestions && (
-            <div className="max-h-[45vh] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100">
+            <div className="max-h-[60vh] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100">
               {parsed.map((question, index) => (
                 <label key={question.id} className="flex cursor-pointer items-start gap-3 p-3 hover:bg-slate-50">
                   <input
@@ -1706,35 +1735,14 @@ export default function Respond({ demoOnly = false }) {
                     <span className="mr-2 text-slate-400">{index + 1}.</span>
                     {question.text}
                     {question.location?.answerCell && (
-                      <span className="ml-2 whitespace-nowrap font-mono text-xs text-slate-400">→ {question.location.answerCell}</span>
+                      <span className="ml-2 whitespace-nowrap font-mono text-xs text-slate-400">&rarr; {question.location.answerCell}</span>
                     )}
                   </span>
                 </label>
               ))}
             </div>
           )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            onClick={confirmQuestionList}
-            disabled={confirmedIds.size === 0}
-            className="bg-slate-900 hover:bg-slate-800 text-white rounded-none"
-          >
-            {t('confirm.cta', { count: confirmedIds.size })}
-          </Button>
-          <span className="text-sm text-slate-500">
-            {t('confirm.selected', { count: confirmedIds.size, total: parsed.length })}
-          </span>
-          {pendingConfirm.review?.thin && pendingConfirm.parseResult?.metadata?.availableColumns?.length > 0 && (
-            <button onClick={remapQuestionColumn} className="text-sm font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
-              {t('confirm.chooseColumn')}
-            </button>
-          )}
-          <button onClick={cancelQuestionList} className="text-sm text-slate-500 hover:text-slate-700 underline ml-auto">
-            {t('confirm.back')}
-          </button>
-        </div>
+        </aside>
       </div>
     );
   }
