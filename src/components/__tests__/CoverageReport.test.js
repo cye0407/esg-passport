@@ -66,10 +66,10 @@ describe('CoverageReport', () => {
 
   it('opens with the questionnaire it read, and counts it once', async () => {
     await render([draft('emissions', 'medium'), draft('workforce', 'medium')]);
-    expect(container.textContent).toContain('This is what the customer request still needs');
+    expect(container.textContent).toContain('Gather these items. Passport will prepare the answers.');
     expect(container.textContent).toContain('buyer-saq.xlsx');
 
-    expect(container.textContent).toContain('Customer questionnaire · 2 questions');
+    expect(container.textContent).toContain('Customer request');
     expect(container.textContent).not.toContain('Your questionnaire: 2 questions');
     expect(container.textContent).not.toContain('Where you stand');
   });
@@ -308,7 +308,7 @@ describe('CoverageReport', () => {
     expect(coverage.partial).toHaveLength(1);
     expect(coverage.unanswerable).toHaveLength(0);
     expect(coverage.missingDocuments).toEqual([{ document: 'electricityBill', unlocks: 1 }]);
-    expect(container.textContent).toContain('Partial period');
+    expect(container.textContent).toContain('1 answer uses a partial reporting period and needs your review.');
     expect(container.textContent).not.toContain('Your strongest 1 answers');
   });
 

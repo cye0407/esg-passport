@@ -380,6 +380,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
     && !(question.needs?.documents || []).length
     && !question.needs?.policy
   )));
+  const companyAnswerCount = companyOpenCount + manualQuestions.length;
   const bestNextPolicy = policyGaps.builders[0] || null;
   const completionAction = canGenerateAnswers && onShowAnswers
     ? {
@@ -399,7 +400,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
       <section data-testid="coverage-verdict" className="overflow-hidden rounded-[20px] border border-[#e6ece8] bg-white shadow-[0_20px_55px_-34px_rgba(16,40,30,0.38)]">
         <header className="flex flex-col gap-5 border-b border-[#e6ece8] bg-[#f7faf8] px-5 py-5 sm:px-7 sm:py-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
-            <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-[#0b5f43]">{t(total === 1 ? 'coverage.requestEyebrowOne' : 'coverage.requestEyebrow', { count: total })}</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-[#0b5f43]">{t('coverage.requestEyebrow')}</p>
             <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-[#0f1a15] sm:text-[28px]">{t('coverage.title')}</h1>
             <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{t('coverage.lead', { count: total, supported: answeredCount, review: reviewCount, open: openCount })}</p>
           </div>
@@ -415,10 +416,12 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           <section aria-label={t('coverage.statusTitle')}>
             <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#6b7a72]">{t('coverage.statusTitle')}</p>
             <dl className="mt-3 grid gap-3 sm:grid-cols-3">
-              <div className="border-l-2 border-[#0f7a55] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{answeredCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.progressSupported')}</dt></div>
-              <div className="border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{reviewCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{partial.length > 0 ? t('coverage.progressReviewPartial', { count: partial.length }) : t('coverage.progressReview')}</dt></div>
-              <div className="border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{openCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.progressOpen')}</dt></div>
+              <div className="border-l-2 border-[#0f7a55] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{requiredDocuments.length}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needRecords')}</dt></div>
+              <div className="border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{companyAnswerCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needCompanyAnswers')}</dt></div>
+              <div className="border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{policyGaps.builders.length}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needPolicies')}</dt></div>
             </dl>
+            {answeredCount > 0 && <p className="mt-3 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.alreadyUsable', { count: answeredCount })}</p>}
+            {partial.length > 0 && <p className="mt-1 text-[12px] font-medium leading-5 text-[#56645d]">{t(partial.length === 1 ? 'coverage.partialAttentionOne' : 'coverage.partialAttention', { count: partial.length })}</p>}
           </section>
 
           <section className="border-t border-[#e6ece8] pt-6">

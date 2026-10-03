@@ -41,12 +41,14 @@ const build = (overrides = {}) =>
   });
 
 describe('the checklist someone takes away', () => {
-  it('carries the counts the report showed', () => {
+  it('leads with the things the supplier needs to provide', () => {
     const html = build();
-    expect(html).toContain('34');
-    expect(html).toContain('Your records can support 2 of 34 questions');
-    expect(html).toContain('Read 1 prepared draft before sending');
-    expect(html).toContain('2 questions still need information from your company');
+    expect(html).toContain('What to provide for this customer request');
+    expect(html).toContain('<strong>2</strong><span>records to provide</span>');
+    expect(html).toContain('<strong>0</strong><span>company answers to confirm</span>');
+    expect(html).toContain('<strong>0</strong><span>policies to attach or create</span>');
+    expect(html).toContain('Passport can already use your workspace to prepare 2 answers.');
+    expect(html).not.toContain('Questions asked');
   });
 
   it('names the documents to go and find, and what each would answer', () => {
@@ -112,7 +114,7 @@ describe('the checklist someone takes away', () => {
       generatedAt: new Date('2026-09-09T10:00:00.000Z'),
     });
     expect(html).toContain('lang="de"');
-    expect(html).toContain('Was dieser Fragebogen braucht');
+    expect(html).toContain('Was Sie für diese Kundenanfrage bereitstellen müssen');
     expect(html).toContain('Was diese Kundenanfrage benötigt');
     expect(html).toContain('Unterlagen und Kennzahlen');
   });

@@ -46,7 +46,7 @@ export function buildChecklistHtml({
   url = '',
   generatedAt = new Date(),
 }) {
-  const { total, recovered = [], fromRecords, partial = [], written, unanswerable, missingDocuments, policyGaps = { builders: [] }, topics = [] } = coverage;
+  const { recovered = [], fromRecords, missingDocuments, policyGaps = { builders: [] }, topics = [] } = coverage;
 
   const date = generatedAt.toISOString().split('T')[0];
 
@@ -59,12 +59,17 @@ export function buildChecklistHtml({
     .filter(entry => entry.name);
 
   const supported = recovered.length + fromRecords.length;
-  const review = partial.length + written.length;
-  const open = unanswerable.length;
   const lang = t('checklist.lang');
   const companyTopic = topics.find(topic => topic.topic === 'other');
   const companyAnswered = companyTopic ? (companyTopic.recovered || 0) + (companyTopic.fromRecords || 0) : 0;
   const companyOpen = companyTopic ? Math.max(0, companyTopic.total - companyAnswered) : 0;
+  const manualQuestions = topics.flatMap(topic => topic.topic === 'other' ? [] : (topic.questions || []).filter(question => (
+    question.state !== 'recovered'
+    && question.state !== 'fromRecords'
+    && !(question.needs?.documents || []).length
+    && !question.needs?.policy
+  )));
+  const companyAnswers = companyOpen + manualQuestions.length;
   const policies = (policyGaps.builders || []).map(id => builderName(POLICY_BUILDERS[id], lang)).filter(Boolean);
 
   const requirementPlan = documents.length > 0 || companyTopic || policies.length > 0
@@ -106,7 +111,12 @@ ${documents.map((entry, index) => `        <li>
   .meta { color: #6b7a72; font-size: 12px; margin: 8px 0 0; }
   .standing { padding: 24px 32px; border-bottom: 1px solid #e6ece8; }
   .standing h2 { color: #6b7a72; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
-  .standing p { margin: 8px 0 0; color: #203129; font-size: 16px; line-height: 1.65; }
+  .needs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0 0; }
+  .need { border-left: 2px solid #b8c8c0; padding-left: 12px; }
+  .need:first-child { border-color: #0f7a55; }
+  .need strong { display: block; font-size: 25px; line-height: 1.1; }
+  .need span { display: block; margin-top: 4px; color: #56645d; font-size: 12px; line-height: 1.4; }
+  .standing > p { margin: 14px 0 0; color: #56645d; font-size: 13px; line-height: 1.55; }
   .requirements { margin: 24px 32px 0; padding: 22px; border: 1px solid #dce9e3; border-radius: 16px; background: #f7faf8; }
   .requirements > h2 { margin-top: 8px; }
   ol.docs { list-style: none; margin: 12px 0 0; padding: 0; }
@@ -124,7 +134,7 @@ ${documents.map((entry, index) => `        <li>
   .back a { display: inline-block; border-radius: 10px; background: #0f7a55; color: #fff; padding: 9px 14px; font-size: 13px; font-weight: 700; text-decoration: none; }
   .back span { display: block; margin-top: 8px; color: #6b7a72; font-size: 11px; word-break: break-all; }
   .local-note { margin: 0; padding: 14px 32px 18px; color: #6b7a72; font-size: 11px; background: #eef8f3; }
-  @media (max-width: 560px) { body { padding: 0; background: #fff; } main { border: 0; border-radius: 0; box-shadow: none; } header, .standing, .back, .local-note { padding-left: 20px; padding-right: 20px; } .requirements, .clear { margin-left: 20px; margin-right: 20px; } }
+  @media (max-width: 560px) { body { padding: 0; background: #fff; } main { border: 0; border-radius: 0; box-shadow: none; } header, .standing, .back, .local-note { padding-left: 20px; padding-right: 20px; } .requirements, .clear { margin-left: 20px; margin-right: 20px; } .needs { grid-template-columns: 1fr; } }
   @media print { body { padding: 0; background: #fff; } main { border: 0; box-shadow: none; } }
 </style>
 </head>
@@ -132,14 +142,17 @@ ${documents.map((entry, index) => `        <li>
 <main>
   <header>
     <p class="kicker">${escapeHtml(t('checklist.kicker'))}</p>
-    <h1>${escapeHtml(questionnaireName || heading)}</h1>
-    <p class="meta">${escapeHtml(t('checklist.generated', { date }))}</p>
+    <h1>${escapeHtml(heading)}</h1>
+    <p class="meta">${questionnaireName ? `${escapeHtml(t('checklist.source'))}: ${escapeHtml(questionnaireName)} · ` : ''}${escapeHtml(t('checklist.generated', { date }))}</p>
   </header>
   <section class="standing">
     <h2>${escapeHtml(t('checklist.standingTitle'))}</h2>
-    <p>${escapeHtml(review === 1
-      ? t('checklist.summaryOneReview', { total, supported, open })
-      : t('checklist.summary', { total, supported, review, open }))}</p>
+    <div class="needs">
+      <div class="need"><strong>${documents.length}</strong><span>${escapeHtml(t('checklist.needRecords'))}</span></div>
+      <div class="need"><strong>${companyAnswers}</strong><span>${escapeHtml(t('checklist.needCompanyAnswers'))}</span></div>
+      <div class="need"><strong>${policies.length}</strong><span>${escapeHtml(t('checklist.needPolicies'))}</span></div>
+    </div>
+    <p>${escapeHtml(t('checklist.alreadyUsable', { count: supported }))}</p>
   </section>
 
 ${requirementPlan}
