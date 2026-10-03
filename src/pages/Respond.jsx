@@ -468,7 +468,10 @@ export default function Respond({ demoOnly = false }) {
       const review = thinParseSummary(pr, sourceName);
       setPendingConfirm({ parseResult: pr, name, review });
       setConfirmedIds(new Set((pr?.questions || []).map(q => q.id)));
-      setShowConfirmedQuestions(false);
+      // Open. This runs on every parse, so it -- not the useState initial value --
+      // decides what the reader meets. Collapsed, the screen asked "does this look like
+      // your questionnaire?" and then made them click to find out.
+      setShowConfirmedQuestions(true);
       setPhase('confirm');
       track('questionnaire_confirm_shown', {
         questions: review.questions,
