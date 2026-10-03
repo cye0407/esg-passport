@@ -62,4 +62,10 @@ describe('i18n coverage', () => {
     // UI_LANGUAGES without its strings fails here rather than in front of a user.
     expect(UI_LANGUAGES.map((l) => l.code)).toEqual(['en', 'de']);
   });
+
+  it('describes answer outcomes instead of internal record provenance', () => {
+    expect(t('coverage.verdictAnswered', 'en')).toBe('Answers Passport can prepare now');
+    expect(t('checklist.fromRecords', 'en')).toBe('Answers Passport can prepare now');
+    expect(t('coverage.verdictAnswered', 'en')).not.toContain('records');
+  });
 });
