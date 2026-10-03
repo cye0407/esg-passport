@@ -68,6 +68,9 @@ describe('CoverageReport', () => {
     await render([draft('emissions', 'medium'), draft('workforce', 'medium')]);
     expect(container.textContent).toContain('Gather these items. Passport will prepare the answers.');
     expect(container.textContent).toContain('buyer-saq.xlsx');
+    expect(container.textContent).toContain('2company answers to confirm');
+    expect(container.textContent).not.toContain('0records to provide');
+    expect(container.textContent).not.toContain('0policies to attach or create');
 
     expect(container.textContent).toContain('Customer request');
     expect(container.textContent).not.toContain('Your questionnaire: 2 questions');

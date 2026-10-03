@@ -71,6 +71,11 @@ export function buildChecklistHtml({
   )));
   const companyAnswers = companyOpen + manualQuestions.length;
   const policies = (policyGaps.builders || []).map(id => builderName(POLICY_BUILDERS[id], lang)).filter(Boolean);
+  const needs = [
+    documents.length > 0 ? { count: documents.length, label: t('checklist.needRecords') } : null,
+    companyAnswers > 0 ? { count: companyAnswers, label: t('checklist.needCompanyAnswers') } : null,
+    policies.length > 0 ? { count: policies.length, label: t('checklist.needPolicies') } : null,
+  ].filter(Boolean);
 
   const requirementPlan = documents.length > 0 || companyTopic || policies.length > 0
     ? `    <section class="requirements">
@@ -111,7 +116,7 @@ ${documents.map((entry, index) => `        <li>
   .meta { color: #6b7a72; font-size: 12px; margin: 8px 0 0; }
   .standing { padding: 24px 32px; border-bottom: 1px solid #e6ece8; }
   .standing h2 { color: #6b7a72; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
-  .needs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0 0; }
+  .needs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 14px 0 0; }
   .need { border-left: 2px solid #b8c8c0; padding-left: 12px; }
   .need:first-child { border-color: #0f7a55; }
   .need strong { display: block; font-size: 25px; line-height: 1.1; }
@@ -147,11 +152,7 @@ ${documents.map((entry, index) => `        <li>
   </header>
   <section class="standing">
     <h2>${escapeHtml(t('checklist.standingTitle'))}</h2>
-    <div class="needs">
-      <div class="need"><strong>${documents.length}</strong><span>${escapeHtml(t('checklist.needRecords'))}</span></div>
-      <div class="need"><strong>${companyAnswers}</strong><span>${escapeHtml(t('checklist.needCompanyAnswers'))}</span></div>
-      <div class="need"><strong>${policies.length}</strong><span>${escapeHtml(t('checklist.needPolicies'))}</span></div>
-    </div>
+    ${needs.length > 0 ? `<div class="needs">${needs.map(need => `<div class="need"><strong>${need.count}</strong><span>${escapeHtml(need.label)}</span></div>`).join('')}</div>` : `<p>${escapeHtml(t('checklist.nothingToProvide'))}</p>`}
     <p>${escapeHtml(t('checklist.alreadyUsable', { count: supported }))}</p>
   </section>
 

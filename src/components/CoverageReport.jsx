@@ -381,6 +381,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
     && !question.needs?.policy
   )));
   const companyAnswerCount = companyOpenCount + manualQuestions.length;
+  const outstandingRequirementCount = requiredDocuments.length + companyAnswerCount + policyGaps.builders.length;
   const bestNextPolicy = policyGaps.builders[0] || null;
   const completionAction = canGenerateAnswers && onShowAnswers
     ? {
@@ -415,11 +416,11 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         <div className="space-y-7 p-5 sm:p-7">
           <section aria-label={t('coverage.statusTitle')}>
             <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#6b7a72]">{t('coverage.statusTitle')}</p>
-            <dl className="mt-3 grid gap-3 sm:grid-cols-3">
-              <div className="border-l-2 border-[#0f7a55] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{requiredDocuments.length}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needRecords')}</dt></div>
-              <div className="border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{companyAnswerCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needCompanyAnswers')}</dt></div>
-              <div className="border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{policyGaps.builders.length}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needPolicies')}</dt></div>
-            </dl>
+            {outstandingRequirementCount > 0 ? <dl className="mt-3 flex flex-wrap gap-4">
+              {requiredDocuments.length > 0 && <div className="min-w-[10rem] flex-1 border-l-2 border-[#0f7a55] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{requiredDocuments.length}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needRecords')}</dt></div>}
+              {companyAnswerCount > 0 && <div className="min-w-[10rem] flex-1 border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{companyAnswerCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needCompanyAnswers')}</dt></div>}
+              {policyGaps.builders.length > 0 && <div className="min-w-[10rem] flex-1 border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{policyGaps.builders.length}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.needPolicies')}</dt></div>}
+            </dl> : <p className="mt-3 text-sm font-semibold text-[#203129]">{t('coverage.nothingToProvide')}</p>}
             {answeredCount > 0 && <p className="mt-3 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.alreadyUsable', { count: answeredCount })}</p>}
             {partial.length > 0 && <p className="mt-1 text-[12px] font-medium leading-5 text-[#56645d]">{t(partial.length === 1 ? 'coverage.partialAttentionOne' : 'coverage.partialAttention', { count: partial.length })}</p>}
           </section>

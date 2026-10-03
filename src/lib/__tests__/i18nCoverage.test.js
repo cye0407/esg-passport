@@ -74,4 +74,9 @@ describe('i18n coverage', () => {
     expect(t('respond.covPartial', 'en')).toBe('Records cover only part of the requested period');
     expect(t('checklist.partial', 'en')).not.toContain('evidence');
   });
+
+  it('calls generated wording a draft to review', () => {
+    expect(t('checklist.written', 'en')).toBe('Draft answers to review');
+    expect(t('coverage.state.written', 'en')).toBe('Draft answer to review');
+  });
 });

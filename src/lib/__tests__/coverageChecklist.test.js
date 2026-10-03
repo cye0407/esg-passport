@@ -45,8 +45,9 @@ describe('the checklist someone takes away', () => {
     const html = build();
     expect(html).toContain('What to provide for this customer request');
     expect(html).toContain('<strong>2</strong><span>records to provide</span>');
-    expect(html).toContain('<strong>0</strong><span>company answers to confirm</span>');
-    expect(html).toContain('<strong>0</strong><span>policies to attach or create</span>');
+    expect(html).not.toContain('company answers to confirm');
+    expect(html).not.toContain('policies to attach or create');
+    expect(html).not.toContain('<strong>0</strong>');
     expect(html).toContain('Passport can already use your workspace to prepare 2 answers.');
     expect(html).not.toContain('Questions asked');
   });
@@ -101,7 +102,8 @@ describe('the checklist someone takes away', () => {
   });
 
   it('says so plainly when nothing is outstanding', () => {
-    const html = build({ coverage: { ...coverage, missingDocuments: [] } });
+    const html = build({ coverage: { ...coverage, recovered: [], fromRecords: [], missingDocuments: [] } });
+    expect(html).toContain('No additional records, company answers or policies are outstanding.');
     expect(html).toContain('No additional standard record is holding this up');
   });
 
