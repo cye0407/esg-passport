@@ -96,29 +96,27 @@ describe('CoverageReport', () => {
     expect(container.textContent).not.toContain('original workbook');
   });
 
-  // The buyer's own question list is not first-impression material - the reader wrote
-  // none of it and has read all of it, and PDF/Word uploads confirm the parsed list in a
-  // step of its own before this screen. It stays reachable, because a spreadsheet skips
-  // that confirmation and a wrong denominator makes every number here false.
-  it('keeps every question it read, but not in the way', async () => {
+  // The parsed question list used to sit behind two clicks, inside "Other options".
+  // It is now resident, in a rail beside the report: for a spreadsheet this is the only
+  // place the denominator can be checked, because xlsx skips the confirmation step that
+  // PDF and Word go through, and a wrong question count makes every number here false.
+  // Resident but small -- a fixed-height scroller, never 91 rows pushing the page down.
+  it('keeps every question it read in view, without a click', async () => {
     const questions = Array.from({ length: 8 }, (_, i) => ({ id: `r${i}`, text: `Read question ${i}` }));
-    // The disclosure sits in the fully-covered panel, which exists only once there is a
-    // real answer to show; until then the pillars list every question instead.
     const supported = draft('energy_electricity', 'high', { answer: 'During 2025, electricity consumption across our reporting boundary was 425000 kWh.', dataValue: 425000, dataUnit: 'kWh' });
     supported.matchResult = { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] };
     await render([supported], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } }, { questions });
 
-    expect(container.textContent).not.toContain('Read question 0');
-
-    const disclose = [...container.querySelectorAll('button')]
-      .find(b => b.textContent.includes('See the 8 questions we read'));
-    expect(disclose).toBeTruthy();
-    await act(async () => disclose.click());
-
-    // All of them, not a truncated preview.
+    // All of them, with no disclosure to open first, and only once on the page.
     for (let i = 0; i < 8; i += 1) {
       expect(container.textContent).toContain(`Read question ${i}`);
     }
+    expect(container.textContent.split('Read question 0')).toHaveLength(2);
+    expect(container.textContent).toContain('8 from your file');
+
+    // Bounded, so a 91-question questionnaire cannot run the page off the screen.
+    const list = [...container.querySelectorAll('ol')].find(o => o.textContent.includes('Read question 0'));
+    expect([...list.classList].join(' ')).toContain('overflow-y-auto');
   });
 
   // Free sees the same drafts paid does — hiding them hid the product from the only

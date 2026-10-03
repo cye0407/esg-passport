@@ -194,8 +194,7 @@ export function isPreviewWorthy(answer) {
 // every number here false. Reachable, not resident.
 // `fromRecords` is still needed — SupportBadge asks whether a given draft is in it. The
 // other counts moved to the stat band above both columns and are no longer read here.
-function ReferencePanel({ t, fromRecords, questions, sample, remaining, hasOwnData }) {
-  const [showQuestions, setShowQuestions] = React.useState(false);
+function ReferencePanel({ t, fromRecords, sample, remaining, hasOwnData }) {
 
   return (
     <div className="flex flex-col border border-slate-200 bg-white">
@@ -253,29 +252,35 @@ function ReferencePanel({ t, fromRecords, questions, sample, remaining, hasOwnDa
           </div>
         </div>
       )}
-
-      {questions.length > 0 && (
-        <div>
-          <button
-            onClick={() => setShowQuestions(v => !v)}
-            className="flex w-full items-center justify-between px-5 py-3.5 text-left text-[13px] text-slate-500 transition-colors hover:text-slate-700"
-          >
-            {showQuestions ? t('coverage.panelHide') : t('coverage.seeQuestions', { count: questions.length })}
-            <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${showQuestions ? 'rotate-180' : ''}`} />
-          </button>
-          {showQuestions && (
-            <ol className="divide-y divide-slate-100 overflow-hidden border-t border-slate-100">
-              {questions.map((question, index) => (
-                <li key={question.id || index} className="flex gap-2.5 px-5 py-3">
-                  <span className="w-5 shrink-0 text-[13px] text-slate-400">{index + 1}.</span>
-                  <span className="text-[13px] leading-relaxed text-slate-700">{question.text}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-      )}
     </div>
+  );
+}
+
+// The list the parser pulled out of the uploaded file, kept beside the report instead of
+// behind two clicks inside "Other options". For a spreadsheet this is the only place the
+// denominator can be checked -- PDF and Word confirm their parse in an earlier step, but
+// xlsx skips that, and a wrong question count makes every number on the report false.
+// Deliberately small: a fixed-height scroller, not 91 rows pushing the page down.
+function QuestionsRail({ t, questions, questionnaireName }) {
+  if (!questions.length) return null;
+  return (
+    <aside className="mt-6 shrink-0 xl:sticky xl:top-6 xl:mt-0 xl:w-72">
+      <div className="rounded-[14px] border border-[#e6ece8] bg-white">
+        <div className="border-b border-[#e6ece8] px-4 py-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#55635c]">{t('coverage.railTitle')}</p>
+          <p className="mt-1 text-[13px] font-semibold text-[#0f1a15]">{t('coverage.railCount', { count: questions.length })}</p>
+          {questionnaireName && <p className="mt-0.5 truncate text-[11.5px] text-[#6b7a72]" title={questionnaireName}>{questionnaireName}</p>}
+        </div>
+        <ol className="max-h-[22rem] divide-y divide-[#f0f4f2] overflow-y-auto">
+          {questions.map((question, index) => (
+            <li key={question.id || index} className="flex gap-2.5 px-4 py-2.5">
+              <span className="w-5 shrink-0 text-[11.5px] tabular-nums text-[#9aa8a1]">{index + 1}</span>
+              <span className="text-[12.5px] leading-snug text-[#3f4a45]">{question.text}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </aside>
   );
 }
 
@@ -289,7 +294,6 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   const [policyUploadOpen, setPolicyUploadOpen] = React.useState(false);
   const [policyUploadFile, setPolicyUploadFile] = React.useState(null);
   const [policyUploadBuilder, setPolicyUploadBuilder] = React.useState('');
-  const [showQuestionList, setShowQuestionList] = React.useState(false);
   const {
     total, recovered = [], fromRecords, partial = [], written, unanswerable, missingDocuments, policyGaps, hasOwnData, topics, sections = null,
   } = coverage;
@@ -411,7 +415,8 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
       };
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl xl:flex xl:max-w-7xl xl:items-start xl:gap-6">
+      <div className="min-w-0 flex-1">
       <section data-testid="coverage-verdict" className="overflow-hidden rounded-[20px] border border-[#e6ece8] bg-white shadow-[0_20px_55px_-34px_rgba(16,40,30,0.38)]">
         <header className="flex flex-col gap-5 border-b border-[#e6ece8] bg-[#f7faf8] px-5 py-5 sm:px-7 sm:py-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
@@ -518,23 +523,9 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         <details className="border-t border-[#e6ece8] px-5 py-3.5 text-sm sm:px-7">
           <summary className="cursor-pointer select-none font-medium text-[#6b7a72] hover:text-[#0b5f43]">{t('coverage.otherOptions')}</summary>
           <div className="mt-3 flex flex-wrap gap-x-5 gap-y-3">
-            {questions.length > 0 && <button type="button" onClick={() => setShowQuestionList(value => !value)} className="text-sm text-gray-700 underline decoration-gray-300 underline-offset-4 hover:decoration-gray-700">{showQuestionList ? t('coverage.panelHide') : t('coverage.seeQuestions', { count: questions.length })}</button>}
             {bestNextPolicy && <button type="button" onClick={() => { setPolicyUploadBuilder(bestNextPolicy); setPolicyUploadOpen(true); }} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">{t('coverage.uploadPolicy')}</button>}
             {onStartOver && <button type="button" onClick={onStartOver} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">{t('coverage.startOver')}</button>}
           </div>
-          {showQuestionList && questions.length > 0 && (
-            <div className="mt-4 max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50">
-              <div className="border-b border-gray-200 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500">{t('coverage.seeQuestions', { count: questions.length })}</div>
-              <ol className="divide-y divide-gray-200">
-                {questions.map((question, index) => (
-                  <li key={question.id || index} className="flex gap-3 px-4 py-3 text-sm leading-relaxed text-gray-700">
-                    <span className="w-5 shrink-0 text-gray-400">{index + 1}.</span>
-                    <span>{question.text}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
         </details>
       </section>
 
@@ -551,7 +542,6 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           <ReferencePanel
             t={t}
             fromRecords={fromRecords}
-            questions={questions}
             sample={sample}
             remaining={remaining}
             hasOwnData={hasOwnData}
@@ -780,6 +770,9 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           <div className="p-6"><PolicyBuilder initialBuilderId={policyBuilderId} embedded /></div>
         </DialogContent>
       </Dialog>
+      </div>
+
+      <QuestionsRail t={t} questions={questions} questionnaireName={questionnaireName} />
     </div>
   );
 }
