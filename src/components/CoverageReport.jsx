@@ -148,7 +148,10 @@ const BUILDER_POLICY_IDS = {
   equal_opp: 'anti_discrimination', environmental: 'environmental_policy',
 };
 
-const NEGATIVE_ANSWER = /\b(no data|not available|do not have|don't have|not tracked|unable to|cannot provide|not currently)\b/i;
+// "No grievance mechanism is in place" is the same sentence as "we do not have this", and
+// today it is usually not even the reader's: the store starts every policy as
+// 'not_available', which the data bridge passes on as "not in place".
+const NEGATIVE_ANSWER = /\b(no data|not available|do not have|don't have|not tracked|unable to|cannot provide|not currently)\b|\bno\b[^.]*\b(?:is|are) in place\b/i;
 
 /**
  * Whether a draft can stand in front of someone who has not paid yet.
@@ -164,10 +167,27 @@ const NEGATIVE_ANSWER = /\b(no data|not available|do not have|don't have|not tra
  * library, rather than by hiding the drafts from the people deciding whether to buy
  * them. What stays out is only what reads as the tool failing rather than as a draft to
  * edit: a fragment, or a sentence whose content is "we do not have this".
+ *
+ * A fragment is judged on what it says, not on its length. This used to be a 45-character
+ * floor inherited from isPreviewWorthy, and it threw out the short figures a reader's own
+ * records produce: "Water withdrawal (2026): 8,154 m³." is 34 characters. Across the
+ * benchmark fixtures with the rich test company the floor rejected 41 drafts, every one a
+ * real answer. Now a draft that states a figure is shown, even when it adds "a
+ * market-based figure is not available" as a caveat. A reporting year is not a figure, and
+ * neither is a zero on its own: that is what a missing value looks like after the data
+ * bridge has defaulted it ("0 employees (FTE)" from a workspace with no headcount in it).
+ * A draft without a figure must be a sentence of at least four words that does not say
+ * the company has nothing on record.
  */
+const REPORTING_YEAR = /\(?\b(?:19|20)\d{2}\b\)?/g;
+
 export function isPresentableDraft(answer) {
   const text = String(answer?.answer || '').trim();
-  return text.length >= 45 && !NEGATIVE_ANSWER.test(text);
+  if (!text) return false;
+  if (/[1-9]/.test(text.replace(REPORTING_YEAR, ''))) return true;
+  if (/\d/.test(text.replace(REPORTING_YEAR, ''))) return false;
+  const words = text.split(/\s+/).length;
+  return words >= 4 && /[.!?]$/.test(text) && !NEGATIVE_ANSWER.test(text);
 }
 
 /** A presentable draft that also carries the reader's own figure and names its source. */

@@ -11,7 +11,7 @@ vi.mock('@/lib/track', () => ({
   trackOnce: () => {},
 }));
 
-import CoverageReport from '../CoverageReport';
+import CoverageReport, { isPresentableDraft } from '../CoverageReport';
 import { summarizeCoverage } from '@/lib/coverage';
 
 let seq = 0;
@@ -141,6 +141,41 @@ describe('CoverageReport', () => {
     await render([fragment]);
     expect(container.textContent).not.toContain('drafted answers');
     expect(container.textContent).not.toContain('Your drafted answer');
+  });
+
+  // The short figures a reader's own bills produce. A 45-character floor kept every one of
+  // these out of the free preview, which is the panel meant to show what records buy.
+  it.each([
+    'Water withdrawal (2026): 8,154 m³.',
+    '289 employees (FTE) (2026).',
+    'Employee turnover rate (2026): 9.7 %.',
+    'Annual revenue band: €10M – €50M (2026).',
+    'Scope 2 emissions (2026), location-based: 992.5 tCO2e. A market-based figure is not available.',
+    'No work-related fatalities (2026).',
+  ])('treats a short answer that states a figure as presentable: %s', text => {
+    expect(isPresentableDraft({ answer: text })).toBe(true);
+  });
+
+  it.each([
+    'Yes.',
+    'Reporting period: 2026.',
+    'Electricity data is not available.',
+    'We do not have details of how sustainability considerations are integrated into procurement decisions on record for this question.',
+    'Energy policy',
+    '',
+    // What a workspace with only bills in it produced on the 96-question stress fixture:
+    // a headcount nobody entered, defaulted to zero, and a policy nobody marked, defaulted
+    // to "not in place". The 45-character floor hid both by accident.
+    '0 employees (FTE) (2026).',
+    'No. No grievance mechanism is in place.',
+  ])('keeps a fragment or a "nothing on record" sentence out: %s', text => {
+    expect(isPresentableDraft({ answer: text })).toBe(false);
+  });
+
+  it('shows a short record-backed figure in the preview a free visitor can see', async () => {
+    const water = draft('water', 'high', { answer: 'Water withdrawal (2026): 8,154 m³.' });
+    await render([water]);
+    assertReachable('Water withdrawal (2026): 8,154 m³.');
   });
 
   it('rejects a nominally supported but poor answer and makes evidence the only next step', async () => {
@@ -460,7 +495,7 @@ describe('CoverageReport', () => {
     await render([supported, draft('workforce', 'medium')], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } });
 
     assertReachable('Where you stand');
-    assertReachable('Your drafted answer');
+    assertReachable('drafted answer');
     assertReachable('Questions by topic');
   });
 
