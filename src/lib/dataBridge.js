@@ -66,6 +66,10 @@ const normalizePolicy = (policy = {}) => {
     category: canonicalCategory,
     status: normalizedStatus,
     exists: normalizedStatus === 'available' || normalizedStatus === 'in_progress',
+    // The store seeds every policy as 'not_available' so the list has a value to show.
+    // Nobody said that; it must not reach the engine as the company's "no".
+    statusUnset: normalizedStatus === 'not_available' && !policy.statusConfirmed
+      && !policy.fileLocation && !policy.lastUpdated,
     isCertification: policy.isCertification ?? canonical?.isCertification ?? CERTIFICATION_NAME_PATTERN.test(canonicalName),
   };
 };
@@ -162,7 +166,7 @@ export function buildCompanyData(year) {
 
   const totals = getAnnualTotals(reportingYear);
   const dataCoverage = buildDataCoverage(records, reportingYear);
-  const policies = getPolicies().map(normalizePolicy);
+  const policies = getPolicies().map(normalizePolicy).filter(p => !p.statusUnset);
   const settings = getSettings();
   const notApplicableFields = settings?.notApplicableFields || {};
 
@@ -257,7 +261,8 @@ export function buildCompanyData(year) {
     companyName: profile?.tradingName || profile?.legalName || '',
     industry: profile?.industrySector || '',
     country: countryName,
-    employeeCount: totalEmp || parseInt(profile?.totalEmployees) || 0,
+    // No headcount entered is no answer, not "0 employees".
+    employeeCount: totalEmp || parseInt(profile?.totalEmployees) || undefined,
     // A bill identifies an account or meter, not how many facilities the company runs.
     numberOfSites: profile?.numberOfFacilities ? parseInt(profile.numberOfFacilities) || undefined : undefined,
     reportingPeriod: reportingYear,
@@ -361,7 +366,7 @@ export function buildCompanyProfile() {
   const country = profile?.countryOfIncorporation
     ? (CODE_TO_NAME[profile.countryOfIncorporation] || profile.countryOfIncorporation)
     : '';
-  const employeeCount = parseInt(profile?.totalEmployees) || 0;
+  const employeeCount = parseInt(profile?.totalEmployees) || undefined;
   const numberOfSites = profile?.numberOfFacilities ? parseInt(profile.numberOfFacilities) || undefined : undefined;
   const reportingPeriod = profile?.baselineYear || new Date().getFullYear().toString();
   const revenueBand = profile?.annualRevenue || '';

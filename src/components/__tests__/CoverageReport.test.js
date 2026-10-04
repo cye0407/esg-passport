@@ -500,3 +500,46 @@ describe('CoverageReport', () => {
   });
 
 });
+
+// The header used to tell a buyer that every record-backed figure was "read out of the
+// documents you uploaded" — including on a run where the evidence step was skipped and
+// the figures had been typed in. It may say that only when it is true.
+describe('CoverageReport header: where the figures came from', () => {
+  let container;
+  let root;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    if (root) await act(async () => root.unmount());
+    container?.remove();
+  });
+
+  async function renderHeader(dataSources) {
+    const drafts = [
+      draft('workforce', 'high', { answer: '146 employees (FTE) (2026).', matchResult: { primaryDomain: 'workforce', suggestedDataPoints: ['Total FTE'] } }),
+      draft('energy', 'medium'),
+    ];
+    const coverage = summarizeCoverage(drafts, { dataSources });
+    await act(async () => {
+      root.render(React.createElement(MemoryRouter, null,
+        React.createElement(CoverageReport, { coverage, questionnaireName: 'buyer-saq.xlsx', tier: 'free' })));
+    });
+    return container.querySelector('[data-testid="coverage-verdict"] header').textContent;
+  }
+
+  it('says "documents you uploaded" when the figure came from an uploaded document', async () => {
+    const text = await renderHeader({ 'workforce.totalEmployees': 'payroll-2026.pdf' });
+    expect(text).toMatch(/read out of the documents you uploaded/);
+  });
+
+  it('says "your own records" when the figure was entered, not uploaded', async () => {
+    const text = await renderHeader({});
+    expect(text).not.toMatch(/documents you uploaded/);
+    expect(text).toMatch(/from your own records/);
+  });
+});

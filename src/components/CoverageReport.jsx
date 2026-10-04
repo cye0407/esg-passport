@@ -397,6 +397,10 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   // are the verdict; this is the single recommended action. Everything else is
   // still available, but behind "Other options" instead of competing with it.
   const answeredCount = recovered.length + fromRecords.length;
+  // "Read out of the documents you uploaded" is only true when every one of them was:
+  // a figure typed into the workspace, or seeded there, came from the user but not from
+  // a document. Recovered answers come from the questionnaire file they uploaded.
+  const allFromUploads = answeredCount > 0 && fromRecords.every(a => a.document);
   const reviewCount = partial.length + written.length;
   const openCount = unanswerable.length;
   // Everything the engine put words against, whether from the reader's records or the
@@ -447,7 +451,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
             {draftedCount > 0 ? (
               <>
                 <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-[#0f1a15] sm:text-[28px]">{t('coverage.titleDrafted', { drafted: draftedCount, total })}</h1>
-                <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{answeredCount > 0 ? t('coverage.leadDrafted', { supported: answeredCount }) : t('coverage.leadDraftedNoRecords')}</p>
+                <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{answeredCount > 0 ? t(allFromUploads ? 'coverage.leadDrafted' : 'coverage.leadDraftedOwnRecords', { supported: answeredCount }) : t('coverage.leadDraftedNoRecords')}</p>
               </>
             ) : (
               <>

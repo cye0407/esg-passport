@@ -246,8 +246,13 @@ export const getPolicies = () => {
 export const savePolicy = (policy) => {
   const data = loadData();
   const index = data.policies.findIndex(p => p.id === policy.id);
+  const previous = index >= 0 ? data.policies[index] : null;
+  // A seeded policy starts as 'not_available' only because the list needs a value.
+  // Once the user picks a status it is theirs, and the bridge may answer from it.
+  const statusChanged = !previous || previous.status !== policy.status;
   const updatedPolicy = {
     ...policy,
+    ...(statusChanged ? { statusConfirmed: true } : {}),
     updatedAt: new Date().toISOString(),
   };
   if (index >= 0) {
@@ -308,6 +313,7 @@ export const updatePolicyStatus = (policyId, status) => {
   const p = data.policies.find(x => x.id === policyId);
   if (!p) return null;
   p.status = status;
+  p.statusConfirmed = true;
   p.updatedAt = new Date().toISOString();
   saveData(data);
   return p;
