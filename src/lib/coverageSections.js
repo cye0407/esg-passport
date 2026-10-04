@@ -51,9 +51,17 @@ function median(numbers) {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-function labelOf(draft) {
+// The parser fills `category` from a real column or heading when it finds one, and
+// otherwise from the sheet the question sat on. A sheet name is the name of a tab, not
+// the buyer's section: a workbook holding four questionnaires grouped the report into
+// cards reading "Questionnaire 1 - Buyer ESG Dee" (cut at Excel's 31 characters). Only a
+// label that is not simply the question's own sheet is trusted.
+function labelOf(draft, sheetOf) {
   const label = String(draft?.category ?? '').trim();
-  return isUsableSectionLabel(label) ? label : null;
+  if (!isUsableSectionLabel(label)) return null;
+  const sheet = String(sheetOf?.(draft) ?? '').trim();
+  if (sheet && sheet.toLocaleLowerCase() === label.toLocaleLowerCase()) return null;
+  return label;
 }
 
 /**
@@ -62,13 +70,15 @@ function labelOf(draft) {
  * topics.
  *
  * @param {Array} drafts answer drafts from the response engine
+ * @param {{sheetOf?: (draft: object) => string|undefined}} [options] the sheet each draft's
+ *   question sat on, so a label that is only the sheet name is not taken for a section
  * @returns {{labels: string[], labelFor: (draft: object) => string|null}|null}
  */
-export function sectionPlan(drafts) {
+export function sectionPlan(drafts, { sheetOf } = {}) {
   const list = Array.isArray(drafts) ? drafts : [];
   if (!list.length) return null;
 
-  const labelled = list.map(labelOf).filter(Boolean);
+  const labelled = list.map(draft => labelOf(draft, sheetOf)).filter(Boolean);
   if (labelled.length / list.length < MIN_LABELLED_SHARE) return null;
 
   // 'ENVIRONMENT' and 'Environment' are one section; the first spelling the
@@ -93,7 +103,7 @@ export function sectionPlan(drafts) {
   return {
     labels: order.map(key => display.get(key)),
     labelFor(draft) {
-      const label = labelOf(draft);
+      const label = labelOf(draft, sheetOf);
       return label ? display.get(label.toLocaleLowerCase()) ?? null : null;
     },
   };

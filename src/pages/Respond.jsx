@@ -305,8 +305,9 @@ export default function Respond({ demoOnly = false }) {
     return summarizeCoverage(answerDrafts, {
       companyData,
       dataSources: getSettings()?.dataSources || {},
+      questions: parseResult?.questions || [],
     });
-  }, [phase, answerDrafts, companyData]);
+  }, [phase, answerDrafts, companyData, parseResult]);
 
   // Keep the questionnaire the moment a free report exists, not only when its "add
   // documents" button is used. People leave a screen the way they like - the nav, the

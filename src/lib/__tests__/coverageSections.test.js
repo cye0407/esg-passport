@@ -161,3 +161,47 @@ describe('summarizeCoverage sections', () => {
     expect(environment.fromRecords).toBe(1);
   });
 });
+
+// A workbook with no category column gets its sheet names as `category`. Four
+// questionnaires on four tabs became four "sections" named after the tabs — which is
+// where "Questionnaire 1 - Buyer ESG Dee" on the report came from. Only a real column
+// or heading counts.
+describe('sheet names are not section names', () => {
+  const onSheets = (sheets, perSheet) => {
+    const drafts = [];
+    const questions = [];
+    for (const sheet of sheets) {
+      for (let i = 0; i < perSheet; i++) {
+        const d = draft('environmental', sheet);
+        drafts.push(d);
+        questions.push({ id: d.questionId, text: 'Question', category: sheet, location: { sheet, row: i + 2 } });
+      }
+    }
+    return { drafts, questions };
+  };
+
+  it('falls back to the canonical topics when every label is just its own sheet', () => {
+    const { drafts, questions } = onSheets(['Questionnaire 1 - Buyer ESG Dee', 'Questionnaire 2 - German Buyer', 'Questionnaire 3 - Mixed-Languag'], 4);
+    const c = summarizeCoverage(drafts, { questions });
+    expect(c.sections).toBeNull();
+  });
+
+  it('still trusts a real category column on a multi-sheet workbook', () => {
+    const { drafts, questions } = onSheets(['Sheet A', 'Sheet B'], 4);
+    drafts.forEach((d, i) => { d.category = i % 2 ? 'Environment' : 'Governance'; });
+    const c = summarizeCoverage(drafts, { questions });
+    expect(c.sections?.map(s => s.section)).toEqual(['Governance', 'Environment']);
+  });
+
+  it('without the parsed questions, behaves as before', () => {
+    const { drafts } = onSheets(['Tab one', 'Tab two'], 4);
+    const plan = sectionPlan(drafts);
+    expect(plan?.labels).toEqual(['Tab one', 'Tab two']);
+  });
+
+  it('ignores the sheet name whatever its case', () => {
+    const { drafts, questions } = onSheets(['ENVIRONMENT', 'SOCIAL'], 4);
+    questions.forEach(q => { q.location.sheet = q.location.sheet.toLowerCase(); });
+    expect(summarizeCoverage(drafts, { questions }).sections).toBeNull();
+  });
+});

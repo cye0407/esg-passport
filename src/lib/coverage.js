@@ -282,8 +282,8 @@ function summarizeTopics(list, companyData) {
  * canonical four either way, because the company-information card and the manual-answer
  * list are about company-profile questions however the report is grouped.
  */
-function summarizeSections(list, companyData) {
-  const plan = sectionPlan(list);
+function summarizeSections(list, companyData, sheetOf) {
+  const plan = sectionPlan(list, { sheetOf });
   if (!plan) return null;
 
   const bySection = new Map(plan.labels.map(label => [label, newBucket(null, label)]));
@@ -333,8 +333,14 @@ function questionState(draft, companyData) {
   return 'open';
 }
 
-export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} } = {}) {
+export function summarizeCoverage(drafts, { companyData = {}, dataSources = {}, questions = [] } = {}) {
   const list = Array.isArray(drafts) ? drafts : [];
+  // Which sheet each question sat on, so the sections view can tell a real section
+  // label from the parser's sheet-name fallback (see coverageSections.js).
+  const sheetById = new Map((Array.isArray(questions) ? questions : [])
+    .filter(q => q?.id && q?.location?.sheet)
+    .map(q => [q.id, q.location.sheet]));
+  const sheetOf = draft => sheetById.get(draft?.questionId);
   const recovered = [];
   const fromRecords = [];
   const partial = [];
@@ -399,7 +405,7 @@ export function summarizeCoverage(drafts, { companyData = {}, dataSources = {} }
     topics: summarizeTopics(list, companyData),
     // The same questionnaire grouped by its own section names, when it has usable ones.
     // null means the report should fall back to `topics`.
-    sections: summarizeSections(list, companyData),
+    sections: summarizeSections(list, companyData, sheetOf),
     // Lets the report describe the middle group honestly. See hasOwnData.
     hasOwnData: hasOwnData(companyData),
     // questions: how many the buyer is being asked. builders: how many documents
