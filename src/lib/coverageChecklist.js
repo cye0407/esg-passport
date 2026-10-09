@@ -16,6 +16,7 @@
 // it. A file that outlives the session is exactly the wrong place to overclaim.
 
 import { documentName, documentHolds } from '@/lib/documentLabels';
+import { POLICY_BUILDERS, builderName } from '@/data/policyBuilders';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -45,7 +46,7 @@ export function buildChecklistHtml({
   url = '',
   generatedAt = new Date(),
 }) {
-  const { total, fromRecords, partial = [], written, unanswerable, missingDocuments } = coverage;
+  const { recovered = [], fromRecords, missingDocuments, policyGaps = { builders: [] }, topics = [] } = coverage;
 
   const date = generatedAt.toISOString().split('T')[0];
 
@@ -57,32 +58,44 @@ export function buildChecklistHtml({
     }))
     .filter(entry => entry.name);
 
-  const rows = [
-    [t('checklist.total'), total],
-    [t('checklist.fromRecords'), fromRecords.length],
-    [t('checklist.partial'), partial.length],
-    [t('checklist.written'), written.length],
-    [t('checklist.unanswerable'), unanswerable.length],
-  ];
+  const supported = recovered.length + fromRecords.length;
+  const lang = t('checklist.lang');
+  const companyTopic = topics.find(topic => topic.topic === 'other');
+  const companyAnswered = companyTopic ? (companyTopic.recovered || 0) + (companyTopic.fromRecords || 0) : 0;
+  const companyOpen = companyTopic ? Math.max(0, companyTopic.total - companyAnswered) : 0;
+  const manualQuestions = topics.flatMap(topic => topic.topic === 'other' ? [] : (topic.questions || []).filter(question => (
+    question.state !== 'recovered'
+    && question.state !== 'fromRecords'
+    && !(question.needs?.documents || []).length
+    && !question.needs?.policy
+  )));
+  const companyAnswers = companyOpen + manualQuestions.length;
+  const policies = (policyGaps.builders || []).map(id => builderName(POLICY_BUILDERS[id], lang)).filter(Boolean);
+  const needs = [
+    documents.length > 0 ? { count: documents.length, label: t('checklist.needRecords') } : null,
+    companyAnswers > 0 ? { count: companyAnswers, label: t('checklist.needCompanyAnswers') } : null,
+    policies.length > 0 ? { count: policies.length, label: t('checklist.needPolicies') } : null,
+  ].filter(Boolean);
 
-  const summary = rows
-    .map(([label, value]) => `      <tr><th scope="row">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`)
-    .join('\n');
-
-  const documentList = documents.length > 0
-    ? `    <h2>${escapeHtml(t('checklist.docsTitle'))}</h2>
-    <ol class="docs">
-${documents.map(entry => `      <li>
-        <p class="doc-name">${escapeHtml(entry.name)}</p>
-        <p class="doc-note">${escapeHtml(entry.holds)} — ${escapeHtml(t('checklist.docAnswers', { count: entry.unlocks }))}</p>
-      </li>`).join('\n')}
-    </ol>`
-    : `    <h2>${escapeHtml(t('checklist.docsTitle'))}</h2>
-    <p>${escapeHtml(t('checklist.noDocs'))}</p>`;
+  const requirementPlan = documents.length > 0 || companyTopic || policies.length > 0
+    ? `    <section class="requirements">
+      <p class="eyebrow">${escapeHtml(t('checklist.requirementsTitle'))}</p>
+      ${documents.length > 0 ? `<h2>${escapeHtml(t('checklist.recordsTitle'))}</h2>
+      <ol class="docs">
+${documents.map((entry, index) => `        <li>
+          <span class="number">${String(index + 1).padStart(2, '0')}</span>
+          <div><p class="doc-name">${escapeHtml(entry.name)}</p>
+          <p class="doc-note">${escapeHtml(entry.holds)} · ${escapeHtml(t('checklist.docAnswers', { count: entry.unlocks }))}</p></div>
+        </li>`).join('\n')}
+      </ol>` : ''}
+      ${companyTopic ? `<div class="requirement-block"><h2>${escapeHtml(t('checklist.companyTitle'))}</h2><p>${escapeHtml(t('checklist.companyBody', { answered: companyAnswered, open: companyOpen }))}</p></div>` : ''}
+      ${policies.length > 0 ? `<div class="requirement-block"><h2>${escapeHtml(t('checklist.policiesTitle'))}</h2><ul class="policies">${policies.map(name => `<li>${escapeHtml(name)}</li>`).join('')}</ul><p>${escapeHtml(t('checklist.policiesBody'))}</p></div>` : ''}
+    </section>`
+    : `    <section class="clear"><h2>${escapeHtml(t('checklist.noDocsTitle'))}</h2><p>${escapeHtml(t('checklist.noDocs'))}</p></section>`;
 
   const heading = t('checklist.docTitle');
   const continueLine = url
-    ? `    <p class="back">${escapeHtml(t('checklist.continueAt'))}<br><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></p>`
+    ? `    <section class="back"><p>${escapeHtml(t('checklist.continueAt'))}</p><a href="${escapeHtml(url)}">${escapeHtml(t('checklist.openWorkspace'))}</a><span>${escapeHtml(url)}</span></section>`
     : '';
 
   return `<!doctype html>
@@ -91,39 +104,62 @@ ${documents.map(entry => `      <li>
 <meta charset="utf-8">
 <title>${escapeHtml(heading)}</title>
 <style>
+  * { box-sizing: border-box; }
   body { font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-         color: #0f172a; background: #fff; margin: 0; padding: 40px 24px; }
-  main { max-width: 640px; margin: 0 auto; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  h2 { font-size: 16px; margin: 32px 0 8px; }
-  .meta { color: #64748b; font-size: 13px; margin: 0 0 24px; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { text-align: left; padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 400; }
-  td { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; width: 4em; }
-  ol.docs { padding-left: 20px; }
-  ol.docs li { margin-bottom: 12px; }
-  .doc-name { margin: 0; font-weight: 600; }
-  .doc-note { margin: 2px 0 0; color: #64748b; font-size: 13px; }
-  .back { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 13px; }
-  .privacy { color: #94a3b8; font-size: 12px; margin-top: 8px; }
-  @media print { body { padding: 0; } }
+         color: #0f1a15; background: #f3f7f5; margin: 0; padding: 40px 24px; }
+  main { max-width: 680px; margin: 0 auto; overflow: hidden; border: 1px solid #dce9e3;
+         border-radius: 20px; background: #fff; box-shadow: 0 24px 60px -40px rgba(16,40,30,.55); }
+  header { padding: 28px 32px 24px; border-bottom: 1px solid #e6ece8; background: #f7faf8; }
+  .kicker, .eyebrow { margin: 0; color: #0b5f43; font-size: 11px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; }
+  h1 { margin: 6px 0 0; font-size: 26px; line-height: 1.2; letter-spacing: -.02em; }
+  h2 { margin: 0; font-size: 17px; line-height: 1.35; }
+  .meta { color: #6b7a72; font-size: 12px; margin: 8px 0 0; }
+  .standing { padding: 24px 32px; border-bottom: 1px solid #e6ece8; }
+  .standing h2 { color: #6b7a72; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+  .needs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 14px 0 0; }
+  .need { border-left: 2px solid #b8c8c0; padding-left: 12px; }
+  .need:first-child { border-color: #0f7a55; }
+  .need strong { display: block; font-size: 25px; line-height: 1.1; }
+  .need span { display: block; margin-top: 4px; color: #56645d; font-size: 12px; line-height: 1.4; }
+  .standing > p { margin: 14px 0 0; color: #56645d; font-size: 13px; line-height: 1.55; }
+  .requirements { margin: 24px 32px 0; padding: 22px; border: 1px solid #dce9e3; border-radius: 16px; background: #f7faf8; }
+  .requirements > h2 { margin-top: 8px; }
+  ol.docs { list-style: none; margin: 12px 0 0; padding: 0; }
+  ol.docs li { display: flex; gap: 12px; align-items: flex-start; padding: 14px 0; border-top: 1px solid #e6ece8; }
+  .number { display: grid; place-items: center; min-width: 28px; height: 28px; border-radius: 999px; background: #e7f4ef; color: #0b5f43; font-size: 11px; font-weight: 750; }
+  .doc-name { margin: 0; font-weight: 650; }
+  .doc-note { margin: 2px 0 0; color: #6b7a72; font-size: 12px; }
+  .requirement-block { margin-top: 18px; padding-top: 18px; border-top: 1px solid #dce9e3; }
+  .requirement-block p { margin: 6px 0 0; color: #56645d; font-size: 13px; }
+  ul.policies { margin: 8px 0 0; padding-left: 20px; color: #203129; }
+  .clear { margin: 24px 32px 0; padding: 20px; border: 1px solid #dce9e3; border-radius: 14px; background: #f7faf8; }
+  .clear p { margin: 6px 0 0; color: #56645d; }
+  .back { margin-top: 28px; padding: 20px 32px; border-top: 1px solid #dce9e3; background: #eef8f3; }
+  .back p { margin: 0 0 10px; color: #3f5049; font-weight: 600; }
+  .back a { display: inline-block; border-radius: 10px; background: #0f7a55; color: #fff; padding: 9px 14px; font-size: 13px; font-weight: 700; text-decoration: none; }
+  .back span { display: block; margin-top: 8px; color: #6b7a72; font-size: 11px; word-break: break-all; }
+  .local-note { margin: 0; padding: 14px 32px 18px; color: #6b7a72; font-size: 11px; background: #eef8f3; }
+  @media (max-width: 560px) { body { padding: 0; background: #fff; } main { border: 0; border-radius: 0; box-shadow: none; } header, .standing, .back, .local-note { padding-left: 20px; padding-right: 20px; } .requirements, .clear { margin-left: 20px; margin-right: 20px; } .needs { grid-template-columns: 1fr; } }
+  @media print { body { padding: 0; background: #fff; } main { border: 0; box-shadow: none; } }
 </style>
 </head>
 <body>
 <main>
-  <h1>${escapeHtml(heading)}</h1>
-  <p class="meta">${questionnaireName ? `${escapeHtml(questionnaireName)} · ` : ''}${escapeHtml(t('checklist.generated', { date }))}</p>
+  <header>
+    <p class="kicker">${escapeHtml(t('checklist.kicker'))}</p>
+    <h1>${escapeHtml(heading)}</h1>
+    <p class="meta">${questionnaireName ? `${escapeHtml(t('checklist.source'))}: ${escapeHtml(questionnaireName)} · ` : ''}${escapeHtml(t('checklist.generated', { date }))}</p>
+  </header>
+  <section class="standing">
+    <h2>${escapeHtml(t('checklist.standingTitle'))}</h2>
+    ${needs.length > 0 ? `<div class="needs">${needs.map(need => `<div class="need"><strong>${need.count}</strong><span>${escapeHtml(need.label)}</span></div>`).join('')}</div>` : `<p>${escapeHtml(t('checklist.nothingToProvide'))}</p>`}
+    <p>${escapeHtml(t('checklist.alreadyUsable', { count: supported }))}</p>
+  </section>
 
-  <table>
-    <tbody>
-${summary}
-    </tbody>
-  </table>
-
-${documentList}
+${requirementPlan}
 
 ${continueLine}
-  <p class="privacy">${escapeHtml(t('checklist.privacy'))}</p>
+  <p class="local-note">${escapeHtml(t('checklist.localNote'))}</p>
 </main>
 </body>
 </html>

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildCompanyData, buildCompanyProfile, computeYoYTrends } from '../dataBridge';
-import { resetData, saveCompanyProfile, saveDataRecord, loadData, saveData } from '../store';
+import { resetData, saveCompanyProfile, saveDataRecord, loadData, saveData, getPolicies, updatePolicyStatus } from '../store';
 
 // ============================================
 // Setup: clear localStorage between tests
@@ -335,9 +335,19 @@ describe('buildCompanyData', () => {
       expect(data.grievanceMechanismExists).toBe(false);
     });
 
-    it('with neither a positive profile signal nor an available policy, falls back to the policy tri-state (false)', () => {
+    it('with neither a profile signal nor a policy the user set, says nothing (a seeded default is not a "no")', () => {
       seedProfile();
-      // No profile flags set; both policies at seeded default (not_available)
+      // No profile flags set; both policies at the seeded default nobody chose
+      const data = buildCompanyData('2025');
+      expect(data.dataProtectionPolicy).toBeUndefined();
+      expect(data.grievanceMechanismExists).toBeUndefined();
+    });
+
+    it('with neither a positive profile signal nor an available policy, falls back to the "not in place" the user chose (false)', () => {
+      seedProfile();
+      getPolicies();
+      updatePolicyStatus('data_privacy', 'not_available');
+      updatePolicyStatus('whistleblower', 'not_available');
       const data = buildCompanyData('2025');
       expect(data.dataProtectionPolicy).toBe(false);
       expect(data.grievanceMechanismExists).toBe(false);
@@ -384,7 +394,8 @@ describe('buildCompanyProfile', () => {
     expect(profile.companyName).toBe('');
     expect(profile.industry).toBe('');
     expect(profile.country).toBe('');
-    expect(profile.employeeCount).toBe(0);
+    // No headcount entered is no answer, not "0 employees".
+    expect(profile.employeeCount).toBeUndefined();
   });
 });
 

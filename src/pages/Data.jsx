@@ -81,6 +81,10 @@ export default function Data() {
   // Entry mode: monthly grid vs annual totals
   const [entryMode, setEntryMode] = useState('monthly');
   const [annualValues, setAnnualValues] = useState({});
+  // Only values the user actually changes in annual mode are written back across the
+  // year. Without this, changing one annual figure also turned every pre-filled YTD
+  // total into a full-year value.
+  const [annualTouchedFields, setAnnualTouchedFields] = useState(() => new Set());
 
   // Industry-adaptive: toggle to show all metrics
   const [showAllMetrics, setShowAllMetrics] = useState(false);
@@ -191,6 +195,10 @@ export default function Data() {
   const profile = getCompanyProfile();
   const industry = profile?.industrySector || '';
   const gridFactor = EMISSION_FACTORS.electricity[settings.gridCountry] || EMISSION_FACTORS.electricity.EU_AVERAGE;
+  const gridFactorKg = new Intl.NumberFormat(lang === 'de' ? 'de-DE' : 'en-GB', {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  }).format(gridFactor * 1000);
 
   // Intensity metrics
   const [productionVolume, setProductionVolume] = useState(settings.productionVolume || '');
@@ -432,7 +440,9 @@ export default function Data() {
 
     setSelectedYear(year);
     setEntryMode('annual');
-    setAnnualValues(prev => ({ ...prev, ...mergeAnnualValues(forThisYear) }));
+    const mergedAnnualValues = mergeAnnualValues(forThisYear);
+    setAnnualValues(prev => ({ ...prev, ...mergedAnnualValues }));
+    setAnnualTouchedFields(prev => new Set([...prev, ...Object.keys(mergedAnnualValues)]));
     // Per document, so a figure is attributed to the file it actually came out of.
     for (const bill of forThisYear) recordExtractionSources(bill.fields, bill.fileName);
     pendingExtractionReceipts.current.push(...forThisYear.map(bill => ({
@@ -502,6 +512,11 @@ export default function Data() {
       return next;
     });
     setAnnualValues(prev => ({ ...prev, [metricKey(section, field)]: '' }));
+    setAnnualTouchedFields(prev => {
+      const next = new Set(prev);
+      next.delete(metricKey(section, field));
+      return next;
+    });
   };
 
   // Validation logic
@@ -584,7 +599,9 @@ export default function Data() {
     // In annual mode, distribute values to monthly records first
     let recordsToProcess = { ...records };
     if (entryMode === 'annual') {
-      const months = monthsToShow.filter(m => !m.isFuture);
+      // An annual value is an explicit full-year total, including when the selected
+      // year is the current year. Monthly entry remains the route for YTD figures.
+      const months = monthsToShow;
       const monthCount = months.length || 1;
 
       months.forEach(month => {
@@ -593,6 +610,7 @@ export default function Data() {
 
         dataRows.forEach(row => {
           if (isFieldNotApplicable(row.section, row.field)) return;
+          if (!annualTouchedFields.has(metricKey(row.section, row.field))) return;
           const val = getAnnualInputValue(row.section, row.field);
           if (val !== '') {
             const numVal = parseFloat(val) || 0;
@@ -683,6 +701,7 @@ export default function Data() {
 
     loadRecords();
     setHasChanges(false);
+    setAnnualTouchedFields(new Set());
     setSaved(true);
     setSaving(false);
     trackOnce('data_first_save');
@@ -690,7 +709,7 @@ export default function Data() {
     // A receipt says values were added, so write it only after the records above save.
     pendingExtractionReceipts.current.forEach(receipt => saveExtractionReceipt({
       ...receipt,
-      allocationMonths: receipt.annual ? (monthsToShow.filter(month => !month.isFuture).length || 1) : null,
+      allocationMonths: receipt.annual ? 12 : null,
     }));
     pendingExtractionReceipts.current = [];
     if (extractionReturnTo.current) {
@@ -843,10 +862,12 @@ export default function Data() {
       }
     });
     setAnnualValues(values);
+    setAnnualTouchedFields(new Set());
     setEntryMode('annual');
   };
 
   const switchToMonthly = () => {
+    setAnnualTouchedFields(new Set());
     setEntryMode('monthly');
   };
 
@@ -860,6 +881,7 @@ export default function Data() {
       persistNotApplicableFields(next);
     }
     setAnnualValues(prev => ({ ...prev, [`${section}.${field}`]: value }));
+    setAnnualTouchedFields(prev => new Set(prev).add(key));
     setHasChanges(true);
     setSaved(false);
   };
@@ -1018,6 +1040,7 @@ export default function Data() {
       return next;
     });
     setAnnualValues({});
+    setAnnualTouchedFields(new Set());
     setHasChanges(true);
     setSaved(false);
     setShowClearYearDialog(false);
@@ -1269,10 +1292,10 @@ export default function Data() {
 
       {/* Data Grid */}
       <div className="bg-white border border-slate-200 rounded-none p-4 overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className={cn('w-full text-sm', entryMode === 'monthly' && 'min-w-[68rem]')}>
           <thead>
             <tr className="border-b border-slate-200">
-              <th className="text-left py-2 pr-2 font-medium text-slate-900 w-[140px]">{t('dataUi.metric')}</th>
+              <th className="sticky left-0 z-10 w-[140px] bg-white py-2 pr-2 text-left font-medium text-slate-900">{t('dataUi.metric')}</th>
               {entryMode === 'monthly' ? (
                 <>
                   {monthsToShow.map(month => (
@@ -1310,7 +1333,7 @@ export default function Data() {
                   </tr>
                 )}
               <tr className={cn('border-b border-slate-200', idx % 2 === 0 ? '' : 'bg-slate-50/50')}>
-                <td className="py-1.5 pr-2 text-slate-900 align-top">
+                <td className={cn('sticky left-0 z-10 py-1.5 pr-2 text-slate-900 align-top', idx % 2 === 0 ? 'bg-white' : 'bg-slate-50')}>
                   <span className="flex items-center gap-1">
                     {row.required && <Flag className="w-3 h-3 text-orange-500 flex-shrink-0" title={t('dataUi.requiredTip')} />}
                     {row.label}
@@ -1529,7 +1552,7 @@ export default function Data() {
         </span>
         <span className="flex items-center gap-1">
           <Info className="w-3 h-3" />
-          {t('dataUi.legendGrid', { grid: settings.gridCountry, factor: gridFactor })}
+          {t('dataUi.legendGrid', { grid: settings.gridCountry, factor: gridFactorKg })}
         </span>
         {entryMode === 'annual' && (
           <span className="flex items-center gap-1">

@@ -72,6 +72,7 @@ const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
 const FREE_PREVIEW_LIMIT = 5;
 const DATA_SECTIONS = ['energy', 'water', 'waste', 'workforce', 'healthSafety', 'training'];
 const PASSPORT_DATA_KEY = 'esg_passport_data';
+export const DEMO_ACTION_BAR_CLASSES = 'mt-6 border-t border-slate-200 bg-white px-4 py-3 sm:fixed sm:inset-x-0 sm:bottom-0 sm:z-40 sm:bg-white/95 sm:shadow-[0_-12px_30px_rgba(15,23,42,0.12)] sm:backdrop-blur';
 
 function hasUsableWorkspaceData() {
   const records = getDataRecords();
@@ -192,7 +193,11 @@ export default function Respond({ demoOnly = false }) {
   // The question list awaiting the user's confirmation, and which of them they kept.
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const [confirmedIds, setConfirmedIds] = useState(() => new Set());
-  const [showConfirmedQuestions, setShowConfirmedQuestions] = useState(false);
+  // Open. This screen's whole job is "does this look like your questionnaire?", and
+  // three clamped examples standing in for the list made the reader click to answer the
+  // question being asked of them. The list is already bounded to 45vh and scrolls, so
+  // showing it costs no height. The toggle stays, to collapse it.
+  const [showConfirmedQuestions, setShowConfirmedQuestions] = useState(true);
 
   const requests = getRequests().filter(r => r.status !== 'closed' && r.status !== 'sent');
   const [selectedRequestId, setSelectedRequestId] = useState(requestId || '');
@@ -285,20 +290,24 @@ export default function Respond({ demoOnly = false }) {
   // Every tier that reached results, not just free. The report was built as the free
   // tier's consolation for not getting answers, which was the wrong idea: it is the
   // questionnaire's status view, and a paid buyer chasing a colleague for the waste
-  // manifest before a deadline needs it more than a free visitor does. /demo is still
-  // excluded - a coverage report about a fictional company's documents tells nobody
-  // anything.
+  // manifest before a deadline needs it more than a free visitor does. /demo uses the
+  // same report so the public sample and design review exercise the real first screen.
   // Which face of the results a paid reader is looking at: the drafts they bought, or
   // the report on what is still open before they send.
-  const [resultsView, setResultsView] = useState(() => searchParams.get('view') === 'report' ? 'report' : 'answers');
+  // The public sample should demonstrate the same completion-plan experience a
+  // free visitor gets after analysing their own questionnaire. Answers remain one
+  // click away, but opening /demo on the legacy answer grid made design reviews —
+  // and the product promise itself — look unrelated to the real free journey.
+  const [resultsView, setResultsView] = useState(() => searchParams.get('view') === 'report' || demoOnly ? 'report' : 'answers');
 
   const coverage = useMemo(() => {
-    if (demoOnly || phase !== 'results') return null;
+    if (phase !== 'results') return null;
     return summarizeCoverage(answerDrafts, {
       companyData,
       dataSources: getSettings()?.dataSources || {},
+      questions: parseResult?.questions || [],
     });
-  }, [demoOnly, phase, answerDrafts, companyData]);
+  }, [phase, answerDrafts, companyData, parseResult]);
 
   // Keep the questionnaire the moment a free report exists, not only when its "add
   // documents" button is used. People leave a screen the way they like - the nav, the
@@ -460,7 +469,10 @@ export default function Respond({ demoOnly = false }) {
       const review = thinParseSummary(pr, sourceName);
       setPendingConfirm({ parseResult: pr, name, review });
       setConfirmedIds(new Set((pr?.questions || []).map(q => q.id)));
-      setShowConfirmedQuestions(false);
+      // Open. This runs on every parse, so it -- not the useState initial value --
+      // decides what the reader meets. Collapsed, the screen asked "does this look like
+      // your questionnaire?" and then made them click to find out.
+      setShowConfirmedQuestions(true);
       setPhase('confirm');
       track('questionnaire_confirm_shown', {
         questions: review.questions,
@@ -1632,28 +1644,32 @@ export default function Respond({ demoOnly = false }) {
     const sourceRows = pendingConfirm.review?.rows || parsed.length;
     const detectedColumn = pendingConfirm.parseResult?.metadata?.columnMapping?.questionText;
     const placement = describeAnswerPlacement(parsed);
+    // Two columns from lg up: what we found on the left, the questions themselves in a
+    // panel beside it. The list used to sit under the summary and start collapsed, so a
+    // screen headed "does this look like your questionnaire?" made the reader click
+    // before they could answer it. Below lg the panel stacks under the summary.
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{t('confirm.title')}</h1>
-          <p className="text-slate-600 mt-2 leading-relaxed">
-            {t('confirm.body', { count: parsed.length, fileName: pendingConfirm.name })}
-          </p>
-          {pendingConfirm.review?.thin && (
-            <div className="mt-4 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
-              <p className="font-semibold">{t('confirm.thinTitle')}</p>
-              <p className="mt-1 leading-relaxed">
-                {t('confirm.thinBody', {
-                  count: pendingConfirm.review.questions,
-                  rows: pendingConfirm.review.rows,
-                })}
-              </p>
-            </div>
-          )}
-        </div>
+      <div className="mx-auto max-w-6xl lg:flex lg:items-start lg:gap-6">
+        <div className="min-w-0 flex-1 space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">{t('confirm.title')}</h1>
+            <p className="text-slate-600 mt-2 leading-relaxed">
+              {t('confirm.body', { count: parsed.length, fileName: pendingConfirm.name })}
+            </p>
+            {pendingConfirm.review?.thin && (
+              <div className="mt-4 border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
+                <p className="font-semibold">{t('confirm.thinTitle')}</p>
+                <p className="mt-1 leading-relaxed">
+                  {t('confirm.thinBody', {
+                    count: pendingConfirm.review.questions,
+                    rows: pendingConfirm.review.rows,
+                  })}
+                </p>
+              </div>
+            )}
+          </div>
 
-        <div className="border border-slate-200 bg-white">
-          <div className="p-5">
+          <div className="border border-slate-200 bg-white p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-3xl font-bold tabular-nums text-slate-900">{parsed.length}</p>
@@ -1672,28 +1688,42 @@ export default function Respond({ demoOnly = false }) {
               </div>
               <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" />
             </div>
-            <div className="mt-4 border-t border-slate-100 pt-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('confirm.sampleTitle')}</p>
-              <ol className="mt-2 space-y-1.5">
-                {parsed.slice(0, 3).map((question, index) => (
-                  <li key={question.id} className="flex gap-2 text-sm text-slate-600">
-                    <span className="shrink-0 text-slate-400">{index + 1}.</span>
-                    <span className="line-clamp-2">{question.text}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
           </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              onClick={confirmQuestionList}
+              disabled={confirmedIds.size === 0}
+              className="bg-slate-900 hover:bg-slate-800 text-white rounded-none"
+            >
+              {t('confirm.cta', { count: confirmedIds.size })}
+            </Button>
+            <span className="text-sm text-slate-500">
+              {t('confirm.selected', { count: confirmedIds.size, total: parsed.length })}
+            </span>
+            {pendingConfirm.review?.thin && pendingConfirm.parseResult?.metadata?.availableColumns?.length > 0 && (
+              <button onClick={remapQuestionColumn} className="text-sm font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
+                {t('confirm.chooseColumn')}
+              </button>
+            )}
+            <button onClick={cancelQuestionList} className="text-sm text-slate-500 hover:text-slate-700 underline ml-auto">
+              {t('confirm.back')}
+            </button>
+          </div>
+        </div>
+
+        <aside className="mt-6 shrink-0 border border-slate-200 bg-white lg:sticky lg:top-6 lg:mt-0 lg:w-[26rem]">
           <button
             type="button"
             onClick={() => setShowConfirmedQuestions(value => !value)}
-            className="flex w-full items-center justify-between border-t border-slate-100 px-5 py-3.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+            aria-expanded={showConfirmedQuestions}
+            className="flex w-full items-center justify-between px-5 py-3.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             {showConfirmedQuestions ? t('confirm.hideQuestions') : t('confirm.reviewQuestions', { count: parsed.length })}
             <ChevronDown className={`h-4 w-4 transition-transform ${showConfirmedQuestions ? 'rotate-180' : ''}`} />
           </button>
           {showConfirmedQuestions && (
-            <div className="max-h-[45vh] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100">
+            <div className="max-h-[60vh] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100">
               {parsed.map((question, index) => (
                 <label key={question.id} className="flex cursor-pointer items-start gap-3 p-3 hover:bg-slate-50">
                   <input
@@ -1706,35 +1736,14 @@ export default function Respond({ demoOnly = false }) {
                     <span className="mr-2 text-slate-400">{index + 1}.</span>
                     {question.text}
                     {question.location?.answerCell && (
-                      <span className="ml-2 whitespace-nowrap font-mono text-xs text-slate-400">→ {question.location.answerCell}</span>
+                      <span className="ml-2 whitespace-nowrap font-mono text-xs text-slate-400">&rarr; {question.location.answerCell}</span>
                     )}
                   </span>
                 </label>
               ))}
             </div>
           )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            onClick={confirmQuestionList}
-            disabled={confirmedIds.size === 0}
-            className="bg-slate-900 hover:bg-slate-800 text-white rounded-none"
-          >
-            {t('confirm.cta', { count: confirmedIds.size })}
-          </Button>
-          <span className="text-sm text-slate-500">
-            {t('confirm.selected', { count: confirmedIds.size, total: parsed.length })}
-          </span>
-          {pendingConfirm.review?.thin && pendingConfirm.parseResult?.metadata?.availableColumns?.length > 0 && (
-            <button onClick={remapQuestionColumn} className="text-sm font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900">
-              {t('confirm.chooseColumn')}
-            </button>
-          )}
-          <button onClick={cancelQuestionList} className="text-sm text-slate-500 hover:text-slate-700 underline ml-auto">
-            {t('confirm.back')}
-          </button>
-        </div>
+        </aside>
       </div>
     );
   }
@@ -1753,8 +1762,8 @@ export default function Respond({ demoOnly = false }) {
     }
 
     // Free, on their own questionnaire: the coverage report, not a truncated preview
-    // of answers they cannot use. /demo keeps the sample preview - a coverage report
-    // about a fictional company's documents would tell the reader nothing.
+    // of answers they cannot use. /demo reaches the same report through resultsView,
+    // with the answer grid still available from the view switch.
     if (!canGenerate && !demoOnly) {
       return (
         <div className="space-y-6">
@@ -1791,6 +1800,7 @@ export default function Respond({ demoOnly = false }) {
             tier={tier}
             onStartOver={resetToUpload}
             onRefresh={() => runPipeline(parseResult, questionnaireName, { questionnaireFingerprint: passClaim?.fingerprint || null })}
+            onShowAnswers={() => setResultsView('answers')}
           />
         </div>
       );
@@ -2143,8 +2153,8 @@ export default function Respond({ demoOnly = false }) {
                           <p className="mt-2 text-sm text-slate-700 leading-relaxed">
                             {draft.stateNote || t(draft.answerState === 'no-evidence' ? 'respond.state.noEvidenceHint' : 'respond.state.leftToYouHint')}
                           </p>
-                          {draft.wouldAnswer && (
-                            <p className="mt-1 text-xs text-slate-500">{t('respond.stateWouldAnswer', { what: draft.wouldAnswer })}</p>
+                          {(draft.wouldAnswerByLanguage?.[lang] || draft.wouldAnswer) && (
+                            <p className="mt-1 text-xs text-slate-500">{t('respond.stateWouldAnswer', { what: draft.wouldAnswerByLanguage?.[lang] || draft.wouldAnswer })}</p>
                           )}
                           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                             <button type="button" onClick={() => startEditing(draft)} className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-2 hover:decoration-slate-900">
@@ -2446,7 +2456,7 @@ export default function Respond({ demoOnly = false }) {
           </div>
         )}
         {isDemo && (
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.12)] backdrop-blur">
+          <div data-testid="demo-action-bar" className={DEMO_ACTION_BAR_CLASSES}>
             <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-900">{t('respond.exampleView')}</p>

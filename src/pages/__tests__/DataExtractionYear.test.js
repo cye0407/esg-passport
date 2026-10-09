@@ -47,6 +47,13 @@ describe('Data extraction year', () => {
     container.remove();
   });
 
+  const changeInput = (input, value) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
   it('opens the extracted year when a past-period document is uploaded directly', async () => {
     await act(async () => {
       root.render(React.createElement(MemoryRouter, null, React.createElement(Data)));
@@ -91,5 +98,35 @@ describe('Data extraction year', () => {
 
     expect(container.textContent).toContain('2026');
     expect(container.textContent).not.toContain('electricity-2025.pdf');
+  });
+
+  it('shows electricity emission factors in kg per kWh', async () => {
+    await act(async () => {
+      root.render(React.createElement(MemoryRouter, null, React.createElement(Data)));
+    });
+
+    expect(container.textContent).toContain('0.328 kg CO₂/kWh');
+  });
+
+  it('saves an edited annual total as a full year without expanding untouched YTD metrics', async () => {
+    saveDataRecord({ period: '2026-01', waste: { totalKg: 500 } });
+    await act(async () => {
+      root.render(React.createElement(MemoryRouter, null, React.createElement(Data)));
+    });
+
+    const annual = [...container.querySelectorAll('button')].find(button => button.textContent === 'Annual');
+    await act(async () => annual.click());
+
+    const electricityRow = [...container.querySelectorAll('tr')]
+      .find(row => row.textContent.includes('Electricity (kWh)'));
+    await act(async () => changeInput(electricityRow.querySelector('input'), '120000'));
+
+    const save = [...container.querySelectorAll('button')].find(button => button.textContent.trim() === 'Save');
+    await act(async () => save.click());
+    await act(async () => {});
+
+    const records = getDataRecords().filter(record => record.period.startsWith('2026-'));
+    expect(records.filter(record => record.energy?.electricityKwh === 10000)).toHaveLength(12);
+    expect(records.filter(record => record.waste?.totalKg === 500).map(record => record.period)).toEqual(['2026-01']);
   });
 });

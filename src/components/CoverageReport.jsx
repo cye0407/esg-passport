@@ -1,14 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Building2, ChevronDown, Download, Leaf, Lock, ShieldCheck, Upload, Users } from 'lucide-react';
+import { ArrowRight, Building2, ChevronDown, Download, FileCheck2, Leaf, Lock, ShieldCheck, Upload, Users } from 'lucide-react';
 import { track } from '@/lib/track';
 import { useLanguage } from '@/components/LanguageContext';
 import { documentName, documentHolds } from '@/lib/documentLabels';
 import { getEntitlements } from '@/lib/entitlements';
 import { figureWithUnit, answerStatesFigure } from '@/lib/figures';
 import { selectBestCoverageAnswers } from '@/lib/coverage';
-import { getCompanyProfile, getPolicies, getSettings, saveCompanyProfile, saveDocument, updatePolicyFileLocation, updatePolicyStatus } from '@/lib/store';
-import { buildCompanyData } from '@/lib/dataBridge';
+import { getCompanyProfile, getPolicies, saveCompanyProfile, saveDocument, updatePolicyFileLocation, updatePolicyStatus } from '@/lib/store';
 import { POLICY_BUILDERS, builderName } from '@/data/policyBuilders';
 import PolicyBuilder from '@/components/PolicyBuilder';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -22,40 +21,26 @@ import {
   workspaceUrl,
 } from '@/lib/coverageChecklist';
 import {
+  PASSPORT_CHECKOUT_URL,
   QUESTIONNAIRE_PASS_CHECKOUT_URL,
   PASS_PRICE,
+  PASSPORT_PRICE,
   openCheckout,
 } from '@/lib/checkout';
 
 // The free first action: what this questionnaire needs, measured against what the user
 // actually has. See COVERAGE-REPORT-SPEC.md.
 //
-// Two panes, because the page answers two different kinds of question.
-//
-// LEFT is the work, in the order someone acts on it:
-//   where does this questionnaire stand
-//   what do I go and find next, per document, upload or type
-//   what is it asking ABOUT - grouped the way the customer asking it groups things,
-//     because "how confident is the engine" is our category, not theirs
-//   what does finishing cost, and what do I take with me
-//
-// RIGHT is reference, and it sticks: the counts, then the question list and the
-// sample answers behind tabs. Those were full-width sections stacked above the
-// action, which put the least decision-relevant thing - a raw list of 34 questions -
-// in the most valuable space on the page, and scrolled the counts away exactly when
-// someone started needing them. Below lg there is no room for two panes, so the
-// panel collapses behind one button and the page reads as a single column.
+// One verdict, then one move. The counts settle what the questionnaire needs and the
+// primary button says what to do next. Reference material and alternate paths stay
+// available without competing for the first decision. Topic cards then explain the
+// work in the buyer's categories, not in our engine's confidence categories.
 //
 // Every tier sees this. It was built as the free tier's consolation for not getting
 // answers, which was the wrong idea: it is the questionnaire's status view, and a
 // paid buyer chasing a colleague for the waste manifest before a deadline needs it
-// more than a free visitor does. Only the footer differs.
-//   what do I take with me
-//
-// The page closes on the takeaway, not on the price. Someone who has just learned
-// they are missing twelve figures is not deciding whether to buy - they are about to
-// go and look for bills, and the deadline is a week out. The offer stays where it is;
-// the last thing they read is what to go and find.
+// more than a free visitor does. Entitlements only change which actions can finish
+// the work; they do not hide the diagnosis.
 //
 // It reports counts and provenance, never a readiness score, a pass likelihood or a
 // predicted buyer outcome - we do not know how a customer will read a response, and
@@ -163,17 +148,58 @@ const BUILDER_POLICY_IDS = {
   equal_opp: 'anti_discrimination', environmental: 'environmental_policy',
 };
 
+// "No grievance mechanism is in place" is the same sentence as "we do not have this", and
+// today it is usually not even the reader's: the store starts every policy as
+// 'not_available', which the data bridge passes on as "not in place".
+const NEGATIVE_ANSWER = /\b(no data|not available|do not have|don't have|not tracked|unable to|cannot provide|not currently)\b|\bno\b[^.]*\b(?:is|are) in place\b/i;
+
+/**
+ * Whether a draft can stand in front of someone who has not paid yet.
+ *
+ * Free used to be shown only `fromRecords`, put through isPreviewWorthy below. Measured
+ * end to end that group is 0-8 answers out of 17-81 (COVERAGE-REPORT-SPEC.md), and the
+ * seven conditions below narrow it further — so the person deciding whether to buy saw
+ * little or nothing, while the person who had already bought saw the whole pool. The
+ * demo ran backwards.
+ *
+ * Free now sees the same pool paid does. The honesty is carried by SupportBadge, which
+ * says of every line whether it rests on the reader's own document or on the answer
+ * library, rather than by hiding the drafts from the people deciding whether to buy
+ * them. What stays out is only what reads as the tool failing rather than as a draft to
+ * edit: a fragment, or a sentence whose content is "we do not have this".
+ *
+ * A fragment is judged on what it says, not on its length. This used to be a 45-character
+ * floor inherited from isPreviewWorthy, and it threw out the short figures a reader's own
+ * records produce: "Water withdrawal (2026): 8,154 m³." is 34 characters. Across the
+ * benchmark fixtures with the rich test company the floor rejected 41 drafts, every one a
+ * real answer. Now a draft that states a figure is shown, even when it adds "a
+ * market-based figure is not available" as a caveat. A reporting year is not a figure, and
+ * neither is a zero on its own: that is what a missing value looks like after the data
+ * bridge has defaulted it ("0 employees (FTE)" from a workspace with no headcount in it).
+ * A draft without a figure must be a sentence of at least four words that does not say
+ * the company has nothing on record.
+ */
+const REPORTING_YEAR = /\(?\b(?:19|20)\d{2}\b\)?/g;
+
+export function isPresentableDraft(answer) {
+  const text = String(answer?.answer || '').trim();
+  if (!text) return false;
+  if (/[1-9]/.test(text.replace(REPORTING_YEAR, ''))) return true;
+  if (/\d/.test(text.replace(REPORTING_YEAR, ''))) return false;
+  const words = text.split(/\s+/).length;
+  return words >= 4 && /[.!?]$/.test(text) && !NEGATIVE_ANSWER.test(text);
+}
+
+/** A presentable draft that also carries the reader's own figure and names its source. */
 export function isPreviewWorthy(answer) {
   const text = String(answer?.answer || '').trim();
-  const negative = /\b(no data|not available|do not have|don't have|not tracked|unable to|cannot provide|not currently)\b/i;
-  return answer?.confidence === 'high'
+  return isPresentableDraft(answer)
+    && answer?.confidence === 'high'
     && answer?.value !== undefined
     && answer?.value !== null
     && answer?.value !== ''
-    && text.length >= 45
     && answerStatesFigure(text, answer.value)
-    && Boolean(answer.document)
-    && !negative.test(text);
+    && Boolean(answer.document);
 }
 
 
@@ -188,8 +214,7 @@ export function isPreviewWorthy(answer) {
 // every number here false. Reachable, not resident.
 // `fromRecords` is still needed — SupportBadge asks whether a given draft is in it. The
 // other counts moved to the stat band above both columns and are no longer read here.
-function ReferencePanel({ t, fromRecords, questions, sample, remaining, hasOwnData }) {
-  const [showQuestions, setShowQuestions] = React.useState(false);
+function ReferencePanel({ t, fromRecords, sample, remaining, hasOwnData }) {
 
   return (
     <div className="flex flex-col border border-slate-200 bg-white">
@@ -247,33 +272,39 @@ function ReferencePanel({ t, fromRecords, questions, sample, remaining, hasOwnDa
           </div>
         </div>
       )}
-
-      {questions.length > 0 && (
-        <div>
-          <button
-            onClick={() => setShowQuestions(v => !v)}
-            className="flex w-full items-center justify-between px-5 py-3.5 text-left text-[13px] text-slate-500 transition-colors hover:text-slate-700"
-          >
-            {showQuestions ? t('coverage.panelHide') : t('coverage.seeQuestions', { count: questions.length })}
-            <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${showQuestions ? 'rotate-180' : ''}`} />
-          </button>
-          {showQuestions && (
-            <ol className="divide-y divide-slate-100 overflow-hidden border-t border-slate-100">
-              {questions.map((question, index) => (
-                <li key={question.id || index} className="flex gap-2.5 px-5 py-3">
-                  <span className="w-5 shrink-0 text-[13px] text-slate-400">{index + 1}.</span>
-                  <span className="text-[13px] leading-relaxed text-slate-700">{question.text}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-      )}
     </div>
   );
 }
 
-export default function CoverageReport({ coverage, questionnaireName, questions = [], tier, onStartOver, onRefresh }) {
+// The list the parser pulled out of the uploaded file, kept beside the report instead of
+// behind two clicks inside "Other options". For a spreadsheet this is the only place the
+// denominator can be checked -- PDF and Word confirm their parse in an earlier step, but
+// xlsx skips that, and a wrong question count makes every number on the report false.
+// Deliberately small: a fixed-height scroller, not 91 rows pushing the page down.
+function QuestionsRail({ t, questions, questionnaireName }) {
+  if (!questions.length) return null;
+  return (
+    <aside className="mt-6 shrink-0 xl:sticky xl:top-6 xl:mt-0 xl:w-72">
+      <div className="rounded-[14px] border border-[#e6ece8] bg-white">
+        <div className="border-b border-[#e6ece8] px-4 py-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#55635c]">{t('coverage.railTitle')}</p>
+          <p className="mt-1 text-[13px] font-semibold text-[#0f1a15]">{t('coverage.railCount', { count: questions.length })}</p>
+          {questionnaireName && <p className="mt-0.5 truncate text-[11.5px] text-[#6b7a72]" title={questionnaireName}>{questionnaireName}</p>}
+        </div>
+        <ol className="max-h-[22rem] divide-y divide-[#f0f4f2] overflow-y-auto">
+          {questions.map((question, index) => (
+            <li key={question.id || index} className="flex gap-2.5 px-4 py-2.5">
+              <span className="w-5 shrink-0 text-[11.5px] tabular-nums text-[#9aa8a1]">{index + 1}</span>
+              <span className="text-[12.5px] leading-snug text-[#3f4a45]">{question.text}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </aside>
+  );
+}
+
+export default function CoverageReport({ coverage, questionnaireName, questions = [], tier, onStartOver, onRefresh, onShowAnswers }) {
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const [openPillars, setOpenPillars] = React.useState({});
@@ -284,9 +315,14 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   const [policyUploadFile, setPolicyUploadFile] = React.useState(null);
   const [policyUploadBuilder, setPolicyUploadBuilder] = React.useState('');
   const {
-    total, recovered = [], recoveredFlagged = 0, fromRecords, partial = [], written, unanswerable, missingDocuments, policyGaps, hasOwnData, topics,
+    total, recovered = [], fromRecords, partial = [], written, unanswerable, missingDocuments, policyGaps, hasOwnData, topics, sections = null,
   } = coverage;
-  const { canGenerateAnswers } = getEntitlements(tier);
+  // The cards are the questionnaire's own sections when it has usable ones, the four
+  // canonical topics otherwise. `topics` stays canonical either way — the company
+  // information card and the manual-answer list below are about company-profile
+  // questions however the report happens to be grouped.
+  const groups = sections ?? topics;
+  const { canGenerateAnswers, canBuildPolicies } = getEntitlements(tier);
 
   // The number that says this change worked. Over the previous year the funnel recorded
   // two paywall hits, because nobody could get far enough to see one.
@@ -302,36 +338,21 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
     });
   }, [total, recovered.length, fromRecords.length, partial.length, written.length, unanswerable.length, policyGaps.builders.length]);
 
-  // Answered-from-records first: those carry the reader's own numbers and are the only
-  // part of this page no one else could have produced.
-  // A free visitor has not bought generated answers, and the current engine can turn
-  // absence into confident-sounding prose (or a partial-period bill into an annual
-  // statement). Do not use that output as a sales preview. Paid workspaces retain the
-  // answer panel because it is part of the product they already have access to.
-  // Free visitors need proof of the paid outcome, but only when it is grounded in
-  // their own records. Generic drafts and partial-period figures stay out; if only two
-  // answers are genuinely supported, showing two is more trustworthy than padding five.
-  const sample = canGenerateAnswers
-    ? selectBestCoverageAnswers([...fromRecords, ...written], SAMPLE_ANSWERS)
-    : selectBestCoverageAnswers(fromRecords.filter(isPreviewWorthy), SAMPLE_ANSWERS);
+  // Free and paid draw from the same pool. selectBestCoverageAnswers already scores a
+  // draft by confidence, then by whether it carries a figure, then by whether it names
+  // a document — so the answers built on the reader's own records still lead, and the
+  // badge on each line says which is which. Free additionally drops drafts that read as
+  // a failure rather than as a starting point. See isPresentableDraft.
+  const samplePool = [...fromRecords, ...written];
+  const sample = selectBestCoverageAnswers(
+    canGenerateAnswers ? samplePool : samplePool.filter(isPresentableDraft),
+    SAMPLE_ANSWERS,
+  );
   const remaining = Math.max(0, total - sample.length);
 
   const documents = missingDocuments
     .map(entry => ({ ...entry, name: documentName(t, entry.document) }))
     .filter(entry => entry.name);
-  const bestNextDocument = [...documents].sort((a, b) => b.unlocks - a.unlocks)[0];
-  // Documents the reader has already put in — every file, from the extraction sources.
-  const uploadedFiles = React.useMemo(() => {
-    const settings = getSettings() || {};
-    const files = Object.values(settings.dataSourceFiles || {}).flat();
-    const single = Object.values(settings.dataSources || {}).filter(v => typeof v === 'string' && !v.includes(' … '));
-    return [...new Set([...files, ...single])];
-  }, [coverage]);
-  // The year the figures on this page are for. Records are read for one reporting year —
-  // the most recent with any record — and a reader who uploaded 2025 bills into a report
-  // built for 2026 would otherwise see them counted as "in" and answer nothing.
-  const reportingYear = React.useMemo(() => buildCompanyData()?.reportingPeriod || null, [coverage]);
-
   const openCompany = () => {
     setCompanyDraft(getCompanyProfile() || {});
     setCompanyOpen(true);
@@ -371,398 +392,349 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
     }
   };
 
+  // The research-assistant flow established a useful rule for result screens:
+  // settle the state first, then offer one move that follows from it. The counts
+  // are the verdict; this is the single recommended action. Everything else is
+  // still available, but behind "Other options" instead of competing with it.
+  const answeredCount = recovered.length + fromRecords.length;
+  // "Read out of the documents you uploaded" is only true when every one of them was:
+  // a figure typed into the workspace, or seeded there, came from the user but not from
+  // a document. Recovered answers come from the questionnaire file they uploaded.
+  const allFromUploads = answeredCount > 0 && fromRecords.every(a => a.document);
+  const reviewCount = partial.length + written.length;
+  const openCount = unanswerable.length;
+  // Everything the engine put words against, whether from the reader's records or the
+  // answer library. This is what the heading leads with.
+  const draftedCount = answeredCount + reviewCount;
+  // Only promise the customer's exact file back when the parser found writable
+  // answer cells in a workbook format that the original-file writer supports.
+  // Other formats still keep the customer's order, but calling that the "same
+  // format" would over-promise what the exporter can currently do.
+  const returnsCustomerWorkbook = /\.(xlsx|xlsm)$/i.test(questionnaireName || '')
+    && (questions || []).some(question => question.location?.answerCell);
+  const requiredDocuments = [...documents].sort((a, b) => b.unlocks - a.unlocks);
+  const companyTopic = topics.find(topic => topic.topic === 'other');
+  const companyAnsweredCount = companyTopic ? (companyTopic.recovered || 0) + (companyTopic.fromRecords || 0) : 0;
+  const companyOpenCount = companyTopic ? Math.max(0, companyTopic.total - companyAnsweredCount) : 0;
+  const manualQuestions = topics.flatMap(topic => topic.topic === 'other' ? [] : (topic.questions || []).filter(question => (
+    question.state !== 'recovered'
+    && question.state !== 'fromRecords'
+    && !(question.needs?.documents || []).length
+    && !question.needs?.policy
+  )));
+  const companyAnswerCount = companyOpenCount + manualQuestions.length;
+  const outstandingRequirementCount = requiredDocuments.length + companyAnswerCount + policyGaps.builders.length;
+  const bestNextPolicy = policyGaps.builders[0] || null;
+  const completionAction = canGenerateAnswers && onShowAnswers
+    ? {
+        label: t('coverage.nextReviewCta'),
+        run: () => {
+          track('coverage_footer_review_click', { open: openCount, review: reviewCount });
+          onShowAnswers();
+        },
+      }
+    : {
+        label: t('coverage.automationUpsellCta', { price: PASS_PRICE }),
+        run: () => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_automation_finish', tier),
+      };
+
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-        <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-          {/* The count lives in the sticky panel, not here. This heading scrolls away;
-              the panel does not, and a status number you cannot see is not a status. */}
-          {t('coverage.title')}
-        </h1>
-        <p className="mt-1.5 text-sm text-slate-400">
-          {questionnaireName && <span>{questionnaireName} · </span>}
-          {t('coverage.readOnDevice')}
-        </p>
-        <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-slate-600">
-          {t('coverage.lead')}
-        </p>
-        </div>
-        <div className="w-full border border-slate-200 bg-white p-4 sm:w-72 sm:shrink-0">
-          <p className="text-sm font-semibold text-slate-900">{t('coverage.takeawayTitle')}</p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">{t('coverage.takeawayBody')}</p>
-          <button onClick={handleDownloadChecklist} className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800">
-            <Download className="h-4 w-4" />{t('coverage.takeawayDownload')}
-          </button>
-        </div>
-      </div>
-
-      <dl className={`grid grid-cols-2 border border-slate-200 bg-white ${recovered.length > 0 ? 'sm:grid-cols-6' : 'sm:grid-cols-5'}`}>
-        {[
-          [t('checklist.total'), total, 'text-slate-900'],
-          // First, when there is one: what the company already answered last time.
-          ...(recovered.length > 0 ? [[t('coverage.topicRecovered'), recovered.length, 'text-emerald-700']] : []),
-          [t('coverage.topicFromRecords'), fromRecords.length, 'text-emerald-700'],
-          [t('coverage.topicPartial'), partial.length, 'text-amber-700'],
-          [t('checklist.written'), written.length, 'text-slate-900'],
-          [t('checklist.unanswerable'), unanswerable.length, 'text-slate-900'],
-        ].map(([label, value, tone], index) => (
-          <div
-            key={label}
-            className={`flex flex-col-reverse gap-1 p-4 sm:border-l sm:p-5 sm:first:border-l-0 ${index % 2 ? 'border-l' : ''} ${index > 1 ? 'border-t sm:border-t-0' : ''}`}
-          >
-            {/* Term before definition, as a description list requires; flex-col-reverse
-                puts the number back on top visually. */}
-            <dt className="text-xs leading-snug text-slate-500">{label}</dt>
-            <dd className={`text-3xl font-bold tabular-nums ${tone}`}>{value}</dd>
-          </div>
-        ))}
-      </dl>
-
-      {recovered.length > 0 && (
-        <p className="text-sm leading-relaxed text-slate-600">
-          {recoveredFlagged > 0
-            ? t('coverage.recoveredLineFlagged', { count: recovered.length, flagged: recoveredFlagged })
-            : t('coverage.recoveredLine', { count: recovered.length })}
-        </p>
-      )}
-
-      {/* The band names the next document while there is one it can name; once something
-          is in, it says so first. When nothing is left to name it says that, rather than
-          disappearing — a reader who just added twelve files should hear it landed. */}
-      {(bestNextDocument || uploadedFiles.length > 0) && (
-        <section className={`border-2 bg-white p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6 ${bestNextDocument ? 'border-slate-900' : 'border-emerald-700'}`}>
-          <div>
-            {uploadedFiles.length > 0 && (
-              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                {t('coverage.uploadedSoFar', { count: uploadedFiles.length })}
-                {reportingYear && <span className="ml-2 font-medium normal-case tracking-normal text-slate-500">· {t('coverage.figuresFor', { year: reportingYear })}</span>}
-              </p>
-            )}
-            {bestNextDocument ? (
+    <div className="mx-auto max-w-5xl xl:flex xl:max-w-7xl xl:items-start xl:gap-6">
+      <div className="min-w-0 flex-1">
+      <section data-testid="coverage-verdict" className="overflow-hidden rounded-[20px] border border-[#e6ece8] bg-white shadow-[0_20px_55px_-34px_rgba(16,40,30,0.38)]">
+        <header className="flex flex-col gap-5 border-b border-[#e6ece8] bg-[#f7faf8] px-5 py-5 sm:px-7 sm:py-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-[#0b5f43]">{t('coverage.requestEyebrow')}</p>
+            {/* Lead with what is already drafted. The requirements-first heading stays
+                for the case it was written for — a questionnaire nothing could be
+                drafted against — where "here they are" would be an empty promise. */}
+            {draftedCount > 0 ? (
               <>
-                <p className={`text-[11px] font-bold uppercase tracking-wider text-emerald-700 ${uploadedFiles.length > 0 ? 'mt-2' : ''}`}>{t('coverage.nextActionEyebrow')}</p>
-                <h2 className="mt-1 text-xl font-semibold text-slate-900">{bestNextDocument.name}</h2>
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                  {documentHolds(t, bestNextDocument.document)} · {t('coverage.docUnlocks', { count: bestNextDocument.unlocks })}
-                </p>
+                <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-[#0f1a15] sm:text-[28px]">{t('coverage.titleDrafted', { drafted: draftedCount, total })}</h1>
+                <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{answeredCount > 0 ? t(allFromUploads ? 'coverage.leadDrafted' : 'coverage.leadDraftedOwnRecords', { supported: answeredCount }) : t('coverage.leadDraftedNoRecords')}</p>
               </>
             ) : (
               <>
-                <h2 className="mt-1 text-xl font-semibold text-slate-900">{t('coverage.nothingMoreTitle')}</h2>
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">{t('coverage.nothingMoreBody')}</p>
+                <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-[#0f1a15] sm:text-[28px]">{t('coverage.title')}</h1>
+                <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{t('coverage.lead', { count: total, supported: answeredCount, review: reviewCount, open: openCount })}</p>
               </>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => { track('coverage_primary_next_click', { document: bestNextDocument.document, unlocks: bestNextDocument.unlocks }); navigate('/evidence'); }}
-            className="mt-4 inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 bg-slate-900 px-5 text-sm font-semibold text-white hover:bg-slate-800 sm:mt-0 sm:w-auto"
-          >
-            <Upload className="h-4 w-4" /> {bestNextDocument ? t('coverage.nextActionCta') : t('coverage.addMoreCta')}
-          </button>
-        </section>
-      )}
-
-      {/* Desktop keeps supporting detail in a compact second column. Mobile gets the
-          same panel inline after the actionable gaps and before the purchase choice.
-          Both instances are mounted and one is display:none per breakpoint — the panel
-          has to sit in a different COLUMN on desktop and mid-flow on mobile, which no
-          amount of ordering can do from one node. Only the visible copy is in the
-          accessibility tree, so the duplicate buttons are not announced twice. */}
-      <div>
-        <div className="flex flex-col gap-10">
-          {/* Missing items are ordered first: outcome to action. Topic context follows. */}
-          {topics.length > 0 && (
-            <div className="order-3 space-y-4">
-              <SectionHeading
-                eyebrow={t('coverage.eyebrowAsks')}
-                title={t('coverage.topicsTitle')}
-                body={t('coverage.topicsBody', { count: total })}
-              />
-
-              {/* Symmetric: three pillars sit three across, four make a 2×2, two make two.
-                  Subgrid rows keep every card's header, standing line, "Start here", buttons
-                  and questions on the same row as its neighbours'. */}
-              <div className={`grid gap-4 ${topics.length >= 2 ? 'md:grid-cols-2' : ''} ${topics.length === 3 ? 'xl:grid-cols-3' : ''}`}>
-                {[...topics].sort((a, b) => PILLAR_ORDER.indexOf(a.topic) - PILLAR_ORDER.indexOf(b.topic)).map((bucket) => {
-                  const name = topicName(t, bucket.topic);
-                  if (!name) return null;
-                  const commonDocuments = commonTopicDocuments(t, bucket.topic);
-                  const recommendedDocument = (bucket.documents || [])
-                    .map(documentId => ({ documentId, entry: documents.find(item => item.document === documentId) }))
-                    .filter(item => item.entry)
-                    .sort((a, b) => b.entry.unlocks - a.entry.unlocks)[0];
-                  const showDocumentRecommendation = recommendedDocument?.entry?.unlocks >= 2;
-                  const pillarOpen = openPillars[bucket.topic] ?? (bucket.questions || []).length <= 10;
-                  return (
-                    <div
-                      key={bucket.topic}
-                      className="flex flex-col gap-4 border border-slate-200 bg-white p-5 shadow-sm md:grid md:row-span-6 md:grid-rows-subgrid"
-                    >
-                      {/* 1 · header */}
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex min-w-0 gap-3">
-                          <TopicIcon topic={bucket.topic} />
-                          <div>
-                            <h3 className="text-base font-semibold text-slate-900">{name}</h3>
-                            <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{topicSubtitle(t, bucket.topic)}</p>
-                          </div>
-                        </div>
-                        <p className="shrink-0 bg-slate-100 px-2.5 py-1 text-xs font-semibold tabular-nums text-slate-700">
-                          {bucket.total === 1
-                            ? t('coverage.topicQuestion', { count: bucket.total })
-                            : t('coverage.topicQuestions', { count: bucket.total })}
-                        </p>
-                      </div>
-
-                      {/* 2 · where it stands; the toggle for the questions. A short pillar shows
-                          them, a long one starts closed — the counts and "Start here" carry the card. */}
-                      <button
-                        type="button"
-                        onClick={() => setOpenPillars(prev => ({ ...prev, [bucket.topic]: !pillarOpen }))}
-                        aria-expanded={pillarOpen}
-                        className="flex flex-wrap items-center gap-x-3 gap-y-1 self-start text-left text-xs tabular-nums"
-                      >
-                        <span className="font-semibold text-emerald-700">{t('coverage.topicAnswered', { count: (bucket.recovered || 0) + (bucket.fromRecords || 0) })}</span>
-                        <span className="text-amber-700">{t('coverage.topicToCheck', { count: (bucket.partial || 0) + (bucket.written || 0) })}</span>
-                        <span className="text-slate-600">{t('coverage.topicOpen', { count: bucket.open || 0 })}</span>
-                        <span className="text-slate-500 underline decoration-slate-300 underline-offset-4">{pillarOpen ? t('coverage.topicHideQuestions') : t('coverage.topicShowQuestions', { count: bucket.questions.length })}</span>
-                      </button>
-
-                      {/* 3 · start here — one box, the same height across the row, or an empty slot */}
-                      {showDocumentRecommendation ? (
-                        <div className="bg-emerald-50 px-3.5 py-3">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.startHere')}</p>
-                          <p className="mt-1 text-sm font-semibold text-emerald-950">{recommendedDocument.entry.name}</p>
-                          <p className="mt-0.5 text-xs leading-relaxed text-emerald-900/70">{documentHolds(t, recommendedDocument.documentId)} · {t('coverage.docUnlocks', { count: recommendedDocument.entry.unlocks })}</p>
-                        </div>
-                      ) : bucket.needsPolicy > 0 ? (
-                        <div className="bg-violet-50 px-3.5 py-3">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-violet-700">{t('coverage.startHere')}</p>
-                          <p className="mt-1 text-sm font-semibold text-violet-950">{t('coverage.policyStartTitle')}</p>
-                          <p className="mt-0.5 text-xs leading-relaxed text-violet-900/70">{t('coverage.topicPolicyNeed', { count: bucket.needsPolicy })}</p>
-                        </div>
-                      ) : (
-                        // Nothing to recommend: say what the pillar needs instead of leaving the slot
-                        // empty. Every question covered; or only the reader's own words and reading.
-                        (() => {
-                          const answered = (bucket.recovered || 0) + (bucket.fromRecords || 0);
-                          const toCheck = (bucket.partial || 0) + (bucket.written || 0);
-                          const open = bucket.open || 0;
-                          const allCovered = answered === bucket.total && bucket.total > 0;
-                          return (
-                            <div className={`px-3.5 py-3 ${allCovered ? 'bg-emerald-50' : 'bg-slate-50'}`}>
-                              <p className={`text-[10px] font-bold uppercase tracking-wider ${allCovered ? 'text-emerald-700' : 'text-slate-500'}`}>{allCovered ? t('coverage.slotAllCoveredEyebrow') : t('coverage.slotNeedsYouEyebrow')}</p>
-                              <p className={`mt-1 text-sm font-semibold ${allCovered ? 'text-emerald-950' : 'text-slate-900'}`}>
-                                {allCovered ? t('coverage.slotAllCoveredTitle') : open > 0 ? t('coverage.slotNeedsYouTitle', { count: open }) : t('coverage.slotReadTitle', { count: toCheck })}
-                              </p>
-                              <p className={`mt-0.5 text-xs leading-relaxed ${allCovered ? 'text-emerald-900/70' : 'text-slate-600'}`}>
-                                {allCovered ? t('coverage.slotAllCoveredBody') : open > 0 && toCheck > 0 ? t('coverage.slotNeedsYouBody', { count: toCheck }) : t('coverage.slotNothingToUpload')}
-                              </p>
-                            </div>
-                          );
-                        })()
-                      )}
-
-                      {/* 4 · actions, on the same row across cards */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* A document can always be added from a pillar — a card with only policy
-                            buttons read as "nothing you upload can help here", which was untrue. */}
-                        <button onClick={() => { track('coverage_add_documents_click', { document: recommendedDocument?.documentId || bucket.documents?.[0] || bucket.topic }); navigate('/evidence'); }} className="inline-flex h-10 items-center gap-1.5 bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"><Upload className="h-4 w-4" />{t('coverage.docUpload')}</button>
-                        {(bucket.documents || []).length > 0 && <button onClick={() => { track('coverage_enter_figures_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/data'); }} className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('coverage.docEnter')}</button>}
-                        {bucket.topic === 'other' && <button type="button" onClick={openCompany} className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50">{t('coverage.addCompanyDetails')}</button>}
-                        {bucket.needsPolicy > 0 && <><button type="button" onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')} className="inline-flex h-10 items-center bg-violet-700 px-4 text-sm font-medium text-white hover:bg-violet-800">{t('coverage.createPolicy')}</button><button type="button" onClick={() => { setPolicyUploadBuilder(policyGaps.builders[0] || ''); setPolicyUploadOpen(true); }} className="inline-flex h-10 items-center gap-1.5 border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"><Upload className="h-4 w-4" />{t('coverage.uploadPolicy')}</button></>}
-                      </div>
-
-                      {/* 5 · the questions, bounded: two hundred of them make a card no taller than a screen */}
-                      {pillarOpen && (bucket.questions || []).length > 0 ? (
-                        <ul className="max-h-[30rem] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100 pr-1">
-                          {bucket.questions.map(q => (
-                            <li key={q.questionId} className="py-2.5 text-[13px] leading-snug">
-                              <div className="flex items-start gap-2">
-                                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                                  q.state === 'recovered' || q.state === 'fromRecords' ? 'bg-emerald-600'
-                                    : q.state === 'partial' || q.state === 'written' ? 'bg-amber-500'
-                                      : 'border border-slate-400 bg-white'
-                                }`} />
-                                <span className="min-w-0 flex-1 text-slate-800">{q.questionText}</span>
-                              </div>
-                              <p className="mt-0.5 pl-4 text-[11px] text-slate-500">
-                                {t(`coverage.state.${q.state}`)}
-                                {q.needs && (() => {
-                                  const doc = q.needs.documents?.[0];
-                                  const docName = doc ? documentName(t, doc.document) : null;
-                                  const policy = q.needs.policy && POLICY_BUILDERS[q.needs.policy] ? builderName(POLICY_BUILDERS[q.needs.policy], lang) : null;
-                                  // A written draft with nothing missing needs reading, not a document;
-                                  // "only you can answer this" is for a question with no draft at all.
-                                  const hint = docName ? t('coverage.needsDocument', { document: docName, figure: (lang === 'de' && doc.labelDe) || doc.label })
-                                    : policy ? t('coverage.needsPolicy', { policy })
-                                      : q.needs.prompt ? q.needs.prompt
-                                        : (q.state === 'written' || q.state === 'partial') ? t('coverage.needsReading')
-                                          : t('coverage.needsYou');
-                                  return <span className="text-slate-600"> · {hint}</span>;
-                                })()}
-                              </p>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div />
-                      )}
-
-                      {/* 6 · generic for the topic, the same on every questionnaire — behind one line */}
-                      <details className="self-end text-sm">
-                        <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-600">{t('coverage.topicDocuments')}</summary>
-                        <ul className="mt-2 space-y-1.5">
-                          {commonDocuments.map(item => (
-                            <li key={item} className="flex gap-2.5 text-[13px] leading-relaxed text-slate-600">
-                              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />
-                              <span>{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    </div>
-                  );
-                })}
-              </div>
+          {questionnaireName && (
+            <div className="inline-flex max-w-full shrink-0 items-center gap-2 rounded-full border border-[#cfe3d8] bg-white px-3 py-1.5 text-xs font-semibold text-[#3f5049]">
+              <FileCheck2 className="h-4 w-4 shrink-0 text-[#0f7a55]" />
+              <span className="truncate">{questionnaireName}</span>
             </div>
           )}
+        </header>
 
-          {topics.length === 0 && documents.length > 0 && (
-            <div className="order-2 space-y-4">
-              <SectionHeading
-                eyebrow={t('coverage.eyebrowMissing')}
-                title={t('coverage.addDocsTitle')}
-                body={t('coverage.addDocsBody')}
-              />
+        <div className="space-y-7 p-5 sm:p-7">
+          <section aria-label={t('coverage.statusTitle')}>
+            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#6b7a72]">{t('coverage.statusTitle')}</p>
+            {/* The three numbers are where the reader stands, not what they still owe.
+                Requirements follow on one line and in full in the section below — they
+                are the work, but they are not the verdict, and three bold counts of
+                what is missing read as a homework assignment. */}
+            <dl className="mt-3 flex flex-wrap gap-4">
+              <div className="min-w-[10rem] flex-1 border-l-2 border-[#0f7a55] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{answeredCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.progressSupported')}</dt></div>
+              <div className="min-w-[10rem] flex-1 border-l-2 border-[#8aa79a] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{reviewCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{partial.length > 0 ? t('coverage.progressReviewPartial', { count: partial.length }) : t('coverage.progressReview')}</dt></div>
+              <div className="min-w-[10rem] flex-1 border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{openCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.progressOpen')}</dt></div>
+            </dl>
+            {outstandingRequirementCount > 0
+              ? <p className="mt-3 text-[12px] leading-5 text-[#56645d]"><span className="font-semibold text-[#0f1a15]">{t('coverage.outstandingLead')}</span>{' '}{[
+                  requiredDocuments.length > 0 ? `${requiredDocuments.length} ${t('coverage.needRecords')}` : null,
+                  companyAnswerCount > 0 ? `${companyAnswerCount} ${t('coverage.needCompanyAnswers')}` : null,
+                  policyGaps.builders.length > 0 ? `${policyGaps.builders.length} ${t('coverage.needPolicies')}` : null,
+                ].filter(Boolean).join(' · ')}</p>
+              : <p className="mt-3 text-sm font-semibold text-[#203129]">{t('coverage.nothingToProvide')}</p>}
+            {partial.length > 0 && <p className="mt-1 text-[12px] font-medium leading-5 text-[#56645d]">{t(partial.length === 1 ? 'coverage.partialAttentionOne' : 'coverage.partialAttention', { count: partial.length })}</p>}
+          </section>
 
-              <div className="border border-slate-900 bg-white px-6 py-2">
-                {documents.map(entry => (
-                  <div
-                    key={entry.document}
-                    className="flex flex-col gap-3 border-b border-slate-100 py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"
-                  >
-                    <div className="flex-grow">
-                      <p className="text-[15px] font-medium text-slate-900">{entry.name}</p>
-                      <p className="mt-0.5 text-[13px] text-slate-500">
-                        {documentHolds(t, entry.document)} · {t('coverage.docUnlocks', { count: entry.unlocks })}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        onClick={() => { track('coverage_add_documents_click', { document: entry.document }); navigate('/evidence'); }}
-                        className="inline-flex h-10 items-center gap-2 bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800"
-                      >
-                        <Upload className="h-4 w-4" />
-                        {t('coverage.docUpload')}
-                      </button>
-                      {/* Some of these documents are awkward, and typing four numbers beats
-                          fighting a scanned PDF. Both routes end in the same place. */}
-                      <button
-                        onClick={() => { track('coverage_enter_figures_click', { document: entry.document }); navigate('/data'); }}
-                        className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                      >
-                        {t('coverage.docEnter')}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* First, because it is the proof: an answer with the reader's own number in it.
-              It sat third, under the document list and every topic card, and was missed. */}
-          {/* Nothing here until there is an answer with the reader's own figure in it: an
-              empty "no preview yet" box above the pillars was the first thing on the page. */}
-          {sample.length > 0 && (
-          <div className="order-1">
-            <ReferencePanel
-              t={t}
-              fromRecords={fromRecords}
-              questions={questions}
-              sample={sample}
-              remaining={remaining}
-              hasOwnData={hasOwnData}
-            />
-          </div>
-          )}
-
-          {/* A paid reader has already bought the answers; the open question is what is
-              still missing before they send it. Only a free reader is shown a price. */}
-          {canGenerateAnswers ? (
-            <div className="order-4"><SectionHeading
-              eyebrow={t('coverage.eyebrowBeforeSend')}
-              title={unanswerable.length > 0
-                ? t('coverage.paidOpenTitle', { count: unanswerable.length })
-                : t('coverage.paidDoneTitle')}
-              body={unanswerable.length > 0 ? t('coverage.paidOpenBody') : t('coverage.paidDoneBody')}
-            /></div>
-          ) : (
-            <div className="order-4 mx-auto w-full max-w-3xl space-y-4">
-              <div className="text-center"><SectionHeading eyebrow={t('coverage.eyebrowCost')} title={t('coverage.costTitle')} body={t('coverage.costBody')} /></div>
-              <div className="border border-slate-200 bg-slate-50 p-5">
-                <p className="font-semibold text-slate-900">{t('coverage.buySummaryTitle')}</p>
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                  {t('coverage.buySummaryBody', {
-                    total,
-                    supported: fromRecords.length,
-                    drafted: written.length,
-                    open: unanswerable.length + partial.length,
-                  })}
-                </p>
-              </div>
-              <p className="text-center text-xs leading-relaxed text-slate-400">{t('coverage.commonDocumentsNote')}</p>
-              <div>
-              <div className="flex flex-col gap-3 border-2 border-slate-900 bg-white p-6">
-                <h2 className="text-lg font-semibold text-slate-900">{t('coverage.passTitle')}</h2>
-                <ul className="space-y-2.5">
-                  {[
-                    // The best line the product has, said only when it is true of THIS file.
-                    (questions || []).some(q => q.location?.answerCell)
-                      ? t('coverage.quoteDeliverableFile', { count: total })
-                      : t('coverage.quoteDeliverable', { count: total }),
-                    fromRecords.length > 0
-                      ? t('coverage.quoteFigures', { supported: fromRecords.length, review: Math.max(0, total - fromRecords.length) })
-                      : t('coverage.quoteFiguresNone', { count: total }),
-                    t('coverage.quotePrivacy'),
-                    t('coverage.quotePayment'),
-                    t('coverage.quoteSupport'),
-                  ].map(line => (
-                    <li key={line} className="flex gap-2.5 text-sm leading-relaxed text-slate-600">
-                      <span className="text-slate-400">•</span><span>{line}</span>
-                    </li>
-                  ))}
+          <section className="border-t border-[#e6ece8] pt-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#6b7a72]">{t('coverage.requirementsTitle')}</p>
+            <p className="mt-1 max-w-3xl text-[13px] leading-5 text-[#56645d]">{t('coverage.requirementsBody')}</p>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {requiredDocuments.length > 0 && <div className="rounded-[14px] border border-[#e6ece8] bg-[#f7faf8] p-4 lg:row-span-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div><h2 className="text-[15px] font-bold text-[#0f1a15]">{t('coverage.recordsAndCalculations')}</h2><p className="mt-1 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.recordsAndCalculationsBody')}</p></div>
+                  <span className="rounded-full bg-[#e7f4ef] px-2.5 py-1 text-[11px] font-semibold text-[#0b5f43]">{requiredDocuments.length}</span>
+                </div>
+                <ul className="mt-3 divide-y divide-[#dce9e3] border-t border-[#dce9e3]">
+                  {requiredDocuments.map(entry => <li key={entry.document} className="flex items-start justify-between gap-3 py-3"><div><p className="text-[13px] font-semibold text-[#203129]">{entry.name}</p><p className="mt-0.5 text-[11.5px] leading-4 text-[#6b7a72]">{documentHolds(t, entry.document)}</p></div><span className="shrink-0 text-[11px] font-semibold text-[#0b5f43]">{t(entry.unlocks === 1 ? 'coverage.usedByOne' : 'coverage.usedBy', { count: entry.unlocks })}</span></li>)}
                 </ul>
-                <button
-                  onClick={() => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_report_pass', tier)}
-                  className="inline-flex h-12 items-center justify-center gap-2 bg-slate-900 text-[15px] font-medium text-white transition-colors hover:bg-slate-800"
-                >
-                  {t('coverage.passCta', { count: total, price: PASS_PRICE })}
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-                <p className="text-center text-sm font-medium leading-relaxed text-emerald-800">{t('coverage.returnPromise')}</p>
-              </div>
+                <button type="button" onClick={handleDownloadChecklist} className="mt-3 inline-flex items-center gap-2 text-[12.5px] font-semibold text-[#0b5f43] hover:underline"><Download className="h-4 w-4" />{t('coverage.takeawayDownload')}</button>
+              </div>}
 
-              </div>
+              {companyTopic && <div className="rounded-[14px] border border-[#e6ece8] bg-white p-4">
+                <div className="flex items-start justify-between gap-3"><div><h2 className="text-[15px] font-bold text-[#0f1a15]">{t('coverage.companyInformationTitle')}</h2><p className="mt-1 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.companyInformationBody', { answered: companyAnsweredCount, open: companyOpenCount })}</p></div><span className="rounded-full bg-[#f1f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#56645d]">{companyTopic.total}</span></div>
+                {companyOpenCount > 0 && <button type="button" onClick={openCompany} className="mt-3 text-[12.5px] font-semibold text-[#0b5f43] hover:underline">{t('coverage.addCompanyDetails')}</button>}
+              </div>}
+
+              {manualQuestions.length > 0 && <div className="rounded-[14px] border border-[#e6ece8] bg-white p-4">
+                <div className="flex items-start justify-between gap-3"><div><h2 className="text-[15px] font-bold text-[#0f1a15]">{t('coverage.companyAnswersTitle')}</h2><p className="mt-1 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.companyAnswersBody')}</p></div><span className="rounded-full bg-[#f1f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#56645d]">{manualQuestions.length}</span></div>
+                <details className="mt-3 text-[12px]"><summary className="cursor-pointer font-semibold text-[#0b5f43]">{t(manualQuestions.length === 1 ? 'coverage.seeCompanyQuestionOne' : 'coverage.seeCompanyQuestions', { count: manualQuestions.length })}</summary><ul className="mt-2 space-y-2 border-l-2 border-[#dce9e3] pl-3 text-[#56645d]">{manualQuestions.map(question => <li key={question.questionId}>{question.questionText}</li>)}</ul></details>
+              </div>}
+
+              {policyGaps.builders.length > 0 && <div className="rounded-[14px] border border-[#e6ece8] bg-white p-4">
+                <div className="flex items-start justify-between gap-3"><div><h2 className="text-[15px] font-bold text-[#0f1a15]">{t('coverage.policiesRequiredTitle')}</h2><p className="mt-1 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.policiesRequiredBody')}</p></div><span className="rounded-full bg-[#f1f4f2] px-2.5 py-1 text-[11px] font-semibold text-[#56645d]">{policyGaps.builders.length}</span></div>
+                <ul className="mt-3 space-y-1.5">{policyGaps.builders.map(id => <li key={id} className="text-[12.5px] font-medium text-[#203129]">{builderName(POLICY_BUILDERS[id], lang)}</li>)}</ul>
+                {canBuildPolicies && <button type="button" onClick={() => setPolicyBuilderId(bestNextPolicy || 'blank')} className="mt-3 text-[12.5px] font-semibold text-[#0b5f43] hover:underline">{t('coverage.createPolicy')}</button>}
+              </div>}
+
+              {requiredDocuments.length === 0 && !companyTopic && manualQuestions.length === 0 && policyGaps.builders.length === 0 && <div className="rounded-[14px] border border-[#e6ece8] bg-[#f7faf8] p-4 lg:col-span-2"><p className="text-sm font-semibold text-[#0f1a15]">{t('coverage.noRecordsTitle')}</p><p className="mt-1 text-xs leading-relaxed text-[#6b7a72]">{t('coverage.noRecordsBody')}</p></div>}
             </div>
-          )}
+          </section>
 
-          <div className="order-5 flex flex-wrap items-center gap-4">
-            {!canGenerateAnswers && sample.length > 0 && (
-              <p className="text-xs leading-relaxed text-slate-400">{t('coverage.creditNote', { pass: PASS_PRICE })}</p>
-            )}
-            {onStartOver && (
-              <button onClick={onStartOver} className="ml-auto shrink-0 text-sm text-slate-500 underline underline-offset-2 hover:text-slate-700">
-                {t('coverage.startOver')}
-              </button>
-            )}
+          <section data-testid="coverage-next-option" className="rounded-[16px] border border-[#bfe3d3] bg-[#f7fffb] p-5 shadow-[0_12px_30px_-24px_rgba(15,122,85,0.6)] sm:p-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#0b5f43]">{canGenerateAnswers ? t('coverage.reviewUpsellEyebrow') : t('coverage.automationUpsellEyebrow', { price: PASS_PRICE })}</p>
+            <h2 className="mt-1.5 text-[20px] font-bold leading-7 text-[#0f1a15]">{t(canGenerateAnswers ? 'coverage.reviewUpsellTitle' : 'coverage.automationUpsellTitle')}</h2>
+            <p className="mt-2 max-w-3xl text-[13px] leading-5 text-[#3f5049]">{t(canGenerateAnswers ? 'coverage.reviewUpsellBody' : 'coverage.automationUpsellBody', { count: total })}</p>
+            {!canGenerateAnswers && <ul className="mt-4 grid gap-2 text-[12.5px] text-[#203129] sm:grid-cols-3"><li>{t('coverage.automationF1')}</li><li>{t('coverage.automationF2')}</li><li>{t('coverage.automationF3')}</li></ul>}
+            <button type="button" onClick={completionAction.run} data-testid="coverage-primary-action" className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[#0f7a55] px-5 text-sm font-semibold text-white transition hover:bg-[#0b5f43] sm:w-auto">{completionAction.label}<ArrowRight className="h-4 w-4" /></button>
+            {policyGaps.builders.length > 0 && !canBuildPolicies && <div className="mt-5 border-t border-[#bfe3d3] pt-4"><p className="text-[12.5px] leading-5 text-[#3f5049]"><strong className="text-[#0f1a15]">{t(policyGaps.builders.length === 1 ? 'coverage.policyBuilderUpsellTitleOne' : 'coverage.policyBuilderUpsellTitle', { count: policyGaps.builders.length })}</strong> {t('coverage.policyBuilderUpsellBody')}</p><button type="button" onClick={() => openCheckout(PASSPORT_CHECKOUT_URL, 'coverage_policy_builder_upsell', tier)} className="mt-2 text-[12.5px] font-semibold text-[#0b5f43] hover:underline">{t('coverage.nextPassportCta', { price: PASSPORT_PRICE })}</button></div>}
+            {policyGaps.builders.length > 0 && canBuildPolicies && <p className="mt-4 border-t border-[#bfe3d3] pt-4 text-[12.5px] font-semibold text-[#0b5f43]">{t('coverage.policyBuilderIncluded')}</p>}
+          </section>
+
+          <div data-testid="coverage-format-guarantee" className="flex items-start gap-3 rounded-[12px] border border-[#e6ece8] bg-[#f7faf8] p-4 text-[#203129]">
+            <FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-[#0f7a55]" />
+            <div>
+              <p className="text-sm font-semibold">{t(returnsCustomerWorkbook ? 'coverage.formatGuaranteeTitle' : 'coverage.orderGuaranteeTitle')}</p>
+              <p className="mt-1 text-sm leading-relaxed text-[#56645d]">{t(returnsCustomerWorkbook ? 'coverage.formatGuaranteeWorkbook' : 'coverage.orderGuaranteeExport')}</p>
+            </div>
           </div>
         </div>
 
-      </div>
+        <details className="border-t border-[#e6ece8] px-5 py-3.5 text-sm sm:px-7">
+          <summary className="cursor-pointer select-none font-medium text-[#6b7a72] hover:text-[#0b5f43]">{t('coverage.otherOptions')}</summary>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-3">
+            {bestNextPolicy && <button type="button" onClick={() => { setPolicyUploadBuilder(bestNextPolicy); setPolicyUploadOpen(true); }} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">{t('coverage.uploadPolicy')}</button>}
+            {onStartOver && <button type="button" onClick={onStartOver} className="text-sm text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-700">{t('coverage.startOver')}</button>}
+          </div>
+        </details>
+      </section>
+
+
+      {/* The proof, and the part of this page nobody else could produce: answers
+          carrying the reader's own figures, each badged with where it came from.
+          This and the cards below spent Sep 29 - Oct 3 inside a
+          `<div className="hidden" aria-hidden="true">` left by the requirements-first
+          refactor - mounted, display:none, read by nobody. The tests could not see it
+          either: jsdom has no layout, so textContent includes display:none nodes and
+          26 of them passed against UI that never reached a screen. */}
+      {sample.length > 0 && (
+        <div className="mt-6">
+          <ReferencePanel
+            t={t}
+            fromRecords={fromRecords}
+            sample={sample}
+            remaining={remaining}
+            hasOwnData={hasOwnData}
+          />
+        </div>
+      )}
+
+      {groups.length > 0 && (
+        <div className="mt-8 space-y-4">
+          <SectionHeading
+            eyebrow={t('coverage.eyebrowAsks')}
+            title={t('coverage.topicsTitle')}
+            body={t('coverage.topicsBody', { count: total })}
+          />
+
+          {/* Symmetric: three pillars sit three across, four make a 2×2, two make two.
+              Subgrid rows keep every card's header, standing line, "Start here", buttons
+              and questions on the same row as its neighbours'. */}
+          <div className={`grid gap-4 ${groups.length >= 2 ? 'md:grid-cols-2' : ''} ${groups.length === 3 ? 'xl:grid-cols-3' : ''}`}>
+            {/* Canonical topics read in pillar order. The questionnaire's own
+                sections keep the order it asks them in, which is the order the
+                reader will work through the file. */}
+            {(sections ? groups : [...groups].sort((a, b) => PILLAR_ORDER.indexOf(a.topic) - PILLAR_ORDER.indexOf(b.topic))).map((bucket) => {
+              const key = bucket.section || bucket.topic;
+              const name = bucket.section || topicName(t, bucket.topic);
+              if (!name) return null;
+              const commonDocuments = commonTopicDocuments(t, bucket.topic);
+              const recommendedDocument = (bucket.documents || [])
+                .map(documentId => ({ documentId, entry: documents.find(item => item.document === documentId) }))
+                .filter(item => item.entry)
+                .sort((a, b) => b.entry.unlocks - a.entry.unlocks)[0];
+              const showDocumentRecommendation = recommendedDocument?.entry?.unlocks >= 2;
+              const pillarOpen = openPillars[key] ?? false;
+              return (
+                <div
+                  key={key}
+                  className="flex flex-col gap-4 border border-slate-200 bg-white p-5 shadow-sm md:grid md:row-span-6 md:grid-rows-subgrid"
+                >
+                  {/* 1 · header */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex min-w-0 gap-3">
+                      <TopicIcon topic={bucket.topic} />
+                      <div>
+                        <h3 className="text-base font-semibold text-slate-900">{name}</h3>
+                        {!bucket.section && <p className="mt-1 text-[13px] leading-relaxed text-slate-500">{topicSubtitle(t, bucket.topic)}</p>}
+                      </div>
+                    </div>
+                    <p className="shrink-0 bg-slate-100 px-2.5 py-1 text-xs font-semibold tabular-nums text-slate-700">
+                      {bucket.total === 1
+                        ? t('coverage.topicQuestion', { count: bucket.total })
+                        : t('coverage.topicQuestions', { count: bucket.total })}
+                    </p>
+                  </div>
+
+                  {/* 2 · where it stands; the toggle for the questions. A short pillar shows
+                      them, a long one starts closed — the counts and "Start here" carry the card. */}
+                  <button
+                    type="button"
+                    onClick={() => setOpenPillars(prev => ({ ...prev, [key]: !pillarOpen }))}
+                    aria-expanded={pillarOpen}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 self-start text-left text-xs tabular-nums"
+                  >
+                    <span className="font-semibold text-emerald-700">{t('coverage.topicAnswered', { count: (bucket.recovered || 0) + (bucket.fromRecords || 0) })}</span>
+                    <span className="text-amber-700">{t('coverage.topicToCheck', { count: (bucket.partial || 0) + (bucket.written || 0) })}</span>
+                    <span className="text-slate-600">{t('coverage.topicOpen', { count: bucket.open || 0 })}</span>
+                    <span className="text-slate-500 underline decoration-slate-300 underline-offset-4">{pillarOpen ? t('coverage.topicHideQuestions') : t('coverage.topicShowQuestions', { count: bucket.questions.length })}</span>
+                  </button>
+
+                  {/* 3 · start here — one box, the same height across the row, or an empty slot */}
+                  {showDocumentRecommendation ? (
+                    <div className="bg-emerald-50 px-3.5 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">{t('coverage.startHere')}</p>
+                      <p className="mt-1 text-sm font-semibold text-emerald-950">{recommendedDocument.entry.name}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-emerald-900/70">{documentHolds(t, recommendedDocument.documentId)} · {t('coverage.docUnlocks', { count: recommendedDocument.entry.unlocks })}</p>
+                    </div>
+                  ) : bucket.needsPolicy > 0 ? (
+                    <div className="bg-violet-50 px-3.5 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-violet-700">{t('coverage.startHere')}</p>
+                      <p className="mt-1 text-sm font-semibold text-violet-950">{t('coverage.policyStartTitle')}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-violet-900/70">{t('coverage.topicPolicyNeed', { count: bucket.needsPolicy })}</p>
+                    </div>
+                  ) : (
+                    // Nothing to recommend: say what the pillar needs instead of leaving the slot
+                    // empty. Every question covered; or only the reader's own words and reading.
+                    (() => {
+                      const answered = (bucket.recovered || 0) + (bucket.fromRecords || 0);
+                      const toCheck = (bucket.partial || 0) + (bucket.written || 0);
+                      const open = bucket.open || 0;
+                      const allCovered = answered === bucket.total && bucket.total > 0;
+                      return (
+                        <div className={`px-3.5 py-3 ${allCovered ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                          <p className={`text-[10px] font-bold uppercase tracking-wider ${allCovered ? 'text-emerald-700' : 'text-slate-500'}`}>{allCovered ? t('coverage.slotAllCoveredEyebrow') : t('coverage.slotNeedsYouEyebrow')}</p>
+                          <p className={`mt-1 text-sm font-semibold ${allCovered ? 'text-emerald-950' : 'text-slate-900'}`}>
+                            {allCovered ? t('coverage.slotAllCoveredTitle') : open > 0 ? t('coverage.slotNeedsYouTitle', { count: open }) : t('coverage.slotReadTitle', { count: toCheck })}
+                          </p>
+                          <p className={`mt-0.5 text-xs leading-relaxed ${allCovered ? 'text-emerald-900/70' : 'text-slate-600'}`}>
+                            {allCovered ? t('coverage.slotAllCoveredBody') : open > 0 && toCheck > 0 ? t('coverage.slotNeedsYouBody', { count: toCheck }) : t('coverage.slotNothingToUpload')}
+                          </p>
+                        </div>
+                      );
+                    })()
+                  )}
+
+                  {/* 4 · actions, on the same row across cards */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* A document can always be added from a pillar — a card with only policy
+                        buttons read as "nothing you upload can help here", which was untrue. */}
+                    <button onClick={() => { track('coverage_add_documents_click', { document: recommendedDocument?.documentId || bucket.documents?.[0] || bucket.topic }); navigate('/evidence'); }} className="inline-flex h-10 items-center gap-1.5 bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"><Upload className="h-4 w-4" />{t('coverage.docUpload')}</button>
+                    {(bucket.documents || []).length > 0 && <button onClick={() => { track('coverage_enter_figures_click', { document: recommendedDocument?.documentId || bucket.documents[0] }); navigate('/data'); }} className="inline-flex h-10 items-center border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50">{t('coverage.docEnter')}</button>}
+                    {bucket.topic === 'other' && <button type="button" onClick={openCompany} className="inline-flex h-10 items-center border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50">{t('coverage.addCompanyDetails')}</button>}
+                    {bucket.needsPolicy > 0 && <>{canBuildPolicies && <button type="button" onClick={() => setPolicyBuilderId(policyGaps.builders[0] || 'blank')} className="inline-flex h-10 items-center bg-violet-700 px-4 text-sm font-medium text-white hover:bg-violet-800">{t('coverage.createPolicy')}</button>}<button type="button" onClick={() => { setPolicyUploadBuilder(policyGaps.builders[0] || ''); setPolicyUploadOpen(true); }} className="inline-flex h-10 items-center gap-1.5 border border-slate-300 bg-white px-4 text-sm font-medium text-slate-800 hover:bg-slate-50"><Upload className="h-4 w-4" />{t('coverage.uploadPolicy')}</button></>}
+                  </div>
+
+                  {/* 5 · the questions, bounded: two hundred of them make a card no taller than a screen */}
+                  {pillarOpen && (bucket.questions || []).length > 0 ? (
+                    <ul className="max-h-[30rem] divide-y divide-slate-100 overflow-y-auto border-t border-slate-100 pr-1">
+                      {bucket.questions.map(q => (
+                        <li key={q.questionId} className="py-2.5 text-[13px] leading-snug">
+                          <div className="flex items-start gap-2">
+                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                              q.state === 'recovered' || q.state === 'fromRecords' ? 'bg-emerald-600'
+                                : q.state === 'partial' || q.state === 'written' ? 'bg-amber-500'
+                                  : 'border border-slate-400 bg-white'
+                            }`} />
+                            <span className="min-w-0 flex-1 text-slate-800">{q.questionText}</span>
+                          </div>
+                          <p className="mt-0.5 pl-4 text-[11px] text-slate-500">
+                            {t(`coverage.state.${q.state}`)}
+                            {q.needs && (() => {
+                              const doc = q.needs.documents?.[0];
+                              const docName = doc ? documentName(t, doc.document) : null;
+                              const policy = q.needs.policy && POLICY_BUILDERS[q.needs.policy] ? builderName(POLICY_BUILDERS[q.needs.policy], lang) : null;
+                              const localizedPrompt = q.needs.prompts?.[lang] || q.needs.prompt;
+                              // A written draft with nothing missing needs reading, not a document;
+                              // "only you can answer this" is for a question with no draft at all.
+                              const hint = docName ? t('coverage.needsDocument', { document: docName, figure: (lang === 'de' && doc.labelDe) || doc.label })
+                                : policy ? t('coverage.needsPolicy', { policy })
+                                  : localizedPrompt ? localizedPrompt
+                                    : (q.state === 'written' || q.state === 'partial') ? t('coverage.needsReading')
+                                      : t('coverage.needsYou');
+                              return <span className="text-slate-600"> · {hint}</span>;
+                            })()}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div />
+                  )}
+
+                  {/* 6 · generic for the topic, the same on every questionnaire — behind one line */}
+                  <details className="self-end text-sm">
+                    <summary className="cursor-pointer select-none text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-600">{t('coverage.topicDocuments')}</summary>
+                    <ul className="mt-2 space-y-1.5">
+                      {commonDocuments.map(item => (
+                        <li key={item} className="flex gap-2.5 text-[13px] leading-relaxed text-slate-600">
+                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
 
       <Dialog open={companyOpen} onOpenChange={setCompanyOpen}>
         <DialogContent className="max-h-[calc(100vh-2rem)] max-w-xl overflow-y-auto">
@@ -822,6 +794,9 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           <div className="p-6"><PolicyBuilder initialBuilderId={policyBuilderId} embedded /></div>
         </DialogContent>
       </Dialog>
+      </div>
+
+      <QuestionsRail t={t} questions={questions} questionnaireName={questionnaireName} />
     </div>
   );
 }

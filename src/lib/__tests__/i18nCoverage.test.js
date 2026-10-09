@@ -62,4 +62,28 @@ describe('i18n coverage', () => {
     // UI_LANGUAGES without its strings fails here rather than in front of a user.
     expect(UI_LANGUAGES.map((l) => l.code)).toEqual(['en', 'de']);
   });
+
+  // coverage.verdict* used to mirror these checklist headings, but it stopped being
+  // rendered and was removed with the rest of the dead copy. The on-screen equivalents
+  // are now coverage.progress*, which are stat labels ('ready from your records') rather
+  // than headings, so they are deliberately not asserted to match word for word.
+  it('describes answer outcomes instead of internal record provenance', () => {
+    expect(t('checklist.fromRecords', 'en')).toBe('Answers Passport can prepare now');
+  });
+
+  it('turns partial-period jargon into the check the supplier needs to make', () => {
+    expect(t('checklist.partial', 'en')).toBe('Answers needing a reporting-period check');
+    expect(t('respond.covPartial', 'en')).toBe('Records cover only part of the requested period');
+    expect(t('checklist.partial', 'en')).not.toContain('evidence');
+  });
+
+  it('calls generated wording a draft to review', () => {
+    expect(t('checklist.written', 'en')).toBe('Draft answers to review');
+    expect(t('coverage.state.written', 'en')).toBe('Draft answer to review');
+  });
+
+  it('names the information gap instead of saying it is waiting on something', () => {
+    expect(t('checklist.unanswerable', 'en')).toBe('Answers missing required information');
+    expect(t('checklist.unanswerable', 'en')).not.toContain('something');
+  });
 });

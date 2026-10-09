@@ -11,7 +11,7 @@ vi.mock('@/lib/track', () => ({
   trackOnce: () => {},
 }));
 
-import CoverageReport from '../CoverageReport';
+import CoverageReport, { isPresentableDraft } from '../CoverageReport';
 import { summarizeCoverage } from '@/lib/coverage';
 
 let seq = 0;
@@ -66,48 +66,116 @@ describe('CoverageReport', () => {
 
   it('opens with the questionnaire it read, and counts it once', async () => {
     await render([draft('emissions', 'medium'), draft('workforce', 'medium')]);
-    expect(container.textContent).toContain('Questionnaire summary');
+    // Leads with what is drafted; the outstanding work follows on one line.
+    expect(container.textContent).toContain('2 of your 2 answers are drafted.');
     expect(container.textContent).toContain('buyer-saq.xlsx');
+    expect(container.textContent).toContain('To finish: 2 company answers to confirm');
+    expect(container.textContent).not.toContain('records to provide');
+    expect(container.textContent).not.toContain('policies to attach or create');
 
-    // The total is stated once, in the stat band above both columns. The heading used
-    // to carry it too, and the panel carried it a third time.
-    expect(container.textContent).toContain('Questions asked');
+    expect(container.textContent).toContain('Customer request');
+    expect(container.textContent).toContain('Where you stand');
     expect(container.textContent).not.toContain('Your questionnaire: 2 questions');
-    expect(container.textContent).not.toContain('Where you stand');
   });
 
-  // The buyer's own question list is not first-impression material - the reader wrote
-  // none of it and has read all of it, and PDF/Word uploads confirm the parsed list in a
-  // step of its own before this screen. It stays reachable, because a spreadsheet skips
-  // that confirmation and a wrong denominator makes every number here false.
-  it('keeps every question it read, but not in the way', async () => {
+  it('makes the same-format promise explicit only when the original workbook can be returned', async () => {
+    const questions = [{
+      id: 'q1',
+      text: 'Question about workforce',
+      location: { sheet: 'Supplier response', row: 8, answerCell: 'D8' },
+    }];
+    await render([draft('workforce', 'medium')], {}, { questions });
+
+    const guarantee = container.querySelector('[data-testid="coverage-format-guarantee"]');
+    expect(guarantee.textContent).toContain('What you get back');
+    expect(guarantee.textContent).toContain('original workbook');
+    expect(guarantee.textContent).toContain('same file type, sheets, question order and template');
+
+    await render([draft('workforce', 'medium')], {}, { questionnaireName: 'buyer-request.pdf', questions: [{ id: 'q2', text: 'Question about workforce' }] });
+    expect(container.querySelector('[data-testid="coverage-format-guarantee"]').textContent).toContain('What you get back');
+    expect(container.textContent).not.toContain('original workbook');
+  });
+
+  // The parsed question list used to sit behind two clicks, inside "Other options".
+  // It is now resident, in a rail beside the report: for a spreadsheet this is the only
+  // place the denominator can be checked, because xlsx skips the confirmation step that
+  // PDF and Word go through, and a wrong question count makes every number here false.
+  // Resident but small -- a fixed-height scroller, never 91 rows pushing the page down.
+  it('keeps every question it read in view, without a click', async () => {
     const questions = Array.from({ length: 8 }, (_, i) => ({ id: `r${i}`, text: `Read question ${i}` }));
-    // The disclosure sits in the fully-covered panel, which exists only once there is a
-    // real answer to show; until then the pillars list every question instead.
     const supported = draft('energy_electricity', 'high', { answer: 'During 2025, electricity consumption across our reporting boundary was 425000 kWh.', dataValue: 425000, dataUnit: 'kWh' });
     supported.matchResult = { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] };
     await render([supported], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } }, { questions });
 
-    expect(container.textContent).not.toContain('Read question 0');
-
-    const disclose = [...container.querySelectorAll('button')]
-      .find(b => b.textContent.includes('See the 8 questions we read'));
-    expect(disclose).toBeTruthy();
-    await act(async () => disclose.click());
-
-    // All of them, not a truncated preview.
+    // All of them, with no disclosure to open first, and only once on the page.
     for (let i = 0; i < 8; i += 1) {
       expect(container.textContent).toContain(`Read question ${i}`);
     }
+    expect(container.textContent.split('Read question 0')).toHaveLength(2);
+    expect(container.textContent).toContain('8 from your file');
+
+    // Bounded, so a 91-question questionnaire cannot run the page off the screen.
+    const list = [...container.querySelectorAll('ol')].find(o => o.textContent.includes('Read question 0'));
+    expect([...list.classList].join(' ')).toContain('overflow-y-auto');
   });
 
-  it('does not sell free visitors a preview made from unverified generated answers', async () => {
-    const drafts = Array.from({ length: 9 }, () => draft('workforce', 'medium'));
+  // Free sees the same drafts paid does — hiding them hid the product from the only
+  // people still deciding whether to buy it. The claim each line makes is carried by
+  // its badge, so a library draft must reach the reader marked as a draft, never as
+  // something their own records support.
+  it('shows free visitors the drafts, labelled as drafts rather than as evidence', async () => {
+    // Distinct sentences: selectBestCoverageAnswers treats the text as the identity, so
+    // nine copies of one answer would correctly collapse to a single preview line.
+    const drafts = Array.from({ length: 9 }, (_, i) => draft('workforce', 'medium', {
+      answer: `All employees receive health and safety instruction on joining and refresher briefing number ${i} each year.`,
+    }));
     await render(drafts);
-    expect(container.textContent).not.toContain('Your first 5 answers');
-    expect(container.textContent).not.toContain('A drafted answer (');
-    // and no panel at all until there is something real to show
-    expect(container.textContent).not.toContain('fully covered');
+    expect(container.textContent).toContain('Your 5 drafted answers');
+    expect(container.textContent).toContain('All employees receive health and safety instruction');
+    expect(container.textContent).toContain('Draft');
+    expect(container.textContent).not.toContain('Supported');
+  });
+
+  it('keeps a fragment out of the preview a free visitor sees', async () => {
+    const fragment = draft('workforce', 'medium', { answer: 'Yes.' });
+    await render([fragment]);
+    expect(container.textContent).not.toContain('drafted answers');
+    expect(container.textContent).not.toContain('Your drafted answer');
+  });
+
+  // The short figures a reader's own bills produce. A 45-character floor kept every one of
+  // these out of the free preview, which is the panel meant to show what records buy.
+  it.each([
+    'Water withdrawal (2026): 8,154 m³.',
+    '289 employees (FTE) (2026).',
+    'Employee turnover rate (2026): 9.7 %.',
+    'Annual revenue band: €10M – €50M (2026).',
+    'Scope 2 emissions (2026), location-based: 992.5 tCO2e. A market-based figure is not available.',
+    'No work-related fatalities (2026).',
+  ])('treats a short answer that states a figure as presentable: %s', text => {
+    expect(isPresentableDraft({ answer: text })).toBe(true);
+  });
+
+  it.each([
+    'Yes.',
+    'Reporting period: 2026.',
+    'Electricity data is not available.',
+    'We do not have details of how sustainability considerations are integrated into procurement decisions on record for this question.',
+    'Energy policy',
+    '',
+    // What a workspace with only bills in it produced on the 96-question stress fixture:
+    // a headcount nobody entered, defaulted to zero, and a policy nobody marked, defaulted
+    // to "not in place". The 45-character floor hid both by accident.
+    '0 employees (FTE) (2026).',
+    'No. No grievance mechanism is in place.',
+  ])('keeps a fragment or a "nothing on record" sentence out: %s', text => {
+    expect(isPresentableDraft({ answer: text })).toBe(false);
+  });
+
+  it('shows a short record-backed figure in the preview a free visitor can see', async () => {
+    const water = draft('water', 'high', { answer: 'Water withdrawal (2026): 8,154 m³.' });
+    await render([water]);
+    assertReachable('Water withdrawal (2026): 8,154 m³.');
   });
 
   it('rejects a nominally supported but poor answer and makes evidence the only next step', async () => {
@@ -117,7 +185,10 @@ describe('CoverageReport', () => {
       dataUnit: 'kWh',
     });
     await render([poor]);
-    expect(container.textContent).not.toContain('fully covered');
+    // The sentence says the company has nothing on record; shown as a preview it reads
+    // as the tool failing, so it stays out however confident the engine was.
+    expect(container.textContent).not.toContain('Electricity data is not available.');
+    expect(container.textContent).not.toContain('Your drafted answer');
     expect(container.textContent).not.toContain('Show a clearly labelled example');
   });
 
@@ -129,21 +200,26 @@ describe('CoverageReport', () => {
     });
     supported.matchResult = { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] };
     await render([supported], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } });
-    expect(container.textContent).toContain('Your fully covered answer');
+    expect(container.textContent).toContain('Your drafted answer');
     expect(container.textContent).toContain('During 2025, electricity consumption across our reporting boundary was 425000 kWh.');
     expect(container.textContent).toContain('€99');
     expect(container.textContent).not.toContain('€499');
-    expect(container.textContent).toContain('After payment you return here, confirm which questionnaire your pass covers, and see your answers filled in.');
+    expect(container.textContent).toContain('Auto-extract and prepare for review — €99');
   });
 
-  it('does not promote a strong-looking answer without a named source document', async () => {
+  // Free now sees the same sample pool paid does, so a strong answer is no longer
+  // hidden for want of a recorded source. What must not happen is the report naming
+  // a source it was never told about: silence is correct when nothing is known.
+  it('shows a strong answer without inventing a source document for it', async () => {
     const answer = draft('energy_electricity', 'high', {
       answer: 'During 2025, electricity consumption across our reporting boundary was 425000 kWh.',
       dataValue: 425000,
       dataUnit: 'kWh',
     });
     await render([answer]);
-    expect(container.textContent).not.toContain('fully covered');
+    expect(container.textContent).toContain('During 2025, electricity consumption across our reporting boundary was 425000 kWh.');
+    expect(container.textContent).not.toContain('from electricity-2025.pdf');
+    expect(container.textContent).not.toContain('from undefined');
   });
 
   // Grouped the way the customer asking the questions groups them. Confidence is our
@@ -190,6 +266,76 @@ describe('CoverageReport', () => {
     expect(labels.some(l => l.includes('Enter the figures'))).toBe(true);
   });
 
+  it('shows the full requirement before one automation option instead of sending the supplier through bills', async () => {
+    await render([needing('workforce', ['Total FTE'])], { companyData: {} });
+
+    const verdict = container.querySelector('[data-testid="coverage-verdict"]');
+    const primary = verdict.querySelector('[data-testid="coverage-primary-action"]');
+    const alternatives = verdict.querySelector('details');
+
+    expect(verdict.textContent).toContain('What this customer request needs');
+    expect(verdict.textContent).toContain('Your HR or payroll summary');
+    expect(primary.textContent).toContain('Auto-extract and prepare for review — €99');
+    expect(verdict.textContent).not.toContain('Upload this document');
+    expect(verdict.textContent).not.toContain('Enter the figures');
+    expect(alternatives.open).toBe(false);
+    expect(alternatives.querySelector('summary').textContent).toContain('Questionnaire details and other actions');
+  });
+
+  it('shows every required record rather than only a ranked top three', async () => {
+    await render([
+      needing('energy_electricity', ['Electricity consumption (kWh)']),
+      needing('water', ['Water withdrawal (m3)']),
+      needing('waste', ['Total waste (kg)']),
+      needing('workforce', ['Total FTE']),
+    ]);
+
+    const verdict = container.querySelector('[data-testid="coverage-verdict"]');
+    expect(verdict.textContent).toContain('Your electricity bill');
+    expect(verdict.textContent).toContain('Your water bill');
+    expect(verdict.textContent).toContain('Your waste manifest');
+    expect(verdict.textContent).toContain('Your HR or payroll summary');
+  });
+
+  it('takes a paid supplier straight to answer review when no document is missing', async () => {
+    const onShowAnswers = vi.fn();
+    await render(
+      [draft('workforce', 'medium')],
+      {},
+      { tier: 'questionnaire-pass', onShowAnswers }
+    );
+
+    const primary = container.querySelector('[data-testid="coverage-primary-action"]');
+    expect(primary.textContent).toContain('Review the answers');
+    await act(async () => primary.click());
+    expect(onShowAnswers).toHaveBeenCalledOnce();
+  });
+
+  it('does not ask for colleague files or repeat the purchase action when no record is missing', async () => {
+    await render([draft('workforce', 'medium')]);
+    expect(container.textContent).not.toContain('Someone else has these records?');
+    expect([...container.querySelectorAll('button')].filter(button => button.textContent.includes('Auto-extract and prepare for review — €99'))).toHaveLength(1);
+  });
+
+  it('reserves policy creation for Passport while still accepting an existing policy', async () => {
+    const policy = draft('governance', 'medium', {
+      questionType: 'POLICY',
+      confidenceSource: 'drafted',
+      questionText: 'Do you have a code of conduct?',
+    });
+
+    await render([policy], {}, { tier: 'questionnaire-pass', onShowAnswers: vi.fn() });
+    expect(container.querySelector('[data-testid="coverage-primary-action"]').textContent).toContain('Review the answers');
+    expect([...container.querySelectorAll('button')].some(button => button.textContent.includes('Create policy'))).toBe(false);
+    expect([...container.querySelectorAll('button')].some(button => button.textContent.includes('Upload policy'))).toBe(true);
+    expect(container.textContent).toContain('full Passport adds the integrated policy builder');
+
+    await render([policy], {}, { tier: 'pro', onShowAnswers: vi.fn() });
+    expect(container.querySelector('[data-testid="coverage-primary-action"]').textContent).toContain('Review the answers');
+    expect([...container.querySelectorAll('button')].some(button => button.textContent.includes('Create policy'))).toBe(true);
+    expect(container.textContent).toContain('Your Passport includes the integrated policy builder');
+  });
+
   it('samples the answers, leading with the ones built on the reader own figures', async () => {
     const supported = draft('emissions', 'high', {
       answer: 'Electricity consumption was 425000 kWh.',
@@ -198,7 +344,7 @@ describe('CoverageReport', () => {
     const drafted = Array.from({ length: 6 }, () => draft('workforce', 'medium'));
     await render([...drafted, supported], {}, { tier: 'questionnaire-pass' });
     const text = container.textContent;
-    expect(text).toContain('Your 5 fully covered answers');
+    expect(text).toContain('Your 5 drafted answers');
     expect(text).toContain('425000 kWh');
     expect(text).toContain('2 more questions in this questionnaire');
   });
@@ -222,7 +368,7 @@ describe('CoverageReport', () => {
     expect(coverage.partial).toHaveLength(1);
     expect(coverage.unanswerable).toHaveLength(0);
     expect(coverage.missingDocuments).toEqual([{ document: 'electricityBill', unlocks: 1 }]);
-    expect(container.textContent).toContain('Partial period');
+    expect(container.textContent).toContain('1 answer uses records that cover only part of the requested period. Check the dates before sending.');
     expect(container.textContent).not.toContain('Your strongest 1 answers');
   });
 
@@ -236,7 +382,7 @@ describe('CoverageReport', () => {
     });
     await render([...weak, strong], {}, { tier: 'questionnaire-pass' });
     expect(container.textContent).toContain('Strong electricity answer');
-    expect(container.textContent).toContain('Your 5 fully covered answers');
+    expect(container.textContent).toContain('Your 5 drafted answers');
   });
 
   // The engine attaches a figure to a draft whether or not the answer it chose rests on
@@ -294,7 +440,12 @@ describe('CoverageReport', () => {
     const plain = await render([draft('workforce', 'medium')]);
     expect(plain.policyGaps.builders).toHaveLength(0);
     expect(container.textContent).toContain('€99');
-    expect(container.textContent).toContain('None of the answers yet use figures from your records');
+    // The honest figures line used to live in a second purchase block. That block was a
+    // duplicate of the visible offer and is gone; the claim it made is now carried by the
+    // standing count and the lead, both of which say plainly that nothing rests on the
+    // reader's own records yet.
+    expect(container.textContent).toContain('0ready from your records');
+    expect(container.textContent).toContain('These are written from our answer library');
     expect(container.textContent).not.toContain('€499');
   });
 
@@ -315,5 +466,80 @@ describe('CoverageReport', () => {
       written: 1,
       unanswerable: 1,
     });
+  });
+
+  // jsdom has no layout, so container.textContent reads display:none nodes just as
+  // happily as visible ones. Between Sep 29 and Oct 3 the answer preview and every
+  // topic card sat inside a `<div className="hidden" aria-hidden="true">` left by the
+  // requirements-first refactor, and 26 tests passed green against UI no reader could
+  // see. Assert reachability explicitly: no ancestor may hide the subtree.
+  const assertReachable = (needle) => {
+    const node = [...container.querySelectorAll('*')]
+      .reverse()
+      .find(element => element.textContent.includes(needle));
+    expect(node, `nothing rendered containing ${needle}`).toBeTruthy();
+    for (let el = node; el && el !== container; el = el.parentElement) {
+      expect(el.getAttribute('aria-hidden'), `${needle} is inside aria-hidden ${el.tagName}`).not.toBe('true');
+      expect([...el.classList], `${needle} is inside a .hidden ${el.tagName}`).not.toContain('hidden');
+      expect(el.hasAttribute('hidden'), `${needle} is inside [hidden] ${el.tagName}`).toBe(false);
+    }
+  };
+
+  it('renders the answer preview and the topic cards where a reader can actually see them', async () => {
+    const supported = draft('energy_electricity', 'high', {
+      answer: 'During 2025, electricity consumption across our reporting boundary was 425000 kWh.',
+      dataValue: 425000,
+      dataUnit: 'kWh',
+    });
+    supported.matchResult = { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] };
+    await render([supported, draft('workforce', 'medium')], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } });
+
+    assertReachable('Where you stand');
+    assertReachable('drafted answer');
+    assertReachable('Questions by topic');
+  });
+
+});
+
+// The header used to tell a buyer that every record-backed figure was "read out of the
+// documents you uploaded" — including on a run where the evidence step was skipped and
+// the figures had been typed in. It may say that only when it is true.
+describe('CoverageReport header: where the figures came from', () => {
+  let container;
+  let root;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    if (root) await act(async () => root.unmount());
+    container?.remove();
+  });
+
+  async function renderHeader(dataSources) {
+    const drafts = [
+      draft('workforce', 'high', { answer: '146 employees (FTE) (2026).', matchResult: { primaryDomain: 'workforce', suggestedDataPoints: ['Total FTE'] } }),
+      draft('energy', 'medium'),
+    ];
+    const coverage = summarizeCoverage(drafts, { dataSources });
+    await act(async () => {
+      root.render(React.createElement(MemoryRouter, null,
+        React.createElement(CoverageReport, { coverage, questionnaireName: 'buyer-saq.xlsx', tier: 'free' })));
+    });
+    return container.querySelector('[data-testid="coverage-verdict"] header').textContent;
+  }
+
+  it('says "documents you uploaded" when the figure came from an uploaded document', async () => {
+    const text = await renderHeader({ 'workforce.totalEmployees': 'payroll-2026.pdf' });
+    expect(text).toMatch(/read out of the documents you uploaded/);
+  });
+
+  it('says "your own records" when the figure was entered, not uploaded', async () => {
+    const text = await renderHeader({});
+    expect(text).not.toMatch(/documents you uploaded/);
+    expect(text).toMatch(/from your own records/);
   });
 });

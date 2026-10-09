@@ -97,7 +97,7 @@ export default function Layout() {
       <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
-            <Link to="/" className="flex items-center gap-3">
+            <Link to="/" aria-label={t('layout.homeLink')} className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-none bg-slate-800">
                 <Shield className="h-5 w-5 text-white" />
               </div>
@@ -145,6 +145,9 @@ export default function Layout() {
             <button
               className="rounded-lg p-2 text-slate-700 hover:bg-slate-100 md:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? t('layout.closeNavigation') : t('layout.openNavigation')}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-navigation"
             >
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -152,7 +155,7 @@ export default function Layout() {
         </div>
 
         {mobileMenuOpen && (
-          <div className="border-t border-slate-200 bg-white md:hidden">
+          <div id="mobile-navigation" className="border-t border-slate-200 bg-white md:hidden">
             <div className="space-y-1 px-4 py-3">
               {visibleNav.map((item, index) => {
                 const isActive =

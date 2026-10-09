@@ -20,6 +20,10 @@ Three tiers, and the line between them is **finishing**, not looking:
 - response-ready (local dependency) — domain-agnostic questionnaire engine + ESG domain pack
 
 ## Current State
+- **Interface and answer languages stay separate without leaking copy** — question-bank
+  guidance retains English and German variants and the readiness and response views pick
+  the current UI language. The mobile demo action bar no longer covers the response list,
+  and the global navigation has explicit accessible labels.
 - **Free reads your own questionnaire** (Sept 2026). Until then `free` carried
   `canUploadQuestionnaire: false` / `canExtractDocuments: false`, so every visitor
   evaluated the product against `demoData.js`'s fictional company — which is why a year
@@ -31,7 +35,29 @@ Three tiers, and the line between them is **finishing**, not looking:
   records (high confidence), written for you to check (medium), cannot answer
   (everything else — a low-confidence draft is NOT presented as an answer). Never a
   score, a percentage, or a predicted buyer outcome; a test asserts those words are
-  absent. Spec: `COVERAGE-REPORT-SPEC.md`.
+  absent. The first screen is now a single verdict with one deterministic next move;
+  alternate paths are folded, topic questions start closed, and policy actions respect
+  `canBuildPolicies` (Pass can upload an existing policy; Passport can create one).
+  The verdict leads with what is already drafted; the complete set of
+  records/calculations, company answers and requested policies follows below it, and
+  then one €99 extract/calculate/review workflow. Missing policies also surface the
+  full Passport's integrated policy builder without implying it is part of the €99 pass.
+  Spec: `COVERAGE-REPORT-SPEC.md`.
+- **The free report shows the drafts, not just the gaps** (Oct 2026). Free used to be
+  sampled from `fromRecords` alone, through `isPreviewWorthy`'s seven conditions; that
+  group measures 0-8 answers of 17-81, so the person deciding whether to buy saw little
+  or nothing while a paid workspace saw the whole pool. Free and paid now draw the same
+  sample; `isPresentableDraft` keeps out only fragments and "we do not have this", and
+  `SupportBadge` carries the claim per line. The heading leads with what is drafted and
+  the outstanding requirements follow on one line. The sample panel no longer calls a
+  mixed pool "fully covered".
+- **The report groups by the questionnaire's own sections when it has usable ones** —
+  `src/lib/coverageSections.js`. The parser already captures them (`question.category`:
+  a category/topic/theme/section/pillar column, a PDF heading, else the sheet name) and
+  the engine carries them onto every draft. They are trusted on the SHAPE of the
+  partition, not a blacklist: 80% of questions labelled, 2-12 sections, median section
+  >= 2 questions. Anything else falls back to the four canonical topics. `coverage.topics`
+  stays canonical either way; `coverage.sections` is the new, nullable view.
 - **PDF and Word uploads confirm the question list first** — the parser finds 22 of ~50
   questions in a real SAQ, and a wrong denominator makes every number on the report
   false. Excel and CSV now confirm too; unusually thin parses carry an explicit warning.
@@ -62,6 +88,11 @@ Three tiers, and the line between them is **finishing**, not looking:
 - Low-confidence data warnings (amber/red visual indicators)
 - Bulk CSV data import with smart column detection + template download
 - Monthly/Annual entry mode toggle on Data page
+- **Annual-entry correctness and narrow-screen grid hardening (Sept 2026)** — annual
+  edits are explicit full-year totals spread across 12 months, only fields touched in
+  annual mode are rewritten, the displayed electricity factor is converted from the
+  stored tCO2e/kWh value to kgCO2e/kWh, and the monthly grid has a stable scrollable
+  width with its metric column pinned.
 - Industry-adaptive data entry (hides irrelevant metrics based on company industry)
 - Year-over-year comparison table with trend indicators
 - **EN + DE only, both written not translated.** UI: 884 keys at full parity; the

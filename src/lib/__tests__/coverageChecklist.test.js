@@ -41,17 +41,23 @@ const build = (overrides = {}) =>
   });
 
 describe('the checklist someone takes away', () => {
-  it('carries the counts the report showed', () => {
+  it('leads with the things the supplier needs to provide', () => {
     const html = build();
-    expect(html).toContain('34');
-    expect(html).toContain('Answered from your records');
-    expect(html).toContain('Still waiting on something');
+    expect(html).toContain('What to provide for this customer request');
+    expect(html).toContain('<strong>2</strong><span>records to provide</span>');
+    expect(html).not.toContain('company answers to confirm');
+    expect(html).not.toContain('policies to attach or create');
+    expect(html).not.toContain('<strong>0</strong>');
+    expect(html).toContain('Passport can already use your workspace to prepare 2 answers.');
+    expect(html).not.toContain('Questions asked');
   });
 
   it('names the documents to go and find, and what each would answer', () => {
     const html = build();
-    expect(html).toContain('would answer 6 more');
-    expect(html).toContain('would answer 3 more');
+    expect(html).toContain('What this customer request needs');
+    expect(html).toContain('Your electricity bill');
+    expect(html).toContain('clears 6 more questions');
+    expect(html).toContain('clears 3 more questions');
   });
 
   it('drops a document type it has no label for rather than printing the raw key', () => {
@@ -64,8 +70,9 @@ describe('the checklist someone takes away', () => {
     expect(build()).toContain('https://esgforsuppliers.com/app/');
   });
 
-  it('says the work happened on their own device', () => {
-    expect(build()).toContain('Nothing was uploaded');
+  it('makes clear that the handoff is not a customer submission', () => {
+    expect(build()).toContain('Local working copy only');
+    expect(build()).toContain('not a submission to your customer');
   });
 
   it('is a standalone document that opens on its own', () => {
@@ -95,8 +102,9 @@ describe('the checklist someone takes away', () => {
   });
 
   it('says so plainly when nothing is outstanding', () => {
-    const html = build({ coverage: { ...coverage, missingDocuments: [] } });
-    expect(html).toContain('Nothing outstanding');
+    const html = build({ coverage: { ...coverage, recovered: [], fromRecords: [], missingDocuments: [] } });
+    expect(html).toContain('No additional records, company answers or policies are outstanding.');
+    expect(html).toContain('No additional standard record is holding this up');
   });
 
   it('comes out in German when the reader is reading German', () => {
@@ -108,8 +116,24 @@ describe('the checklist someone takes away', () => {
       generatedAt: new Date('2026-09-09T10:00:00.000Z'),
     });
     expect(html).toContain('lang="de"');
-    expect(html).toContain('Was dieser Fragebogen braucht');
-    expect(html).toContain('Zu suchende Dokumente');
+    expect(html).toContain('Was Sie für diese Kundenanfrage bereitstellen müssen');
+    expect(html).toContain('Was diese Kundenanfrage benötigt');
+    expect(html).toContain('Unterlagen und Kennzahlen');
+  });
+
+  it('carries company information and requested policies into the handoff', () => {
+    const html = build({
+      coverage: {
+        ...coverage,
+        topics: [{ topic: 'other', total: 3, recovered: 1, fromRecords: 0 }],
+        policyGaps: { builders: ['code_of_conduct'] },
+      },
+    });
+    expect(html).toContain('Company information');
+    expect(html).toContain('Already covered from the company profile: 1. Still needing confirmation or an answer: 2.');
+    expect(html).toContain('Policies requested');
+    expect(html).toContain('Code of Conduct');
+    expect(html).toContain('integrated builder for missing policies');
   });
 
   it('names the file by the day it was made', () => {
