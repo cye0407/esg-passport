@@ -10,6 +10,7 @@ import { selectBestCoverageAnswers } from '@/lib/coverage';
 import { getCompanyProfile, getPolicies, saveCompanyProfile, saveDocument, updatePolicyFileLocation, updatePolicyStatus } from '@/lib/store';
 import { POLICY_BUILDERS, builderName } from '@/data/policyBuilders';
 import PolicyBuilder from '@/components/PolicyBuilder';
+import DocumentUploadButton from '@/components/DocumentUploadButton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -425,6 +426,9 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   const companyAnswerCount = companyOpenCount + manualQuestions.length;
   const outstandingRequirementCount = requiredDocuments.length + companyAnswerCount + policyGaps.builders.length;
   const bestNextPolicy = policyGaps.builders[0] || null;
+  // A free reader with records still to add has one first move: add them. The €99 offer
+  // stays on the page, one step down, so there is a single filled button on screen.
+  const uploadLeads = !canGenerateAnswers && requiredDocuments.length > 0;
   const completionAction = canGenerateAnswers && onShowAnswers
     ? {
         label: t('coverage.nextReviewCta'),
@@ -459,6 +463,9 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{t('coverage.lead', { count: total, supported: answeredCount, review: reviewCount, open: openCount })}</p>
               </>
             )}
+            {/* The records list below is the work; the way to start it belongs here, not
+                under the topic cards at the bottom of the page. */}
+            {requiredDocuments.length > 0 && <DocumentUploadButton source="verdict" className="mt-5" />}
           </div>
           {questionnaireName && (
             <div className="inline-flex max-w-full shrink-0 items-center gap-2 rounded-full border border-[#cfe3d8] bg-white px-3 py-1.5 text-xs font-semibold text-[#3f5049]">
@@ -530,7 +537,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
             <h2 className="mt-1.5 text-[20px] font-bold leading-7 text-[#0f1a15]">{t(canGenerateAnswers ? 'coverage.reviewUpsellTitle' : 'coverage.automationUpsellTitle')}</h2>
             <p className="mt-2 max-w-3xl text-[13px] leading-5 text-[#3f5049]">{t(canGenerateAnswers ? 'coverage.reviewUpsellBody' : 'coverage.automationUpsellBody', { count: total })}</p>
             {!canGenerateAnswers && <ul className="mt-4 grid gap-2 text-[12.5px] text-[#203129] sm:grid-cols-3"><li>{t('coverage.automationF1')}</li><li>{t('coverage.automationF2')}</li><li>{t('coverage.automationF3')}</li></ul>}
-            <button type="button" onClick={completionAction.run} data-testid="coverage-primary-action" className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[#0f7a55] px-5 text-sm font-semibold text-white transition hover:bg-[#0b5f43] sm:w-auto">{completionAction.label}<ArrowRight className="h-4 w-4" /></button>
+            <button type="button" onClick={completionAction.run} data-testid="coverage-primary-action" className={`mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] px-5 text-sm font-semibold transition sm:w-auto ${uploadLeads ? 'border border-[#0f7a55] bg-white text-[#0b5f43] hover:bg-[#f7faf8]' : 'bg-[#0f7a55] text-white hover:bg-[#0b5f43]'}`}>{completionAction.label}<ArrowRight className="h-4 w-4" /></button>
             {policyGaps.builders.length > 0 && !canBuildPolicies && <div className="mt-5 border-t border-[#bfe3d3] pt-4"><p className="text-[12.5px] leading-5 text-[#3f5049]"><strong className="text-[#0f1a15]">{t(policyGaps.builders.length === 1 ? 'coverage.policyBuilderUpsellTitleOne' : 'coverage.policyBuilderUpsellTitle', { count: policyGaps.builders.length })}</strong> {t('coverage.policyBuilderUpsellBody')}</p><button type="button" onClick={() => openCheckout(PASSPORT_CHECKOUT_URL, 'coverage_policy_builder_upsell', tier)} className="mt-2 text-[12.5px] font-semibold text-[#0b5f43] hover:underline">{t('coverage.nextPassportCta', { price: PASSPORT_PRICE })}</button></div>}
             {policyGaps.builders.length > 0 && canBuildPolicies && <p className="mt-4 border-t border-[#bfe3d3] pt-4 text-[12.5px] font-semibold text-[#0b5f43]">{t('coverage.policyBuilderIncluded')}</p>}
           </section>

@@ -4,7 +4,7 @@ import { FileText, Upload } from 'lucide-react';
 import { track } from '@/lib/track';
 import { setHandoff } from '@/lib/handoff';
 import { useLanguage } from '@/components/LanguageContext';
-import { dropSurfaceClass } from '@/lib/dropSurface';
+import { dropSurfaceClass, ACCEPTED_DOCUMENT_TYPES } from '@/lib/dropSurface';
 
 // Drop the bills where you land, not three tabs away.
 //
@@ -16,7 +16,7 @@ import { dropSurfaceClass } from '@/lib/dropSurface';
 // The accepted list is BillDrop's, not a wish list. It reads a text layer out of the
 // file, so a Word document or a photograph of a bill has nothing for it to read, and
 // promising those here would produce "no ESG data found" on a file we never could read.
-const ACCEPTED = ['.pdf', '.txt', '.csv'];
+const ACCEPTED = ACCEPTED_DOCUMENT_TYPES;
 
 export default function DocumentDrop() {
   const navigate = useNavigate();

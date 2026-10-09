@@ -1,5 +1,9 @@
 import { cn } from '@/lib/utils';
 
+// The evidence reader takes a text layer, so these are the files it can actually read.
+// Shared by DocumentDrop and the coverage report's upload button.
+export const ACCEPTED_DOCUMENT_TYPES = ['.pdf', '.txt', '.csv'];
+
 // One visual contract for every file intake surface. Questionnaire and evidence files
 // do different work, but changing border weight, radius, width and spacing makes the
 // journey feel like separate products.
