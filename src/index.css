@@ -4,25 +4,25 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 40 60% 98%;
+    --foreground: 0 0% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 0 0% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 226 70% 45%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 0 0% 10%;
+    --primary-foreground: 40 60% 98%;
+    --secondary: 43 26% 95.5%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 43 26% 95.5%;
+    --muted-foreground: 0 0% 42%;
+    --accent: 155 29% 93%;
+    --accent-foreground: 164 69% 25%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 226 70% 45%;
+    --destructive-foreground: 40 60% 98%;
+    --border: 43 9% 88%;
+    --input: 43 9% 88%;
+    --ring: 0 0% 10%;
     --radius: 0rem;
   }
 }
@@ -32,14 +32,20 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+  h1, h2, h3 {
+    @apply tracking-tight;
+  }
+  input[type='checkbox'], input[type='radio'] {
+    accent-color: #146B55;
   }
 }
 
 @layer components {
   .glass-card {
     background: white;
-    border: 1px solid rgb(226, 232, 240);
+    border: 1px solid #E5E3DE;
   }
 }
 

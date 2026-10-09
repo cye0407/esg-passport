@@ -127,7 +127,7 @@ export default function Layout() {
                           ? 'px-3 py-2 text-sm font-medium'
                           : 'px-2.5 py-1.5 text-[13px]',
                         isActive
-                          ? 'bg-indigo-600 text-white'
+                          ? 'bg-slate-900 text-white'
                           : item.primary
                             ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                             : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700',
@@ -173,7 +173,7 @@ export default function Layout() {
                     className={cn(
                       'flex items-center gap-3 rounded-none px-4 py-3 text-sm font-medium transition-colors',
                       isActive
-                        ? 'bg-indigo-600 text-white'
+                        ? 'bg-slate-900 text-white'
                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
                     )}
                   >

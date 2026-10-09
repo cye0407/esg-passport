@@ -81,7 +81,7 @@ class ErrorBoundary extends React.Component {
             <p className="text-slate-500 mb-6">{t('err.boundaryBody', lang)}</p>
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-none font-medium hover:bg-indigo-700 transition-colors"
+              className="px-6 py-3 bg-slate-900 text-white rounded-none font-medium hover:bg-emerald-700 transition-colors"
             >
               {t('err.refresh', lang)}
             </button>

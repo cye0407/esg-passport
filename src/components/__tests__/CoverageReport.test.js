@@ -291,8 +291,8 @@ describe('CoverageReport', () => {
     expect(upload.textContent).toContain('Upload a bill or record');
     expect(upload.compareDocumentPosition(primary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // One filled button: the upload. The €99 offer is still there, outlined.
-    expect(upload.className).toContain('bg-[#0f7a55]');
-    expect(primary.className).not.toContain('bg-[#0f7a55]');
+    expect(upload.classList.contains('bg-[#1A1A1A]')).toBe(true);
+    expect(primary.classList.contains('bg-[#1A1A1A]')).toBe(false);
 
     const input = verdict.querySelector('[data-testid="coverage-upload-input-verdict"]');
     const bill = new File(['kWh 1200'], 'march-bill.pdf', { type: 'application/pdf' });
@@ -313,7 +313,7 @@ describe('CoverageReport', () => {
   it('keeps the €99 offer as the filled button when no record is missing, and shows no upload', async () => {
     await render([draft('workforce', 'medium')]);
     expect(container.querySelector('[data-testid="coverage-upload-verdict"]')).toBeNull();
-    expect(container.querySelector('[data-testid="coverage-primary-action"]').className).toContain('bg-[#0f7a55]');
+    expect(container.querySelector('[data-testid="coverage-primary-action"]').classList.contains('bg-[#1A1A1A]')).toBe(true);
   });
 
   it('shows every required record rather than only a ranked top three', async () => {
