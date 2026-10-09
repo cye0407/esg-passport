@@ -51,16 +51,16 @@ export default function DocumentUploadButton({ source, variant = 'primary', clas
         onClick={() => inputRef.current?.click()}
         data-testid={`coverage-upload-${source}`}
         className={cn(
-          'inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] px-5 text-sm font-semibold transition',
+          'inline-flex min-h-11 items-center justify-center gap-2 px-5 text-sm font-semibold transition-colors',
           variant === 'primary'
-            ? 'bg-[#0f7a55] text-white hover:bg-[#0b5f43]'
-            : 'border border-[#0f7a55] bg-white text-[#0b5f43] hover:bg-[#f7faf8]',
+            ? 'bg-[#1A1A1A] text-[#FDFBF7] hover:bg-[#146B55]'
+            : 'border border-[#1A1A1A] bg-transparent text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-[#FDFBF7]',
         )}
       >
         <Upload className="h-4 w-4" />
         {t('coverage.uploadRecords')}
       </button>
-      <p className="mt-1.5 text-[12px] leading-5 text-[#6b7a72]">{t('coverage.uploadRecordsHint', { formats: ACCEPTED.join(', ') })}</p>
+      <p className="mt-1.5 text-[12px] leading-5 text-[#6B6B6B]">{t('coverage.uploadRecordsHint', { formats: ACCEPTED.join(', ') })}</p>
       {error && <p className="mt-1 text-[12px] text-red-600">{error}</p>}
     </div>
   );
