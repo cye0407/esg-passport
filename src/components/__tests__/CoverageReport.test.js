@@ -266,7 +266,7 @@ describe('CoverageReport', () => {
     expect(labels.some(l => l.includes('Enter the figures'))).toBe(true);
   });
 
-  it('shows the full requirement before one automation option instead of sending the supplier through bills', async () => {
+  it('shows the full requirement and one automation option', async () => {
     await render([needing('workforce', ['Total FTE'])], { companyData: {} });
 
     const verdict = container.querySelector('[data-testid="coverage-verdict"]');
@@ -280,6 +280,40 @@ describe('CoverageReport', () => {
     expect(verdict.textContent).not.toContain('Enter the figures');
     expect(alternatives.open).toBe(false);
     expect(alternatives.querySelector('summary').textContent).toContain('Questionnaire details and other actions');
+  });
+
+  it('puts the upload where the required records are listed, ahead of the €99 offer', async () => {
+    await render([needing('workforce', ['Total FTE'])], { companyData: {} });
+
+    const verdict = container.querySelector('[data-testid="coverage-verdict"]');
+    const upload = verdict.querySelector('[data-testid="coverage-upload-verdict"]');
+    const primary = verdict.querySelector('[data-testid="coverage-primary-action"]');
+    expect(upload.textContent).toContain('Upload a bill or record');
+    expect(upload.compareDocumentPosition(primary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // One filled button: the upload. The €99 offer is still there, outlined.
+    expect(upload.className).toContain('bg-[#0f7a55]');
+    expect(primary.className).not.toContain('bg-[#0f7a55]');
+
+    const input = verdict.querySelector('[data-testid="coverage-upload-input-verdict"]');
+    const bill = new File(['kWh 1200'], 'march-bill.pdf', { type: 'application/pdf' });
+    Object.defineProperty(input, 'files', { value: [bill] });
+    await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })));
+    expect(tracked.some(e => e.event === 'coverage_documents_chosen' && e.props.documents === 1)).toBe(true);
+  });
+
+  it('refuses a file type the reader cannot read, without leaving the report', async () => {
+    await render([needing('workforce', ['Total FTE'])], { companyData: {} });
+    const input = container.querySelector('[data-testid="coverage-upload-input-verdict"]');
+    Object.defineProperty(input, 'files', { value: [new File(['x'], 'photo.jpg', { type: 'image/jpeg' })] });
+    await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })));
+    expect(container.textContent).toContain('We cannot read that file type');
+    expect(tracked.some(e => e.event === 'coverage_documents_chosen')).toBe(false);
+  });
+
+  it('keeps the €99 offer as the filled button when no record is missing, and shows no upload', async () => {
+    await render([draft('workforce', 'medium')]);
+    expect(container.querySelector('[data-testid="coverage-upload-verdict"]')).toBeNull();
+    expect(container.querySelector('[data-testid="coverage-primary-action"]').className).toContain('bg-[#0f7a55]');
   });
 
   it('shows every required record rather than only a ranked top three', async () => {
