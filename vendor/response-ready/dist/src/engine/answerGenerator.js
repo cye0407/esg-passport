@@ -464,7 +464,19 @@ export function createAnswerGenerator(deps) {
         // The cell: the primary answer plus any further record a multi-part cell also asked and
         // the record could answer. An unanswered primary leaves the cell empty — the state says why,
         // and the canned sentence goes in only when the user asked for it.
-        const extras = rendered.slice(1).filter(x => x.r.answered).map(x => x.r.answer);
+        // An extra that states no field the cell does not already state is a repeat: a combined
+        // "Scope 1 and Scope 2" cell used to read the total, then Scope 2 again, then Scope 1 again.
+        const stated = new Set(answered ? (primary.r.fieldsUsed || []) : []);
+        const extras = [];
+        for (const x of rendered.slice(1)) {
+            if (!x.r.answered)
+                continue;
+            const fields = x.r.fieldsUsed || [];
+            if (fields.length > 0 && fields.every(f => stated.has(f)))
+                continue;
+            extras.push(x.r.answer);
+            fields.forEach(f => stated.add(f));
+        }
         const cell = answered
             ? [primary.r.answer, ...extras].join(' ')
             : [fillNoEvidence ? primary.r.canned || '' : '', ...extras].filter(Boolean).join(' ');

@@ -1,6 +1,12 @@
 import type { MatchResult, DataContext } from '../../src/types';
 export interface ESGCompanyData {
     companyName: string;
+    /** The registered legal entity (e.g. "Hartmann Präzisionstechnik GmbH"). companyName is the
+     *  trading name used in running prose; legal-name questions want this one. */
+    legalEntityName?: string;
+    /** Explicitly no direct combustion sources: no gas connection and no company vehicles.
+     *  Distinct from a missing Scope 1 figure (unknown) and from a measured 0. */
+    scope1NotApplicable?: boolean;
     industry?: string;
     country?: string;
     employeeCount?: number;

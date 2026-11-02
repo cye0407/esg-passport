@@ -301,6 +301,15 @@ export const SUPPLIER_FORM_QUESTIONS = [
         intent: { en: 'Company identification and contact details (name, address, IDs, contact person)', de: 'Unternehmens- und Kontaktangaben (Name, Adresse, Kennungen, Ansprechperson)' },
         variants: { en: ['company name', 'registered address', 'DUNS number', 'supplier ID', 'contact person', 'completed by', 'e-mail', 'job title', 'full legal entity name registration number ownership structure and ultimate parent', 'legal name registered address and country of incorporation', 'company name address and number of employees'], de: ['Firmenname', 'eingetragene Adresse', 'DUNS-Nummer', 'Lieferantennummer', 'Ansprechpartner', 'ausgefüllt von', 'E-Mail', 'vollständiger Firmenname und Registernummer'] },
         refs: [], needs: ['companyName', 'registeredAddress'],
+        // A name-only ask belongs to core.legalName; without this the contact block rode along as
+        // a second record and the cell repeated the name with an address nobody asked for.
+        notTerms: ['eingetragener firmenname', 'registered legal name', 'legal name of your company', 'rechtlicher name'],
+    },
+    {
+        id: 'core.legalName', topic: 'general', answerType: 'text', legalBasis: 'none',
+        intent: { en: 'Registered legal name of the company', de: 'Eingetragener rechtlicher Name des Unternehmens' },
+        variants: { en: ['registered legal name', 'legal name of your company', 'legal entity name', 'registered company name', 'official registered name of the company'], de: ['eingetragener Firmenname', 'rechtlicher Name des Unternehmens', 'Name des Rechtsträgers', 'eingetragene Firmierung', 'vollständiger rechtlicher Firmenname'] },
+        refs: [], needs: ['legalEntityName'],
     },
     // ------------------------------------------------------------------ measures and processes buyers ask to be described
     {

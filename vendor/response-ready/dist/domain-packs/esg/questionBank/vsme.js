@@ -176,7 +176,7 @@ export const VSME_QUESTIONS = [
     v({
         id: 'vsme.b3.ghgTotal', topic: 'environment', answerType: 'number', unit: 'tCO2e',
         intent: { en: 'Total GHG emissions (Scope 1 + 2, optionally + 3)', de: 'Gesamte Treibhausgasemissionen (Scope 1 + 2, ggf. + 3)' },
-        variants: { en: ['total greenhouse gas emissions', 'total GHG emissions', 'scope 1 and scope 2 emissions', 'carbon footprint', 'total CO2 emissions', 'combined scope 1 and 2', 'total greenhouse gas emissions scope 1 and scope 2', 'monitor and record your greenhouse gas emissions', 'scope 1 and scope 2 greenhouse gas emissions for the last reporting period'], de: ['gesamte Treibhausgasemissionen', 'THG-Emissionen gesamt', 'Scope 1 und 2', 'CO2-Fußabdruck', 'Gesamtemissionen', 'Scope 1 und Scope 2 gesamt'] },
+        variants: { en: ['total greenhouse gas emissions', 'total GHG emissions', 'scope 1 and scope 2 emissions', 'carbon footprint', 'total CO2 emissions', 'combined scope 1 and 2', 'total greenhouse gas emissions scope 1 and scope 2', 'monitor and record your greenhouse gas emissions', 'scope 1 and scope 2 greenhouse gas emissions for the last reporting period'], de: ['gesamte Treibhausgasemissionen', 'THG-Emissionen gesamt', 'Scope 1 und 2', 'CO2-Fußabdruck', 'Gesamtemissionen', 'Scope 1 und Scope 2 gesamt', 'Scope-1- und Scope-2-Treibhausgasemissionen', 'Scope-1- und Scope-2-Emissionen', 'Scope-1- und Scope-2-THG-Emissionen'] },
         refs: ['VSME B3 ¶30', 'GRI 305'], vsme: ['TotalGrossLocationBasedScope1AndScope2GHGEmissions', 'TotalGrossMarketBasedScope1AndScope2GHGEmissions', 'TotalGrossLocationBasedGHGEmissions'],
         needs: ['scope1Tco2e', 'scope2Tco2e'],
     }),

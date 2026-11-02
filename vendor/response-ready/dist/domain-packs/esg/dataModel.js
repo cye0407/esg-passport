@@ -52,7 +52,7 @@ export function esgRetrieveData(matchResult, data) {
                 // These domains have keyword rules pointing at them but their templates are
                 // primarily defensive (use company context as fallback). Surface basic identity
                 // so confidence escapes 'unknown' and the template's fallback text can ship.
-                addIfPresent(company, domain, 'legalEntityName', 'Company Name', data.companyName);
+                addIfPresent(company, domain, 'legalEntityName', 'Company Name', data.legalEntityName || data.companyName);
                 addIfPresent(company, domain, 'industryDescription', 'Industry', data.industry);
                 addIfPresent(company, domain, 'headquartersCountry', 'Country', data.country);
                 addIfPresent(company, domain, 'totalFte', 'Total Employees (FTE)', data.employeeCount);
@@ -110,7 +110,7 @@ export function esgRetrieveData(matchResult, data) {
                 }
                 break;
             case 'products':
-                addIfPresent(company, 'products', 'legalEntityName', 'Company Name', data.companyName);
+                addIfPresent(company, 'products', 'legalEntityName', 'Company Name', data.legalEntityName || data.companyName);
                 addIfPresent(company, 'products', 'industryDescription', 'Industry', data.industry);
                 addIfPresent(company, 'products', 'headquartersCountry', 'Country', data.country);
                 addIfPresent(company, 'products', 'totalFte', 'Total Employees (FTE)', data.employeeCount);
@@ -133,7 +133,7 @@ export function esgRetrieveData(matchResult, data) {
                 break;
             case 'company':
             case 'site':
-                addIfPresent(company, 'company', 'legalEntityName', 'Company Name', data.companyName);
+                addIfPresent(company, 'company', 'legalEntityName', 'Company Name', data.legalEntityName || data.companyName);
                 addIfPresent(company, 'company', 'registeredAddress', 'Registered Address', data.registeredAddress);
                 addIfPresent(company, 'company', 'industryDescription', 'Industry', data.industry);
                 addIfPresent(company, 'company', 'headquartersCountry', 'Country', data.country);
@@ -286,7 +286,7 @@ export function esgRetrieveData(matchResult, data) {
             case 'workforce':
                 addIfPresent(company, 'workforce', 'industryDescription', 'Industry', data.industry);
                 addIfPresent(company, 'workforce', 'headquartersCountry', 'Country', data.country);
-                addIfPresent(company, 'workforce', 'legalEntityName', 'Company Name', data.companyName);
+                addIfPresent(company, 'workforce', 'legalEntityName', 'Company Name', data.legalEntityName || data.companyName);
                 addIfPresent(company, 'workforce', 'ownershipStructure', 'Ownership Structure', data.ownership);
                 addIfPresent(operational, 'workforce', 'totalFte', 'Total FTE', data.employeeCount);
                 if (data.femalePercent !== undefined)
@@ -310,7 +310,7 @@ export function esgRetrieveData(matchResult, data) {
                 break;
             case 'health_safety':
                 addIfPresent(company, 'health_safety', 'industryDescription', 'Industry', data.industry);
-                addIfPresent(company, 'health_safety', 'legalEntityName', 'Company Name', data.companyName);
+                addIfPresent(company, 'health_safety', 'legalEntityName', 'Company Name', data.legalEntityName || data.companyName);
                 if (data.trirRate !== undefined)
                     operational.push({ domain: 'health_safety', field: 'trir', label: 'TRIR', value: data.trirRate, confidence: 'high' });
                 if (data.lostTimeIncidents !== undefined)
@@ -331,7 +331,7 @@ export function esgRetrieveData(matchResult, data) {
                 break;
             case 'regulatory':
             case 'goals':
-                addIfPresent(company, 'company', 'legalEntityName', 'Company Name', data.companyName);
+                addIfPresent(company, 'company', 'legalEntityName', 'Company Name', data.legalEntityName || data.companyName);
                 addIfPresent(company, 'company', 'industryDescription', 'Industry', data.industry);
                 addIfPresent(company, 'company', 'headquartersCountry', 'Country', data.country);
                 addIfPresent(company, 'company', 'totalFte', 'Total Employees (FTE)', data.employeeCount);

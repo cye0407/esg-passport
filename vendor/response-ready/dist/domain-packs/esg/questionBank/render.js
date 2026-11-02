@@ -28,6 +28,36 @@ function period(d, lang) {
     const p = str(d, 'reportingPeriod');
     return p ? (lang === 'de' ? ` (${p})` : ` (${p})`) : '';
 }
+// What a Scope 1 figure was calculated from, mirroring the kWh basis Scope 2 states. Without it
+// a buyer reading "Scope 1: 274.6 tCO2e" next to "Scope 2 ... from 2,321,000 kWh" could not
+// tell what the direct figure rests on.
+function scope1Basis(d, lang) {
+    const g = num(d, 'naturalGasM3');
+    const o = num(d, 'dieselLiters');
+    const en = [];
+    const de = [];
+    const used = [];
+    if (g !== null) {
+        en.push(`${fmt(g, lang, 0)} m³ of natural gas`);
+        de.push(`${fmt(g, lang, 0)} m³ Erdgas`);
+        used.push('naturalGasM3');
+    }
+    if (o !== null) {
+        en.push(`${fmt(o, lang, 0)} l of diesel`);
+        de.push(`${fmt(o, lang, 0)} l Diesel`);
+        used.push('dieselLiters');
+    }
+    if (!used.length)
+        return { text: '', used };
+    return { text: L(lang, ` from ${en.join(' and ')}`, ` aus ${de.join(' und ')}`), used };
+}
+function scope1NotApplicable(d) {
+    return d.scope1NotApplicable === true && num(d, 'scope1Tco2e') === null;
+}
+const SCOPE1_NA = {
+    en: 'not applicable: no direct combustion sources (no natural gas, no company vehicles)',
+    de: 'nicht zutreffend: keine direkten Verbrennungsquellen (kein Erdgas, keine Firmenfahrzeuge)',
+};
 function lowerFirst(s) {
     // Leave acronyms alone: "GHG reduction targets" must not become "gHG …".
     return s && s.length > 1 && s[1] === s[1].toLowerCase() ? s[0].toLowerCase() + s.slice(1) : s;
@@ -362,10 +392,14 @@ const OVERRIDES = {
         return { answer: L(lang, `${fmt(r, lang)} % of electricity from renewable sources${period(d, lang)}.`, `${fmt(r, lang)} % des Stroms aus erneuerbaren Quellen${period(d, lang)}.`), answered: true, fieldsUsed: ['renewablePercent'] };
     },
     'vsme.b3.scope1': (q, d, lang) => {
+        if (scope1NotApplicable(d)) {
+            return { answer: L(lang, `Scope 1 (direct) emissions${period(d, lang)}: ${SCOPE1_NA.en}.`, `Scope-1-Emissionen (direkt)${period(d, lang)}: ${SCOPE1_NA.de}.`), answered: true, fieldsUsed: ['scope1NotApplicable'], yesNo: 'na' };
+        }
         const s = num(d, 'scope1Tco2e');
         if (s === null)
             return null;
-        return { answer: L(lang, `Scope 1 (direct) emissions${period(d, lang)}: ${fmt(s, lang)} tCO2e.`, `Scope-1-Emissionen (direkt)${period(d, lang)}: ${fmt(s, lang)} tCO2e.`), answered: true, fieldsUsed: ['scope1Tco2e'] };
+        const basis = scope1Basis(d, lang);
+        return { answer: L(lang, `Scope 1 (direct) emissions${period(d, lang)}: ${fmt(s, lang)} tCO2e${basis.text}.`, `Scope-1-Emissionen (direkt)${period(d, lang)}: ${fmt(s, lang)} tCO2e${basis.text}.`), answered: true, fieldsUsed: ['scope1Tco2e', ...basis.used] };
     },
     'vsme.b3.scope2': (q, d, lang) => {
         const s = num(d, 'scope2Tco2e');
@@ -390,21 +424,33 @@ const OVERRIDES = {
     'vsme.b3.ghgTotal': (q, d, lang) => {
         const s1 = num(d, 'scope1Tco2e');
         const s2 = num(d, 'scope2Tco2e');
-        if (s1 === null && s2 === null)
+        const na1 = scope1NotApplicable(d);
+        if (s1 === null && s2 === null && !na1)
             return null;
         const parts = [];
         const used = [];
         if (s1 !== null) {
-            parts.push(`Scope 1: ${fmt(s1, lang)} tCO2e`);
-            used.push('scope1Tco2e');
+            const basis = scope1Basis(d, lang);
+            parts.push(`Scope 1: ${fmt(s1, lang)} tCO2e${basis.text}`);
+            used.push('scope1Tco2e', ...basis.used);
+        }
+        else if (na1) {
+            parts.push(L(lang, `Scope 1: ${SCOPE1_NA.en}`, `Scope 1: ${SCOPE1_NA.de}`));
+            used.push('scope1NotApplicable');
         }
         if (s2 !== null) {
-            parts.push(L(lang, `Scope 2 (location-based): ${fmt(s2, lang)} tCO2e`, `Scope 2 (standortbasiert): ${fmt(s2, lang)} tCO2e`));
+            const e = num(d, 'electricityKwh');
+            const kwh = e !== null ? L(lang, ` from ${fmt(e, lang, 0)} kWh of purchased electricity`, ` aus ${fmt(e, lang, 0)} kWh eingekauftem Strom`) : '';
+            parts.push(L(lang, `Scope 2 (location-based): ${fmt(s2, lang)} tCO2e${kwh}`, `Scope 2 (standortbasiert): ${fmt(s2, lang)} tCO2e${kwh}`));
             used.push('scope2Tco2e');
+            if (e !== null)
+                used.push('electricityKwh');
         }
+        // A not-applicable Scope 1 contributes zero to the total by definition; a missing one does not.
         const total = (s1 ?? 0) + (s2 ?? 0);
-        const totalTxt = s1 !== null && s2 !== null ? L(lang, ` Total Scope 1 + 2: ${fmt(total, lang)} tCO2e.`, ` Summe Scope 1 + 2: ${fmt(total, lang)} tCO2e.`) : '';
-        return { answer: L(lang, `GHG emissions${period(d, lang)}: ${parts.join('; ')}.${totalTxt}`, `Treibhausgasemissionen${period(d, lang)}: ${parts.join('; ')}.${totalTxt}`), answered: true, fieldsUsed: used };
+        const totalTxt = (s1 !== null || na1) && s2 !== null ? L(lang, ` Total Scope 1 + 2: ${fmt(total, lang)} tCO2e.`, ` Summe Scope 1 + 2: ${fmt(total, lang)} tCO2e.`) : '';
+        const market = s2 !== null ? L(lang, ' A market-based Scope 2 figure is not available.', ' Ein marktbasierter Scope-2-Wert liegt nicht vor.') : '';
+        return { answer: L(lang, `GHG emissions${period(d, lang)}: ${parts.join('; ')}.${totalTxt}${market}`, `Treibhausgasemissionen${period(d, lang)}: ${parts.join('; ')}.${totalTxt}${market}`), answered: true, fieldsUsed: used };
     },
     'vsme.b6.withdrawal': (q, d, lang) => {
         const w = num(d, 'waterM3');
@@ -467,7 +513,7 @@ const OVERRIDES = {
             used.push('trirRate');
         }
         if (l !== null) {
-            parts.push(L(lang, `${fmt(l, lang, 0)} lost-time incidents`, `${fmt(l, lang, 0)} Ausfallzeit-Unfälle`));
+            parts.push(L(lang, `${fmt(l, lang, 0)} lost-time ${l === 1 ? 'incident' : 'incidents'}`, `${fmt(l, lang, 0)} ${l === 1 ? 'Unfall' : 'Unfälle'} mit Ausfallzeit`));
             used.push('lostTimeIncidents');
         }
         if (h !== null) {
@@ -480,7 +526,7 @@ const OVERRIDES = {
         const f = num(d, 'fatalities');
         if (f === null)
             return null;
-        return { answer: f === 0 ? L(lang, `No work-related fatalities${period(d, lang)}.`, `Keine arbeitsbedingten Todesfälle${period(d, lang)}.`) : L(lang, `${fmt(f, lang, 0)} work-related fatalities${period(d, lang)}.`, `${fmt(f, lang, 0)} arbeitsbedingte Todesfälle${period(d, lang)}.`), answered: true, fieldsUsed: ['fatalities'], yesNo: f === 0 ? 'no' : 'yes' };
+        return { answer: f === 0 ? L(lang, `No work-related fatalities${period(d, lang)}.`, `Keine arbeitsbedingten Todesfälle${period(d, lang)}.`) : (f === 1 ? L(lang, `1 work-related fatality${period(d, lang)}.`, `1 arbeitsbedingter Todesfall${period(d, lang)}.`) : L(lang, `${fmt(f, lang, 0)} work-related fatalities${period(d, lang)}.`, `${fmt(f, lang, 0)} arbeitsbedingte Todesfälle${period(d, lang)}.`)), answered: true, fieldsUsed: ['fatalities'], yesNo: f === 0 ? 'no' : 'yes' };
     },
     'vsme.b10.minimumWage': (q, d, lang) => yesNoFromField(q, d, lang, 'livingWageCompliant', st => st === 'available' ? L(lang, 'All employees are paid at or above the applicable minimum wage.', 'Alle Beschäftigten werden mindestens nach dem geltenden Mindestlohn vergütet.') : ''),
     'vsme.b10.collectiveBargaining': (q, d, lang) => {
@@ -562,7 +608,7 @@ const OVERRIDES = {
             return null;
         if (st === 'available' || p) {
             const n = num(d, 'grievancesReported');
-            const count = n !== null ? L(lang, ` ${fmt(n, lang, 0)} grievances were reported through it${period(d, lang)}.`, ` ${fmt(n, lang, 0)} Beschwerden gingen darüber ein${period(d, lang)}.`) : '';
+            const count = n !== null ? (n === 1 ? L(lang, ` 1 grievance was reported through it${period(d, lang)}.`, ` 1 Beschwerde ging darüber ein${period(d, lang)}.`) : L(lang, ` ${fmt(n, lang, 0)} grievances were reported through it${period(d, lang)}.`, ` ${fmt(n, lang, 0)} Beschwerden gingen darüber ein${period(d, lang)}.`)) : '';
             return yes(lang, L(lang, `A grievance and whistleblowing mechanism is in place.${count}`, `Ein Beschwerde- und Hinweisgebermechanismus ist vorhanden.${count}`), n !== null ? ['grievanceMechanismExists', 'policies', 'grievancesReported'] : ['grievanceMechanismExists', 'policies']);
         }
         return yes(lang, L(lang, 'No grievance mechanism is in place.', 'Ein Beschwerdemechanismus ist nicht vorhanden.'), ['grievanceMechanismExists'], 'no');
@@ -571,7 +617,10 @@ const OVERRIDES = {
         const n = num(d, 'grievancesReported');
         if (n === null)
             return null;
-        return { answer: L(lang, `${fmt(n, lang, 0)} grievances were received through our mechanism${period(d, lang)}. None has been classified as a confirmed human rights incident.`, `${fmt(n, lang, 0)} Beschwerden gingen über unseren Mechanismus ein${period(d, lang)}. Keiner davon wurde als bestätigter Menschenrechtsvorfall eingestuft.`), answered: true, fieldsUsed: ['grievancesReported'] };
+        const answer = n === 1
+            ? L(lang, `1 grievance was received through our mechanism${period(d, lang)}. It has not been classified as a confirmed human rights incident.`, `1 Beschwerde ging über unseren Mechanismus ein${period(d, lang)}. Sie wurde nicht als bestätigter Menschenrechtsvorfall eingestuft.`)
+            : L(lang, `${fmt(n, lang, 0)} grievances were received through our mechanism${period(d, lang)}. None has been classified as a confirmed human rights incident.`, `${fmt(n, lang, 0)} Beschwerden gingen über unseren Mechanismus ein${period(d, lang)}. Keine davon wurde als bestätigter Menschenrechtsvorfall eingestuft.`);
+        return { answer, answered: true, fieldsUsed: ['grievancesReported'] };
     },
     'policy.environment': (q, d, lang) => policyAnswer(d, lang, /environment|umwelt/i, { en: 'environmental policy', de: 'Eine Umweltrichtlinie' }),
     'policy.climate': (q, d, lang) => policyAnswer(d, lang, /climate|ghg|emission|klima/i, { en: 'climate policy', de: 'Eine Klimarichtlinie' }),
@@ -669,11 +718,20 @@ const OVERRIDES = {
     'saq.riskAssessment': (q, d, lang) => yesNoFromField(q, d, lang, 'humanRightsDueDiligenceStatus', st => st === 'available' ? L(lang, 'A human rights and environmental due-diligence process with a risk analysis is in place. Scope and frequency are not documented separately.', 'Ein menschenrechtlicher und umweltbezogener Sorgfaltsprozess mit Risikoanalyse ist etabliert. Umfang und Häufigkeit sind nicht gesondert dokumentiert.') : ''),
     'saq.lksgReporting': (q, d, lang) => yesNoFromField(q, d, lang, 'humanRightsDueDiligenceStatus', st => st === 'available' ? L(lang, 'A due-diligence process is in place; no annual due-diligence report is published.', 'Ein Sorgfaltsprozess ist etabliert; ein jährlicher Sorgfaltspflichtenbericht wird nicht veröffentlicht.') : ''),
     'core.contactDetails': (q, d, lang) => {
-        const n = str(d, 'companyName');
+        const legal = str(d, 'legalEntityName');
+        const n = legal || str(d, 'companyName');
         const a = str(d, 'registeredAddress');
         if (!n && !a)
             return null;
-        return { answer: [n, a].filter(Boolean).join(', ') + '.', answered: true, fieldsUsed: ['companyName', 'registeredAddress'].filter(f => has(d[f])) };
+        return { answer: [n, a].filter(Boolean).join(', ') + '.', answered: true, fieldsUsed: [legal ? 'legalEntityName' : 'companyName', 'registeredAddress'].filter(f => has(d[f])) };
+    },
+    // The name alone. "Registered legal name" used to get the trading name plus the address.
+    'core.legalName': (q, d, lang) => {
+        const legal = str(d, 'legalEntityName');
+        const n = legal || str(d, 'companyName');
+        if (!n)
+            return null;
+        return { answer: `${n}.`, answered: true, fieldsUsed: [legal ? 'legalEntityName' : 'companyName'] };
     },
     'core.transport': (q, d, lang) => {
         const f = str(d, 'fleetComposition');
