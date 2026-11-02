@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useLicense } from '@/components/LicenseContext';
 import { useLanguage } from '@/components/LanguageContext';
 import { getRequests, getRequestById, loadData, saveData, saveMasterAnswer, getDocuments, getDataRecords, getSettings } from '@/lib/store';
@@ -66,6 +66,31 @@ async function getEngine() {
     clearDynamicImportRecovery();
   }
   return _engine;
+}
+
+// The engine download is the one step in the pipeline that can wait forever: a dropped
+// chunk request never rejects on some networks, and the screen sat on "Analysing... 25%"
+// with nothing to press. Past this, the pipeline fails into the error screen instead.
+const ENGINE_LOAD_TIMEOUT_MS = 30000;
+// When the generating screen admits it is slow and offers a way out.
+const GENERATING_SLOW_MS = 12000;
+
+// Matching and drafting run synchronously, so without a yield React never paints the
+// steps between 25% and the result - the bar looked frozen even when work was going on.
+const yieldToPaint = () => new Promise(resolve => setTimeout(resolve, 0));
+
+function withTimeout(promise, ms, name) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        const err = new Error('timeout');
+        err.name = name;
+        reject(err);
+      }, ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 const ACCEPTED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.pdf', '.docx'];
@@ -280,7 +305,20 @@ export default function Respond({ demoOnly = false }) {
   const [questionnaireName, setQuestionnaireName] = useState('');
   const [framework, setFramework] = useState(null);
   const [parseResult, setParseResult] = useState(null);
+  const navigate = useNavigate();
   const [pipelineError, setPipelineError] = useState(null);
+  const [generatingSlow, setGeneratingSlow] = useState(false);
+  // Bumped on every run so a retry restarts the slow-screen timer.
+  const [pipelineRun, setPipelineRun] = useState(0);
+  const lastPipelineRef = useRef(null);
+  useEffect(() => {
+    if (phase !== 'generating') return undefined;
+    const timer = setTimeout(() => {
+      setGeneratingSlow(true);
+      track('respond_generation_slow', { after_ms: GENERATING_SLOW_MS });
+    }, GENERATING_SLOW_MS);
+    return () => clearTimeout(timer);
+  }, [phase, pipelineRun]);
 
   // Must sit below the state it reads: a dependency array is evaluated during render,
   // so referencing parseResult from above its useState threw on every render and took
@@ -784,6 +822,9 @@ export default function Respond({ demoOnly = false }) {
     shouldClaimPass = false,
     onComplete = null,
   } = {}) {
+    lastPipelineRef.current = { pr, name, options: { questionnaireFingerprint, shouldClaimPass, onComplete } };
+    setGeneratingSlow(false);
+    setPipelineRun(run => run + 1);
     setPhase('generating');
     setPipelineError(null);
     setQuestionnaireName(name);
@@ -839,9 +880,10 @@ export default function Respond({ demoOnly = false }) {
       setGeneratingProgress({ step: t('respond.progAnalysing', { count: questions.length }), percent: 25 });
       setCompanyData(cd);
 
-      const engine = await getEngine();
+      const engine = await withTimeout(getEngine(), ENGINE_LOAD_TIMEOUT_MS, 'EngineLoadTimeout');
 
       setGeneratingProgress({ step: t('respond.progMatching'), percent: 50 });
+      await yieldToPaint();
       // The engine's German term aliases are language-gated, so German questions would match
       // nothing unless the questionnaire's language reaches the matcher. Passed PER CALL, not
       // via engine.setQuestionLanguage: the engine is a lazy singleton, and a declaration made
@@ -855,6 +897,7 @@ export default function Respond({ demoOnly = false }) {
       const dataContexts = matchResults.map(mr => engine.retrieveData(mr, cd));
 
       setGeneratingProgress({ step: t('respond.progGenerating'), percent: 75 });
+      await yieldToPaint();
       const config = {
         useLLM: false,
         includeMethodology: true,
@@ -904,7 +947,9 @@ export default function Respond({ demoOnly = false }) {
     } catch (err) {
       console.error('Pipeline error:', err);
       track('respond_generation_failed', { error: err?.name || 'unknown' });
-      setPipelineError(t('respond.errFailed', { message: err.message }));
+      setPipelineError(err?.name === 'EngineLoadTimeout'
+        ? t('respond.errEngineTimeout')
+        : t('respond.errFailed', { message: err.message }));
       setPhase('results');
     }
   }
@@ -1518,6 +1563,26 @@ export default function Respond({ demoOnly = false }) {
             />
           </div>
           <p className="text-xs text-slate-400 text-center mt-2">{generatingProgress.percent}%</p>
+          {generatingSlow && (
+            <div data-testid="generating-slow" className="mt-8 border border-slate-200 bg-white p-4 text-center">
+              <p className="text-sm font-medium text-slate-900">{t('respond.slowTitle')}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">{t('respond.slowBody')}</p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const last = lastPipelineRef.current;
+                    if (!last) return;
+                    track('respond_generation_retried');
+                    runPipeline(last.pr, last.name, last.options);
+                  }}
+                >
+                  {t('respond.slowRetry')}
+                </Button>
+                <Button size="sm" variant="outline" onClick={resetToUpload}>{t('respond.slowStartOver')}</Button>
+              </div>
+            </div>
+          )}
         </div>
         <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
           <DialogContent className="max-w-3xl max-h-[88vh] flex flex-col">
@@ -1801,6 +1866,9 @@ export default function Respond({ demoOnly = false }) {
             onStartOver={resetToUpload}
             onRefresh={() => runPipeline(parseResult, questionnaireName, { questionnaireFingerprint: passClaim?.fingerprint || null })}
             onShowAnswers={() => setResultsView('answers')}
+            isSample={demoOnly}
+            sampleCompany={demoOnly && demoLibraryUsed}
+            onUploadOwn={demoOnly ? () => navigate('/respond') : undefined}
           />
         </div>
       );
