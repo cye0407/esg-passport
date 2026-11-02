@@ -214,10 +214,15 @@ export function isPreviewWorthy(answer) {
 // every number here false. Reachable, not resident.
 // `fromRecords` is still needed — SupportBadge asks whether a given draft is in it. The
 // other counts moved to the stat band above both columns and are no longer read here.
-function ReferencePanel({ t, fromRecords, sample, remaining, hasOwnData }) {
+function ReferencePanel({ t, fromRecords, sample, remaining, hasOwnData, isSample, draftedCount, canGenerateAnswers }) {
+  // The headline counts every drafted answer; this panel shows a handful. Say both
+  // numbers so the reader can reconcile them, and say what the rest are.
+  const moreDrafted = Math.max(0, draftedCount - sample.length);
+  const notDrafted = Math.max(0, remaining - moreDrafted);
+  const titleKey = isSample ? 'coverage.sampleShownExample' : 'coverage.sampleShown';
 
   return (
-    <div className="flex flex-col border border-slate-200 bg-white">
+    <div id="coverage-drafts" className="flex flex-col border border-slate-200 bg-white">
       {/* The takeaway sits inside the panel rather than at the foot of the page, where
           it was the last thing under two checkout buttons and read as the consolation
           prize for not buying. It is the opposite: with no account and no email, a file
@@ -228,13 +233,13 @@ function ReferencePanel({ t, fromRecords, sample, remaining, hasOwnData }) {
       {sample.length > 0 && (
         <div className="border-b border-slate-100">
           <p className="px-5 pt-4 text-[13px] font-semibold text-slate-900">
-            {t(sample.length === 1 ? 'coverage.sampleTitleOne' : 'coverage.sampleTitle', { count: sample.length })}
+            {t(titleKey, { shown: sample.length, drafted: draftedCount })}
           </p>
           {/* Whose numbers these are. Without their own data the drafts rest on the
               example workspace, and a sample that does not say so reads as a claim
               about the reader's company. */}
           <p className="px-5 pb-3 pt-1 text-[12px] leading-relaxed text-slate-500">
-            {hasOwnData ? t('coverage.sampleBody') : t('coverage.sampleBodyNoData')}
+            {isSample ? t('coverage.sampleBodyExample') : hasOwnData ? t('coverage.sampleBody') : t('coverage.sampleBodyNoData')}
           </p>
           <div className="divide-y divide-slate-100 border-t border-slate-100">
             {sample.map(answer => {
@@ -266,7 +271,18 @@ function ReferencePanel({ t, fromRecords, sample, remaining, hasOwnData }) {
             {remaining > 0 && (
               <div className="flex items-center gap-2.5 bg-slate-50 px-5 py-3.5">
                 <Lock className="h-4 w-4 shrink-0 text-slate-500" />
-                <span className="text-[13px] text-slate-600">{t('coverage.sampleRemaining', { count: remaining })}</span>
+                <span className="text-[13px] text-slate-600">
+                  {[
+                    moreDrafted > 0
+                      ? t(canGenerateAnswers
+                        ? (moreDrafted === 1 ? 'coverage.moreDraftedPaidOne' : 'coverage.moreDraftedPaid')
+                        : (moreDrafted === 1 ? 'coverage.moreDraftedFreeOne' : 'coverage.moreDraftedFree'), { count: moreDrafted })
+                      : null,
+                    notDrafted > 0
+                      ? t(notDrafted === 1 ? 'coverage.notDraftedOne' : 'coverage.notDrafted', { count: notDrafted })
+                      : null,
+                  ].filter(Boolean).join(' ')}
+                </span>
               </div>
             )}
           </div>
@@ -281,14 +297,14 @@ function ReferencePanel({ t, fromRecords, sample, remaining, hasOwnData }) {
 // denominator can be checked -- PDF and Word confirm their parse in an earlier step, but
 // xlsx skips that, and a wrong question count makes every number on the report false.
 // Deliberately small: a fixed-height scroller, not 91 rows pushing the page down.
-function QuestionsRail({ t, questions, questionnaireName }) {
+function QuestionsRail({ t, questions, questionnaireName, isSample }) {
   if (!questions.length) return null;
   return (
     <aside className="mt-6 shrink-0 xl:sticky xl:top-6 xl:mt-0 xl:w-72">
       <div className="rounded-[14px] border border-[#e6ece8] bg-white">
         <div className="border-b border-[#e6ece8] px-4 py-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#55635c]">{t('coverage.railTitle')}</p>
-          <p className="mt-1 text-[13px] font-semibold text-[#0f1a15]">{t('coverage.railCount', { count: questions.length })}</p>
+          <p className="mt-1 text-[13px] font-semibold text-[#0f1a15]">{t(isSample ? 'coverage.railCountExample' : 'coverage.railCount', { count: questions.length })}</p>
           {questionnaireName && <p className="mt-0.5 truncate text-[11.5px] text-[#6b7a72]" title={questionnaireName}>{questionnaireName}</p>}
         </div>
         <ol className="max-h-[22rem] divide-y divide-[#f0f4f2] overflow-y-auto">
@@ -304,7 +320,12 @@ function QuestionsRail({ t, questions, questionnaireName }) {
   );
 }
 
-export default function CoverageReport({ coverage, questionnaireName, questions = [], tier, onStartOver, onRefresh, onShowAnswers }) {
+// isSample: the built-in example questionnaire, not the reader's file.
+// sampleCompany: the figures come from the fictional example workspace, not theirs.
+// Without these the example spoke in the second person throughout - "11 of YOUR 15
+// answers", "figures from YOUR own records" - to someone who had uploaded nothing,
+// which made every evidence claim on the page read as unreliable.
+export default function CoverageReport({ coverage, questionnaireName, questions = [], tier, onStartOver, onRefresh, onShowAnswers, isSample = false, sampleCompany = false, onUploadOwn }) {
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const [openPillars, setOpenPillars] = React.useState({});
@@ -441,6 +462,23 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
   return (
     <div className="mx-auto max-w-5xl xl:flex xl:max-w-7xl xl:items-start xl:gap-6">
       <div className="min-w-0 flex-1">
+      {isSample && (
+        <div data-testid="coverage-sample-banner" className="mb-5 flex flex-col gap-3 rounded-[14px] border border-[#d9dfe8] bg-[#f3f5f9] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#3d4a5c]">{t(sampleCompany ? 'coverage.sampleBannerEyebrow' : 'coverage.sampleBannerEyebrowOwnData')}</p>
+            <p className="mt-1 text-[13px] leading-5 text-[#3d4a5c]">{t(sampleCompany ? 'coverage.sampleBannerBody' : 'coverage.sampleBannerBodyOwnData')}</p>
+          </div>
+          {onUploadOwn && (
+            <button
+              type="button"
+              onClick={() => { track('sample_upload_own_click'); onUploadOwn(); }}
+              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-[10px] bg-[#0f1a15] px-4 text-[13px] font-semibold text-white hover:bg-[#203129]"
+            >
+              <Upload className="h-4 w-4" />{t('coverage.sampleBannerCta')}
+            </button>
+          )}
+        </div>
+      )}
       <section data-testid="coverage-verdict" className="overflow-hidden rounded-[20px] border border-[#e6ece8] bg-white shadow-[0_20px_55px_-34px_rgba(16,40,30,0.38)]">
         <header className="flex flex-col gap-5 border-b border-[#e6ece8] bg-[#f7faf8] px-5 py-5 sm:px-7 sm:py-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
@@ -450,8 +488,22 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 drafted against — where "here they are" would be an empty promise. */}
             {draftedCount > 0 ? (
               <>
-                <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-[#0f1a15] sm:text-[28px]">{t('coverage.titleDrafted', { drafted: draftedCount, total })}</h1>
-                <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{answeredCount > 0 ? t(allFromUploads ? 'coverage.leadDrafted' : 'coverage.leadDraftedOwnRecords', { supported: answeredCount }) : t('coverage.leadDraftedNoRecords')}</p>
+                <h1 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-[#0f1a15] sm:text-[28px]">{t(isSample ? 'coverage.titleDraftedExample' : 'coverage.titleDrafted', { drafted: draftedCount, total })}</h1>
+                <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#56645d]">{answeredCount > 0
+                  ? t(sampleCompany ? 'coverage.leadDraftedExample' : allFromUploads ? 'coverage.leadDrafted' : 'coverage.leadDraftedOwnRecords', { supported: answeredCount })
+                  : t('coverage.leadDraftedNoRecords')}</p>
+                {sample.length > 0 && (
+                  <a
+                    href="#coverage-drafts"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      document.getElementById('coverage-drafts')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#0b5f43] hover:underline"
+                  >
+                    {t('coverage.seeDrafts', { shown: sample.length })}<ArrowRight className="h-3.5 w-3.5 rotate-90" />
+                  </a>
+                )}
               </>
             ) : (
               <>
@@ -476,7 +528,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
                 are the work, but they are not the verdict, and three bold counts of
                 what is missing read as a homework assignment. */}
             <dl className="mt-3 flex flex-wrap gap-4">
-              <div className="min-w-[10rem] flex-1 border-l-2 border-[#0f7a55] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{answeredCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.progressSupported')}</dt></div>
+              <div className="min-w-[10rem] flex-1 border-l-2 border-[#0f7a55] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{answeredCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t(sampleCompany ? 'coverage.progressSupportedExample' : 'coverage.progressSupported')}</dt></div>
               <div className="min-w-[10rem] flex-1 border-l-2 border-[#8aa79a] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{reviewCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{partial.length > 0 ? t('coverage.progressReviewPartial', { count: partial.length }) : t('coverage.progressReview')}</dt></div>
               <div className="min-w-[10rem] flex-1 border-l-2 border-[#b8c8c0] pl-4"><dd className="text-[28px] font-bold tabular-nums text-[#0f1a15]">{openCount}</dd><dt className="mt-0.5 text-[12px] leading-5 text-[#56645d]">{t('coverage.progressOpen')}</dt></div>
             </dl>
@@ -528,9 +580,10 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           <section data-testid="coverage-next-option" className="rounded-[16px] border border-[#bfe3d3] bg-[#f7fffb] p-5 shadow-[0_12px_30px_-24px_rgba(15,122,85,0.6)] sm:p-6">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#0b5f43]">{canGenerateAnswers ? t('coverage.reviewUpsellEyebrow') : t('coverage.automationUpsellEyebrow', { price: PASS_PRICE })}</p>
             <h2 className="mt-1.5 text-[20px] font-bold leading-7 text-[#0f1a15]">{t(canGenerateAnswers ? 'coverage.reviewUpsellTitle' : 'coverage.automationUpsellTitle')}</h2>
-            <p className="mt-2 max-w-3xl text-[13px] leading-5 text-[#3f5049]">{t(canGenerateAnswers ? 'coverage.reviewUpsellBody' : 'coverage.automationUpsellBody', { count: total })}</p>
+            <p className="mt-2 max-w-3xl text-[13px] leading-5 text-[#3f5049]">{t(canGenerateAnswers ? 'coverage.reviewUpsellBody' : 'coverage.automationUpsellBody', { count: total, limit: SAMPLE_ANSWERS })}</p>
             {!canGenerateAnswers && <ul className="mt-4 grid gap-2 text-[12.5px] text-[#203129] sm:grid-cols-3"><li>{t('coverage.automationF1')}</li><li>{t('coverage.automationF2')}</li><li>{t('coverage.automationF3')}</li></ul>}
             <button type="button" onClick={completionAction.run} data-testid="coverage-primary-action" className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[#0f7a55] px-5 text-sm font-semibold text-white transition hover:bg-[#0b5f43] sm:w-auto">{completionAction.label}<ArrowRight className="h-4 w-4" /></button>
+            {!canGenerateAnswers && <p data-testid="coverage-checkout-note" className="mt-3 max-w-3xl text-[12px] leading-5 text-[#56645d]">{t('coverage.checkoutNote')}</p>}
             {policyGaps.builders.length > 0 && !canBuildPolicies && <div className="mt-5 border-t border-[#bfe3d3] pt-4"><p className="text-[12.5px] leading-5 text-[#3f5049]"><strong className="text-[#0f1a15]">{t(policyGaps.builders.length === 1 ? 'coverage.policyBuilderUpsellTitleOne' : 'coverage.policyBuilderUpsellTitle', { count: policyGaps.builders.length })}</strong> {t('coverage.policyBuilderUpsellBody')}</p><button type="button" onClick={() => openCheckout(PASSPORT_CHECKOUT_URL, 'coverage_policy_builder_upsell', tier)} className="mt-2 text-[12.5px] font-semibold text-[#0b5f43] hover:underline">{t('coverage.nextPassportCta', { price: PASSPORT_PRICE })}</button></div>}
             {policyGaps.builders.length > 0 && canBuildPolicies && <p className="mt-4 border-t border-[#bfe3d3] pt-4 text-[12.5px] font-semibold text-[#0b5f43]">{t('coverage.policyBuilderIncluded')}</p>}
           </section>
@@ -569,6 +622,9 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
             sample={sample}
             remaining={remaining}
             hasOwnData={hasOwnData}
+            isSample={sampleCompany}
+            draftedCount={draftedCount}
+            canGenerateAnswers={canGenerateAnswers}
           />
         </div>
       )}
@@ -796,7 +852,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
       </Dialog>
       </div>
 
-      <QuestionsRail t={t} questions={questions} questionnaireName={questionnaireName} />
+      <QuestionsRail t={t} questions={questions} questionnaireName={questionnaireName} isSample={isSample} />
     </div>
   );
 }

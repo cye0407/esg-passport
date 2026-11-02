@@ -199,6 +199,11 @@ const EVENT_SCHEMA = {
   respond_generation_started: { questions: count() },
   respond_answers_generated: { count: count(), framework: slug() },
   respond_generation_failed: { error: errorName() },
+  // The generating screen ran past GENERATING_SLOW_MS and offered a way out.
+  respond_generation_slow: { after_ms: count() },
+  respond_generation_retried: {},
+  // The example report's "use my own questionnaire" exit.
+  sample_upload_own_click: {},
   respond_answer_language_regenerated: { language: LANGUAGE },
   respond_batch_export_completed: { templates: count() },
   // The buyer's own workbook handed back with answers in its cells. Counts only.

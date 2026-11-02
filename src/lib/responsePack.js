@@ -87,6 +87,7 @@ export function buildPackFromStore(mod, now = new Date()) {
 
   const passClaims = listQuestionnairePassClaims().map(c => ({
     licenceRef: c.licenceRef, fingerprint: c.fingerprint, displayName: c.displayName, claimedAt: c.claimedAt,
+    ...(c.questionHashes ? { questionHashes: c.questionHashes } : {}),
   }));
 
   const documents = [...new Set(Object.values(dataSources))].map(name => ({

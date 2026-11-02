@@ -130,7 +130,7 @@ describe('CoverageReport', () => {
       answer: `All employees receive health and safety instruction on joining and refresher briefing number ${i} each year.`,
     }));
     await render(drafts);
-    expect(container.textContent).toContain('Your 5 drafted answers');
+    expect(container.textContent).toMatch(/5 of your \d+ drafted answers/);
     expect(container.textContent).toContain('All employees receive health and safety instruction');
     expect(container.textContent).toContain('Draft');
     expect(container.textContent).not.toContain('Supported');
@@ -139,8 +139,7 @@ describe('CoverageReport', () => {
   it('keeps a fragment out of the preview a free visitor sees', async () => {
     const fragment = draft('workforce', 'medium', { answer: 'Yes.' });
     await render([fragment]);
-    expect(container.textContent).not.toContain('drafted answers');
-    expect(container.textContent).not.toContain('Your drafted answer');
+    expect(container.querySelector('#coverage-drafts')).toBeNull();
   });
 
   // The short figures a reader's own bills produce. A 45-character floor kept every one of
@@ -188,7 +187,7 @@ describe('CoverageReport', () => {
     // The sentence says the company has nothing on record; shown as a preview it reads
     // as the tool failing, so it stays out however confident the engine was.
     expect(container.textContent).not.toContain('Electricity data is not available.');
-    expect(container.textContent).not.toContain('Your drafted answer');
+    expect(container.querySelector('#coverage-drafts')).toBeNull();
     expect(container.textContent).not.toContain('Show a clearly labelled example');
   });
 
@@ -200,11 +199,11 @@ describe('CoverageReport', () => {
     });
     supported.matchResult = { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] };
     await render([supported], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } });
-    expect(container.textContent).toContain('Your drafted answer');
+    expect(container.textContent).toMatch(/1 of your \d+ drafted answers?/);
     expect(container.textContent).toContain('During 2025, electricity consumption across our reporting boundary was 425000 kWh.');
     expect(container.textContent).toContain('€99');
     expect(container.textContent).not.toContain('€499');
-    expect(container.textContent).toContain('Auto-extract and prepare for review — €99');
+    expect(container.textContent).toContain('Finish this questionnaire — €99');
   });
 
   // Free now sees the same sample pool paid does, so a strong answer is no longer
@@ -275,7 +274,7 @@ describe('CoverageReport', () => {
 
     expect(verdict.textContent).toContain('What this customer request needs');
     expect(verdict.textContent).toContain('Your HR or payroll summary');
-    expect(primary.textContent).toContain('Auto-extract and prepare for review — €99');
+    expect(primary.textContent).toContain('Finish this questionnaire — €99');
     expect(verdict.textContent).not.toContain('Upload this document');
     expect(verdict.textContent).not.toContain('Enter the figures');
     expect(alternatives.open).toBe(false);
@@ -314,7 +313,7 @@ describe('CoverageReport', () => {
   it('does not ask for colleague files or repeat the purchase action when no record is missing', async () => {
     await render([draft('workforce', 'medium')]);
     expect(container.textContent).not.toContain('Someone else has these records?');
-    expect([...container.querySelectorAll('button')].filter(button => button.textContent.includes('Auto-extract and prepare for review — €99'))).toHaveLength(1);
+    expect([...container.querySelectorAll('button')].filter(button => button.textContent.includes('Finish this questionnaire — €99'))).toHaveLength(1);
   });
 
   it('reserves policy creation for Passport while still accepting an existing policy', async () => {
@@ -344,9 +343,11 @@ describe('CoverageReport', () => {
     const drafted = Array.from({ length: 6 }, () => draft('workforce', 'medium'));
     await render([...drafted, supported], {}, { tier: 'questionnaire-pass' });
     const text = container.textContent;
-    expect(text).toContain('Your 5 drafted answers');
+    expect(text).toMatch(/5 of your \d+ drafted answers/);
     expect(text).toContain('425000 kWh');
-    expect(text).toContain('2 more questions in this questionnaire');
+    // The headline counts 7 drafted; the panel shows 5 and says where the other 2 are.
+    expect(text).toMatch(/5 of your 7 drafted answers/);
+    expect(text).toContain('2 more drafted answers are in the Answers view.');
   });
 
   it('does not call one month of annual data fully supported', async () => {
@@ -382,7 +383,7 @@ describe('CoverageReport', () => {
     });
     await render([...weak, strong], {}, { tier: 'questionnaire-pass' });
     expect(container.textContent).toContain('Strong electricity answer');
-    expect(container.textContent).toContain('Your 5 drafted answers');
+    expect(container.textContent).toMatch(/5 of your \d+ drafted answers/);
   });
 
   // The engine attaches a figure to a draft whether or not the answer it chose rests on
@@ -541,5 +542,74 @@ describe('CoverageReport header: where the figures came from', () => {
     const text = await renderHeader({});
     expect(text).not.toMatch(/documents you uploaded/);
     expect(text).toMatch(/from your own records/);
+  });
+});
+
+// The built-in example used to speak in the second person throughout - "11 of YOUR 15
+// answers", "figures from YOUR own records" - to someone who had uploaded nothing. A
+// first-use review read that as the tool making claims it could not back.
+describe('CoverageReport on the built-in example', () => {
+  let container;
+  let root;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    if (root) await act(async () => root.unmount());
+    container?.remove();
+  });
+
+  async function renderExample(props = {}) {
+    const drafts = [
+      draft('workforce', 'high', { answer: '146 employees (FTE) (2026).', matchResult: { primaryDomain: 'workforce', suggestedDataPoints: ['Total FTE'] } }),
+      draft('energy', 'medium'),
+    ];
+    const coverage = summarizeCoverage(drafts, {});
+    await act(async () => {
+      root.render(React.createElement(MemoryRouter, null,
+        React.createElement(CoverageReport, {
+          coverage, questionnaireName: 'ESG Questionnaire', tier: 'free', isSample: true, sampleCompany: true, ...props,
+        })));
+    });
+  }
+
+  it('says it is an example about a fictional company, and offers the reader their own file', async () => {
+    const onUploadOwn = vi.fn();
+    await renderExample({ onUploadOwn });
+    const banner = container.querySelector('[data-testid="coverage-sample-banner"]');
+    expect(banner).not.toBeNull();
+    expect(banner.textContent).toMatch(/fictional company/);
+    expect(banner.textContent).toMatch(/None of these figures are yours/);
+    const button = [...banner.querySelectorAll('button')].find(b => b.textContent.includes('Check my own questionnaire'));
+    await act(async () => button.click());
+    expect(onUploadOwn).toHaveBeenCalledTimes(1);
+  });
+
+  it('never tells the reader the example figures are their own', async () => {
+    await renderExample();
+    const header = container.querySelector('[data-testid="coverage-verdict"] header').textContent;
+    // "would need your check" is fine; a claim that the figures, records, file or answer
+    // count belong to the reader is not.
+    expect(header).not.toMatch(/\byour (own )?(records|file|figures|answers|\d)/i);
+    expect(header).not.toMatch(/of your \d+/i);
+    expect(header).toMatch(/example/);
+    expect(container.textContent).not.toMatch(/ready from your records/);
+  });
+
+  it('shows no example banner on the reader\'s own questionnaire', async () => {
+    await renderExample({ isSample: false, sampleCompany: false });
+    expect(container.querySelector('[data-testid="coverage-sample-banner"]')).toBeNull();
+  });
+
+  it('tells a free reader who takes the money before they pay', async () => {
+    await renderExample();
+    const note = container.querySelector('[data-testid="coverage-checkout-note"]');
+    expect(note?.textContent).toMatch(/Lemon Squeezy/);
+    expect(note?.textContent).toMatch(/Cat Yeldi/);
+    expect(note?.textContent).toMatch(/14-day/);
   });
 });

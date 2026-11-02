@@ -565,13 +565,25 @@ export default function Data() {
     return errors[`${period}-${section}-${field}`];
   };
 
+  // A blank input is "we have no figure", not zero. This used to turn every blank into 0
+  // and save Scope 1 = 0 onto any month with an electricity bill in it; the engine then
+  // told the buyer "Scope 1: 0 tCO2e" as a record-backed fact and wrote it into their
+  // workbook. A scope is computed only from inputs that were actually entered.
   const calculateEmissions = (record) => {
-    const electricity = parseFloat(record?.energy?.electricityKwh) || 0;
-    const gas = parseFloat(record?.energy?.naturalGasKwh) || 0;
-    const fuel = parseFloat(record?.energy?.vehicleFuelLiters) || 0;
-    const scope1 = (gas * EMISSION_FACTORS.naturalGas) + (fuel * EMISSION_FACTORS.vehicleFuel);
-    const scope2 = electricity * gridFactor;
-    return { scope1Tco2e: Math.round(scope1 * 1000) / 1000, scope2Tco2e: Math.round(scope2 * 1000) / 1000 };
+    const read = (value) => {
+      if (value === '' || value === null || value === undefined) return null;
+      const parsed = parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    const electricity = read(record?.energy?.electricityKwh);
+    const gas = isFieldNotApplicable('energy', 'naturalGasKwh') ? null : read(record?.energy?.naturalGasKwh);
+    const fuel = isFieldNotApplicable('energy', 'vehicleFuelLiters') ? null : read(record?.energy?.vehicleFuelLiters);
+    const round = (value) => Math.round(value * 1000) / 1000;
+    const scope1 = gas == null && fuel == null
+      ? null
+      : round(((gas || 0) * EMISSION_FACTORS.naturalGas) + ((fuel || 0) * EMISSION_FACTORS.vehicleFuel));
+    const scope2 = electricity == null ? null : round(electricity * gridFactor);
+    return { scope1Tco2e: scope1, scope2Tco2e: scope2 };
   };
 
   const numberOrNull = (value) => {

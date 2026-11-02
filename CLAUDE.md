@@ -1,4 +1,4 @@
-﻿# ESG Passport
+# ESG Passport
 
 ## Project Overview
 The ESG questionnaire response tool for suppliers, branded as "ESG for Suppliers."
@@ -68,6 +68,15 @@ Three tiers, and the line between them is **finishing**, not looking:
   questionnaire, puts the upload target before preparation nudges on mobile, and marks
   evidence as skipped rather than completed when no documents were added. Build SHAs live
   under Settings support details instead of in the customer-facing footer.
+- **First-use trust fixes (Nov 2026)** — from an outside first-use review. The built-in
+  example now says it is an example: a "fictional company" banner with a "Check my own
+  questionnaire" exit, and no "your records / your answers" copy (`isSample` /
+  `sampleCompany` props on `CoverageReport`). The headline count and the preview panel
+  reconcile ("5 of your 11 drafted answers" + where the other 6 are). The free upsell no
+  longer sells extraction (free already extracts); it sells finishing, and names the
+  seller, Lemon Squeezy and the 14-day refund before checkout. The generating screen can
+  no longer hang silently: the engine download times out at 30s, a "taking longer than
+  usual" panel with Try again / Start over appears at 12s, and progress yields so it moves.
 - **Onboarding is one screen** whose action is the questionnaire. The company profile is
   deferred to /data.
 - **Extraction records provenance** — the document name is stored in
