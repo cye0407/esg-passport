@@ -29,6 +29,7 @@ import {
   claimQuestionnaire,
   getQuestionnairePassClaim,
   getQuestionnairePassDecision,
+  questionHashesFor,
 } from '@/lib/questionnairePass';
 import { saveAs } from 'file-saver';
 import { Button } from '@/components/ui/button';
@@ -921,6 +922,7 @@ export default function Respond({ demoOnly = false }) {
         const claim = claimQuestionnaire({
           licenseKeyId,
           fingerprint: questionnaireFingerprint,
+          questionHashes: questionHashesFor(questions),
           displayName: name,
         });
         setPassClaim(claim);

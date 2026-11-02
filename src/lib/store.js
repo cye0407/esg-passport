@@ -386,6 +386,19 @@ export const saveSettings = (settings) => {
 // COMPUTED VALUES
 // ============================================
 
+// Records saved before Nov 2026 carry scope1Tco2e: 0 / scope2Tco2e: 0 on any month that had
+// ANY energy input, because the Data page turned blanks into zeros. A stored zero with none
+// of its own inputs present is that artefact, not a measurement - read it as no figure.
+// A zero computed from an entered 0 kWh, or a non-zero figure entered directly, stands.
+export const SCOPE1_INPUTS = ['naturalGasKwh', 'vehicleFuelLiters'];
+export const SCOPE2_INPUTS = ['electricityKwh'];
+export function storedScope(record, key, inputs) {
+  const value = record?.energy?.[key];
+  if (value == null) return null;
+  const hasInput = inputs.some(field => record?.energy?.[field] != null);
+  return !hasInput && value === 0 ? null : value;
+}
+
 export const getAnnualTotals = (year) => {
   const records = getDataRecords().filter(r => r.period.startsWith(year));
   const industryRows = Object.values(INDUSTRY_METRICS).flat();
@@ -422,13 +435,15 @@ export const getAnnualTotals = (year) => {
   });
 
   return {
-    totalEnergyKwh: sum(r => (r.energy?.electricityKwh || 0) + (r.energy?.naturalGasKwh || 0)),
+    totalEnergyKwh: sum(r => (r.energy?.electricityKwh == null && r.energy?.naturalGasKwh == null
+      ? null
+      : (r.energy?.electricityKwh || 0) + (r.energy?.naturalGasKwh || 0))),
     electricityKwh: sum(r => r.energy?.electricityKwh),
     naturalGasKwh: sum(r => r.energy?.naturalGasKwh),
     vehicleFuelLiters: sum(r => r.energy?.vehicleFuelLiters),
     renewablePercent: avg(r => r.energy?.renewablePercent),
-    scope1Tco2e: sum(r => r.energy?.scope1Tco2e),
-    scope2Tco2e: sum(r => r.energy?.scope2Tco2e),
+    scope1Tco2e: sum(r => storedScope(r, 'scope1Tco2e', SCOPE1_INPUTS)),
+    scope2Tco2e: sum(r => storedScope(r, 'scope2Tco2e', SCOPE2_INPUTS)),
     waterM3: sum(r => r.water?.consumptionM3),
     totalWasteKg: sum(r => r.waste?.totalKg),
     recycledWasteKg: sum(r => r.waste?.recycledKg),
@@ -468,8 +483,8 @@ export const getReadinessStats = () => {
   // Map confidence item IDs to data record checks
   const dataCheckMap = {
     electricity: (r) => r.energy?.electricityKwh,
-    scope1: (r) => r.energy?.scope1Tco2e,
-    scope2: (r) => r.energy?.scope2Tco2e,
+    scope1: (r) => storedScope(r, 'scope1Tco2e', SCOPE1_INPUTS),
+    scope2: (r) => storedScope(r, 'scope2Tco2e', SCOPE2_INPUTS),
     totalEmployees: (r) => r.workforce?.totalEmployees,
     workInjuries: (r) => r.healthSafety?.workAccidents,
     totalWaste: (r) => r.waste?.totalKg,

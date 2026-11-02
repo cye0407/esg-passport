@@ -184,8 +184,7 @@ export function buildCompanyData(year) {
   const certs = [...new Set([...policyCerts, ...profileCerts])];
 
   // Convert natural gas from kWh (Passport) to m3 (engine)
-  const naturalGasKwh = totals.naturalGasKwh || 0;
-  const naturalGasM3 = naturalGasKwh > 0 ? Math.round(naturalGasKwh / GAS_M3_TO_KWH) : undefined;
+  const naturalGasM3 = totals.naturalGasKwh != null ? Math.round(totals.naturalGasKwh / GAS_M3_TO_KWH) : undefined;
 
   // Female percent from headcount
   const totalEmp = totals.totalEmployees || 0;
