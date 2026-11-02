@@ -258,6 +258,9 @@ export function buildCompanyData(year) {
 
   return {
     companyName: profile?.tradingName || profile?.legalName || '',
+    // The engine answers "registered legal name" from this field; without it a sample
+    // answered a GmbH's legal name with the trading name.
+    legalEntityName: profile?.legalName || undefined,
     industry: profile?.industrySector || '',
     country: countryName,
     // No headcount entered is no answer, not "0 employees".
