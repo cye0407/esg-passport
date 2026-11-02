@@ -576,7 +576,7 @@ export default function Data() {
       return Number.isFinite(parsed) ? parsed : null;
     };
     const electricity = read(record?.energy?.electricityKwh);
-    const gas = read(record?.energy?.naturalGasKwh);
+    const gas = isFieldNotApplicable('energy', 'naturalGasKwh') ? null : read(record?.energy?.naturalGasKwh);
     const fuel = isFieldNotApplicable('energy', 'vehicleFuelLiters') ? null : read(record?.energy?.vehicleFuelLiters);
     const round = (value) => Math.round(value * 1000) / 1000;
     const scope1 = gas == null && fuel == null

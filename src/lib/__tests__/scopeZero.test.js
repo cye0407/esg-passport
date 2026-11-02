@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { saveDataRecord, getAnnualTotals, storedScope } from '../store';
+import { saveDataRecord, getAnnualTotals, storedScope, saveSettings } from '../store';
 import { buildCompanyData } from '../dataBridge';
 
 // An outside review saw a sample answer state "Scope 1: 0 tCO2e". The cause: the Data
@@ -32,5 +32,20 @@ describe('a blank emissions input is no figure, not zero', () => {
   it('does not invent total energy from a month with only water data', () => {
     saveDataRecord({ period: '2025-01', water: { consumptionM3: 40 } });
     expect(getAnnualTotals('2025').totalEnergyKwh).toBeNull();
+  });
+
+  it('tells the engine Scope 1 is not applicable when gas and vehicle fuel both are', () => {
+    saveSettings({ notApplicableFields: { 'energy.naturalGasKwh': true, 'energy.vehicleFuelLiters': true } });
+    saveDataRecord({ period: '2025-01', energy: { electricityKwh: 1000, scope1Tco2e: 0, scope2Tco2e: 0.4 } });
+    const data = buildCompanyData('2025');
+    expect(data.scope1NotApplicable).toBe(true);
+    expect(data.scope1Tco2e).toBeUndefined();
+    expect(data.naturalGasM3).toBeUndefined();
+  });
+
+  it('does not call Scope 1 not applicable when only one source is', () => {
+    saveSettings({ notApplicableFields: { 'energy.vehicleFuelLiters': true } });
+    saveDataRecord({ period: '2025-01', energy: { electricityKwh: 1000 } });
+    expect(buildCompanyData('2025').scope1NotApplicable).toBeUndefined();
   });
 });

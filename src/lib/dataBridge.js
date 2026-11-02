@@ -184,7 +184,11 @@ export function buildCompanyData(year) {
   const certs = [...new Set([...policyCerts, ...profileCerts])];
 
   // Convert natural gas from kWh (Passport) to m3 (engine)
-  const naturalGasM3 = totals.naturalGasKwh != null ? Math.round(totals.naturalGasKwh / GAS_M3_TO_KWH) : undefined;
+  const gasNotApplicable = !!notApplicableFields['energy.naturalGasKwh'];
+  const naturalGasM3 = !gasNotApplicable && totals.naturalGasKwh != null ? Math.round(totals.naturalGasKwh / GAS_M3_TO_KWH) : undefined;
+  // No gas connection and no company vehicles: Scope 1 is "not applicable", which is
+  // neither a measured zero nor missing. The engine renders it as its own answer.
+  const scope1NotApplicable = gasNotApplicable && !!notApplicableFields['energy.vehicleFuelLiters'] ? true : undefined;
 
   // Female percent from headcount
   const totalEmp = totals.totalEmployees || 0;
@@ -319,7 +323,8 @@ export function buildCompanyData(year) {
     waterSourceMunicipalPercent: totals.waterSourceMunicipalPercent != null ? Math.round(totals.waterSourceMunicipalPercent) : undefined,
 
     // Emissions — use != null to preserve zero values
-    scope1Tco2e: totals.scope1Tco2e != null ? totals.scope1Tco2e : undefined,
+    scope1Tco2e: totals.scope1Tco2e != null && !scope1NotApplicable ? totals.scope1Tco2e : undefined,
+    scope1NotApplicable,
     scope2Tco2e: totals.scope2Tco2e != null ? totals.scope2Tco2e : undefined,
     scope3Tco2e: totals.scope3Total != null ? totals.scope3Total : undefined,
 
