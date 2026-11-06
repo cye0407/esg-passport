@@ -113,7 +113,7 @@ function AutoActivationBanner({ result, onDismiss }) {
   const tierLabel = result.tier === 'questionnaire-pass' ? 'Questionnaire Pass' : 'ESG Passport';
   return (
     <div
-      className={`fixed top-0 inset-x-0 z-50 px-4 py-3 text-sm text-white flex items-center justify-center gap-4 ${success ? 'bg-emerald-600' : 'bg-red-600'}`}
+      className={`fixed top-0 inset-x-0 z-50 px-4 py-3 text-sm text-white flex items-center justify-center gap-4 ${success ? 'bg-emerald-600' : 'bg-amber-800'}`}
       role="status"
     >
       <span>
