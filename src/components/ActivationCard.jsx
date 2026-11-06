@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLicense } from '@/components/LicenseContext';
 import { useLanguage } from '@/components/LanguageContext';
 import { licenseErrorMessage } from '@/lib/i18n';
+import LicenseErrorNote from '@/components/LicenseErrorNote';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Key, Loader2, CheckCircle2, X, Mail } from 'lucide-react';
@@ -38,6 +39,7 @@ export default function ActivationCard() {
   );
   const [licenseKey, setLicenseKey] = useState('');
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState(null);
   const [loading, setLoading] = useState(false);
 
   // Don't pop up while the license context is still deciding — otherwise
@@ -52,13 +54,18 @@ export default function ActivationCard() {
     e.preventDefault();
     const key = licenseKey.trim();
     if (!key) {
+      setErrorCode(null);
       setError(t('act.pasteKey'));
       return;
     }
     setLoading(true);
     setError('');
+    setErrorCode(null);
     const result = await activate(key);
-    if (!result.valid) setError(licenseErrorMessage(result, t));
+    if (!result.valid) {
+      setErrorCode(result.code || null);
+      setError(licenseErrorMessage(result, t));
+    }
     setLoading(false);
   }
 
@@ -123,7 +130,7 @@ export default function ActivationCard() {
                 autoFocus
               />
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            <LicenseErrorNote message={error} code={errorCode} t={t} />
             <Button
               type="submit"
               className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white"

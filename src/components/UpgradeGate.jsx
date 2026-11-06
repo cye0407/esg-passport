@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLicense } from '@/components/LicenseContext';
 import { useLanguage } from '@/components/LanguageContext';
 import { licenseErrorMessage } from '@/lib/i18n';
+import LicenseErrorNote from '@/components/LicenseErrorNote';
 import { PASSPORT_CHECKOUT_URL, checkoutLinkProps } from '@/lib/checkout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,7 @@ export default function UpgradeGate({ feature }) {
   const { t } = useLanguage();
   const [licenseKey, setLicenseKey] = useState('');
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState(null);
   const [loading, setLoading] = useState(false);
   const content = GATE_CONTENT[feature] || GATE_CONTENT.default;
 
@@ -50,15 +52,18 @@ export default function UpgradeGate({ feature }) {
     e.preventDefault();
     const key = licenseKey.trim();
     if (!key) {
+      setErrorCode(null);
       setError(t('settings.enterKey'));
       return;
     }
 
     setLoading(true);
     setError('');
+    setErrorCode(null);
 
     const result = await activate(key);
     if (!result.valid) {
+      setErrorCode(result.code || null);
       setError(licenseErrorMessage(result, t));
     }
 
@@ -117,9 +122,7 @@ export default function UpgradeGate({ feature }) {
               disabled={loading}
             />
           </div>
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
+          <LicenseErrorNote message={error} code={errorCode} t={t} />
           <Button
             type="submit"
             variant="outline"

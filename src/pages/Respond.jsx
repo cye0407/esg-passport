@@ -2867,7 +2867,7 @@ export default function Respond({ demoOnly = false }) {
                   <p className="font-medium text-slate-900 truncate">{file.name}</p>
                   <p className="text-sm text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); removeFile(); }} className="p-2 rounded-lg hover:bg-red-50 text-red-500">
+                <button onClick={(e) => { e.stopPropagation(); removeFile(); }} className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900">
                   <XIcon className="w-5 h-5" />
                 </button>
               </div>

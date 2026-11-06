@@ -193,6 +193,7 @@ async function requestLicenseValidation(key, {
   }
 
   const data = await response.json();
+  if (data && typeof data.error === 'string') data.error = normalizeLicenseError(data.error);
 
   if (!response.ok) {
     if (allowLocalDevFallback && isLocalDev() && (response.status >= 500 || data.error === 'Could not reach license server' || data.error === 'License server not configured')) {
@@ -244,6 +245,17 @@ async function requestLicenseValidation(key, {
     licenseStatus: data.license_key?.status ?? null,
     status: response.status,
   };
+}
+
+/**
+ * Lemon Squeezy's /activate answers the activation-limit case with a sentence
+ * ("This license key has reached the activation limit.") rather than a code, so it fell
+ * through every mapping and reached the buyer raw, in English, with no next step.
+ * Exported for tests.
+ */
+export function normalizeLicenseError(raw) {
+  if (/activation limit|limit[_ ]reached/i.test(raw)) return 'limit_reached';
+  return raw;
 }
 
 /**
