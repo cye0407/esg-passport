@@ -68,3 +68,12 @@ describe('checkout instrumentation', () => {
     open.mockRestore();
   });
 });
+
+describe('localPrice', () => {
+  it('puts the euro sign where each language expects it', async () => {
+    const { localPrice } = await import('../checkout');
+    expect(localPrice('€99', 'en')).toBe('€99');
+    expect(localPrice('€99', 'de')).toBe('99 €');
+    expect(localPrice('€499', 'de')).toBe('499 €');
+  });
+});

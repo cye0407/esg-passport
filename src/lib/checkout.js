@@ -22,6 +22,13 @@ export const QUESTIONNAIRE_PASS_CHECKOUT_URL =
 export const PASS_PRICE = '€99';
 export const PASSPORT_PRICE = '€499';
 
+/** A display price in the reader's language: "€99" in English, "99 €" in German. */
+export function localPrice(price, lang) {
+  if (lang !== 'de') return price;
+  const amount = String(price).replace('€', '').trim();
+  return `${amount} €`;
+}
+
 // Every checkout in the app goes through one of these two. checkout_opened used to
 // fire from exactly one of eleven checkout links, which is why a full year of
 // analytics recorded a single opened checkout - and why nobody should have read that

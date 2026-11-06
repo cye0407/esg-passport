@@ -27,6 +27,7 @@ import {
   QUESTIONNAIRE_PASS_CHECKOUT_URL,
   PASS_PRICE,
   PASSPORT_PRICE,
+  localPrice,
   openCheckout,
 } from '@/lib/checkout';
 
@@ -362,7 +363,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
         },
       }
     : {
-        label: t('coverage.automationUpsellCta', { price: PASS_PRICE }),
+        label: t('coverage.automationUpsellCta', { price: localPrice(PASS_PRICE, lang) }),
         run: () => openCheckout(QUESTIONNAIRE_PASS_CHECKOUT_URL, 'coverage_automation_finish', tier),
       };
 
@@ -394,7 +395,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
           canGenerateAnswers={canGenerateAnswers}
           returnsCustomerWorkbook={returnsCustomerWorkbook}
           sampleLimit={SAMPLE_ANSWERS}
-          price={PASS_PRICE}
+          price={localPrice(PASS_PRICE, lang)}
           onUpload={() => {
             track('coverage_add_documents_click', { document: requirements.groups[0]?.documents[0]?.key || 'none' });
             navigate('/evidence');
@@ -426,7 +427,7 @@ export default function CoverageReport({ coverage, questionnaireName, questions 
               {canBuildPolicies
                 ? <p>{t('coverage.policyBuilderIncluded')}</p>
                 : <p><strong className="text-slate-900">{t(policyGaps.builders.length === 1 ? 'coverage.policyBuilderUpsellTitleOne' : 'coverage.policyBuilderUpsellTitle', { count: policyGaps.builders.length })}</strong> {t('coverage.policyBuilderUpsellBody')}{' '}
-                    <button type="button" onClick={() => openCheckout(PASSPORT_CHECKOUT_URL, 'coverage_policy_builder_upsell', tier)} className="font-semibold text-indigo-700 underline underline-offset-4">{t('coverage.nextPassportCta', { price: PASSPORT_PRICE })}</button></p>}
+                    <button type="button" onClick={() => openCheckout(PASSPORT_CHECKOUT_URL, 'coverage_policy_builder_upsell', tier)} className="font-semibold text-indigo-700 underline underline-offset-4">{t('coverage.nextPassportCta', { price: localPrice(PASSPORT_PRICE, lang) })}</button></p>}
             </div>
           )}
         />
