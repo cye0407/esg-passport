@@ -77,6 +77,15 @@ Three tiers, and the line between them is **finishing**, not looking:
   seller, Lemon Squeezy and the 14-day refund before checkout. The generating screen can
   no longer hang silently: the engine download times out at 30s, a "taking longer than
   usual" panel with Try again / Start over appears at 12s, and progress yields so it moves.
+- **Needs-first report (Nov 2026)** — the top of the coverage report is now
+  `RequirementsOverview.jsx` over `src/lib/requirements.js`: "These N documents answer X
+  of the T questions", the documents open in four groups, "You also need to decide" for
+  questions only management can answer, the document-to-question map folded below, and
+  Next steps with the upload action. `requirements.js` cleans up the engine's
+  domain-level document noise (policy questions ask for that policy, targets/ownership
+  are decisions, name/country are company details, figures narrow to the bill the
+  question bank names). The old topic cards are gone. Free shows 3 drafts (was 5).
+  Email-the-list is designed but NOT built (needs a mail service + privacy line).
 - **Onboarding is one screen** whose action is the questionnaire. The company profile is
   deferred to /data.
 - **Extraction records provenance** — the document name is stored in

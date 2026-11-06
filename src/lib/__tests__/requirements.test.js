@@ -60,7 +60,7 @@ describe('requirements on the public sample', () => {
 
   it('accounts for every question exactly once in the counts', () => {
     expect(req.total).toBe(22);
-    expect(req.answered + req.covered + req.decisions.length).toBe(22);
+    expect(req.answered + req.covered + req.decisions.length + req.drafted.length).toBe(22);
   });
 
   it('leaves the two management decisions as decisions', () => {
@@ -104,7 +104,19 @@ describe('requirements on the public sample', () => {
   it('drops a question from the list once it is answered from records', () => {
     const withBills = sampleRequirements({ electricityKwh: 425000, waterM3: 3100 });
     expect(withBills.answered).toBeGreaterThan(0);
-    expect(withBills.answered + withBills.covered + withBills.decisions.length).toBe(22);
+    expect(withBills.answered + withBills.covered + withBills.decisions.length + withBills.drafted.length).toBe(22);
+  });
+});
+
+describe('buildRequirements', () => {
+  it('does not turn a question that already has a draft into a decision', () => {
+    const req = buildRequirements([{ topic: 'social', questions: [
+      { questionId: 'a', questionText: 'Describe your approach to employee wellbeing', state: 'written', needs: null },
+      { questionId: 'b', questionText: 'Describe your approach to community engagement', state: 'open', needs: null },
+    ] }]);
+    expect(req.drafted.map(q => q.questionId)).toEqual(['a']);
+    expect(req.decisions.map(q => q.questionId)).toEqual(['b']);
+    expect(req.covered).toBe(0);
   });
 });
 
@@ -133,6 +145,6 @@ describe('requirements over the built-in templates', () => {
     const coverage = summarizeCoverage(draftsFor(pr.questions), { companyData: {} });
     const req = buildRequirements(coverage.topics);
     expect(req.total).toBe(pr.questions.length);
-    expect(req.answered + req.covered + req.decisions.length).toBe(req.total);
+    expect(req.answered + req.covered + req.decisions.length + req.drafted.length).toBe(req.total);
   });
 });

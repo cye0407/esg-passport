@@ -66,16 +66,15 @@ describe('CoverageReport', () => {
 
   it('opens with the questionnaire it read, and counts it once', async () => {
     await render([draft('emissions', 'medium'), draft('workforce', 'medium')]);
-    // Leads with what is drafted; the outstanding work follows on one line.
-    expect(container.textContent).toContain('2 of your 2 answers are drafted.');
+    // Needs-first: the count of questions, then what is already drafted. Two drafted
+    // questions are not "decisions" and not documents to find.
+    const header = container.querySelector('[data-testid="coverage-verdict"] header').textContent;
+    expect(header).toContain('2 questions');
+    expect(header).toContain('2 of your 2 answers are drafted.');
     expect(container.textContent).toContain('buyer-saq.xlsx');
-    expect(container.textContent).toContain('To finish: 2 company answers to confirm');
-    expect(container.textContent).not.toContain('records to provide');
-    expect(container.textContent).not.toContain('policies to attach or create');
-
-    expect(container.textContent).toContain('Customer request');
-    expect(container.textContent).toContain('Where you stand');
-    expect(container.textContent).not.toContain('Your questionnaire: 2 questions');
+    expect(container.textContent).not.toContain('You also need to decide');
+    expect(container.textContent).not.toContain('See how your documents map');
+    expect(container.textContent).toContain('Next steps');
   });
 
   it('makes the same-format promise explicit only when the original workbook can be returned', async () => {
@@ -130,7 +129,7 @@ describe('CoverageReport', () => {
       answer: `All employees receive health and safety instruction on joining and refresher briefing number ${i} each year.`,
     }));
     await render(drafts);
-    expect(container.textContent).toMatch(/5 of your \d+ drafted answers/);
+    expect(container.textContent).toMatch(/3 of your \d+ drafted answers/);
     expect(container.textContent).toContain('All employees receive health and safety instruction');
     expect(container.textContent).toContain('Draft');
     expect(container.textContent).not.toContain('Supported');
@@ -223,17 +222,16 @@ describe('CoverageReport', () => {
 
   // Grouped the way the customer asking the questions groups them. Confidence is our
   // category, not theirs, and it belongs on the individual answers instead.
-  it('groups the questionnaire by topic, not by engine confidence', async () => {
+  it('sorts the questionnaire by what answers it, not by engine confidence', async () => {
     await render([
       draft('emissions', 'high'),
       draft('waste', 'medium'),
-      draft('workforce', 'medium'),
+      needing('workforce', ['Total FTE']),
       draft('regulatory', 'medium'),
     ]);
     const text = container.textContent;
-    expect(text).toContain('Environmental');
-    expect(text).toContain('Social');
-    expect(text).toContain('Governance');
+    expect(text).toContain('Workforce');
+    expect(text).toContain('Headcount and leavers (payroll)');
     // The old confidence headings are gone from the page.
     expect(text).not.toContain('written for you to check');
     expect(text).not.toContain('we cannot answer');
@@ -251,15 +249,13 @@ describe('CoverageReport', () => {
     await render([needing('waste', ['Total waste (kg)'])], { companyData: {} });
     expect(container.textContent).toContain('1 question');
     expect(container.textContent).not.toContain('Documents that would help here');
-    // The document still appears once, in the actionable section with its buttons.
-    expect(container.textContent).toContain('Your waste manifest');
+    expect(container.textContent).toContain('Waste disposal records');
   });
 
   it('offers both ways of supplying a missing document', async () => {
     await render([needing('workforce', ['Total FTE'])], { companyData: {} });
     const labels = [...container.querySelectorAll('button')].map(b => b.textContent);
-    expect(container.textContent).toContain('Documents that commonly answer this');
-    expect(labels.some(l => l.includes('Upload'))).toBe(true);
+    expect(labels.some(l => l.includes('Upload your documents'))).toBe(true);
     // Typing four numbers beats fighting a scanned PDF, and some of these documents are
     // awkward.
     expect(labels.some(l => l.includes('Enter the figures'))).toBe(true);
@@ -272,11 +268,12 @@ describe('CoverageReport', () => {
     const primary = verdict.querySelector('[data-testid="coverage-primary-action"]');
     const alternatives = verdict.querySelector('details');
 
-    expect(verdict.textContent).toContain('What this customer request needs');
-    expect(verdict.textContent).toContain('Your HR or payroll summary');
+    expect(verdict.textContent).toContain('This document answers 1 of the 1 questions.');
+    expect(verdict.textContent).toContain('Headcount and leavers (payroll)');
     expect(primary.textContent).toContain('Finish this questionnaire — €99');
     expect(verdict.textContent).not.toContain('Upload this document');
-    expect(verdict.textContent).not.toContain('Enter the figures');
+    // Typing the figures in stays available, folded away with the other alternatives.
+    expect(alternatives.textContent).toContain('Enter the figures');
     expect(alternatives.open).toBe(false);
     expect(alternatives.querySelector('summary').textContent).toContain('Questionnaire details and other actions');
   });
@@ -290,10 +287,11 @@ describe('CoverageReport', () => {
     ]);
 
     const verdict = container.querySelector('[data-testid="coverage-verdict"]');
-    expect(verdict.textContent).toContain('Your electricity bill');
-    expect(verdict.textContent).toContain('Your water bill');
-    expect(verdict.textContent).toContain('Your waste manifest');
-    expect(verdict.textContent).toContain('Your HR or payroll summary');
+    expect(verdict.textContent).toContain('These 4 documents answer 4 of the 4 questions.');
+    expect(verdict.textContent).toContain('Electricity invoices (12 months)');
+    expect(verdict.textContent).toContain('Water invoice');
+    expect(verdict.textContent).toContain('Waste disposal records');
+    expect(verdict.textContent).toContain('Headcount and leavers (payroll)');
   });
 
   it('takes a paid supplier straight to answer review when no document is missing', async () => {
@@ -343,11 +341,11 @@ describe('CoverageReport', () => {
     const drafted = Array.from({ length: 6 }, () => draft('workforce', 'medium'));
     await render([...drafted, supported], {}, { tier: 'questionnaire-pass' });
     const text = container.textContent;
-    expect(text).toMatch(/5 of your \d+ drafted answers/);
+    expect(text).toMatch(/3 of your \d+ drafted answers/);
     expect(text).toContain('425000 kWh');
-    // The headline counts 7 drafted; the panel shows 5 and says where the other 2 are.
-    expect(text).toMatch(/5 of your 7 drafted answers/);
-    expect(text).toContain('2 more drafted answers are in the Answers view.');
+    // The headline counts 7 drafted; the panel shows 3 and says where the other 4 are.
+    expect(text).toMatch(/3 of your 7 drafted answers/);
+    expect(text).toContain('4 more drafted answers are in the Answers view.');
   });
 
   it('does not call one month of annual data fully supported', async () => {
@@ -383,7 +381,7 @@ describe('CoverageReport', () => {
     });
     await render([...weak, strong], {}, { tier: 'questionnaire-pass' });
     expect(container.textContent).toContain('Strong electricity answer');
-    expect(container.textContent).toMatch(/5 of your \d+ drafted answers/);
+    expect(container.textContent).toMatch(/3 of your \d+ drafted answers/);
   });
 
   // The engine attaches a figure to a draft whether or not the answer it chose rests on
@@ -445,7 +443,7 @@ describe('CoverageReport', () => {
     // duplicate of the visible offer and is gone; the claim it made is now carried by the
     // standing count and the lead, both of which say plainly that nothing rests on the
     // reader's own records yet.
-    expect(container.textContent).toContain('0ready from your records');
+    expect(container.textContent).not.toMatch(/answers are drafted\.\s*\d+ carry figures/);
     expect(container.textContent).toContain('These are written from our answer library');
     expect(container.textContent).not.toContain('€499');
   });
@@ -486,18 +484,19 @@ describe('CoverageReport', () => {
     }
   };
 
-  it('renders the answer preview and the topic cards where a reader can actually see them', async () => {
+  it('renders the answer preview and the document map where a reader can actually see them', async () => {
     const supported = draft('energy_electricity', 'high', {
       answer: 'During 2025, electricity consumption across our reporting boundary was 425000 kWh.',
       dataValue: 425000,
       dataUnit: 'kWh',
     });
     supported.matchResult = { primaryDomain: 'energy_electricity', suggestedDataPoints: ['Electricity consumption (kWh)'] };
-    await render([supported, draft('workforce', 'medium')], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } });
+    await render([supported, draft('workforce', 'medium'), needing('waste', ['Total waste (kg)'])], { dataSources: { 'energy.electricityKwh': 'electricity-2025.pdf' } });
 
-    assertReachable('Where you stand');
+    assertReachable('Next steps');
     assertReachable('drafted answer');
-    assertReachable('Questions by topic');
+    assertReachable('See how your documents map to your questions');
+    assertReachable('Waste disposal records');
   });
 
 });

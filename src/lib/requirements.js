@@ -19,6 +19,8 @@
 // DE wording because German questionnaires arrive with German questions.
 
 const ANSWERED = new Set(['recovered', 'fromRecords']);
+// Already has a draft to read (library wording, or records covering part of the period).
+const DRAFTED = new Set(['written', 'partial']);
 
 // Order matters: the supplier code before the general code of conduct, the certificate
 // before the environmental policy.
@@ -114,13 +116,15 @@ export function requirementFor(question, topic) {
  * The questionnaire's requirements, from `coverage.topics`.
  *
  * Counts are counts of QUESTIONS: `covered` is how many open questions the documents
- * and company details would answer, `decisions` the ones only the reader can, and
- * `answered` the ones already answered from their records. They sum to `total`.
+ * and company details would answer, `decisions` the ones only the reader can,
+ * `drafted` the ones that already have a draft and need no document, and `answered`
+ * the ones already answered from their records. They sum to `total`.
  */
 export function buildRequirements(topics) {
   const documents = new Map();
   const companyQuestions = [];
   const decisions = [];
+  const drafted = [];
   let answered = 0;
   let total = 0;
 
@@ -130,7 +134,11 @@ export function buildRequirements(topics) {
       if (ANSWERED.has(question.state)) { answered += 1; continue; }
       const entry = { questionId: question.questionId, questionText: question.questionText };
       const need = requirementFor(question, bucket.topic);
-      if (need.kind === 'decision') { decisions.push(entry); continue; }
+      if (need.kind === 'decision') {
+        // A question with a draft already has words; it is not waiting on a decision.
+        (DRAFTED.has(question.state) ? drafted : decisions).push(entry);
+        continue;
+      }
       const keys = need.kind === 'company' ? ['companyDetails'] : need.documents;
       if (need.kind === 'company') companyQuestions.push(entry);
       for (const key of keys) {
@@ -146,7 +154,7 @@ export function buildRequirements(topics) {
     .filter(g => g.documents.length > 0)
     .map(g => ({ ...g, questionCount: new Set(g.documents.flatMap(d => d.questions.map(q => q.questionId))).size }));
 
-  const covered = total - answered - decisions.length;
+  const covered = total - answered - decisions.length - drafted.length;
   return {
     total,
     answered,
@@ -156,5 +164,6 @@ export function buildRequirements(topics) {
     hasCompanyDetails: companyQuestions.length > 0,
     groups,
     decisions,
+    drafted,
   };
 }
