@@ -4,6 +4,7 @@ import { getCompanyProfile, saveCompanyProfile, getSettings, saveSettings, reset
 import { COUNTRIES, EMISSION_FACTORS } from '@/lib/constants';
 import { useLanguage } from '@/components/LanguageContext';
 import { licenseErrorMessage } from '@/lib/i18n';
+import LicenseErrorNote from '@/components/LicenseErrorNote';
 import { localizeCountry } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,13 +49,17 @@ export default function Settings() {
   // effect filled them in, which is a second render for data already sitting in
   // localStorage — and that effect is gone, so lazy initialisers are now the only
   // thing that fills them.
-  const [company, setCompany] = useState(() => getCompanyProfile());
-  const [settings, setSettings] = useState(() => getSettings());
+  // Someone who went straight to their questionnaire has no company profile yet - the
+  // profile is deferred to /data. Settings used to wait for one and showed "Loading..."
+  // forever, which locked that person out of their licence, backups and deactivation.
+  const [company, setCompany] = useState(() => getCompanyProfile() || {});
+  const [settings, setSettings] = useState(() => getSettings() || {});
   const [saved, setSaved] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [licenseKey, setLicenseKey] = useState('');
   const [licenseLoading, setLicenseLoading] = useState(false);
   const [licenseError, setLicenseError] = useState('');
+  const [licenseErrorCode, setLicenseErrorCode] = useState(null);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
 
   const handleCompanyUpdate = (field, value) => {
@@ -137,9 +142,11 @@ export default function Settings() {
 
     setLicenseLoading(true);
     setLicenseError('');
+    setLicenseErrorCode(null);
 
     const result = await activate(key);
     if (!result.valid) {
+      setLicenseErrorCode(result.code || null);
       setLicenseError((result.error || result.code)
         ? licenseErrorMessage(result, t)
         : t('settings.activationFailed'));
@@ -149,10 +156,6 @@ export default function Settings() {
 
     setLicenseLoading(false);
   };
-
-  if (!company || !settings) {
-    return <div className="p-8 text-center text-slate-400">{t('settings.loading')}</div>;
-  }
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -356,7 +359,7 @@ export default function Settings() {
                 disabled={licenseLoading}
               />
             </div>
-            {licenseError && <p className="text-sm text-red-600">{licenseError}</p>}
+            <LicenseErrorNote message={licenseError} code={licenseErrorCode} t={t} />
             <Button type="submit" variant="outline" disabled={licenseLoading}>
               {licenseLoading ? (
                 <>
