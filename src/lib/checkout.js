@@ -26,7 +26,7 @@ export const PASSPORT_PRICE = '€499';
 export function localPrice(price, lang) {
   if (lang !== 'de') return price;
   const amount = String(price).replace('€', '').trim();
-  return `${amount} €`;
+  return `${amount}\u00A0€`;
 }
 
 // Every checkout in the app goes through one of these two. checkout_opened used to
