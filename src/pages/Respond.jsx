@@ -2953,7 +2953,7 @@ export default function Respond({ demoOnly = false }) {
           )}
 
           {canUpload && (
-          <div className="order-5 flex gap-3 sm:order-6">
+          <div className="order-5 flex flex-col gap-3 sm:order-6 sm:flex-row">
             {file && (
               <Button onClick={parseFile} disabled={parsing} className="flex-1 bg-slate-900 hover:bg-slate-800 text-white">
                 {parsing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('respond.parsing')}</>
@@ -2963,7 +2963,7 @@ export default function Respond({ demoOnly = false }) {
               </Button>
             )}
             {!showMapping && file && !parsing && (
-              <Button variant="outline" onClick={() => { setShowMapping(true); if (!mappingColumns) parseFile(); }} className="text-slate-600 border-slate-300">{t('respond.manualMapping')}</Button>
+              <Button variant="outline" onClick={() => { setShowMapping(true); if (!mappingColumns) parseFile(); }} className="h-auto min-h-10 whitespace-normal text-slate-600 border-slate-300">{t('respond.manualMapping')}</Button>
             )}
           </div>
           )}
